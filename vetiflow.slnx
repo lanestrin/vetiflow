@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/Solution Items/">
+    <File Path=".gitignore" />
+  </Folder>
+  <Project Path="vetiflow.client/vetiflow.client.esproj">
+    <Build />
+    <Deploy />
+  </Project>
+  <Project Path="vetiflow.Server/vetiflow.Server.csproj" />
+</Solution>

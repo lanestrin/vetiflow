@@ -1,0 +1,11 @@
+@vetiflow.Server_HostAddress = https://localhost:7274
+
+GET {{vetiflow.Server_HostAddress}}/api/health
+Accept: application/json
+
+###
+
+GET {{vetiflow.Server_HostAddress}}/api/cases
+Accept: application/json
+
+###
