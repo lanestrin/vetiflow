@@ -1,5 +1,5 @@
 ﻿import { Navigate, Route, Routes } from "react-router-dom";
-import ErBoardPage from "../routes/ErBoardPage";
+import { ErBoardPage } from "../routes/ErBoardPage";
 
 function App() {
   return (

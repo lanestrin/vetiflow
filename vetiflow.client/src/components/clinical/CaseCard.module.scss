@@ -1,0 +1,65 @@
+.card {
+	display: grid;
+	gap: var(--space-3);
+	padding: var(--space-4);
+	background: var(--color-surface);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+}
+
+.header {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: var(--space-3);
+}
+
+.patientName {
+	margin: 0;
+	font-size: 1rem;
+	font-weight: 700;
+	line-height: 1.25;
+}
+
+.patientDetails {
+	margin: var(--space-1) 0 0;
+	color: var(--color-text-secondary);
+	font-size: 0.875rem;
+}
+
+.complaint {
+	margin: 0;
+	line-height: 1.5;
+}
+
+.details {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: var(--space-3);
+	margin: 0;
+}
+
+.detail {
+	min-width: 0;
+}
+
+.detailLabel {
+	margin-bottom: var(--space-1);
+	color: var(--color-text-secondary);
+	font-size: 0.75rem;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+
+.detailValue {
+	margin: 0;
+	font-size: 0.875rem;
+}
+
+.nextAction {
+	margin: 0;
+	padding-top: var(--space-3);
+	border-top: 1px solid var(--color-border);
+	font-size: 0.875rem;
+}
