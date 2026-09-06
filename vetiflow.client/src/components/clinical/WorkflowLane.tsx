@@ -30,12 +30,18 @@ export function WorkflowLane({
       </header>
 
       <div className={styles.caseList}>
-        {cases.map((emergencyCase) => (
-          <CaseCard
-            key={emergencyCase.id}
-            emergencyCase={emergencyCase}
-          />
-        ))}
+        {cases.length === 0 ? (
+          <p className={styles.empty}>
+            No patients
+          </p>
+        ) : (
+          cases.map((emergencyCase) => (
+            <CaseCard
+              key={emergencyCase.id}
+              emergencyCase={emergencyCase}
+            />
+          ))
+        )}
       </div>
     </section>
   );

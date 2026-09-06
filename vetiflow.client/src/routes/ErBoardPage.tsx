@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 import { WorkflowLane } from "../components/clinical/WorkflowLane";
+import { ErBoardStatusBar } from "../components/clinical/ErBoardStatusBar";
 import type {
   CaseStage,
   EmergencyCaseListItem
 } from "../types/EmergencyCaseListItem";
+
+import { getEmergencyCases } from "../services/casesApi";
 import styles from "./ErBoardPage.module.scss";
-import { getEmergencyCases } from "../types/casesApi";
 
 interface WorkflowStage {
   title: string;
@@ -53,6 +55,8 @@ export function ErBoardPage() {
     <main className={styles.page}>
       <header className={styles.header}>
         <h1 className={styles.title}>VetiFlow ER Board</h1>
+
+        <ErBoardStatusBar cases={cases} />
       </header>
 
       <div className={styles.board}>
