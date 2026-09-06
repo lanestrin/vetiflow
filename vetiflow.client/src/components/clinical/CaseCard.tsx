@@ -1,6 +1,10 @@
 import type { EmergencyCaseListItem } from "../../types/EmergencyCaseListItem";
 import styles from "./CaseCard.module.scss";
 
+import { AcuityBadge } from "./AcuityBadge";
+import { CaseTimer } from "./CaseTimer";
+import { CaseStatusLabel } from "./CaseStatusLabel";
+
 interface CaseCardProps {
   emergencyCase: EmergencyCaseListItem;
 }
@@ -19,6 +23,8 @@ export function CaseCard({ emergencyCase }: CaseCardProps) {
             {emergencyCase.breed && ` • ${emergencyCase.breed}`}
           </p>
         </div>
+
+        <CaseTimer arrivalTime={emergencyCase.arrivalTime} />
       </header>
 
       <p className={styles.complaint}>
@@ -29,14 +35,14 @@ export function CaseCard({ emergencyCase }: CaseCardProps) {
         <div className={styles.detail}>
           <dt className={styles.detailLabel}>Acuity</dt>
           <dd className={styles.detailValue}>
-            {emergencyCase.acuity ?? "Not triaged"}
+            <AcuityBadge acuity={emergencyCase.acuity} />
           </dd>
         </div>
 
         <div className={styles.detail}>
           <dt className={styles.detailLabel}>Status</dt>
           <dd className={styles.detailValue}>
-            {emergencyCase.status}
+            <CaseStatusLabel status={emergencyCase.status} />
           </dd>
         </div>
 
