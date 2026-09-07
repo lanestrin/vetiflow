@@ -7,55 +7,76 @@ import path from 'path';
 import child_process from 'child_process';
 import { env } from 'process';
 
-const baseFolder =
-    env.APPDATA !== undefined && env.APPDATA !== ''
+// https://vitejs.dev/config/
+export default defineConfig(({ command }) => {
+  const target = env.ASPNETCORE_HTTPS_PORT
+    ? `https://localhost:${env.ASPNETCORE_HTTPS_PORT}`
+    : env.ASPNETCORE_URLS
+      ? env.ASPNETCORE_URLS.split(';')[0]
+      : 'https://localhost:7274';
+
+  // Only create/read the ASP.NET HTTPS certificate
+  // when running the local Vite development server.
+  let https;
+
+  if (command === 'serve') {
+    const baseFolder =
+      env.APPDATA !== undefined && env.APPDATA !== ''
         ? `${env.APPDATA}/ASP.NET/https`
         : `${env.HOME}/.aspnet/https`;
 
-const certificateName = "vetiflow.client";
-const certFilePath = path.join(baseFolder, `${certificateName}.pem`);
-const keyFilePath = path.join(baseFolder, `${certificateName}.key`);
+    const certificateName = 'vetiflow.client';
+    const certFilePath = path.join(baseFolder, `${certificateName}.pem`);
+    const keyFilePath = path.join(baseFolder, `${certificateName}.key`);
 
-if (!fs.existsSync(baseFolder)) {
-    fs.mkdirSync(baseFolder, { recursive: true });
-}
-
-if (!fs.existsSync(certFilePath) || !fs.existsSync(keyFilePath)) {
-    if (0 !== child_process.spawnSync('dotnet', [
-        'dev-certs',
-        'https',
-        '--export-path',
-        certFilePath,
-        '--format',
-        'Pem',
-        '--no-password',
-    ], { stdio: 'inherit', }).status) {
-        throw new Error("Could not create certificate.");
+    if (!fs.existsSync(baseFolder)) {
+      fs.mkdirSync(baseFolder, { recursive: true });
     }
-}
 
-const target = env.ASPNETCORE_HTTPS_PORT ? `https://localhost:${env.ASPNETCORE_HTTPS_PORT}` :
-    env.ASPNETCORE_URLS ? env.ASPNETCORE_URLS.split(';')[0] : 'https://localhost:7274';
+    if (!fs.existsSync(certFilePath) || !fs.existsSync(keyFilePath)) {
+      if (
+        child_process.spawnSync(
+          'dotnet',
+          [
+            'dev-certs',
+            'https',
+            '--export-path',
+            certFilePath,
+            '--format',
+            'Pem',
+            '--no-password',
+          ],
+          { stdio: 'inherit' }
+        ).status !== 0
+      ) {
+        throw new Error('Could not create certificate.');
+      }
+    }
 
-// https://vitejs.dev/config/
-export default defineConfig({
+    https = {
+      key: fs.readFileSync(keyFilePath),
+      cert: fs.readFileSync(certFilePath),
+    };
+  }
+
+  return {
     plugins: [plugin()],
+
     resolve: {
-        alias: {
-            '@': fileURLToPath(new URL('./src', import.meta.url))
-        }
+      alias: {
+        '@': fileURLToPath(new URL('./src', import.meta.url)),
+      },
     },
+
     server: {
       proxy: {
         '^/api': {
           target,
-          secure: false
-        }
+          secure: false,
+        },
       },
-        port: parseInt(env.DEV_SERVER_PORT || '52540'),
-        https: {
-            key: fs.readFileSync(keyFilePath),
-            cert: fs.readFileSync(certFilePath),
-        }
-    }
-})
+      port: parseInt(env.DEV_SERVER_PORT || '52540'),
+      https,
+    },
+  };
+});
