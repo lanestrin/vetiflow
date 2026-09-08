@@ -9,28 +9,42 @@ namespace vetiflow.Server.Controllers;
 public class HealthController : ControllerBase
 {
 	private readonly VetiFlowDbContext _dbContext;
+	private readonly ILogger<HealthController> _logger;
 
-	public HealthController(VetiFlowDbContext dbContext)
+	public HealthController(
+		VetiFlowDbContext dbContext,
+		ILogger<HealthController> logger)
 	{
 		_dbContext = dbContext;
+		_logger = logger;
 	}
 
 	[HttpGet]
 	public async Task<IActionResult> Get()
 	{
-		var canConnect = await _dbContext.Database.CanConnectAsync();
-
-		if (!canConnect)
+		try
 		{
-			return StatusCode(
-					StatusCodes.Status503ServiceUnavailable,
-					new { status = "unhealthy", database = "disconnected" });
+			await _dbContext.Database.ExecuteSqlRawAsync("SELECT 1");
+
+			return Ok(new
+			{
+				status = "healthy",
+				database = "connected"
+			});
 		}
-
-		return Ok(new
+		catch (Exception exception)
 		{
-			status = "healthy",
-			database = "connected"
-		});
+			_logger.LogError(
+				exception,
+				"Database health check failed.");
+
+			return StatusCode(
+				StatusCodes.Status503ServiceUnavailable,
+				new
+				{
+					status = "unhealthy",
+					database = "disconnected"
+				});
+		}
 	}
 }
