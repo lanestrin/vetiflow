@@ -22,34 +22,43 @@ builder.Services
 builder.Services.AddDbContext<VetiFlowDbContext>(options =>
 		options.UseNpgsql(connectionString));
 
+builder.Services.AddCors(options =>
+{
+	options.AddPolicy("VetiFlowClient", policy =>
+	{
+		policy
+				.WithOrigins(
+						"https://vetiflow.vercel.app",
+						"https://localhost:52540")
+				.AllowAnyHeader()
+				.AllowAnyMethod()
+				.AllowCredentials();
+	});
+});
+
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
 
-using (var scope = app.Services.CreateScope())
+if (app.Environment.IsDevelopment())
 {
+	using var scope = app.Services.CreateScope();
+
 	var dbContext = scope.ServiceProvider
 			.GetRequiredService<VetiFlowDbContext>();
 
 	await DbSeeder.SeedAsync(dbContext);
-}
 
-app.UseDefaultFiles();
-app.MapStaticAssets();
-
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-{
 	app.MapOpenApi();
 }
 
 app.UseHttpsRedirection();
 
+app.UseCors("VetiFlowClient");
+
 app.UseAuthorization();
 
 app.MapControllers();
-
-app.MapFallbackToFile("/index.html");
 
 app.Run();
