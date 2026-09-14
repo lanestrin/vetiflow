@@ -1,7 +1,9 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using vetiflow.Server.Contracts.Cases;
 using vetiflow.Server.Data;
+using vetiflow.Server.Hubs;
 
 namespace vetiflow.Server.Controllers;
 
@@ -10,10 +12,14 @@ namespace vetiflow.Server.Controllers;
 public class CasesController : ControllerBase
 {
 	private readonly VetiFlowDbContext _dbContext;
+	private readonly IHubContext<CaseHub> _caseHub;
 
-	public CasesController(VetiFlowDbContext dbContext)
+	public CasesController(
+			VetiFlowDbContext dbContext,
+			IHubContext<CaseHub> caseHub)
 	{
 		_dbContext = dbContext;
+		_caseHub = caseHub;
 	}
 
 	[HttpGet]
@@ -40,5 +46,30 @@ public class CasesController : ControllerBase
 				.ToListAsync();
 
 		return Ok(cases);
+	}
+
+	[HttpPatch("{id:guid}/stage")]
+	public async Task<IActionResult> UpdateStage(
+		Guid id,
+		UpdateCaseStageRequest request)
+	{
+		var emergencyCase = await _dbContext.EmergencyCases
+				.FirstOrDefaultAsync(emergencyCase => emergencyCase.Id == id);
+
+		if (emergencyCase is null)
+		{
+			return NotFound();
+		}
+
+		emergencyCase.Stage = request.Stage;
+		emergencyCase.LastUpdated = DateTimeOffset.UtcNow;
+
+		await _dbContext.SaveChangesAsync();
+
+		await _caseHub.Clients.All.SendAsync(
+				"caseUpdated",
+				emergencyCase.Id);
+
+		return NoContent();
 	}
 }

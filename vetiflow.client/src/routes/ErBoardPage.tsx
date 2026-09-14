@@ -7,6 +7,7 @@ import type {
 } from "../types/EmergencyCaseListItem";
 
 import { getEmergencyCases } from "../services/casesApi";
+import { createCaseHubConnection } from "../services/caseHub";
 import styles from "./ErBoardPage.module.scss";
 
 interface WorkflowStage {
@@ -29,18 +30,54 @@ export function ErBoardPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    let isActive = true;
+
+    const connection = createCaseHubConnection();
+
     async function loadCases() {
       try {
         const emergencyCases = await getEmergencyCases();
+
+        if (!isActive) {
+          return;
+        }
+
         setCases(emergencyCases);
+        setError(null);
       } catch {
-        setError("Unable to load emergency cases.");
+        if (isActive) {
+          setError("Unable to load emergency cases.");
+        }
       } finally {
-        setIsLoading(false);
+        if (isActive) {
+          setIsLoading(false);
+        }
       }
     }
 
-    loadCases();
+    connection.on("caseUpdated", () => {
+      void loadCases();
+    });
+
+    async function startLiveUpdates() {
+      try {
+        await connection.start();
+      } catch (connectionError) {
+        console.error(
+          "Unable to connect to live case updates.",
+          connectionError
+        );
+      }
+    }
+
+    void loadCases();
+    void startLiveUpdates();
+
+    return () => {
+      isActive = false;
+      connection.off("caseUpdated");
+      void connection.stop();
+    };
   }, []);
 
   if (isLoading) {
