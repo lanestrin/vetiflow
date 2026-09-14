@@ -2,37 +2,40 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
 using vetiflow.Server.Data;
+using vetiflow.Server.Hubs;
 
 var builder = WebApplication.CreateBuilder(args);
 
 var connectionString = builder.Configuration
-		.GetConnectionString("VetiFlowDatabase")
-		?? throw new InvalidOperationException(
-				"Connection string 'VetiFlowDatabase' was not found.");
+				.GetConnectionString("VetiFlowDatabase")
+				?? throw new InvalidOperationException(
+								"Connection string 'VetiFlowDatabase' was not found.");
 
 // Add services to the container.
 builder.Services
-		.AddControllers()
-		.AddJsonOptions(options =>
-		{
-			options.JsonSerializerOptions.Converters.Add(
-					new JsonStringEnumConverter(JsonNamingPolicy.CamelCase));
-		});
+				.AddControllers()
+				.AddJsonOptions(options =>
+				{
+					options.JsonSerializerOptions.Converters.Add(
+									new JsonStringEnumConverter(JsonNamingPolicy.CamelCase));
+				});
 
 builder.Services.AddDbContext<VetiFlowDbContext>(options =>
-		options.UseNpgsql(connectionString));
+				options.UseNpgsql(connectionString));
+
+builder.Services.AddSignalR();
 
 builder.Services.AddCors(options =>
 {
 	options.AddPolicy("VetiFlowClient", policy =>
 	{
 		policy
-				.WithOrigins(
-						"https://vetiflow.vercel.app",
-						"https://localhost:52540")
-				.AllowAnyHeader()
-				.AllowAnyMethod()
-				.AllowCredentials();
+						.WithOrigins(
+										"https://vetiflow.vercel.app",
+										"https://localhost:52540")
+						.AllowAnyHeader()
+						.AllowAnyMethod()
+						.AllowCredentials();
 	});
 });
 
@@ -46,7 +49,7 @@ if (app.Environment.IsDevelopment())
 	using var scope = app.Services.CreateScope();
 
 	var dbContext = scope.ServiceProvider
-			.GetRequiredService<VetiFlowDbContext>();
+					.GetRequiredService<VetiFlowDbContext>();
 
 	await DbSeeder.SeedAsync(dbContext);
 
@@ -60,5 +63,7 @@ app.UseCors("VetiFlowClient");
 app.UseAuthorization();
 
 app.MapControllers();
+
+app.MapHub<CaseHub>("/hubs/cases");
 
 app.Run();

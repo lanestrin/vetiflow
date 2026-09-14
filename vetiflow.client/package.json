@@ -5,11 +5,14 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "server": "dotnet run --project ../vetiflow.Server/vetiflow.Server.csproj --launch-profile https",
     "build": "tsc -b && vite build",
+    "build:server": "dotnet build ../vetiflow.Server/vetiflow.Server.csproj",
     "lint": "eslint .",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@microsoft/signalr": "^10.0.11",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-router-dom": "^7.18.3",
