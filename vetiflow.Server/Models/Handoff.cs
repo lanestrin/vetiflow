@@ -10,7 +10,11 @@ public class Handoff
 
 	public Guid? FromStaffId { get; set; }
 
+	public StaffMember? FromStaff { get; set; }
+
 	public Guid? ToStaffId { get; set; }
+
+	public StaffMember? ToStaff { get; set; }
 
 	public required string Summary { get; set; }
 
@@ -21,4 +25,4 @@ public class Handoff
 	public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 
 	public DateTimeOffset? AcknowledgedAt { get; set; }
-}
+}

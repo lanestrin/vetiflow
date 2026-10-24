@@ -44,15 +44,20 @@ builder.Services.AddOpenApi();
 
 var app = builder.Build();
 
-if (app.Environment.IsDevelopment())
+// Apply migrations and seed demo data in every environment, so a fresh
+// deploy has a working schema and a populated board.
+using (var scope = app.Services.CreateScope())
 {
-	using var scope = app.Services.CreateScope();
-
 	var dbContext = scope.ServiceProvider
 					.GetRequiredService<VetiFlowDbContext>();
 
-	await DbSeeder.SeedAsync(dbContext);
+	await dbContext.Database.MigrateAsync();
 
+	await DbSeeder.SeedAsync(dbContext);
+}
+
+if (app.Environment.IsDevelopment())
+{
 	app.MapOpenApi();
 }
 
