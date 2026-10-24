@@ -1,3 +1,4 @@
+import { useId } from "react";
 import { CaseCard } from "./CaseCard";
 import styles from "./WorkflowLane.module.scss";
 import type {
@@ -16,13 +17,16 @@ export function WorkflowLane({
   stage,
   cases
 }: WorkflowLaneProps) {
+  const titleId = useId();
+
   return (
     <section
       className={styles.lane}
       data-stage={stage}
+      aria-labelledby={titleId}
     >
       <header className={styles.header}>
-        <h2 className={styles.title}>{title}</h2>
+        <h2 id={titleId} className={styles.title}>{title}</h2>
 
         <span className={styles.count}>
           {cases.length}

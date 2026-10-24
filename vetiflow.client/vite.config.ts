@@ -1,3 +1,4 @@
+/// <reference types="vitest/config" />
 import { fileURLToPath, URL } from 'node:url';
 
 import { defineConfig } from 'vite';
@@ -16,10 +17,11 @@ export default defineConfig(({ command }) => {
       : 'https://localhost:7274';
 
   // Only create/read the ASP.NET HTTPS certificate
-  // when running the local Vite development server.
+  // when running the local Vite development server
+  // (Vitest also runs as 'serve' but needs no certificate).
   let https;
 
-  if (command === 'serve') {
+  if (command === 'serve' && !env.VITEST) {
     const baseFolder =
       env.APPDATA !== undefined && env.APPDATA !== ''
         ? `${env.APPDATA}/ASP.NET/https`
@@ -82,6 +84,26 @@ export default defineConfig(({ command }) => {
       },
       port: parseInt(env.DEV_SERVER_PORT || '52540'),
       https,
+    },
+
+    test: {
+      environment: 'jsdom',
+      setupFiles: ['./src/test/setup.ts'],
+      // A fixed, fake API host so tests never depend on .env.local
+      // and can never reach a real backend.
+      env: {
+        VITE_API_BASE_URL: 'https://api.vetiflow.test',
+      },
+      // Undo vi.spyOn / vi.stubEnv / vi.stubGlobal after every test.
+      restoreMocks: true,
+      unstubEnvs: true,
+      unstubGlobals: true,
+      coverage: {
+        provider: 'v8',
+        include: ['src/**/*.{ts,tsx}'],
+        exclude: ['src/main.tsx', 'src/test/**', 'src/**/*.test.{ts,tsx}'],
+        reporter: ['text', 'html', 'lcov'],
+      },
     },
   };
 });
