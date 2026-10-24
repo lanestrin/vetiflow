@@ -30,5 +30,7 @@ public class CaseEvent
 
 	public Guid? CreatedByStaffId { get; set; }
 
+	public StaffMember? CreatedByStaff { get; set; }
+
 	public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
-}
+}

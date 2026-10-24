@@ -33,5 +33,7 @@ public class AiSummary
 
 	public Guid? ReviewedByStaffId { get; set; }
 
+	public StaffMember? ReviewedByStaff { get; set; }
+
 	public DateTimeOffset? ReviewedAt { get; set; }
-}
+}
