@@ -44,19 +44,23 @@ namespace vetiflow.Server.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<int>("Status")
-                        .HasColumnType("integer");
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<string>("SummaryText")
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<int>("Type")
-                        .HasColumnType("integer");
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.HasKey("Id");
 
                     b.HasIndex("EmergencyCaseId");
+
+                    b.HasIndex("ReviewedByStaffId");
 
                     b.ToTable("AiSummaries");
                 });
@@ -80,14 +84,69 @@ namespace vetiflow.Server.Migrations
                     b.Property<Guid>("EmergencyCaseId")
                         .HasColumnType("uuid");
 
-                    b.Property<int>("Type")
-                        .HasColumnType("integer");
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("CreatedByStaffId");
 
                     b.HasIndex("EmergencyCaseId");
 
                     b.ToTable("CaseEvents");
+                });
+
+            modelBuilder.Entity("vetiflow.Server.Models.CaseTask", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("AssignedToStaffId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("CreatedByStaffId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTimeOffset?>("DueAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("EmergencyCaseId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("ResolvedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("ResolvedByStaffId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AssignedToStaffId");
+
+                    b.HasIndex("CreatedByStaffId");
+
+                    b.HasIndex("EmergencyCaseId");
+
+                    b.HasIndex("ResolvedByStaffId");
+
+                    b.ToTable("CaseTasks");
                 });
 
             modelBuilder.Entity("vetiflow.Server.Models.EmergencyCase", b =>
@@ -96,8 +155,8 @@ namespace vetiflow.Server.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<int?>("Acuity")
-                        .HasColumnType("integer");
+                    b.Property<string>("Acuity")
+                        .HasColumnType("text");
 
                     b.Property<DateTimeOffset>("ArrivalTime")
                         .HasColumnType("timestamp with time zone");
@@ -127,18 +186,32 @@ namespace vetiflow.Server.Migrations
                     b.Property<Guid?>("RoomId")
                         .HasColumnType("uuid");
 
-                    b.Property<int>("Stage")
-                        .HasColumnType("integer");
+                    b.Property<string>("Stage")
+                        .IsRequired()
+                        .HasColumnType("text");
 
-                    b.Property<int>("Status")
-                        .HasColumnType("integer");
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<decimal?>("WeightKg")
                         .HasColumnType("numeric");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("PatientId");
+                    b.HasIndex("AssignedDoctorId");
+
+                    b.HasIndex("AssignedTechnicianId");
+
+                    b.HasIndex("PatientId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_EmergencyCases_PatientId_Active")
+                        .HasFilter("\"DischargedAt\" IS NULL");
+
+                    b.HasIndex("RoomId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_EmergencyCases_RoomId_Active")
+                        .HasFilter("\"DischargedAt\" IS NULL AND \"RoomId\" IS NOT NULL");
 
                     b.ToTable("EmergencyCases");
                 });
@@ -178,6 +251,10 @@ namespace vetiflow.Server.Migrations
 
                     b.HasIndex("EmergencyCaseId");
 
+                    b.HasIndex("FromStaffId");
+
+                    b.HasIndex("ToStaffId");
+
                     b.ToTable("Handoffs");
                 });
 
@@ -215,15 +292,13 @@ namespace vetiflow.Server.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<bool>("IsAvailable")
-                        .HasColumnType("boolean");
-
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<int>("Type")
-                        .HasColumnType("integer");
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.HasKey("Id");
 
@@ -247,8 +322,9 @@ namespace vetiflow.Server.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<int>("Role")
-                        .HasColumnType("integer");
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.HasKey("Id");
 
@@ -261,8 +337,9 @@ namespace vetiflow.Server.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<int>("Acuity")
-                        .HasColumnType("integer");
+                    b.Property<string>("Acuity")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<DateTimeOffset>("AssessedAt")
                         .HasColumnType("timestamp with time zone");
@@ -296,6 +373,8 @@ namespace vetiflow.Server.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("AssessedByStaffId");
+
                     b.HasIndex("EmergencyCaseId");
 
                     b.ToTable("TriageAssessments");
@@ -306,32 +385,99 @@ namespace vetiflow.Server.Migrations
                     b.HasOne("vetiflow.Server.Models.EmergencyCase", "EmergencyCase")
                         .WithMany()
                         .HasForeignKey("EmergencyCaseId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("vetiflow.Server.Models.StaffMember", "ReviewedByStaff")
+                        .WithMany()
+                        .HasForeignKey("ReviewedByStaffId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.Navigation("EmergencyCase");
+
+                    b.Navigation("ReviewedByStaff");
                 });
 
             modelBuilder.Entity("vetiflow.Server.Models.CaseEvent", b =>
                 {
-                    b.HasOne("vetiflow.Server.Models.EmergencyCase", "EmergencyCase")
+                    b.HasOne("vetiflow.Server.Models.StaffMember", "CreatedByStaff")
                         .WithMany()
+                        .HasForeignKey("CreatedByStaffId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("vetiflow.Server.Models.EmergencyCase", "EmergencyCase")
+                        .WithMany("Events")
                         .HasForeignKey("EmergencyCaseId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.Navigation("CreatedByStaff");
 
                     b.Navigation("EmergencyCase");
                 });
 
+            modelBuilder.Entity("vetiflow.Server.Models.CaseTask", b =>
+                {
+                    b.HasOne("vetiflow.Server.Models.StaffMember", "AssignedToStaff")
+                        .WithMany()
+                        .HasForeignKey("AssignedToStaffId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("vetiflow.Server.Models.StaffMember", "CreatedByStaff")
+                        .WithMany()
+                        .HasForeignKey("CreatedByStaffId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("vetiflow.Server.Models.EmergencyCase", "EmergencyCase")
+                        .WithMany("Tasks")
+                        .HasForeignKey("EmergencyCaseId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("vetiflow.Server.Models.StaffMember", "ResolvedByStaff")
+                        .WithMany()
+                        .HasForeignKey("ResolvedByStaffId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("AssignedToStaff");
+
+                    b.Navigation("CreatedByStaff");
+
+                    b.Navigation("EmergencyCase");
+
+                    b.Navigation("ResolvedByStaff");
+                });
+
             modelBuilder.Entity("vetiflow.Server.Models.EmergencyCase", b =>
                 {
+                    b.HasOne("vetiflow.Server.Models.StaffMember", "AssignedDoctor")
+                        .WithMany()
+                        .HasForeignKey("AssignedDoctorId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("vetiflow.Server.Models.StaffMember", "AssignedTechnician")
+                        .WithMany()
+                        .HasForeignKey("AssignedTechnicianId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("vetiflow.Server.Models.Patient", "Patient")
                         .WithMany()
                         .HasForeignKey("PatientId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("vetiflow.Server.Models.Room", "Room")
+                        .WithMany()
+                        .HasForeignKey("RoomId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("AssignedDoctor");
+
+                    b.Navigation("AssignedTechnician");
+
                     b.Navigation("Patient");
+
+                    b.Navigation("Room");
                 });
 
             modelBuilder.Entity("vetiflow.Server.Models.Handoff", b =>
@@ -339,21 +485,51 @@ namespace vetiflow.Server.Migrations
                     b.HasOne("vetiflow.Server.Models.EmergencyCase", "EmergencyCase")
                         .WithMany()
                         .HasForeignKey("EmergencyCaseId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("vetiflow.Server.Models.StaffMember", "FromStaff")
+                        .WithMany()
+                        .HasForeignKey("FromStaffId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("vetiflow.Server.Models.StaffMember", "ToStaff")
+                        .WithMany()
+                        .HasForeignKey("ToStaffId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.Navigation("EmergencyCase");
+
+                    b.Navigation("FromStaff");
+
+                    b.Navigation("ToStaff");
                 });
 
             modelBuilder.Entity("vetiflow.Server.Models.TriageAssessment", b =>
                 {
-                    b.HasOne("vetiflow.Server.Models.EmergencyCase", "EmergencyCase")
+                    b.HasOne("vetiflow.Server.Models.StaffMember", "AssessedByStaff")
                         .WithMany()
+                        .HasForeignKey("AssessedByStaffId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("vetiflow.Server.Models.EmergencyCase", "EmergencyCase")
+                        .WithMany("TriageAssessments")
                         .HasForeignKey("EmergencyCaseId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.Navigation("AssessedByStaff");
+
                     b.Navigation("EmergencyCase");
+                });
+
+            modelBuilder.Entity("vetiflow.Server.Models.EmergencyCase", b =>
+                {
+                    b.Navigation("Events");
+
+                    b.Navigation("Tasks");
+
+                    b.Navigation("TriageAssessments");
                 });
 #pragma warning restore 612, 618
         }

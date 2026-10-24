@@ -8,6 +8,8 @@ public class TriageAssessment
 
 	public EmergencyCase EmergencyCase { get; set; } = null!;
 
+	// The acuity assessed at this point in time. The case's current
+	// acuity lives on EmergencyCase and is set through RecordTriage.
 	public AcuityLevel Acuity { get; set; }
 
 	public int? HeartRate { get; set; }
@@ -27,4 +29,6 @@ public class TriageAssessment
 	public DateTimeOffset AssessedAt { get; set; } = DateTimeOffset.UtcNow;
 
 	public Guid? AssessedByStaffId { get; set; }
-}
+
+	public StaffMember? AssessedByStaff { get; set; }
+}
