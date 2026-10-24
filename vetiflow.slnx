@@ -6,5 +6,6 @@
     <Build />
     <Deploy />
   </Project>
+  <Project Path="vetiflow.Server.Tests/vetiflow.Server.Tests.csproj" />
   <Project Path="vetiflow.Server/vetiflow.Server.csproj" />
 </Solution>

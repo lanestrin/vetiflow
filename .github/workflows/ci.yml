@@ -1,0 +1,76 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+# A newer push to the same branch or PR cancels the run in progress.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  server:
+    name: Server tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+
+      # Integration tests start PostgreSQL in Docker via Testcontainers;
+      # the runner provides Docker.
+      - name: Test
+        run: >
+          dotnet test --project vetiflow.Server.Tests
+          --coverage --coverage-output-format cobertura
+          --coverage-output coverage.cobertura.xml
+
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: server-coverage
+          path: TestResults/coverage.cobertura.xml
+          if-no-files-found: ignore
+
+  client:
+    name: Client lint, build and tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: vetiflow.client
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: vetiflow.client/package-lock.json
+
+      - run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      # Type-checks the app and its tests, then bundles.
+      - name: Build
+        run: npm run build
+
+      - name: Test
+        run: npm run test:coverage
+
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: client-coverage
+          path: vetiflow.client/coverage
+          if-no-files-found: ignore
