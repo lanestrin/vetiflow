@@ -43,3 +43,9 @@ lerna-debug.log*
 # OS files
 .DS_Store
 Thumbs.db
+
+# Claude Code local settings
+.claude/settings.local.json
+
+# Workflow drafts written by /complete
+blueprint/context/landing.md
