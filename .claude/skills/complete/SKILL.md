@@ -6,25 +6,49 @@ disable-model-invocation: true
 
 # complete - archive the work and hand it over for landing
 
-This skill closes one work item. It does **not** commit, push or open a PR. The
-person does that from the drafts this skill writes.
+This skill closes one work item. It does **not** commit, push or open a PR.
+`/approve`, which only the person runs, does that from the drafts this skill
+writes.
 
 ## 1. Gates
 
-All must pass. Stop at the first that fails and say exactly what is missing.
+All must pass. Stop at the first that fails and report it as "When something
+fails or stops" in `blueprint/context/ai-interaction.md` says: which gates passed,
+what stopped, that nothing was archived yet, the options from the gate's
+**If it fails** line (as a selection when there is more than one), and that
+`/complete` reruns every gate when run again.
 
-1. `blueprint/context/current-feature.md` holds a real spec, every build step is
-   ticked and `Status` is `verified`.
-2. The current branch is the spec's `**Branch:**`, not `main`.
-3. `pwsh -File scripts/verify.ps1` passes now, with no options. Run it; do not
-   reuse an old result if files changed since.
-4. `blueprint/context/findings.md` has no P0 or P1 finding that is `open` or
-   `fixed`. A `fixed` one needs `/audit` to close it first.
-5. Audit ran for risky work: anything in build plan phase S or 8, migrations,
-   owner data, AI output, or a diff over about 400 lines. If it did not, stop
-   and recommend `/audit` (the person may say to skip it; record that).
-6. `git status` shows only files in the spec's scope plus workflow files. No
-   secrets, `.env`, `bin/`, `obj/` or `coverage/`.
+1. **Spec ready:** `blueprint/context/current-feature.md` holds a real spec,
+   every build step is ticked and `Status` is `verified`.
+   **If it fails:** an empty stub means there is nothing to complete; `/status`.
+   Otherwise one step: `/implement` (it resumes at the first unticked step and
+   sets `verified` after Verify), then `/complete`.
+2. **Branch:** the current branch is the spec's `**Branch:**`, not `main`.
+   **If it fails:** one step: `git switch <branch>` (uncommitted changes come
+   along), then `/complete`. If the work was built on `main`:
+   `git switch -c <branch>` moves the uncommitted changes to the new branch.
+3. **Verify:** run `/verify` with no options now; do not reuse an old result if
+   files changed since. A SKIP counts as a failure.
+   **If it fails:** the options from `/verify`'s "Common failures" table, then
+   `/complete`.
+4. **Findings:** `blueprint/context/findings.md` has no P0 or P1 finding that is
+   `open` or `fixed`.
+   **If it fails:** list the blocking IDs and titles, then the options from
+   `/audit`'s report for P0 or P1 (repair, Recommended; or dispute). A `fixed`
+   finding only needs confirming: `/clear`, `/audit`, then `/complete`.
+5. **Audit:** read the spec's `**Audit:**` line. When it says `not needed` but
+   the diff now meets "When to audit" in `ai-interaction.md`, treat it as
+   `required` and say why. When `required`, `findings.md` must have an
+   `Audit run` line for this branch.
+   **If it fails:** say why the work needs an audit, then offer:
+   1. Audit now: `/clear`, then `/audit`, then `/complete` (Recommended).
+   2. Skip it: Claude records "Audit: skipped by the person" and the reason in
+      the Result, then continues from gate 6. Only for low-risk reasons, such as
+      docs-only changes; never for phase S or 8, owner data or migrations.
+6. **Files:** `git status` shows only files in the spec's scope plus workflow
+   files.
+   **If it fails:** list the files and why each does not belong, then the options
+   from `/verify`'s "Unexpected files" table, then `/complete`.
 
 ## 2. Archive
 
@@ -47,26 +71,29 @@ All must pass. Stop at the first that fails and say exactly what is missing.
 
 ## 3. Draft the landing
 
-Write `blueprint/context/landing.md` (git-ignored) with:
+Follow "Commit messages and PRs" in `blueprint/context/coding-standards.md`
+for the type, subject, body, trailers and PR sections. Write two git-ignored
+files:
 
-- A conventional commit message: `feat: <summary>` or `fix: <summary>`, a blank
-  line, then 3 to 6 bullets saying what changed and why.
-- A PR title and description: what and why, how it was verified (the Verify
-  summary lines), anything the reviewer should look at, the history file, and
-  deploy notes (new env vars, migrations to run on Render).
+- `blueprint/context/landing-commit.txt`: the commit message and nothing else,
+  so `git commit -F` can use it as is. No headings, no PR text.
+- `blueprint/context/landing-pr.md`: the PR title on the first line, then the
+  description with the sections in the order the standards list them. Fill
+  them from the Verify output, the `/check` and `/audit` results, the Deploy
+  notes and the history file just written.
 
 ## 4. Hand over
 
 Tell the person:
 
 - The history file written and the build-plan line ticked.
-- The exact commands to land it, for example:
-  ```bash
-  git status            # check the list: only this work's files
-  git add <those files>  # or git add -A when nothing unrelated is listed
-  git commit -F blueprint/context/landing.md   # or paste the message
-  git push -u origin <branch>
-  ```
-  and that they open the PR on GitHub with the drafted description.
-- After the PR merges: `git switch main && git pull`, delete the branch, then
-  `/feature` for the next item.
+- The commit message in full and the PR title, so they can review them.
+- Then offer (see "Choosing the next step"):
+  1. `/approve`: commits, pushes and hands over the PR (Recommended).
+  2. Edit the drafts first: say what to change in the message or PR text;
+     Claude rewrites the files, then `/approve`.
+  3. Land it by hand: `git add -A`,
+     `git commit -F blueprint/context/landing-commit.txt`,
+     `git push -u origin <branch>`, then open the PR with `landing-pr.md`.
+
+What happens after the PR is open (review changes, merging) is in `/approve`.

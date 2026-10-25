@@ -14,9 +14,9 @@ VetiFlow is a real-time ER board for a veterinary emergency clinic. Staff see ev
 
 These always apply, with or without a skill.
 
-- **Never commit, push, merge or open a PR.** Leave changes in the working tree. The person reviews and commits.
+- **Commit and push only through `/approve`**, which only the person runs. Otherwise leave changes in the working tree. Never merge, force-push or commit to `main`.
 - **One work item per branch.** Never build on `main`. Never mix two build-plan items in one branch.
-- **Spec before code.** Planned work starts with `/feature`, unplanned work with `/fix`. Wait for the person's OK on the spec.
+- **Spec before code.** Planned work starts with `/feature`, unplanned work with `/fix`. Wait for the person's OK on the spec; its status then becomes `approved`. The one exception: changes asked for in review of an open PR go on the same branch without a new spec (step 7 of the loop in `blueprint/context/ai-interaction.md`).
 - **Never run migrations against production.** Only run `dotnet ef database update`, or start the app with migrations on, against a local or test database. Check the connection string first.
 - **Verify before saying done.** Run `scripts/verify.ps1` and report the real output. Never say a check passed without running it.
 - **Acuity changes only through `EmergencyCase.RecordTriage`.** Never assign `Acuity` directly.
@@ -35,7 +35,7 @@ These always apply, with or without a skill.
 
 ## Workflow
 
-The feature loop: `/feature` -> `/implement` -> `/verify` -> `/check` -> `/audit` (risky work) -> `/complete`.
+The loop (full description in `blueprint/context/ai-interaction.md`): `/feature` or `/fix` -> `/implement` -> `/audit` (when the spec says required, after `/clear`) -> `/check` -> `/complete` -> `/approve` -> the person squash-merges the PR. `/verify` runs inside `/implement` and `/complete`. When unsure what to type next, `/status`.
 
 | Need | Command |
 | --- | --- |
@@ -46,6 +46,7 @@ The feature loop: `/feature` -> `/implement` -> `/verify` -> `/check` -> `/audit
 | Prove it in the running app | `/check`, or `/check guide` for steps to try yourself |
 | Review the branch for problems | `/audit` |
 | Finish and archive the work | `/complete` |
+| Commit, push and open the PR | `/approve`, or `/approve "<message>"` |
 | A bug or small unplanned change | `/fix "<what is wrong>"` |
 | Cause of a failure is unclear | `/debug` |
 | Add tests to existing code | `/add-tests <class, method or endpoint>` |

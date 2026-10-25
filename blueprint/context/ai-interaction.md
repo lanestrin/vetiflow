@@ -20,38 +20,61 @@
 
 ## The loop
 
-Every planned item follows this loop. The spec lives in
-`blueprint/context/current-feature.md`.
+This is the one description of the loop; other files summarise it and link
+here. Every work item, planned or not, goes through it. The spec lives in
+`blueprint/context/current-feature.md`, and its `Status` moves
+`not started` -> `approved` -> `in progress` -> `verified`. `/complete` then
+archives it.
 
-1. **Spec.** `/feature` (or `/fix`) writes the spec and stops. You review it.
-   Nothing is built until you say OK.
-2. **Branch.** `/implement` creates the branch named in the spec from the latest
-   `main`. Never build on `main`.
-3. **Build in small steps.** One step at a time, in order. Each step ends with
-   something working and its "Done when" met.
-4. **Test with the step.** Logic gets its test in the same step. Run the narrow
-   test (`/test`) while working, then full Verify once at the end.
-5. **Review packet.** After the last step, `/implement` shows one packet:
-   changed files by area, checks run with real results, risks, and the next
-   command. It then offers a walkthrough of the code.
-6. **Prove it.** `/check` runs the app against the "Done when" list.
-   `/check guide` gives you a short "Try it now" to click through yourself.
-7. **Audit when it matters.** Run `/audit` for anything in build plan phase S
-   or 8, migrations, owner data, AI output, or a large diff. Open P0 or P1
-   findings block `/complete`.
-8. **Complete.** `/complete` checks the gates, archives the spec to
-   `blueprint/history/`, ticks the build plan, resets the context files and
-   drafts the commit message and PR description.
-9. **You land it.** You review the diff, commit, push and open the PR. After the
-   merge, the next item starts from the updated `main`.
+1. **Spec.** `/feature` (planned work) or `/fix` (unplanned work) writes the spec,
+   including the `**Audit:**` line (see "When to audit"), and stops. You choose:
+   OK it, change it, or drop it. On OK its status becomes `approved`. Nothing is
+   built before that.
+2. **Build.** `/implement` creates the spec's branch from the latest `main` and
+   builds one step at a time, with a test for any logic (`/test` for quick
+   checks). It runs Verify once at the end, sets `verified`, and ends with a
+   review packet and a choice of next steps.
+3. **Audit**, only when the spec says `required`. `/clear` first, so the review
+   comes from a session that did not write the code, then `/audit`. P0 or P1
+   findings go back to `/implement`, then `/audit` again.
+4. **Prove it.** `/check` runs the app against the "Done when" items that need
+   it; `/check guide` gives you steps to try yourself. Skipped when nothing can
+   be observed in the app.
+5. **Complete.** `/complete` reruns the gates, including Verify, archives the
+   spec to `blueprint/history/`, ticks the build plan, and drafts the commit
+   message and PR description.
+6. **Approve.** You run `/approve`. It commits with the draft, pushes and hands
+   over the PR.
+7. **Merge.** You squash-merge on GitHub once CI is green. Changes asked for in
+   review are made on the same branch, then `/approve` again. After the merge,
+   `/clear` and start the next item from the updated `main`.
 
-**Resuming after a lost chat.** Progress lives in files. The spec's ticked steps
-say what is done; git says what changed. A fresh `/implement` continues from the
-first unticked step. `/status` summarises where things are.
+`/verify` runs inside steps 2 and 5. Run it yourself whenever you want the full
+check.
+
+**Resuming after a lost chat or `/clear`.** Progress lives in files: the spec's
+status and ticked steps, `findings.md`, history and git. `/implement` continues
+from the first unticked step. `/status` says where things are and what to type
+next.
 
 **Without the skills.** You can also just ask for a change in chat. The rules
 here and in `coding-standards.md` still apply: a branch, small steps, tests for
 logic, Verify before done.
+
+## When to audit
+
+The spec's `**Audit:**` line is `required` when the work touches any of:
+
+- build plan phase S or 8;
+- sign-in, roles, owner access or the owner page;
+- migrations or stored data;
+- AI input or output;
+- a hard rule in `CLAUDE.md`, or a workflow skill's safety checks;
+- or a diff over about 400 lines.
+
+Otherwise it is `not needed`. Both come with a one-line reason. If the work grows
+into one of these while building, `/implement` changes the line to `required`
+and says why. `/complete` gate 5 reads it.
 
 ## Branching
 
@@ -59,33 +82,75 @@ logic, Verify before done.
 - Prefixes: `feature/` planned features, `fix/` fixes, `chore/` tooling and
   config, `docs/` documentation, `test/` test-only work.
 - Branch from the latest `main`. If the working tree has uncommitted changes
-  that are not part of this work, stop and ask.
+  that are not part of this work, stop and offer the "Unexpected files" options
+  from `/verify`.
 - One active work item per checkout. For parallel work, use a second clone or
   `git worktree add ../vetiflow-<name> -b <branch> main`, and run the loop there.
 
 ## Commits and PRs
 
-- **Claude never commits, pushes, merges or opens a PR.** You do all of these.
-- `/complete` writes a draft commit message and PR description to
-  `blueprint/context/landing.md` for you to copy. That file is not committed.
-- Conventional commit messages (`feat:`, `fix:`, `chore:`, `test:`, `docs:`),
-  one work item per commit.
+- Claude commits and pushes only through `/approve`, which only you run (hard
+  rule in `CLAUDE.md`). Merging is yours.
+- `/complete` writes the draft commit message to
+  `blueprint/context/landing-commit.txt` (ready for `git commit -F`) and the PR
+  title and description to `blueprint/context/landing-pr.md`. Neither file is
+  committed.
+- Format, types and merge strategy: "Commit messages and PRs" in
+  `coding-standards.md`.
 
 ## Safety
 
-- Never run migrations or seeding against production or any hosted database.
-  Check the connection string before `dotnet ef database update`.
+The hard rules in `CLAUDE.md` always apply. In addition:
+
+- Never seed a hosted database.
 - Never print or copy secrets, connection strings or `.env` contents into chat,
   specs, history or commit messages.
 - Never disable, skip or delete a test to make Verify pass. A failing test is
   either a real bug or a wrong test; say which and why.
 
-## When stuck
+## Choosing the next step
 
-- After 2 or 3 failed attempts at the same problem, stop and explain what you
-  tried and what you saw. No random fixes.
-- If the spec is wrong or missing a decision, stop and propose a spec change.
+Whenever there is more than one sensible next step, let the person choose:
+
+- Ask with a selection prompt (the AskUserQuestion tool): 2 to 4 options, the
+  recommended one first with "(Recommended)" in its label, each with one line on
+  what it does and what follows. The person can always type their own answer.
+- Without that tool, use a numbered list, mark the recommended option, and ask
+  for the number.
+- Recommend from the facts and say why in one line: the safer option when the
+  risk is real, the shorter path when it is not.
+- After the choice, act on it straight away when Claude can (record a skipped
+  audit, accept a finding, stash files, add a repair step to the spec). When it
+  is a command only the person can run (`/implement`, `/audit`, `/check`,
+  `/complete`, `/approve`, `/fix`, `/clear`), say exactly what to type, in order.
+- With only one sensible next step, skip the prompt and say what to type.
+
+## When something fails or stops
+
+Every skill reports a failed check, a stopped gate or a command error the same
+way. "Next: `/audit`" on its own is not enough. Always say:
+
+1. **What happened**, in plain words, and which kind it is:
+   - **Error:** something is broken (a failing test, a build error, a rejected push).
+   - **Safety stop:** a gate working as designed (audit required, wrong branch,
+     unrelated files).
+   - **Environment problem:** the machine, not the code (Docker not running, the
+     app holding a file lock, a tool not installed).
+2. **What changed:** "nothing", or exactly which files or state changed before
+   the stop.
+3. **What you do next:** the options, as in "Choosing the next step". The
+   common ones are in the "Common failures" and "Unexpected files" tables in
+   `/verify`.
+4. **What happens after:** what success looks like, and where the loop resumes
+   (for example "then `/complete` again; it reruns every gate").
+
+Also:
+
+- After 2 or 3 failed attempts at the same problem, stop and report it this way.
+  No random fixes.
+- If the spec is wrong or missing a decision, stop and offer a spec change.
 - If requirements are unclear, ask.
+- When unsure where things stand, `/status` gives the state and the next command.
 
 ## Code changes
 

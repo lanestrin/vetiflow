@@ -17,9 +17,14 @@ In one batch, read:
 - `git status`, the current branch, and `git log --oneline -5`
 - the Commands section of `CLAUDE.md`
 
-Stop and point to `/feature` or `/fix` if the spec is the empty stub. Stop and
-ask if the person has not approved the spec in this conversation and its
-`Status` is still `not started`.
+- Empty stub: stop; there is nothing to build. Next: `/feature` or `/fix`.
+- `Status: not started`: the spec has not been approved. Offer (see "Choosing
+  the next step" in `blueprint/context/ai-interaction.md`): 1. OK it now (Claude
+  sets `approved` and continues) (Recommended once they have read it).
+  2. Change it first.
+- `approved` or `in progress`: build from the first unticked step.
+- `verified` with every step ticked: nothing left to build; show the review
+  packet's next-step choice (section 6).
 
 ## 2. Branch
 
@@ -28,7 +33,7 @@ ask if the person has not approved the spec in this conversation and its
   `git switch -c <branch> origin/main`.
 - If it exists, switch to it.
 - Never build on `main`. If uncommitted changes unrelated to this spec are in
-  the tree, stop and ask what to do with them.
+  the tree, stop and offer the "Unexpected files" options from `/verify`.
 - Set the spec's `Status` to `in progress`.
 
 ## 3. Build loop
@@ -38,7 +43,10 @@ For each unticked step, in order:
 1. Read only the files the step touches.
 2. Make the smallest change that meets its *Done when*. Build only what the spec
    says. If the step needs a product decision, a new package, or scope beyond
-   the spec, stop and propose a spec change.
+   the spec, stop and offer: change the spec (Recommended, shows the exact
+   change for an OK), or build it later as a separate build-plan item or `/fix`.
+   If the work now meets "When to audit", set the spec's `**Audit:**` line to
+   `required` and say why.
 3. Add the step's tests in the same change when it adds logic (see Testing in
    `coding-standards.md`). For a bug, write the failing test first.
 4. Model change? Follow `/migration` for the migration in this step.
@@ -61,8 +69,10 @@ step's diff grows too big to review, split it in the spec first.
 ## 5. Verify
 
 Run `/verify` once. If it fails, fix only in-scope problems, rerun the narrow
-check, then rerun Verify. After 2 or 3 failed attempts on the same failure, stop
-and explain.
+check, then rerun Verify. After 2 or 3 failed attempts on the same failure, or
+when the problem is outside this spec, stop as "When something fails or stops"
+says: what failed, which steps are ticked, and the options from `/verify`'s
+"Common failures" table. `/implement` resumes where it stopped.
 
 When Verify passes and every box is ticked, set `Status` to `verified`.
 
@@ -74,15 +84,19 @@ Read `blueprint/context/findings.md`. Then present:
 - Changes grouped by area (server, data, client, tests).
 - Checks run, with their real results.
 - Open findings, if any. Open P0 or P1 findings block `/complete`.
+- The spec's `**Audit:**` line.
 - Risks and anything you could not verify (for example, UI not yet seen in a browser).
-- Next command: `/check` for behaviour you can observe in the app, `/audit` for
-  risky work, then `/complete`.
 
-Then offer:
+Then offer the next step (see "Choosing the next step"). The first option follows
+the loop:
 
-1. Walk me through the implementation (a read-only tour: per step, the purpose,
-   key files and symbols, data flow and non-obvious decisions).
-2. Request changes.
-3. Continue to the next command.
+1. The next loop step (Recommended):
+   - Audit `required`: `/clear`, then `/audit`.
+   - Otherwise, when a *Done when* needs the running app: `/check` (or
+     `/check guide` to try it yourself).
+   - Otherwise: `/complete`.
+2. Walk me through it first: a read-only tour per step (purpose, key files and
+   symbols, data flow, non-obvious decisions), then this choice again.
+3. Request changes: say what; they become spec changes for your OK.
 
 Never commit, push or merge from this skill.

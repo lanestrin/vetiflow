@@ -139,5 +139,67 @@ Tests are a gate, not an extra. Both runners exist, so:
 
 - No em dashes in docs, comments, commit messages or specs. Use a hyphen, comma,
   colon or parentheses.
-- Commit messages: conventional prefixes (`feat:`, `fix:`, `chore:`, `test:`,
-  `docs:`), one work item per commit, the body says why.
+
+## Commit messages and PRs
+
+This is the one place these rules live. `/complete` drafts both from them, and
+`.github/pull_request_template.md` has the same PR sections.
+
+### Type
+
+Take the conventional type from the branch prefix:
+
+| Branch | Type |
+| --- | --- |
+| `feature/` | `feat` |
+| `fix/` | `fix` |
+| `chore/` | `chore` |
+| `docs/` | `docs` |
+| `test/` | `test` |
+
+A change that breaks an API contract or needs a deploy step (a migration to run,
+a new required setting) adds `!` after the type, `feat!: ...`, and a
+`BREAKING CHANGE: <what to do>` footer.
+
+### Commit message
+
+- Subject: `<type>: <summary>`, imperative ("add", not "added"), at most 72
+  characters, no full stop. For a build-plan item, end with its ID:
+  `feat: add owners and repeated vitals (0.2)`.
+- Blank line, then a short paragraph saying why the change was needed.
+- Then 3 to 6 bullets saying what changed.
+- Trailers last, one per line:
+  - `Refs: build-plan <id>` for a feature, or
+    `Refs: blueprint/history/fixes/<file>` for a fix.
+  - `BREAKING CHANGE: ...` when it applies.
+  - `Co-Authored-By: ...` when Claude helped.
+- One work item per commit. Commits in the middle of the work are fine; with
+  squash merge only the PR title and description reach `main`.
+
+### PR title and description
+
+- Title: the same as the commit subject.
+- Write for a reviewer, or someone reading the history later, who has not read
+  the spec. Lead with what changes for staff or owners, not a list of files.
+- Sections, in this order:
+  - **Summary:** what changes and why, in 2 to 4 sentences.
+  - **Changes:** grouped by area (server, data, client, tests, workflow).
+  - **How it was verified:** the Verify summary lines, what `/check` showed, and
+    whether `/audit` ran and which findings it closed.
+  - **Reviewer notes:** what to look at closely, and any trade-off made.
+  - **Deploy notes:** env vars, migrations to run, settings, or "none".
+  - **History:** the `blueprint/history/` file for this work.
+
+### Merging
+
+Merge PRs with **squash merge**, using the PR title as the commit subject, so
+each work item lands on `main` as one conventional commit, with the PR number
+added as `(#<n>)`. That keeps the history and GitHub's generated release notes
+readable.
+
+Protect `main`: require a pull request before merging, and require the CI checks
+"Server tests" and "Client lint, build and tests" to pass. Nothing then reaches
+`main` without review and green CI.
+
+Squash merge and branch protection are GitHub repository settings; nothing in
+the repo enforces them.
