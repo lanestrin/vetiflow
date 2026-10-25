@@ -1,0 +1,119 @@
+# Project Plan
+
+> One of the two planning docs you own. It says why VetiFlow exists, who it is
+> for, and what it must never do. The build plan says in what order things get
+> built; each feature spec says how one item gets built. Change this file when a
+> product decision changes, and note the decision in the build plan's Decisions
+> section.
+
+## 1. Problem - What problem are we solving?
+
+In a veterinary emergency room, the state of every patient lives on a
+whiteboard, in people's heads and in the practice software. Staff lose time
+asking who is waiting, who is critical, which room is free and what happens
+next. Owners in the waiting room get no updates and ask the front desk again
+and again.
+
+VetiFlow is a real-time ER board: every active case by stage, acuity and wait
+time, updated on every open screen the moment anyone changes it. A separate,
+private owner page tells each owner how their own pet is doing, in calm words.
+
+## 2. Users - Who is this for?
+
+- **Veterinarians.** Set acuity through triage, own treatment decisions, confirm
+  AI drafts and handoffs.
+- **Technicians.** Move cases between stages, record vitals and tasks, see their
+  workload.
+- **Managers.** See the whole board, rooms and team load; later, the audit log.
+- **Pet owners.** Never see the staff board. They get a private page for their
+  own pet only, with calm wording and no acuity, reached through a scoped,
+  expiring link or sign-in.
+
+Staff use shared clinic workstations, so sessions must lock quickly.
+
+## 3. Features - What does the MVP need?
+
+1. Live staff board: lanes by stage, cards with acuity, wait timer and next action.
+2. Change a case's stage (drag and drop, and a keyboard menu) with live updates.
+3. Case detail drawer: patient, owner, triage, vitals, tasks, timeline.
+4. Intake, triage, staff and room assignment, tasks and blockers.
+5. AI assistance: intake summary and handoff drafts, always marked unconfirmed until a clinician confirms.
+6. Handoffs and discharge.
+7. Private owner page.
+8. Staff sign-in and roles before any of the above goes live.
+
+## 4. Data - What are we storing?
+
+- `Patient` (name, species, breed, sex) and, from build plan 0.2, `Owner` with contact details.
+- `EmergencyCase`: stage, status, current acuity, assigned doctor, technician and room, next action, arrival and discharge times.
+- `TriageAssessment`: the history of acuity decisions. The case's current acuity comes from the latest one through `RecordTriage`.
+- `CaseTask`: tasks and blockers on a case.
+- `CaseEvent`: the case timeline (stage changes and other events).
+- `AiSummary` and `Handoff`: AI drafts and their confirmation.
+- `StaffMember`, `Room`.
+
+Rules that later features must keep:
+
+- A patient has at most one active case, and a room holds at most one active
+  case (`DischargedAt IS NULL`). Partial unique indexes enforce both.
+- Enums are stored as text. Renaming a value needs a migration that updates
+  stored rows.
+- Deletes never cascade. Case history, assessments, AI output and handoffs are
+  the audit trail.
+
+## 5. Tech - What stack are we using?
+
+- **ASP.NET Core on .NET 10** - REST API under `/api`, SignalR hub at `/hubs/cases`.
+- **EF Core with Npgsql** - Postgres access and migrations.
+- **PostgreSQL on Supabase** - the hosted database.
+- **React 19, Vite, TypeScript, SCSS modules** - the client.
+- **xUnit v3 with Testcontainers; Vitest with React Testing Library and MSW** - tests.
+- **GitHub Actions** - CI on every PR.
+- **An AI provider behind `IAiProvider`** - not chosen yet (build plan 5.1).
+
+## 6. Monetize - How will this make money?
+
+Not part of v1. Open question.
+
+## 7. UI/UX - How should this look and feel?
+
+- Staff board: dark top bar (logo, hospital and shift, stats), left icon nav,
+  lanes by stage, cards with species icon, coloured acuity badge, large timer,
+  staff name and next action. Build against the screenshots in
+  `blueprint/reference/`.
+- Acuity colours and labels: Critical, Urgent, High, Low, in that order.
+- Calm, plain wording on the owner page. No acuity, no clinical shorthand.
+- Accessible: keyboard alternative to drag and drop, `aria-live` for remote
+  changes, AA contrast.
+- Staff and owner display labels live in the client, separate from the API's
+  enum values.
+
+Routes:
+
+- `/` - staff ER board
+- owner page route - decided in build plan 6.3
+
+## 8. Deployment - Where and how will this ship?
+
+- **API:** Docker container on Render, running as a non-root user.
+- **Client:** Vercel, SPA routing.
+- **Database:** Supabase Postgres.
+- **Env vars by name:** `ConnectionStrings__VetiFlowDatabase` on Render;
+  `VITE_API_BASE_URL` on Vercel. Planned by build plan S.1 and S.3:
+  `Database__MigrateOnStartup`, `Database__SeedDemoData`,
+  `Cors__AllowedOrigins__0`. Nothing secret goes in a `VITE_` variable.
+- **Health check:** `GET /api/health`.
+- Migrations in production run as a deliberate deploy step, never by accident
+  from a developer machine.
+
+## 9. Usage model and constraints
+
+- Internet-facing. Holds owner contact details and clinical notes.
+- Staff are trusted only after sign-in, and only for their role. Owners are
+  untrusted users and reach only their own pet's case.
+- Not live yet. Security foundations (build plan phase S) come before features
+  that depend on knowing who the user is, and the phase 8 gate must be done
+  before launch.
+- One clinic at a time. Multi-clinic tenancy is not a requirement.
+- AI output is a draft until a clinician confirms it. Owner contact details
+  never go to the AI provider.
