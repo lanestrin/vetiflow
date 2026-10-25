@@ -55,6 +55,19 @@ A table: *Done when* item, what was done, what was observed, PASS or FAIL.
 State plainly anything you could not observe and why. Do not mark the spec
 `verified` from here; `/implement` owns status.
 
+Then the next step (see "Choosing the next step" in
+`blueprint/context/ai-interaction.md`):
+
+- **All PASS:** one step, no prompt. Next: `/complete`.
+- **A FAIL:**
+  1. Fix it: `/implement` and describe the failure, then `/check` again
+     (Recommended when the app does not do what the spec says).
+  2. `/debug` to find the cause first (Recommended when it is unclear).
+  3. The spec was wrong: Claude proposes a corrected *Done when* for your OK.
+- **Could not observe an item:** say what is missing (the app not running, no
+  browser tool, no test data) and how to provide it, then `/check` again; or
+  `/check guide` to try it yourself.
+
 ## Guide mode
 
 Write a short `## Try it now` for the person:

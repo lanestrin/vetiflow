@@ -3,6 +3,10 @@
 **From build-plan:** feature <id>
 **Status:** not started
 **Branch:** `<branch from the build plan>`
+**Audit:** required - <reason> | not needed - <reason>
+
+<!-- Status: not started -> approved (the person's OK) -> in progress -> verified.
+Audit: see "When to audit" in blueprint/context/ai-interaction.md. -->
 
 ## Goal
 

@@ -10,19 +10,19 @@
   its spec in `blueprint/history/features/` uses that ID.
 - Add new items at the end of the right phase with the next free number. When an
   item is too big for one PR, `/feature` proposes lettered sub-items (2.3a, 2.3b).
-- `/complete` ticks the item and adds `Done (history/features/<file>)`. You add
-  the PR number when it merges.
+- `/complete` ticks the item and adds `Done (history/features/<file>)`. The
+  squash-merge commit on `main` carries the PR number (`(#<n>)`), so nothing is
+  edited after the merge.
 - Bugs and small unplanned changes do not go here. They use `/fix` and land in
   `blueprint/history/fixes/`.
 
 ## How each item works
 
-1. `/brief <id>` (optional) explains the item: what it touches, what it depends on, rough size.
-2. `/feature <id>` writes `blueprint/context/current-feature.md` with small steps and a "Done when" for each. You approve it.
-3. `/implement` creates the branch listed below from the latest `main` and builds one step at a time, with tests for any logic.
-4. `/verify` runs `scripts/verify.ps1`. `/check` proves the behaviour in the running app. `/audit` reviews risky work (anything in phase S or 8, migrations, owner data).
-5. `/complete` checks the gates, archives the spec to `blueprint/history/`, ticks the item and drafts the commit message and PR description.
-6. You review, commit, push and open the PR. Aim for a few hundred lines or less. The next item starts from the updated `main` after the merge.
+Each item goes through the loop described in `blueprint/context/ai-interaction.md`:
+`/brief <id>` (optional) -> `/feature <id>` -> `/implement` -> `/audit` (when the
+spec says required) -> `/check` -> `/complete` -> `/approve` -> you squash-merge.
+The branch is the one listed on the item. Aim for a PR of a few hundred lines or
+less.
 
 ## Decisions
 
@@ -45,6 +45,7 @@
 - [ ] **1.4** `fix/dependabot-alerts`: resolve any open alerts that remain after PR #13's `npm audit fix` (check brace-expansion, source-map-js, zod).
 - [ ] **1.5** `docs/readme`: README with a screenshot, the live link and local setup.
 - [ ] **1.6** `chore/ci-verify-script`: make CI call `scripts/verify.ps1` so CI and local checks can never drift apart.
+- [ ] **1.7** `chore/release-notes`: `.github/release.yml` so GitHub's generated release notes group squash-merged commits by type (features, fixes, chores), plus a first tag.
 
 ## Phase S: Security foundations (before Phase 2)
 

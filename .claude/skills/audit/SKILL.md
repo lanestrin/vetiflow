@@ -14,8 +14,8 @@ that is `/check`.
 
 - `/audit` or `/audit current`: the whole branch delta, all lenses.
 - `/audit security`, `/audit data`, `/audit tests`, `/audit quality`: one lens.
-- For security-sensitive work (build plan phase S or 8, owner page, AI data),
-  recommend running this in a fresh Claude session that did not write the code.
+- The loop runs it after `/clear`, so the reviewer is not the session that
+  wrote the code. If this session wrote the changes, say so in the report.
 
 ## 1. Gather
 
@@ -26,8 +26,8 @@ that is `/check`.
 
 ## 2. Run available signals
 
-`/verify` output if it ran in this session; otherwise run
-`pwsh -File scripts/verify.ps1`. Failing checks are findings.
+Reuse a passing `/verify` from this session when no files changed since;
+otherwise run `/verify`. Failing checks are findings.
 
 ## 3. Review with these lenses
 
@@ -77,10 +77,34 @@ Severity:
 
 Use P0 or P1 only with a concrete code path or a broken rule. When re-checking a
 `fixed` finding, move it to `closed` if the repair holds, or back to `open`.
-Never mark anything `accepted`; only the person can.
+Never mark anything `accepted` on your own; only the person's choice can.
+
+Every run, clean or not, ends the file with one line so `/complete` gate 5 can
+see the audit happened:
+
+```markdown
+Audit run <YYYY-MM-DD> on `<branch>`: <n> new findings, <n> closed.
+```
 
 ## 5. Report
 
 List findings by severity with ID and title, then say whether `/complete` is
-blocked (any P0 or P1 `open` or `fixed`). Repairs go through `/implement` as
-new spec steps, or `/fix F-03` between work items.
+blocked (any P0 or P1 `open` or `fixed`). "Continue" below means the next loop
+step: `/check` when a *Done when* needs the running app, otherwise `/complete`.
+
+Then offer the next step (see "Choosing the next step" in
+`blueprint/context/ai-interaction.md`):
+
+- **No findings:** one step, no prompt. Say what to type: continue.
+- **Only P2 or P3:**
+  1. Continue now (Recommended when only P3).
+  2. Repair first: `/implement`, then "repair F-02" (Recommended for a P2).
+  3. Accept: Claude marks the chosen findings `accepted`, then continue.
+- **Any P0 or P1:**
+  1. Repair: `/implement`, then "repair F-01" (it adds a repair step for your
+     OK, fixes it and runs Verify), then `/clear` and `/audit` again
+     (Recommended).
+  2. Dispute a finding: say why; Claude re-checks it with the code and either
+     keeps it or lowers it, giving the evidence.
+
+Between work items, a finding is repaired with `/fix F-03` instead.

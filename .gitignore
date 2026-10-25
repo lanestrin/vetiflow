@@ -48,4 +48,5 @@ Thumbs.db
 .claude/settings.local.json
 
 # Workflow drafts written by /complete
-blueprint/context/landing.md
+blueprint/context/landing-commit.txt
+blueprint/context/landing-pr.md

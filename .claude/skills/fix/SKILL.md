@@ -20,7 +20,9 @@ never added to the build plan.
 
 ## Preflight
 
-`current-feature.md` must be the empty stub. If not, stop and say so.
+`current-feature.md` must be the empty stub. If not, stop and offer the same
+choice as `/feature` step 1: finish the current spec first (Recommended), or
+drop it. Then delete stale landing drafts as `/feature` step 1 does.
 
 ## Write the spec
 
@@ -29,6 +31,9 @@ First heading `# Fix: <title>`, then:
 - **Type:** Fix
 - **Status:** not started
 - **Branch:** `fix/<kebab-title>`
+- **Audit:** `required` or `not needed`, with a one-line reason, from "When to
+  audit" in `blueprint/context/ai-interaction.md`. A fix that adds a missing
+  auth, owner-scope or redaction check is `required`.
 - **Fixes:** `<finding ID>` (only when fixing a finding)
 - **The problem:** what is wrong, where (file and line), and how to reproduce it.
 - **The fix:** the root-cause repair and what it must not break. Adding a
@@ -43,4 +48,6 @@ First heading `# Fix: <title>`, then:
 - If it turns out to be a feature, stop and suggest a build-plan item instead.
 - Same conventions as everything else (`coding-standards.md`).
 
-Then stop. Next: the person reviews, then `/implement`.
+Then stop and offer the same choice as `/feature` step 7: OK the spec
+(Recommended; Claude sets `Status: approved`, then type `/implement`), change
+it, answer open questions first, or drop it.

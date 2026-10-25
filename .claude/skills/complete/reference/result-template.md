@@ -1,6 +1,6 @@
 ## Result
 
-- **Shipped:** branch `<branch>`, PR #<number added by the person after merge>
+- **Shipped:** branch `<branch>`, squash-merged to `main` (the commit subject carries the PR number)
 - **Verify:** `scripts/verify.ps1` on <YYYY-MM-DD>
   - <PASS/FAIL/SKIP line for each step, copied from the summary>
 - **Check:** <what /check observed, or "not run" and why>

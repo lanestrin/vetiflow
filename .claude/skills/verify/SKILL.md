@@ -18,7 +18,8 @@ If `pwsh` is not installed, use
 `powershell -ExecutionPolicy Bypass -File scripts/verify.ps1`.
 
 Options: `-ServerOnly` when only `vetiflow.Server*` changed, `-ClientOnly` when
-only `vetiflow.client/` changed. Before `/complete`, always run it with no option.
+only `vetiflow.client/` changed. `/implement`, `/complete` and `/approve` always
+run it with no option.
 
 ## What it runs
 
@@ -33,13 +34,34 @@ only `vetiflow.client/` changed. Before `/complete`, always run it with no optio
 ## After it runs
 
 1. Report one line per step from the summary: PASS, FAIL (with the first real
-   error message) or SKIP (and why).
-2. If the server tests fail because Docker is not running, say so plainly. That
-   is an environment problem, not a passing run.
-3. Check the diff: `git status` and `git diff --stat`. Confirm only files in the
-   current spec's scope changed and that no secrets, connection strings, `.env`
-   files, `bin/`, `obj/` or `coverage/` output are included.
-4. If anything failed, do not call the work done. Propose the fix, or hand off
-   to `/debug` if the cause is unclear.
+   error message) or SKIP (and why). A SKIP is not a pass.
+2. Check the diff: `git status` and `git diff --stat`. Confirm only files in the
+   current spec's scope changed and that none of the files in "Unexpected files"
+   below are included.
+3. If anything failed or a file is unexpected, do not call the work done. Report
+   it as "When something fails or stops" in `blueprint/context/ai-interaction.md`
+   says, offering the options from the tables below as a selection when there is
+   more than one.
 
 Never skip, disable or delete a test to make Verify pass.
+
+## Common failures
+
+`/complete` and `/approve` use this table too. "Rerun" means the command that
+stopped: `/verify`, `/complete` or `/approve`.
+
+| Failure | Kind | Options (recommended first) |
+| --- | --- | --- |
+| Server tests: "Docker is either not running or misconfigured" | Environment | 1. Start Docker Desktop, wait for "Engine running", rerun (Recommended). 2. Set `VETIFLOW_TEST_POSTGRES` to a local Postgres for this terminal, rerun. |
+| Server build: MSB3027, "file is locked by vetiflow.Server" | Environment | 1. Stop the running app (Ctrl+C in its terminal), rerun (Recommended). |
+| A test, lint or build error in this work's files | Error | 1. Fix it: while a spec step is in progress Claude fixes it now; otherwise `/implement` and describe it (Recommended when the cause is clear). 2. `/debug` to find the cause first (Recommended when it is not). |
+| An error in code this work did not touch | Error | 1. Note it and `/fix "<what>"` on its own branch after this one; continue only if it does not block this work (Recommended). 2. Fix it here as a spec change, when it blocks this work. |
+| SKIP: a tool is missing | Environment | 1. Install the tool the summary line names, rerun (Recommended). |
+
+## Unexpected files
+
+| Found | Options (recommended first) |
+| --- | --- |
+| A secret (`.env`, a connection string, a key) | No choice: remove it from the file now and never commit it. If it was ever pushed, rotate it. Then rerun. |
+| Changes from other work | 1. `git stash push -- <files>` and bring them back later with `git stash pop` (Recommended). 2. They belong here: say so, and they are added to the spec's scope. |
+| Build output or junk (`bin/`, `obj/`, `coverage/`, `dist/`, logs) | 1. Add the pattern to `.gitignore` (Recommended when it will come back). 2. Delete the files (Claude asks first). |
