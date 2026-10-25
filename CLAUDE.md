@@ -17,7 +17,8 @@ These always apply, with or without a skill.
 - **Commit and push only through `/approve`**, which only the person runs. Otherwise leave changes in the working tree. Never merge, force-push or commit to `main`.
 - **One work item per branch.** Never build on `main`. Never mix two build-plan items in one branch.
 - **Spec before code.** Planned work starts with `/feature`, unplanned work with `/fix`. Wait for the person's OK on the spec; its status then becomes `approved`. The one exception: changes asked for in review of an open PR go on the same branch without a new spec (step 7 of the loop in `blueprint/context/ai-interaction.md`).
-- **Never run migrations against production.** Only run `dotnet ef database update`, or start the app with migrations on, against a local or test database. Check the connection string first.
+- **Never run migrations against production.** Apply migrations only with `scripts/db-target.ps1 -Migrate` and start the app (which migrates on startup) only with `scripts/db-target.ps1 -StartApp`. They run the command only for a local database and bind it to the exact connection string they checked. A plain `scripts/db-target.ps1` check authorizes nothing, and never run `dotnet ef database update` or `dotnet run --project vetiflow.Server` directly.
+- **Never touch secret values.** Never read, edit, create, print or copy real `.env` files or their variants, and never run commands that list secret values (`dotnet user-secrets list`, `printenv`, `env`, `Get-ChildItem env:`), not even masked. Test protections only with harmless fixtures. `.claude/settings.json` denies these to Claude's tools and a hook blocks the usual spellings of the commands, but neither stops a script that reads files or variables itself, and on native Windows there is no sandbox (see the Safety section of `blueprint/context/ai-interaction.md`).
 - **Verify before saying done.** Run `scripts/verify.ps1` and report the real output. Never say a check passed without running it.
 - **Acuity changes only through `EmergencyCase.RecordTriage`.** Never assign `Acuity` directly.
 - **Owners never see the staff board** and never reach a case or patient by ID alone.
@@ -74,12 +75,13 @@ npm run build
 npm run test -- --run
 npm run test -- --run AcuityBadge
 
-# Migrations (local database only)
+# Migrations (adding one touches no database; applying one goes through db-target)
 dotnet ef migrations add <Name> --project vetiflow.Server
 dotnet ef migrations has-pending-model-changes --project vetiflow.Server
+powershell -ExecutionPolicy Bypass -File scripts/db-target.ps1 -Migrate
 
-# Run the app
-dotnet run --project vetiflow.Server --launch-profile https
+# Run the app (db-target checks the database is local, then starts it bound to that string)
+powershell -ExecutionPolicy Bypass -File scripts/db-target.ps1 -StartApp
 cd vetiflow.client && npm run dev
 ```
 

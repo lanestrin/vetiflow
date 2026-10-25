@@ -30,11 +30,15 @@ Ask the person to start it if it is not running, or start it yourself when the
 environment allows:
 
 ```bash
-dotnet run --project vetiflow.Server --launch-profile https
+powershell -ExecutionPolicy Bypass -File scripts/db-target.ps1 -StartApp
 cd vetiflow.client && npm run dev
 ```
 
-Use a local database only. Check the connection string first.
+`-StartApp` starts the API only when its database is local, bound to the
+connection string it checked (the app migrates on startup). If it prints
+anything other than `Database target: local`, nothing started: stop and report.
+Never start the API with `dotnet run` directly, and never list or print the
+connection string.
 
 ### 3. Observe each item
 

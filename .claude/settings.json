@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "deny": [
+      "Read(.env)",
+      "Read(.env.*)",
+      "Read(!.env.example)",
+      "Edit(.env)",
+      "Edit(.env.*)",
+      "Edit(!.env.example)",
+      "Read(~/AppData/Roaming/Microsoft/UserSecrets/**)",
+      "Edit(~/AppData/Roaming/Microsoft/UserSecrets/**)",
+      "Read(~/.microsoft/usersecrets/**)",
+      "Edit(~/.microsoft/usersecrets/**)",
+      "Bash(dotnet user-secrets list*)",
+      "PowerShell(dotnet user-secrets list*)",
+      "Bash(printenv*)",
+      "Bash(env)",
+      "PowerShell(Get-ChildItem env:*)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": [
+              "${CLAUDE_PROJECT_DIR}/.claude/hooks/block-secret-commands.mjs"
+            ],
+            "timeout": 10,
+            "onFailure": "block"
+          }
+        ]
+      }
+    ]
+  }
+}

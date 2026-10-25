@@ -50,3 +50,6 @@ Thumbs.db
 # Workflow drafts written by /complete
 blueprint/context/landing-commit.txt
 blueprint/context/landing-pr.md
+
+# Integration fixtures for the secret guardrails (scripts/tests/integration)
+scripts/tests/fixtures/

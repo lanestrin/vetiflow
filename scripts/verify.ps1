@@ -50,6 +50,16 @@ function Invoke-Step([string]$Name, [scriptblock]$Command, [scriptblock]$OnFailu
 
 Push-Location $repoRoot
 try {
+	# Checks for the workflow's own guardrails. Fast, so they run in every mode, and
+	# in the same PowerShell that runs Verify (5.1 or pwsh).
+	$powershellExe = (Get-Process -Id $PID).Path
+	Invoke-Step 'Workflow tests' {
+		foreach ($testFile in Get-ChildItem scripts/tests/*.tests.ps1) {
+			& $powershellExe -NoProfile -ExecutionPolicy Bypass -File $testFile.FullName
+			if ($LASTEXITCODE -ne 0) { return }
+		}
+	}
+
 	if (-not $ClientOnly) {
 		# Testcontainers needs Docker unless the tests use an existing Postgres server.
 		# Checking first gives one clear line instead of a failure in every database test.

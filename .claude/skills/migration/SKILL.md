@@ -40,12 +40,12 @@ Show the person the `Up` and `Down` methods and check:
 
 ## 4. Apply locally
 
-1. Show the connection string target from
-   `dotnet user-secrets list --project vetiflow.Server` or
-   `appsettings.Development.json`, without printing passwords. It must be
-   `localhost` or a local Docker container. If it points anywhere else, stop.
-2. `dotnet ef database update --project vetiflow.Server`.
-3. Spot-check with `psql` or the app that existing rows look right.
+1. `powershell -ExecutionPolicy Bypass -File scripts/db-target.ps1 -Migrate`.
+   It runs `dotnet ef database update` only when the database is local, bound to
+   the connection string it checked. Anything other than
+   `Database target: local` first means nothing ran: stop and report. Never run
+   `dotnet ef database update` directly or print the connection string.
+2. Spot-check with `psql` or the app that existing rows look right.
 
 ## 5. Test
 
