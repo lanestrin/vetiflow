@@ -1,0 +1,10 @@
+# Build output is rebuilt inside the image.
+bin/
+obj/
+
+# Local-only files that must never reach the image.
+*.user
+.env
+.env.*
+appsettings.*.local.json
+**/secrets.json

@@ -23,16 +23,19 @@ run it with no option.
 
 ## What it runs
 
-1. Docker check: unless `VETIFLOW_TEST_POSTGRES` is set, stops with
+1. Workflow tests: every `scripts/tests/*.tests.ps1` (today the secret
+   guardrails: the hook, `db-target.ps1`, `.claude/settings.json` and
+   `.dockerignore`). Runs in every mode.
+2. Docker check: unless `VETIFLOW_TEST_POSTGRES` is set, stops with
    `FAIL  Docker` when Docker is not running.
-2. Server build (through the test project). If it fails while `vetiflow.Server`
+3. Server build (through the test project). If it fails while `vetiflow.Server`
    is running, it prints a hint that the app locks its exe (MSB3027).
-3. Server tests: `dotnet test --project vetiflow.Server.Tests`. Needs Docker for
+4. Server tests: `dotnet test --project vetiflow.Server.Tests`. Needs Docker for
    Testcontainers, or `VETIFLOW_TEST_POSTGRES`.
-4. `dotnet tool restore` (`dotnet-ef` is pinned in `.config/dotnet-tools.json`),
+5. `dotnet tool restore` (`dotnet-ef` is pinned in `.config/dotnet-tools.json`),
    then `dotnet ef migrations has-pending-model-changes`. Always runs; never
    skipped.
-5. Client: `npm ci` when `node_modules/.package-lock.json` is missing or older
+6. Client: `npm ci` when `node_modules/.package-lock.json` is missing or older
    than `package-lock.json`, then lint, build, and `npm run test -- --run`.
 
 ## After it runs
@@ -60,6 +63,7 @@ stopped: `/verify`, `/complete` or `/approve`.
 | Server build: MSB3027, "file is locked by vetiflow.Server" | Environment | 1. Stop the running app (Ctrl+C in its terminal), rerun (Recommended). |
 | A test, lint or build error in this work's files | Error | 1. Fix it: while a spec step is in progress Claude fixes it now; otherwise `/implement` and describe it (Recommended when the cause is clear). 2. `/debug` to find the cause first (Recommended when it is not). |
 | An error in code this work did not touch | Error | 1. Note it and `/fix "<what>"` on its own branch after this one; continue only if it does not block this work (Recommended). 2. Fix it here as a spec change, when it blocks this work. |
+| `FAIL  Workflow tests` | Error | 1. Read the failed check names in the output; fix the guardrail file it names, never weaken the check or the rule (Recommended). 2. `/debug` when the cause is unclear. |
 | Tool restore fails | Environment | 1. Check the network and the NuGet feed, then rerun (Recommended). 2. `dotnet tool restore` by hand to see the full error. |
 ## Unexpected files
 
