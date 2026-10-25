@@ -24,7 +24,9 @@ Read-only. Writes nothing.
   that do not belong to the active spec.
 - **Plan progress:** for example "6 of 70 items done", and the next unticked item.
 - **Drift warnings:** spec says `verified` but files changed since; work on
-  `main`; a ticked build-plan item with no history file.
+  `main`; a ticked build-plan item with no history file. An item has one when a
+  file in `blueprint/history/` is named for its ID or names the ID in its
+  `From build-plan` line (1.3 shipped inside 1.2's file).
 - **Next command**, following the loop in `blueprint/context/ai-interaction.md`:
 
   | State | Next |
@@ -37,7 +39,7 @@ Read-only. Writes nothing.
   | `fixed` P0/P1 findings, none open | `/clear`, then `/audit` |
   | `verified`, a *Done when* needs the app, not yet checked | `/check` |
   | `verified`, ready | `/complete` |
-  | Stub spec, `landing-commit.txt` present, uncommitted changes | `/approve` |
+  | On a work branch (not `main`), stub spec, a history file with ``**Branch:** `<current branch>` ``, `landing-commit.txt` present, uncommitted changes | `/approve` |
   | Pushed, PR open | Merge on GitHub when CI is green |
 
   When more than one row fits (for example `/check` or `/complete` when it is

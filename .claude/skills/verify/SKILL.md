@@ -23,13 +23,17 @@ run it with no option.
 
 ## What it runs
 
-1. Server build (through the test project).
-2. Server tests: `dotnet test --project vetiflow.Server.Tests`. Needs Docker for
+1. Docker check: unless `VETIFLOW_TEST_POSTGRES` is set, stops with
+   `FAIL  Docker` when Docker is not running.
+2. Server build (through the test project). If it fails while `vetiflow.Server`
+   is running, it prints a hint that the app locks its exe (MSB3027).
+3. Server tests: `dotnet test --project vetiflow.Server.Tests`. Needs Docker for
    Testcontainers, or `VETIFLOW_TEST_POSTGRES`.
-3. `dotnet ef migrations has-pending-model-changes` (skipped with a note if
-   `dotnet-ef` is not installed).
-4. Client: `npm ci` if `node_modules` is missing, then lint, build, and
-   `npm run test -- --run`.
+4. `dotnet tool restore` (`dotnet-ef` is pinned in `.config/dotnet-tools.json`),
+   then `dotnet ef migrations has-pending-model-changes`. Always runs; never
+   skipped.
+5. Client: `npm ci` when `node_modules/.package-lock.json` is missing or older
+   than `package-lock.json`, then lint, build, and `npm run test -- --run`.
 
 ## After it runs
 
@@ -52,12 +56,11 @@ stopped: `/verify`, `/complete` or `/approve`.
 
 | Failure | Kind | Options (recommended first) |
 | --- | --- | --- |
-| Server tests: "Docker is either not running or misconfigured" | Environment | 1. Start Docker Desktop, wait for "Engine running", rerun (Recommended). 2. Set `VETIFLOW_TEST_POSTGRES` to a local Postgres for this terminal, rerun. |
+| `FAIL  Docker (not running ...)`, or server tests: "Docker is either not running or misconfigured" | Environment | 1. Start Docker Desktop, wait for "Engine running", rerun (Recommended). 2. Set `VETIFLOW_TEST_POSTGRES` to a local Postgres for this terminal, rerun. |
 | Server build: MSB3027, "file is locked by vetiflow.Server" | Environment | 1. Stop the running app (Ctrl+C in its terminal), rerun (Recommended). |
 | A test, lint or build error in this work's files | Error | 1. Fix it: while a spec step is in progress Claude fixes it now; otherwise `/implement` and describe it (Recommended when the cause is clear). 2. `/debug` to find the cause first (Recommended when it is not). |
 | An error in code this work did not touch | Error | 1. Note it and `/fix "<what>"` on its own branch after this one; continue only if it does not block this work (Recommended). 2. Fix it here as a spec change, when it blocks this work. |
-| SKIP: a tool is missing | Environment | 1. Install the tool the summary line names, rerun (Recommended). |
-
+| Tool restore fails | Environment | 1. Check the network and the NuGet feed, then rerun (Recommended). 2. `dotnet tool restore` by hand to see the full error. |
 ## Unexpected files
 
 | Found | Options (recommended first) |
