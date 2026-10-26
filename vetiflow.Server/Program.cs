@@ -29,6 +29,14 @@ builder.Services
 builder.Services.AddDbContext<VetiFlowDbContext>(options =>
 				options.UseNpgsql(connectionString));
 
+// No planned request comes close to 1 MB (no file uploads); Kestrel's own
+// default is about 30 MB. A larger body gets a 413.
+builder.WebHost.ConfigureKestrel(options => options.Limits.MaxRequestBodySize = 1024 * 1024);
+
+// Errors that never reach a controller (an unknown route, an unhandled
+// exception, a rejected body) get the same ProblemDetails shape as model errors.
+builder.Services.AddProblemDetails();
+
 builder.Services.AddSignalR();
 
 var allowedOrigins = CorsOrigins.Read(builder.Configuration);
@@ -75,6 +83,17 @@ using (var scope = app.Services.CreateScope())
 
 // First, so everything after it sees the real scheme and client address.
 app.UseForwardedHeaders();
+
+// A generic 500 with no exception details. A body Kestrel rejected (too large,
+// for example) keeps its own status instead of becoming a 500.
+app.UseExceptionHandler(new ExceptionHandlerOptions
+{
+	StatusCodeSelector = exception => exception is BadHttpRequestException badRequest
+		? badRequest.StatusCode
+		: StatusCodes.Status500InternalServerError
+});
+
+app.UseStatusCodePages();
 
 if (app.Environment.IsDevelopment())
 {

@@ -40,6 +40,32 @@ public class ServerImageTests
 		});
 	}
 
+	// Kestrel enforces the body limit, and the in-process TestServer does not,
+	// so only the real image can show it.
+	[Fact]
+	public async Task ServerImage_OversizedBody_ReturnsPayloadTooLargeProblem()
+	{
+		const int maxRequestBodyBytes = 1024 * 1024;
+
+		await WithRunningContainerAsync(async container =>
+		{
+			using var client = new HttpClient
+			{
+				BaseAddress = new Uri($"http://{container.Hostname}:{container.GetMappedPublicPort(RenderPort)}")
+			};
+			var stageUrl = $"/api/cases/{Guid.NewGuid()}/stage";
+
+			var oversized = await client.PatchAsync(stageUrl, JsonBody(maxRequestBodyBytes + 1), _cancellationToken);
+			var withinLimit = await client.PatchAsync(stageUrl, JsonBody(maxRequestBodyBytes), _cancellationToken);
+
+			Assert.Equal(HttpStatusCode.RequestEntityTooLarge, oversized.StatusCode);
+			Assert.Equal("application/problem+json", oversized.Content.Headers.ContentType?.MediaType);
+			// The database is unreachable here, so a body within the limit fails
+			// later, on the query; what matters is that it was not refused as too large.
+			Assert.NotEqual(HttpStatusCode.RequestEntityTooLarge, withinLimit.StatusCode);
+		});
+	}
+
 	[Fact]
 	public async Task ServerImage_RunsAsNonRootUser()
 	{
@@ -50,6 +76,17 @@ public class ServerImageTests
 			Assert.Equal(0, result.ExitCode);
 			Assert.NotEqual("0", result.Stdout.Trim());
 		});
+	}
+
+	// A stage update padded to exactly the given number of bytes.
+	private static ByteArrayContent JsonBody(int totalBytes)
+	{
+		const string prefix = """{"stage":"treatment","padding":""";
+		const string suffix = "\"}";
+		var json = prefix + new string('x', totalBytes - prefix.Length - suffix.Length) + suffix;
+		var content = new ByteArrayContent(System.Text.Encoding.UTF8.GetBytes(json));
+		content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json");
+		return content;
 	}
 
 	private async Task WithRunningContainerAsync(Func<IContainer, Task> test)
