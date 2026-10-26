@@ -37,7 +37,7 @@ less.
 - [x] **0.2** `feature/owner-and-vitals`: `Owner` entity with contact details and communication status; repeated vitals (`VitalsRecord`, or several triage assessments per case); seed both. Split into (both done):
   - [x] **0.2a** `feature/owner`: `Owner` entity, optional `Patient.OwnerId`, per-case owner update status (`OwnerUpdateStatus`, `LastOwnerUpdateAt`), seeded owners. Done (history/features/0.2a-owner.md).
   - [x] **0.2b** `feature/repeated-vitals`: `VitalsRecord` per case; a migration moves today's vitals off `TriageAssessment`, which keeps acuity and intake notes. Done (history/features/0.2b-repeated-vitals.md).
-- [ ] **0.3** `feature/acuity-high`: rename `Stable` to `High` in the enum, client types and seed, with a migration that updates existing rows.
+- [x] **0.3** `feature/acuity-high`: rename `Stable` to `High` in the enum, client types and seed, with a migration that updates existing rows. Done (history/features/0.3-acuity-high.md).
 
 ## Phase 1: Deploy and CI
 

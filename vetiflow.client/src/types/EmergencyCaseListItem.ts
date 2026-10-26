@@ -18,7 +18,7 @@ export type CaseStatus =
 export type AcuityLevel =
   | "critical"
   | "urgent"
-  | "stable"
+  | "high"
   | "low";
 
 export interface EmergencyCaseListItem {

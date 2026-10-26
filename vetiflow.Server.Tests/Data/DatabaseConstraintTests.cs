@@ -109,7 +109,7 @@ public class DatabaseConstraintTests(VetiFlowApiFactory factory)
 	public async Task Case_WithTriageHistory_CannotBeDeleted()
 	{
 		var emergencyCase = TestData.Case(TestData.Patient());
-		emergencyCase.RecordTriage(new TriageAssessment { Acuity = AcuityLevel.Stable });
+		emergencyCase.RecordTriage(new TriageAssessment { Acuity = AcuityLevel.High });
 		await SaveAsync(emergencyCase);
 
 		await using var dbContext = factory.CreateDbContext();
@@ -163,7 +163,7 @@ public class DatabaseConstraintTests(VetiFlowApiFactory factory)
 	public async Task RecordTriage_PersistsAssessmentsAndCurrentAcuity()
 	{
 		var emergencyCase = TestData.Case(TestData.Patient());
-		emergencyCase.RecordTriage(new TriageAssessment { Acuity = AcuityLevel.Stable });
+		emergencyCase.RecordTriage(new TriageAssessment { Acuity = AcuityLevel.High });
 		emergencyCase.RecordTriage(new TriageAssessment { Acuity = AcuityLevel.Critical });
 		await SaveAsync(emergencyCase);
 
@@ -174,7 +174,7 @@ public class DatabaseConstraintTests(VetiFlowApiFactory factory)
 
 		Assert.Equal(AcuityLevel.Critical, saved.Acuity);
 		Assert.Equal(
-			[AcuityLevel.Critical, AcuityLevel.Stable],
+			[AcuityLevel.Critical, AcuityLevel.High],
 			saved.TriageAssessments.Select(a => a.Acuity).Order());
 	}
 

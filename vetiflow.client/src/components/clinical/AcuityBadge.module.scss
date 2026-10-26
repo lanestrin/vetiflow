@@ -22,7 +22,7 @@
 		border-color: color-mix( in srgb, var(--color-urgent) 25%, white );
 	}
 
-	.badge[data-acuity="stable"] {
+	.badge[data-acuity="high"] {
 		color: var(--color-active);
 		background: color-mix( in srgb, var(--color-active) 8%, white );
 		border-color: color-mix( in srgb, var(--color-active) 20%, white );

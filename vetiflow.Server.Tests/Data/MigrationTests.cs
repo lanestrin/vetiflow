@@ -16,6 +16,8 @@ public class MigrationTests(VetiFlowApiFactory factory)
 
 	private const string EnableRowLevelSecurity = "20261026153851_EnableRowLevelSecurity";
 
+	private const string MoveVitalsToVitalsRecords = "20261026161248_MoveVitalsToVitalsRecords";
+
 	private readonly CancellationToken _cancellationToken = TestContext.Current.CancellationToken;
 
 	// Fails when the model changed without a migration being added.
@@ -171,6 +173,75 @@ public class MigrationTests(VetiFlowApiFactory factory)
 				""")
 			.SingleAsync(_cancellationToken);
 		Assert.Equal("168/44/103.1/Pale/>2 s/Restless", restored);
+	}
+
+	// Enums are stored by name, so renaming Stable to High must update the rows.
+	[Fact]
+	public async Task RenameStableAcuityToHigh_UpdatesStoredRows()
+	{
+		await using var dbContext = await CreateEmptyDatabaseAsync();
+		var migrator = dbContext.GetService<IMigrator>();
+		await migrator.MigrateAsync(MoveVitalsToVitalsRecords, _cancellationToken);
+		var rows = await InsertStableAndCriticalCasesAsync(dbContext);
+
+		await migrator.MigrateAsync(cancellationToken: _cancellationToken);
+
+		var stableCase = await dbContext.EmergencyCases.SingleAsync(c => c.Id == rows.StableCaseId, _cancellationToken);
+		var criticalCase = await dbContext.EmergencyCases.SingleAsync(c => c.Id == rows.CriticalCaseId, _cancellationToken);
+		var assessment = await dbContext.TriageAssessments.SingleAsync(a => a.Id == rows.AssessmentId, _cancellationToken);
+		Assert.Equal(AcuityLevel.High, stableCase.Acuity);
+		Assert.Equal(AcuityLevel.High, assessment.Acuity);
+		Assert.Equal(AcuityLevel.Critical, criticalCase.Acuity);
+	}
+
+	[Fact]
+	public async Task RenameStableAcuityToHigh_RollBackRestoresStable()
+	{
+		await using var dbContext = await CreateEmptyDatabaseAsync();
+		var migrator = dbContext.GetService<IMigrator>();
+		await migrator.MigrateAsync(MoveVitalsToVitalsRecords, _cancellationToken);
+		var rows = await InsertStableAndCriticalCasesAsync(dbContext);
+		await migrator.MigrateAsync(cancellationToken: _cancellationToken);
+
+		await migrator.MigrateAsync(MoveVitalsToVitalsRecords, _cancellationToken);
+
+		var stored = await dbContext.Database
+			.SqlQuery<string>($"""
+				SELECT c."Acuity" || '/' || t."Acuity" AS "Value"
+				FROM "EmergencyCases" c JOIN "TriageAssessments" t ON t."EmergencyCaseId" = c."Id"
+				WHERE c."Id" = {rows.StableCaseId}
+				""")
+			.SingleAsync(_cancellationToken);
+		Assert.Equal("Stable/Stable", stored);
+	}
+
+	// Rows in the shape before RenameStableAcuityToHigh: one case and its
+	// assessment at Stable, one case at Critical.
+	private async Task<(Guid StableCaseId, Guid CriticalCaseId, Guid AssessmentId)>
+		InsertStableAndCriticalCasesAsync(VetiFlowDbContext dbContext)
+	{
+		var stablePatientId = Guid.NewGuid();
+		var criticalPatientId = Guid.NewGuid();
+		var stableCaseId = Guid.NewGuid();
+		var criticalCaseId = Guid.NewGuid();
+		var assessmentId = Guid.NewGuid();
+		var now = DateTimeOffset.UtcNow;
+		await dbContext.Database.ExecuteSqlAsync($"""
+			INSERT INTO "Patients" ("Id", "Name", "Species")
+			VALUES ({stablePatientId}, 'Max', 'Dog'), ({criticalPatientId}, 'Buddy', 'Dog')
+			""", _cancellationToken);
+		await dbContext.Database.ExecuteSqlAsync($"""
+			INSERT INTO "EmergencyCases"
+				("Id", "PatientId", "ArrivalTime", "PresentingComplaint",
+				 "Stage", "Status", "Acuity", "LastUpdated", "OwnerUpdateStatus")
+			VALUES ({stableCaseId}, {stablePatientId}, {now}, 'Lameness', 'Treatment', 'Assigned', 'Stable', {now}, 'NotYetUpdated'),
+			       ({criticalCaseId}, {criticalPatientId}, {now}, 'Retching', 'Triage', 'Blocked', 'Critical', {now}, 'NotYetUpdated')
+			""", _cancellationToken);
+		await dbContext.Database.ExecuteSqlAsync($"""
+			INSERT INTO "TriageAssessments" ("Id", "EmergencyCaseId", "Acuity", "AssessedAt")
+			VALUES ({assessmentId}, {stableCaseId}, 'Stable', {now})
+			""", _cancellationToken);
+		return (stableCaseId, criticalCaseId, assessmentId);
 	}
 
 	// Rows in the shape before MoveVitalsToVitalsRecords: one assessment with
