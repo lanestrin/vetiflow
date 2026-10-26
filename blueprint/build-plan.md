@@ -53,7 +53,7 @@ less.
 
 The app isn't live yet, so security comes before the features that depend on knowing who the user is. Each item is its own branch.
 
-- [ ] **S.1** `fix/startup-migrations`: migrating and seeding on startup are controlled by settings, off by default and on for local dev; production migrates as a deliberate deploy step.
+- [x] **S.1** `fix/startup-migrations`: migrating and seeding on startup are controlled by settings, off by default and on for local dev; production migrates as a deliberate deploy step. Done (history/features/S.1-startup-migrations.md).
 - [ ] **S.2** `fix/stage-validation`: reject numeric and unknown enum values on the stage endpoint, and turn off integer enum parsing everywhere [10].
 - [ ] **S.3** `fix/hosting-config`: CORS origins from configuration, forwarded headers behind Render, HSTS in production, Supabase session pooler [17, 18].
 - [ ] **S.4** `fix/docker-nonroot`: run the container as a non-root user.

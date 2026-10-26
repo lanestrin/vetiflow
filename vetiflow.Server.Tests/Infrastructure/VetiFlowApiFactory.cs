@@ -5,8 +5,9 @@ using vetiflow.Server.Data;
 
 namespace vetiflow.Server.Tests.Infrastructure;
 
-// Hosts the real API in memory against a real PostgreSQL database, with the
-// same startup path as production (migrations and seed data included).
+// Hosts the real API in memory against a real PostgreSQL database. Startup
+// migrates and seeds here, as in local development; production leaves both off
+// (StartupTests covers that path).
 // Shared by every test in the assembly; tests create their own rows and only
 // assert on those, so they can run in parallel without resetting the database.
 public sealed class VetiFlowApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
@@ -37,6 +38,8 @@ public sealed class VetiFlowApiFactory : WebApplicationFactory<Program>, IAsyncL
 		// are never loaded.
 		builder.UseEnvironment("Testing");
 		builder.UseSetting("ConnectionStrings:VetiFlowDatabase", _connectionString);
+		builder.UseSetting("Database:MigrateOnStartup", "true");
+		builder.UseSetting("Database:SeedDemoData", "true");
 	}
 
 	public override async ValueTask DisposeAsync()

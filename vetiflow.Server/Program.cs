@@ -44,16 +44,15 @@ builder.Services.AddOpenApi();
 
 var app = builder.Build();
 
-// Apply migrations and seed demo data in every environment, so a fresh
-// deploy has a working schema and a populated board.
+// Migrating and seeding are off unless configured: on for local development
+// and tests, off in production (see DatabaseStartup).
 using (var scope = app.Services.CreateScope())
 {
-	var dbContext = scope.ServiceProvider
-					.GetRequiredService<VetiFlowDbContext>();
-
-	await dbContext.Database.MigrateAsync();
-
-	await DbSeeder.SeedAsync(dbContext);
+	await DatabaseStartup.PrepareAsync(
+		scope.ServiceProvider.GetRequiredService<VetiFlowDbContext>(),
+		migrateOnStartup: app.Configuration.GetValue<bool>("Database:MigrateOnStartup"),
+		seedDemoData: app.Configuration.GetValue<bool>("Database:SeedDemoData"),
+		app.Logger);
 }
 
 if (app.Environment.IsDevelopment())
