@@ -48,6 +48,7 @@ less.
 - [ ] **1.5** `docs/readme`: README with a screenshot, the live link and local setup.
 - [x] **1.6** `chore/ci-verify-script`: make CI call `scripts/verify.ps1` so CI and local checks can never drift apart. Done (history/features/1.6-ci-verify-script.md).
 - [ ] **1.7** `chore/release-notes`: `.github/release.yml` so GitHub's generated release notes group squash-merged commits by type (features, fixes, chores), plus a first tag.
+- [x] **1.8** `chore/deploy-pipeline`: Docker image build in CI, Render auto-deploy only after CI passes, Vercel previews that never point at the production API, a Render health check, and a rollback note. Done (history/features/1.8-deploy-pipeline.md).
 
 ## Phase S: Security foundations (before Phase 2)
 
