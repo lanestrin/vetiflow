@@ -14,9 +14,9 @@ export function CaseCard({ emergencyCase }: CaseCardProps) {
     <article className={styles.card}>
       <header className={styles.header}>
         <div>
-          <h2 className={styles.patientName}>
+          <h3 className={styles.patientName}>
             {emergencyCase.patientName}
-          </h2>
+          </h3>
 
           <p className={styles.patientDetails}>
             {emergencyCase.species}

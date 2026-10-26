@@ -15,6 +15,9 @@ interface WorkflowStage {
   stage: CaseStage;
 }
 
+// React 19 moves <title> into the document head, so each page names its own tab.
+const pageTitle = <title>ER Board · VetiFlow</title>;
+
 const workflowStages: WorkflowStage[] = [
   { title: "Incoming", stage: "incoming" },
   { title: "Triage", stage: "triage" },
@@ -81,15 +84,26 @@ export function ErBoardPage() {
   }, []);
 
   if (isLoading) {
-    return <main>Loading emergency cases...</main>;
+    return (
+      <main>
+        {pageTitle}
+        Loading emergency cases...
+      </main>
+    );
   }
 
   if (error) {
-    return <main>{error}</main>;
+    return (
+      <main>
+        {pageTitle}
+        {error}
+      </main>
+    );
   }
 
   return (
     <main className={styles.page}>
+      {pageTitle}
       <header className={styles.header}>
         <h1 className={styles.title}>VetiFlow ER Board</h1>
 

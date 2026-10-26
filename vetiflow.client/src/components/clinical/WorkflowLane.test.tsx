@@ -23,6 +23,17 @@ describe("WorkflowLane", () => {
     expect(within(lane).getByRole("heading", { name: "Mittens" })).toBeInTheDocument();
   });
 
+  // Page h1, lane h2, card h3: a screen reader's heading list nests.
+  it("titles the lane with a level-2 heading above its level-3 cards", () => {
+    render(
+      <WorkflowLane title="Triage" stage="triage" cases={[buildCase({ patientName: "Buddy" })]} />
+    );
+
+    const lane = screen.getByRole("region", { name: "Triage" });
+    expect(within(lane).getByRole("heading", { level: 2, name: "Triage" })).toBeInTheDocument();
+    expect(within(lane).getByRole("heading", { level: 3, name: "Buddy" })).toBeInTheDocument();
+  });
+
   it("says the lane is empty when there are no cases", () => {
     render(<WorkflowLane title="Recheck" stage="recheck" cases={[]} />);
 
