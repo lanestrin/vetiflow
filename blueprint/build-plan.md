@@ -56,15 +56,13 @@ The app isn't live yet, so security comes before the features that depend on kno
 
 - [x] **S.1** `fix/startup-migrations`: migrating and seeding on startup are controlled by settings, off by default and on for local dev; production migrates as a deliberate deploy step. Done (history/features/S.1-startup-migrations.md).
 - [x] **S.2** `fix/stage-validation`: reject numeric and unknown enum values on the stage endpoint, and turn off integer enum parsing everywhere [10]. Done (history/features/S.2-stage-validation.md).
-- [ ] **S.3** `fix/hosting-config`: CORS origins from configuration, forwarded headers behind Render, HSTS in production, Supabase session pooler [17, 18].
-- [ ] **S.4** `fix/docker-nonroot`: run the container as a non-root user.
+- [x] **S.3** `fix/hosting-config`: CORS origins from configuration, forwarded headers behind Render, HSTS in production, Supabase session pooler [17, 18], and the container runs as a non-root user (merged in from S.4 on 2026-10-26). Done (history/features/S.3-hosting-config.md).
 - [ ] **S.5** `feature/auth-login`: staff login (provider per the decision above), secure cookies or short-lived tokens, logout, CSRF protection if cookies are used; every API endpoint requires a signed-in user by default.
 - [ ] **S.6** `feature/auth-roles`: roles (Veterinarian, Technician, Manager, Owner) and authorization policies, so for example only clinicians can set acuity or confirm AI output.
 - [ ] **S.7** `feature/hub-authorization`: require sign-in on the SignalR hub, pass the token safely, and broadcast IDs only, with no patient data in hub messages.
 - [ ] **S.8** `feature/owner-access-control`: owners can only see their own pet's case on the owner page (resource-based checks, no guessable links).
 - [ ] **S.9** `feature/rate-limiting`: ASP.NET Core rate limiter on login, writes and AI endpoints [19].
-- [ ] **S.10** `chore/secrets-handling`: connection strings and API keys only in user secrets and Render/Vercel environment variables, nothing secret in `VITE_` variables, secret scanning on, and a rotation note.
-- [ ] **S.11** `chore/db-least-privilege`: the app connects with a database user that can't change the schema; a separate user runs migrations.
+- [ ] **S.10** `chore/secrets-handling`: connection strings and API keys only in user secrets and Render/Vercel environment variables, nothing secret in `VITE_` variables, secret scanning on, and a rotation note; the app connects with a database user that can't change the schema, and a separate user runs migrations (merged in from S.11 on 2026-10-26).
 - [ ] **S.12** `feature/input-validation`: length and format limits on every request, ProblemDetails errors, no stack traces or internal details in production responses [13].
 - [x] **S.13** `fix/supabase-lockdown`: Supabase serves tables in `public` through its REST API with the anon key. Turn on row level security with no policies (or revoke the `anon` and `authenticated` grants) on every VetiFlow table. Done (history/features/S.13-supabase-lockdown.md).
 - [ ] **S.14** `feature/session-timeout`: short idle timeout and a quick lock for shared ER workstations (after S.5).

@@ -8,7 +8,8 @@ using vetiflow.Server.Tests.Infrastructure;
 namespace vetiflow.Server.Tests.Deployment;
 
 // Builds vetiflow.Server/Dockerfile and starts it the way Render does, so CI
-// proves the exact image Render will run before Render deploys it.
+// proves the exact image Render will run before Render deploys it. Each test
+// builds the image; Docker's layer cache makes every build after the first fast.
 public class ServerImageTests
 {
 	private const int RenderPort = 8080;
@@ -18,12 +19,41 @@ public class ServerImageTests
 	private const string UnreachableDatabase =
 		"Host=127.0.0.1;Port=1;Database=none;Username=none;Password=none;Timeout=2";
 
+	private readonly CancellationToken _cancellationToken = TestContext.Current.CancellationToken;
+
 	private record HealthResponse(string Status, string Database);
 
 	[Fact]
 	public async Task ServerImage_StartsOnRenderPort_AndAnswersHealth()
 	{
-		var cancellationToken = TestContext.Current.CancellationToken;
+		await WithRunningContainerAsync(async container =>
+		{
+			using var client = new HttpClient
+			{
+				BaseAddress = new Uri($"http://{container.Hostname}:{container.GetMappedPublicPort(RenderPort)}")
+			};
+			var response = await client.GetAsync("/api/health", _cancellationToken);
+
+			Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
+			var body = await response.Content.ReadFromJsonAsync<HealthResponse>(_cancellationToken);
+			Assert.Equal(new HealthResponse("unhealthy", "disconnected"), body);
+		});
+	}
+
+	[Fact]
+	public async Task ServerImage_RunsAsNonRootUser()
+	{
+		await WithRunningContainerAsync(async container =>
+		{
+			var result = await container.ExecAsync(["id", "-u"], _cancellationToken);
+
+			Assert.Equal(0, result.ExitCode);
+			Assert.NotEqual("0", result.Stdout.Trim());
+		});
+	}
+
+	private async Task WithRunningContainerAsync(Func<IContainer, Task> test)
+	{
 		var image = new ImageFromDockerfileBuilder()
 			.WithDockerfileDirectory(CommonDirectoryPath.GetGitDirectory(), "vetiflow.Server")
 			.WithDockerfile("Dockerfile")
@@ -33,7 +63,7 @@ public class ServerImageTests
 
 		try
 		{
-			await image.CreateAsync(cancellationToken);
+			await image.CreateAsync(_cancellationToken);
 		}
 		catch (DockerUnavailableException) when (
 			Environment.GetEnvironmentVariable(PostgresServer.ConnectionStringVariable) is not null)
@@ -53,17 +83,9 @@ public class ServerImageTests
 					.ForStatusCode(HttpStatusCode.ServiceUnavailable)))
 				.Build();
 
-			await container.StartAsync(cancellationToken);
+			await container.StartAsync(_cancellationToken);
 
-			using var client = new HttpClient
-			{
-				BaseAddress = new Uri($"http://{container.Hostname}:{container.GetMappedPublicPort(RenderPort)}")
-			};
-			var response = await client.GetAsync("/api/health", cancellationToken);
-
-			Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
-			var body = await response.Content.ReadFromJsonAsync<HealthResponse>(cancellationToken);
-			Assert.Equal(new HealthResponse("unhealthy", "disconnected"), body);
+			await test(container);
 		}
 		finally
 		{
