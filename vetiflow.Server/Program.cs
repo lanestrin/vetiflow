@@ -1,8 +1,7 @@
-using System.Text.Json;
-using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
 using vetiflow.Server.Data;
 using vetiflow.Server.Hubs;
+using vetiflow.Server.Json;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -16,8 +15,13 @@ builder.Services
 				.AddControllers()
 				.AddJsonOptions(options =>
 				{
-					options.JsonSerializerOptions.Converters.Add(
-									new JsonStringEnumConverter(JsonNamingPolicy.CamelCase));
+					// Enums by exactly one name: no numbers ("stage": 2), no undefined
+					// values (99) and no comma lists (see NameOnlyEnumConverter).
+					options.JsonSerializerOptions.Converters.Add(new NameOnlyEnumConverter());
+
+					// The parser's own message names internal types; the 400 still
+					// says which field was invalid.
+					options.AllowInputFormatterExceptionMessages = false;
 				});
 
 builder.Services.AddDbContext<VetiFlowDbContext>(options =>
