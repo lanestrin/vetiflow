@@ -112,8 +112,22 @@ Routes:
   host is IPv6-only, so Render's `ConnectionStrings__VetiFlowDatabase` must be
   the **session pooler** string (Supabase: Connect, Session pooler; port 5432,
   user `postgres.<project-ref>`).
-- **Env vars by name:** `ConnectionStrings__VetiFlowDatabase` on Render;
-  `VITE_API_BASE_URL` on Vercel. Nothing secret goes in a `VITE_` variable.
+- **Secrets and rotation:**
+  - The database connection string is the only secret today. Locally it lives
+    in user secrets (`ConnectionStrings:VetiFlowDatabase`); on Render it is
+    `ConnectionStrings__VetiFlowDatabase`. Never in source or `appsettings*.json`.
+  - `VITE_API_BASE_URL` on Vercel is public: every `VITE_` variable ends up in
+    the browser bundle, so nothing secret goes in one.
+  - `scripts/tests/secrets-config.tests.ps1` (run by Verify and CI) fails if a
+    tracked `appsettings*.json` holds a connection string or password, if the
+    client uses a `VITE_` variable not on its allowlist, or if an env file
+    other than `.env.example` is tracked. GitHub secret scanning and push
+    protection catch other secrets.
+  - Rotate the database password when it may have been exposed or someone
+    with access leaves: reset it in Supabase (Project Settings, Database),
+    update `ConnectionStrings__VetiFlowDatabase` on Render and save (it
+    redeploys), check `GET /api/health` is `healthy`, then update local user
+    secrets.
 - **CORS:** allowed browser origins come from `Cors:AllowedOrigins`.
   `appsettings.json` allows `https://vetiflow.vercel.app`, and
   `appsettings.Development.json` allows the Vite dev server

@@ -73,7 +73,9 @@ Every item that adds a write also:
 Needs no decisions and no sign-in. Every write in M2 relies on S.12's errors.
 
 - [x] **S.12** `feature/input-validation`: length and format limits on every request, ProblemDetails errors, no stack traces or internal details in production responses [13]. Done (history/features/S.12-input-validation.md).
-- [ ] **S.10** `chore/secrets-handling`: connection strings and API keys only in user secrets and Render/Vercel environment variables, nothing secret in `VITE_` variables, secret scanning on, and a rotation note; the app connects with a database user that can't change the schema, and a separate user runs migrations (merged in from S.11 on 2026-10-26).
+- [ ] **S.10** `chore/secrets-handling`: connection strings and API keys only in user secrets and Render/Vercel environment variables, nothing secret in `VITE_` variables, secret scanning on, and a rotation note; the app connects with a database user that can't change the schema, and a separate user runs migrations (merged in from S.11 on 2026-10-26). Split into:
+  - [x] **S.10a** `chore/secrets-handling`: a workflow test that keeps connection strings out of `appsettings*.json` and allows only known, non-secret `VITE_` variables; a secrets and rotation section in the project plan; GitHub secret scanning and push protection on. Done (history/features/S.10a-secrets-handling.md).
+  - [ ] **S.10b** `chore/least-privilege-db`: an app role that can read and write rows but not change the schema, RLS policies for it, migrations through a separate privileged connection used only during a migration deploy, and the Supabase and Render steps.
 - [ ] **1.4** `fix/dependabot-alerts`: resolve any open alerts that remain after PR #13's `npm audit fix` (check brace-expansion, source-map-js, zod).
 
 ## M2: Manual staff journey on demo data
@@ -157,7 +159,7 @@ All of these must be done before VetiFlow holds real clinic data.
 - [ ] **8.5** `chore/privacy-data-handling`: synthetic data only in the demo, a retention policy, owner data export and delete, and a privacy notice.
 - [ ] **8.6** `chore/backups`: Supabase backups or point-in-time recovery turned on, with a tested restore.
 - [ ] **8.9** `chore/monitoring`: uptime alert on `/api/health`, error alerting and log retention.
-- [ ] **8.7** `chore/security-scanning`: extend Dependabot from GitHub Actions to npm and NuGet, and add CodeQL in CI, so new vulnerabilities show up on PRs.
+- [ ] **8.7** `chore/security-scanning`: extend Dependabot from GitHub Actions to npm and NuGet, so new vulnerabilities show up on PRs. CodeQL default setup is already on (seen 2026-10-26, S.10a); keep it on.
 - [ ] **7.6** `chore/accessibility-pass`: AA contrast, keyboard and screen reader checks, and layouts that work at tablet width.
 - [ ] **7.2** `test/playwright-sync`: two browsers, drag in one, assert the other updates.
 - [ ] **7.8** `test/playwright-journey`: intake -> triage -> assignment -> stage moves -> discharge in a browser.
