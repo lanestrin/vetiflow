@@ -49,8 +49,20 @@ archives it.
    review are made on the same branch, then `/approve` again. After the merge,
    `/clear` and start the next item from the updated `main`.
 
+**`/ready` runs steps 2 to 4 as one bounded loop.** After you OK the spec, it
+builds, has a fresh subagent review the change, repairs blocking findings
+(adding the repair steps to the spec without asking), has them re-reviewed, and
+runs `/check` when needed: at most 3 review rounds. It stops for you only at
+exceptions (a product or scope choice, accepting a risk or skipping a check, a
+setup or secret problem, a repeated failure, the round limit) and stops before
+`/complete`. Steps 5 to 7 stay yours. The manual path (`/implement`, `/clear`,
+`/audit`) works as before.
+
 `/verify` runs inside steps 2 and 5. Run it yourself whenever you want the full
-check.
+check. Each run records its result in `.verify/evidence.json`; `/audit`,
+`/complete` and `/approve` reuse it only when it was a full PASS and no file
+outside the workflow bookkeeping changed since, and otherwise run Verify again
+(see "Reusing a run" in `/verify`).
 
 **Resuming after a lost chat or `/clear`.** Progress lives in files: the spec's
 status and ticked steps, `findings.md`, history and git. `/implement` continues
@@ -75,6 +87,17 @@ The spec's `**Audit:**` line is `required` when the work touches any of:
 Otherwise it is `not needed`. Both come with a one-line reason. If the work grows
 into one of these while building, `/implement` changes the line to `required`
 and says why. `/complete` gate 5 reads it.
+
+## Independent review
+
+The reviewer must not be the session that wrote the code. For routine work, a
+fresh subagent started by `/ready` (a new agent, never a fork of the session)
+counts. Work on build plan phase S or 8, migrations or stored data, a hard rule
+in `CLAUDE.md`, or a workflow skill's safety checks also needs one full
+`/audit` in a session you start (`/clear`, then `/audit`) after the last change.
+Each `Audit run` line in `findings.md` names its reviewer (`session` or
+`subagent`), and `/complete` gate 5 checks for a `session` line on that work.
+The reviewer writes the line, so this is advisory, not enforced.
 
 ## Branching
 
@@ -146,8 +169,11 @@ Whenever there is more than one sensible next step, let the person choose:
   risk is real, the shorter path when it is not.
 - After the choice, act on it straight away when Claude can (record a skipped
   audit, accept a finding, stash files, add a repair step to the spec). When it
-  is a command only the person can run (`/implement`, `/audit`, `/check`,
-  `/complete`, `/approve`, `/fix`, `/clear`), say exactly what to type, in order.
+  is a command only the person can run (`/implement`, `/ready`, `/audit`,
+  `/check`, `/complete`, `/approve`, `/fix`, `/clear`), say exactly what to
+  type, in order.
+- Inside `/ready`, the choices on its continue list (in its skill) are made
+  without asking; only its stop list comes back to you.
 - With only one sensible next step, skip the prompt and say what to type.
 
 ## When something fails or stops

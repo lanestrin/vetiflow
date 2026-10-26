@@ -51,7 +51,15 @@ For each unticked step, in order:
    `coding-standards.md`). For a bug, write the failing test first.
 4. Model change? Follow `/migration` for the migration in this step.
 5. Run the narrow check: `/test <filter>` for the tests this step touched, or
-   `npm run lint` / a build when there is no logic.
+   `npm run lint` / a build when there is no logic. Run the whole affected suite
+   instead (`dotnet test --project vetiflow.Server.Tests`, or
+   `npm run test -- --run` in `vetiflow.client`) when the step changes:
+   - shared code used by more than one feature;
+   - a dependency (`*.csproj`, `package.json`, `package-lock.json`,
+     `.config/dotnet-tools.json`);
+   - config (`Program.cs`, `appsettings*.json`, `vite.config.ts`, `tsconfig*.json`);
+   - security (sign-in, roles, owner scope, redaction);
+   - database code (`Data/`, entities, migrations).
 6. Self-review the diff: spec coverage, sign-in and role checks, owner scope,
    no PII in logs, error handling, nothing unrelated.
 7. Tick the step's box only after its check passes. If it repaired a finding,
@@ -95,8 +103,10 @@ the loop:
    - Otherwise, when a *Done when* needs the running app: `/check` (or
      `/check guide` to try it yourself).
    - Otherwise: `/complete`.
-2. Walk me through it first: a read-only tour per step (purpose, key files and
+2. Hand the rest to `/ready`: review in a fresh subagent, repair and re-review
+   up to 3 rounds, `/check` when needed, then stop before `/complete`.
+3. Walk me through it first: a read-only tour per step (purpose, key files and
    symbols, data flow, non-obvious decisions), then this choice again.
-3. Request changes: say what; they become spec changes for your OK.
+4. Request changes: say what; they become spec changes for your OK.
 
 Never commit, push or merge from this skill.
