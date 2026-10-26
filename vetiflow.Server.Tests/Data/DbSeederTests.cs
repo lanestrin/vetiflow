@@ -8,7 +8,8 @@ public class DbSeederTests(VetiFlowApiFactory factory)
 {
 	private readonly CancellationToken _cancellationToken = TestContext.Current.CancellationToken;
 
-	// Startup seeds on every boot, so a second run must not duplicate data.
+	// With Database:SeedDemoData on, startup seeds on every boot, so a second
+	// run must not duplicate data.
 	[Fact]
 	public async Task SeedAsync_PopulatesEmptyDatabaseOnce()
 	{

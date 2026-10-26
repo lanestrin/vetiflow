@@ -99,12 +99,23 @@ Routes:
 - **Client:** Vercel, SPA routing.
 - **Database:** Supabase Postgres.
 - **Env vars by name:** `ConnectionStrings__VetiFlowDatabase` on Render;
-  `VITE_API_BASE_URL` on Vercel. Planned by build plan S.1 and S.3:
-  `Database__MigrateOnStartup`, `Database__SeedDemoData`,
+  `VITE_API_BASE_URL` on Vercel. Planned by build plan S.3:
   `Cors__AllowedOrigins__0`. Nothing secret goes in a `VITE_` variable.
+- **Startup database settings** (build plan S.1):
+  `Database__MigrateOnStartup` and `Database__SeedDemoData`, both `false`
+  unless set. `appsettings.Development.json` and the test host turn both on;
+  Render sets neither.
 - **Health check:** `GET /api/health`.
-- Migrations in production run as a deliberate deploy step, never by accident
-  from a developer machine.
+- **Migrations in production** run as a deliberate deploy step, never by
+  accident and never from a developer machine. With migrations pending and
+  `Database__MigrateOnStartup` off, the app refuses to start and logs which
+  migrations are missing; Render marks the deploy failed and keeps the
+  previous build serving. When a merged change adds a migration:
+  1. On Render, set `Database__MigrateOnStartup=true` (Environment).
+  2. Deploy the commit (Manual Deploy, or the save triggers one).
+  3. Check the deploy log for the applied migrations and `GET /api/health`
+     for `healthy`.
+  4. Set `Database__MigrateOnStartup` back to `false` (or delete it).
 
 ## 9. Usage model and constraints
 
