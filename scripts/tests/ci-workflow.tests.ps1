@@ -2,8 +2,8 @@
 .SYNOPSIS
   Regression checks that CI runs Verify itself and stays locked down: both jobs
   call scripts/verify.ps1 and never reuse evidence, every job has a timeout,
-  every action is pinned to a commit SHA, and the PR title never reaches a script
-  as text.
+  every action is pinned to a commit SHA, the PR title never reaches a script
+  as text, and Vercel deploys only main.
 
 .DESCRIPTION
   Plain PowerShell, no test framework. Reads the workflow files as text; the
@@ -61,7 +61,23 @@ Assert-True (@($title -match '^\s*run:.*scripts/check-pr-title\.ps1').Count -eq 
 $dependabotPath = Join-Path $repoRoot '.github/dependabot.yml'
 Assert-True ((Test-Path $dependabotPath) -and ((Get-Content -LiteralPath $dependabotPath) -match '^\s*-\s*package-ecosystem:\s*github-actions\s*$')) 'Dependabot updates the github-actions ecosystem'
 
+# Only main may deploy on Vercel: with no staging API, a preview build could only
+# call production. Vercel deploys a branch when any matching pattern is true
+# (https://vercel.com/docs/project-configuration/git-configuration).
+function Test-OnlyMainDeploys([string]$VercelJson) {
+	$enabled = ($VercelJson | ConvertFrom-Json).git.deploymentEnabled
+	if (-not $enabled) { return $false }
+	$truePatterns = @($enabled.PSObject.Properties | Where-Object { $_.Value -eq $true } | ForEach-Object { $_.Name })
+	$enabled.'**' -eq $false -and $truePatterns.Count -eq 1 -and $truePatterns[0] -eq 'main'
+}
+
+$vercelPath = Join-Path $repoRoot 'vetiflow.client/vercel.json'
+Assert-True ((Test-Path $vercelPath) -and (Test-OnlyMainDeploys (Get-Content -Raw -LiteralPath $vercelPath))) 'vercel.json deploys only main'
+
 # The checks must catch what they guard against.
+Assert-True (-not (Test-OnlyMainDeploys '{ "rewrites": [] }')) 'a vercel.json without deploymentEnabled is caught'
+Assert-True (-not (Test-OnlyMainDeploys '{ "git": { "deploymentEnabled": { "**": false, "main": true, "feature/**": true } } }')) 'a vercel.json that also deploys other branches is caught'
+Assert-True (-not (Test-OnlyMainDeploys '{ "git": { "deploymentEnabled": { "main": true } } }')) 'a vercel.json that leaves other branches on by default is caught'
 Assert-True ((Get-UnpinnedUses @('      - uses: actions/checkout@v5')).Count -eq 1) 'a tag-pinned action is caught'
 Assert-True ((Get-UnpinnedUses @('      - uses: actions/checkout@fbc6f399 # short')).Count -eq 1) 'a short SHA is caught'
 Assert-True ((Get-UnpinnedUses @('      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0')).Count -eq 0) 'a full SHA passes'

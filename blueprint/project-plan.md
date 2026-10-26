@@ -105,7 +105,31 @@ Routes:
   `Database__MigrateOnStartup` and `Database__SeedDemoData`, both `false`
   unless set. `appsettings.Development.json` and the test host turn both on;
   Render sets neither.
-- **Health check:** `GET /api/health`.
+- **Health check:** `GET /api/health`. 200 `healthy` when the database
+  answers, 503 `unhealthy` when it does not. Render's health check depends on
+  the route and these status codes.
+- **CI:** every PR and every push to `main` runs `scripts/verify.ps1` in two
+  jobs ("Server tests", "Client lint, build and tests"), plus "PR title" on
+  PRs. The server tests include `ServerImageTests`, which builds
+  `vetiflow.Server/Dockerfile` and starts the image as Render does (`PORT`
+  set, Production), so a broken image fails CI before Render ever sees it.
+- **Render:** Auto-Deploy is set to "After CI Checks Pass", so a merge to
+  `main` deploys only once CI is green on the merge commit. Health Check Path
+  is `/api/health`: a new deploy that does not answer `healthy` (database
+  down, or migrations pending, see below) is marked failed, and the previous
+  one keeps serving.
+- **Vercel:** only `main` deploys (`git.deploymentEnabled` in
+  `vetiflow.client/vercel.json`, held by a workflow test). There is no
+  staging API, so a preview could only call production; previews come back
+  when a staging API exists.
+- **Rollback:**
+  1. Render: Events, choose the last good deploy, Rollback. Rolling back code
+     never undoes a migration. A migration that went wrong is fixed forward
+     with a new one; there is no backward compatibility to keep.
+  2. Vercel: Deployments, choose the last good production deployment, Instant
+     Rollback (or Promote).
+  3. Then revert the bad change on `main` through a PR, so the next
+     auto-deploy does not ship it again.
 - **Migrations in production** run as a deliberate deploy step, never by
   accident and never from a developer machine. With migrations pending and
   `Database__MigrateOnStartup` off, the app refuses to start and logs which
