@@ -129,22 +129,42 @@ public class CasesEndpointTests(VetiFlowApiFactory factory)
 		Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
 	}
 
-	[Fact]
-	public async Task UpdateStage_UnknownStage_ReturnsBadRequestAndLeavesCaseAlone()
+	// Only a known stage name may move a case: not a number, not a missing value.
+	[Theory]
+	[InlineData("""{"stage":"surgery"}""")]
+	[InlineData("""{"stage":2}""")]
+	[InlineData("""{"stage":"2"}""")]
+	[InlineData("""{"stage":99}""")]
+	[InlineData("""{"stage":"triage,treatment"}""")]
+	[InlineData("""{"stage":null}""")]
+	[InlineData("""{}""")]
+	public async Task UpdateStage_InvalidStage_ReturnsBadRequestAndLeavesCaseAlone(string body)
 	{
 		var emergencyCase = TestData.Case(TestData.Patient());
 		await SaveAsync(emergencyCase);
 		using var client = factory.CreateClient();
 
-		var response = await client.PatchAsJsonAsync(
-			$"/api/cases/{emergencyCase.Id}/stage",
-			new { stage = "surgery" },
-			_cancellationToken);
+		var response = await PatchStageAsync(client, emergencyCase.Id, body);
 
 		Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
 		await using var dbContext = factory.CreateDbContext();
 		var saved = await dbContext.EmergencyCases.SingleAsync(c => c.Id == emergencyCase.Id, _cancellationToken);
 		Assert.Equal(CaseStage.Incoming, saved.Stage);
+	}
+
+	[Fact]
+	public async Task UpdateStage_InvalidStage_DoesNotExposeTypeNames()
+	{
+		var emergencyCase = TestData.Case(TestData.Patient());
+		await SaveAsync(emergencyCase);
+		using var client = factory.CreateClient();
+
+		var response = await PatchStageAsync(client, emergencyCase.Id, """{"stage":"surgery"}""");
+
+		Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+		var problem = await response.Content.ReadAsStringAsync(_cancellationToken);
+		Assert.Contains("stage", problem, StringComparison.OrdinalIgnoreCase);
+		Assert.DoesNotContain("vetiflow.Server", problem);
 	}
 
 	[Fact]
@@ -178,6 +198,13 @@ public class CasesEndpointTests(VetiFlowApiFactory factory)
 
 		await notified.Task.WaitAsync(TimeSpan.FromSeconds(10), _cancellationToken);
 	}
+
+	// Sends the body exactly as written, so tests can send numbers and nulls.
+	private Task<HttpResponseMessage> PatchStageAsync(HttpClient client, Guid caseId, string body) =>
+		client.PatchAsync(
+			$"/api/cases/{caseId}/stage",
+			new StringContent(body, System.Text.Encoding.UTF8, "application/json"),
+			_cancellationToken);
 
 	private async Task SaveAsync(params EmergencyCase[] cases)
 	{
