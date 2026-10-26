@@ -17,7 +17,7 @@ export function AcuityBadge({ acuity }: AcuityBadgeProps) {
   const label = {
     critical: "Critical",
     urgent: "Urgent",
-    stable: "Stable",
+    high: "High",
     low: "Low"
   }[acuity];
 

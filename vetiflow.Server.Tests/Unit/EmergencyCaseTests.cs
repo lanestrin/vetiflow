@@ -22,7 +22,7 @@ public class EmergencyCaseTests
 	public void RecordTriage_Retriage_KeepsHistoryAndUsesLatestAcuity()
 	{
 		var emergencyCase = NewCase();
-		var first = new TriageAssessment { Acuity = AcuityLevel.Stable };
+		var first = new TriageAssessment { Acuity = AcuityLevel.High };
 		var second = new TriageAssessment { Acuity = AcuityLevel.Critical };
 
 		emergencyCase.RecordTriage(first);

@@ -15,7 +15,7 @@ describe("ErBoardStatusBar", () => {
         cases={[
           buildCase({ acuity: "critical", status: "waiting" }),
           buildCase({ acuity: "critical", status: "inProgress" }),
-          buildCase({ acuity: "stable", status: "waiting" }),
+          buildCase({ acuity: "high", status: "waiting" }),
           buildCase({ acuity: null, status: "assigned" })
         ]}
       />

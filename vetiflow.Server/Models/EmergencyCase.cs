@@ -25,7 +25,7 @@ public enum AcuityLevel
 {
 	Critical,
 	Urgent,
-	Stable,
+	High,
 	Low
 }
 

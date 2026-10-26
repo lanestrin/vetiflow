@@ -237,7 +237,7 @@ public static class DbSeeder
 
 		maxCase.RecordTriage(new TriageAssessment
 		{
-			Acuity = AcuityLevel.Stable,
+			Acuity = AcuityLevel.High,
 			RawIntakeNotes = "Jumped out of truck, holding right back leg up. Neutered.",
 			AssessedAt = now.AddMinutes(-60),
 			AssessedByStaff = drShah

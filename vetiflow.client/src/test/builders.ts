@@ -18,7 +18,7 @@ export function buildCase(
     presentingComplaint: "Vomiting",
     stage: "incoming",
     status: "waiting",
-    acuity: "stable",
+    acuity: "high",
     arrivalTime: new Date().toISOString(),
     nextAction: null,
     ...overrides
