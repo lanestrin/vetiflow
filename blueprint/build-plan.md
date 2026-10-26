@@ -34,9 +34,9 @@ less.
 ## Phase 0: Data model foundation
 
 - [x] **0.1** `feature/data-model-integrity`: real foreign keys, restrict deletes, partial unique indexes, enums stored as text, `PatientSex`, drop `Room.IsAvailable`, `RecordTriage`, `CaseTask`, migrate and seed on startup, richer seed [1–9]. Merged (PR #12). History: `history/features/0.1-data-model-integrity.md`.
-- [ ] **0.2** `feature/owner-and-vitals`: `Owner` entity with contact details and communication status; repeated vitals (`VitalsRecord`, or several triage assessments per case); seed both. Split into:
+- [x] **0.2** `feature/owner-and-vitals`: `Owner` entity with contact details and communication status; repeated vitals (`VitalsRecord`, or several triage assessments per case); seed both. Split into (both done):
   - [x] **0.2a** `feature/owner`: `Owner` entity, optional `Patient.OwnerId`, per-case owner update status (`OwnerUpdateStatus`, `LastOwnerUpdateAt`), seeded owners. Done (history/features/0.2a-owner.md).
-  - [ ] **0.2b** `feature/repeated-vitals`: `VitalsRecord` per case; a migration moves today's vitals off `TriageAssessment`, which keeps acuity and intake notes.
+  - [x] **0.2b** `feature/repeated-vitals`: `VitalsRecord` per case; a migration moves today's vitals off `TriageAssessment`, which keeps acuity and intake notes. Done (history/features/0.2b-repeated-vitals.md).
 - [ ] **0.3** `feature/acuity-high`: rename `Stable` to `High` in the enum, client types and seed, with a migration that updates existing rows.
 
 ## Phase 1: Deploy and CI

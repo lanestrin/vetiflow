@@ -85,6 +85,8 @@ public class EmergencyCase
 
 	public List<TriageAssessment> TriageAssessments { get; } = [];
 
+	public List<VitalsRecord> VitalsRecords { get; } = [];
+
 	public List<CaseTask> Tasks { get; } = [];
 
 	public List<CaseEvent> Events { get; } = [];
@@ -93,6 +95,13 @@ public class EmergencyCase
 	{
 		TriageAssessments.Add(assessment);
 		Acuity = assessment.Acuity;
+		LastUpdated = DateTimeOffset.UtcNow;
+	}
+
+	// Leaves Acuity alone: a vitals recheck is not a triage decision.
+	public void RecordVitals(VitalsRecord vitals)
+	{
+		VitalsRecords.Add(vitals);
 		LastUpdated = DateTimeOffset.UtcNow;
 	}
 }

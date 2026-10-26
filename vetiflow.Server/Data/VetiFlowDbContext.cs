@@ -18,6 +18,8 @@ public class VetiFlowDbContext : DbContext
 
 	public DbSet<TriageAssessment> TriageAssessments => Set<TriageAssessment>();
 
+	public DbSet<VitalsRecord> VitalsRecords => Set<VitalsRecord>();
+
 	public DbSet<StaffMember> StaffMembers => Set<StaffMember>();
 
 	public DbSet<Room> Rooms => Set<Room>();

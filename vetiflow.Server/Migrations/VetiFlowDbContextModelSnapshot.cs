@@ -384,6 +384,27 @@ namespace vetiflow.Server.Migrations
                     b.Property<Guid?>("AssessedByStaffId")
                         .HasColumnType("uuid");
 
+                    b.Property<Guid>("EmergencyCaseId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("RawIntakeNotes")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AssessedByStaffId");
+
+                    b.HasIndex("EmergencyCaseId");
+
+                    b.ToTable("TriageAssessments");
+                });
+
+            modelBuilder.Entity("vetiflow.Server.Models.VitalsRecord", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
                     b.Property<string>("CapillaryRefillTime")
                         .HasColumnType("text");
 
@@ -399,8 +420,11 @@ namespace vetiflow.Server.Migrations
                     b.Property<string>("MucousMembraneColor")
                         .HasColumnType("text");
 
-                    b.Property<string>("RawIntakeNotes")
-                        .HasColumnType("text");
+                    b.Property<DateTimeOffset>("RecordedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("RecordedByStaffId")
+                        .HasColumnType("uuid");
 
                     b.Property<int?>("RespiratoryRate")
                         .HasColumnType("integer");
@@ -410,11 +434,11 @@ namespace vetiflow.Server.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("AssessedByStaffId");
-
                     b.HasIndex("EmergencyCaseId");
 
-                    b.ToTable("TriageAssessments");
+                    b.HasIndex("RecordedByStaffId");
+
+                    b.ToTable("VitalsRecords");
                 });
 
             modelBuilder.Entity("vetiflow.Server.Models.AiSummary", b =>
@@ -570,6 +594,24 @@ namespace vetiflow.Server.Migrations
                     b.Navigation("EmergencyCase");
                 });
 
+            modelBuilder.Entity("vetiflow.Server.Models.VitalsRecord", b =>
+                {
+                    b.HasOne("vetiflow.Server.Models.EmergencyCase", "EmergencyCase")
+                        .WithMany("VitalsRecords")
+                        .HasForeignKey("EmergencyCaseId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("vetiflow.Server.Models.StaffMember", "RecordedByStaff")
+                        .WithMany()
+                        .HasForeignKey("RecordedByStaffId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("EmergencyCase");
+
+                    b.Navigation("RecordedByStaff");
+                });
+
             modelBuilder.Entity("vetiflow.Server.Models.EmergencyCase", b =>
                 {
                     b.Navigation("Events");
@@ -577,6 +619,8 @@ namespace vetiflow.Server.Migrations
                     b.Navigation("Tasks");
 
                     b.Navigation("TriageAssessments");
+
+                    b.Navigation("VitalsRecords");
                 });
 #pragma warning restore 612, 618
         }
