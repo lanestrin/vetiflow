@@ -12,17 +12,7 @@ public class TriageAssessment
 	// acuity lives on EmergencyCase and is set through RecordTriage.
 	public AcuityLevel Acuity { get; set; }
 
-	public int? HeartRate { get; set; }
-
-	public int? RespiratoryRate { get; set; }
-
-	public decimal? TemperatureF { get; set; }
-
-	public string? MucousMembraneColor { get; set; }
-
-	public string? CapillaryRefillTime { get; set; }
-
-	public string? Mentation { get; set; }
+	// Vitals live in VitalsRecord, so a recheck is not an acuity decision.
 
 	public string? RawIntakeNotes { get; set; }
 

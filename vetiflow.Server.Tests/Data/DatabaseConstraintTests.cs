@@ -123,6 +123,23 @@ public class DatabaseConstraintTests(VetiFlowApiFactory factory)
 	}
 
 	[Fact]
+	public async Task Case_WithVitals_CannotBeDeleted()
+	{
+		var emergencyCase = TestData.Case(TestData.Patient());
+		emergencyCase.RecordVitals(new VitalsRecord { HeartRate = 120 });
+		await SaveAsync(emergencyCase);
+
+		await using var dbContext = factory.CreateDbContext();
+
+		await AssertViolatesAsync(
+			() => dbContext.EmergencyCases
+				.Where(c => c.Id == emergencyCase.Id)
+				.ExecuteDeleteAsync(_cancellationToken),
+			PostgresErrorCodes.ForeignKeyViolation,
+			"FK_VitalsRecords_EmergencyCases_EmergencyCaseId");
+	}
+
+	[Fact]
 	public async Task Enums_AreStoredByName()
 	{
 		var emergencyCase = TestData.Case(TestData.Patient());

@@ -14,6 +14,8 @@ public class MigrationTests(VetiFlowApiFactory factory)
 
 	private const string DataModelIntegrity = "20261024141817_DataModelIntegrity";
 
+	private const string EnableRowLevelSecurity = "20261026153851_EnableRowLevelSecurity";
+
 	private readonly CancellationToken _cancellationToken = TestContext.Current.CancellationToken;
 
 	// Fails when the model changed without a migration being added.
@@ -116,6 +118,100 @@ public class MigrationTests(VetiFlowApiFactory factory)
 		Assert.Equal(OwnerUpdateStatus.NotYetUpdated, emergencyCase.OwnerUpdateStatus);
 		Assert.Null(emergencyCase.LastOwnerUpdateAt);
 		Assert.Null(emergencyCase.Patient.OwnerId);
+	}
+
+	// MoveVitalsToVitalsRecords moves clinical rows between tables; none may be
+	// lost on the way, and an assessment without vitals gets no record.
+	[Fact]
+	public async Task MoveVitalsToVitalsRecords_KeepsExistingVitals()
+	{
+		await using var dbContext = await CreateEmptyDatabaseAsync();
+		var migrator = dbContext.GetService<IMigrator>();
+		await migrator.MigrateAsync(EnableRowLevelSecurity, _cancellationToken);
+		var rows = await InsertAssessmentsWithAndWithoutVitalsAsync(dbContext);
+
+		await migrator.MigrateAsync(cancellationToken: _cancellationToken);
+
+		var vitals = await dbContext.VitalsRecords.SingleAsync(_cancellationToken);
+		Assert.Equal(rows.WithVitalsId, vitals.Id);
+		Assert.Equal(rows.CaseId, vitals.EmergencyCaseId);
+		Assert.Equal(168, vitals.HeartRate);
+		Assert.Equal(44, vitals.RespiratoryRate);
+		Assert.Equal(103.1m, vitals.TemperatureF);
+		Assert.Equal("Pale", vitals.MucousMembraneColor);
+		Assert.Equal(">2 s", vitals.CapillaryRefillTime);
+		Assert.Equal("Restless", vitals.Mentation);
+		Assert.Equal(rows.AssessedAt, vitals.RecordedAt);
+		Assert.Equal(rows.StaffId, vitals.RecordedByStaffId);
+
+		var assessments = await dbContext.TriageAssessments
+			.OrderBy(a => a.AssessedAt)
+			.ToListAsync(_cancellationToken);
+		Assert.Equal(2, assessments.Count);
+		Assert.All(assessments, a => Assert.Equal(AcuityLevel.Critical, a.Acuity));
+		Assert.Equal("Retching for an hour.", assessments[0].RawIntakeNotes);
+	}
+
+	[Fact]
+	public async Task MoveVitalsToVitalsRecords_RollBackRestoresVitals()
+	{
+		await using var dbContext = await CreateEmptyDatabaseAsync();
+		var migrator = dbContext.GetService<IMigrator>();
+		await migrator.MigrateAsync(EnableRowLevelSecurity, _cancellationToken);
+		var rows = await InsertAssessmentsWithAndWithoutVitalsAsync(dbContext);
+		await migrator.MigrateAsync(cancellationToken: _cancellationToken);
+
+		await migrator.MigrateAsync(EnableRowLevelSecurity, _cancellationToken);
+
+		var restored = await dbContext.Database
+			.SqlQuery<string>($"""
+				SELECT concat_ws('/', "HeartRate", "RespiratoryRate", "TemperatureF",
+				                 "MucousMembraneColor", "CapillaryRefillTime", "Mentation") AS "Value"
+				FROM "TriageAssessments" WHERE "Id" = {rows.WithVitalsId}
+				""")
+			.SingleAsync(_cancellationToken);
+		Assert.Equal("168/44/103.1/Pale/>2 s/Restless", restored);
+	}
+
+	// Rows in the shape before MoveVitalsToVitalsRecords: one assessment with
+	// vitals, one without.
+	private async Task<(Guid CaseId, Guid WithVitalsId, Guid StaffId, DateTimeOffset AssessedAt)>
+		InsertAssessmentsWithAndWithoutVitalsAsync(VetiFlowDbContext dbContext)
+	{
+		var staffId = Guid.NewGuid();
+		var patientId = Guid.NewGuid();
+		var caseId = Guid.NewGuid();
+		var withVitalsId = Guid.NewGuid();
+		var withoutVitalsId = Guid.NewGuid();
+		// A whole-second time, so the value read back from Postgres compares equal.
+		var assessedAt = new DateTimeOffset(2026, 10, 20, 14, 30, 0, TimeSpan.Zero);
+		var now = DateTimeOffset.UtcNow;
+		await dbContext.Database.ExecuteSqlAsync($"""
+			INSERT INTO "StaffMembers" ("Id", "FirstName", "LastName", "Role", "IsActive")
+			VALUES ({staffId}, 'Jordan', 'Lee', 'Veterinarian', TRUE)
+			""", _cancellationToken);
+		await dbContext.Database.ExecuteSqlAsync($"""
+			INSERT INTO "Patients" ("Id", "Name", "Species") VALUES ({patientId}, 'Buddy', 'Dog')
+			""", _cancellationToken);
+		await dbContext.Database.ExecuteSqlAsync($"""
+			INSERT INTO "EmergencyCases"
+				("Id", "PatientId", "ArrivalTime", "PresentingComplaint",
+				 "Stage", "Status", "Acuity", "LastUpdated", "OwnerUpdateStatus")
+			VALUES ({caseId}, {patientId}, {now}, 'Retching', 'Triage', 'Unassigned', 'Critical', {now}, 'NotYetUpdated')
+			""", _cancellationToken);
+		await dbContext.Database.ExecuteSqlAsync($"""
+			INSERT INTO "TriageAssessments"
+				("Id", "EmergencyCaseId", "Acuity", "HeartRate", "RespiratoryRate", "TemperatureF",
+				 "MucousMembraneColor", "CapillaryRefillTime", "Mentation", "RawIntakeNotes",
+				 "AssessedAt", "AssessedByStaffId")
+			VALUES ({withVitalsId}, {caseId}, 'Critical', 168, 44, 103.1, 'Pale', '>2 s', 'Restless',
+				'Retching for an hour.', {assessedAt}, {staffId})
+			""", _cancellationToken);
+		await dbContext.Database.ExecuteSqlAsync($"""
+			INSERT INTO "TriageAssessments" ("Id", "EmergencyCaseId", "Acuity", "AssessedAt")
+			VALUES ({withoutVitalsId}, {caseId}, 'Critical', {assessedAt.AddMinutes(10)})
+			""", _cancellationToken);
+		return (caseId, withVitalsId, staffId, assessedAt);
 	}
 
 	private async Task<VetiFlowDbContext> CreateEmptyDatabaseAsync() =>

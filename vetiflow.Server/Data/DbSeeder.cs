@@ -118,19 +118,37 @@ public static class DbSeeder
 			OwnerUpdateStatus = OwnerUpdateStatus.ConsentNeeded
 		};
 
-		buddyCase.RecordTriage(new TriageAssessment
+		buddyCase.RecordVitals(new VitalsRecord
 		{
-			Acuity = AcuityLevel.Critical,
 			HeartRate = 168,
 			RespiratoryRate = 44,
 			MucousMembraneColor = "Pale",
 			CapillaryRefillTime = ">2 s",
 			Mentation = "Restless",
+			RecordedAt = now.AddMinutes(-12),
+			RecordedByStaff = drLee
+		});
+
+		buddyCase.RecordTriage(new TriageAssessment
+		{
+			Acuity = AcuityLevel.Critical,
 			RawIntakeNotes =
 					"Owner reports retching without producing anything for about an hour. " +
 					"Belly looks bigger. Not neutered.",
 			AssessedAt = now.AddMinutes(-12),
 			AssessedByStaff = drLee
+		});
+
+		// A technician's recheck: repeated vitals without a new acuity decision.
+		buddyCase.RecordVitals(new VitalsRecord
+		{
+			HeartRate = 180,
+			RespiratoryRate = 48,
+			MucousMembraneColor = "Pale",
+			CapillaryRefillTime = ">2 s",
+			Mentation = "Restless",
+			RecordedAt = now.AddMinutes(-3),
+			RecordedByStaff = techOrtiz
 		});
 
 		buddyCase.Tasks.Add(new CaseTask
@@ -160,15 +178,21 @@ public static class DbSeeder
 			LastOwnerUpdateAt = now.AddMinutes(-15)
 		};
 
-		lunaCase.RecordTriage(new TriageAssessment
+		lunaCase.RecordVitals(new VitalsRecord
 		{
-			Acuity = AcuityLevel.Urgent,
 			HeartRate = 210,
 			RespiratoryRate = 32,
 			TemperatureF = 102.9m,
 			MucousMembraneColor = "Pink, tacky",
 			CapillaryRefillTime = "2 s",
 			Mentation = "Quiet",
+			RecordedAt = now.AddMinutes(-35),
+			RecordedByStaff = drShah
+		});
+
+		lunaCase.RecordTriage(new TriageAssessment
+		{
+			Acuity = AcuityLevel.Urgent,
 			RawIntakeNotes = "Vomited 5 times since 7am. Won't eat. Spayed.",
 			AssessedAt = now.AddMinutes(-35),
 			AssessedByStaff = drShah
@@ -199,15 +223,21 @@ public static class DbSeeder
 			NextAction = "Administer pain medication"
 		};
 
-		maxCase.RecordTriage(new TriageAssessment
+		maxCase.RecordVitals(new VitalsRecord
 		{
-			Acuity = AcuityLevel.Stable,
 			HeartRate = 96,
 			RespiratoryRate = 24,
 			TemperatureF = 101.5m,
 			MucousMembraneColor = "Pink",
 			CapillaryRefillTime = "<2 s",
 			Mentation = "Bright, alert",
+			RecordedAt = now.AddMinutes(-60),
+			RecordedByStaff = drShah
+		});
+
+		maxCase.RecordTriage(new TriageAssessment
+		{
+			Acuity = AcuityLevel.Stable,
 			RawIntakeNotes = "Jumped out of truck, holding right back leg up. Neutered.",
 			AssessedAt = now.AddMinutes(-60),
 			AssessedByStaff = drShah

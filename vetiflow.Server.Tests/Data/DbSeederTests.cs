@@ -30,6 +30,27 @@ public class DbSeederTests(VetiFlowApiFactory factory)
 	}
 
 	[Fact]
+	public async Task SeedAsync_RecordsVitalsForEveryCase()
+	{
+		await using var dbContext = VetiFlowApiFactory.CreateDbContext(
+			await factory.Postgres.CreateDatabaseAsync());
+		await dbContext.Database.MigrateAsync(_cancellationToken);
+
+		await DbSeeder.SeedAsync(dbContext);
+
+		var vitalsPerPatient = await dbContext.EmergencyCases
+			.Select(emergencyCase => new
+			{
+				emergencyCase.Patient.Name,
+				Count = emergencyCase.VitalsRecords.Count
+			})
+			.ToDictionaryAsync(item => item.Name, item => item.Count, _cancellationToken);
+		Assert.All(vitalsPerPatient.Values, count => Assert.True(count >= 1));
+		// Buddy has intake vitals and a technician's recheck.
+		Assert.Equal(2, vitalsPerPatient["Buddy"]);
+	}
+
+	[Fact]
 	public async Task SeedAsync_LinksEachDemoPatientToAnOwner()
 	{
 		await using var dbContext = VetiFlowApiFactory.CreateDbContext(
