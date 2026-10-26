@@ -46,5 +46,7 @@ If it does not reproduce, say so and list what was tried.
 - **Evidence:** the commands and their output.
 - **Suggested fix:** the smallest root-cause repair, and the test that would
   have caught it.
-- **Next:** `/fix "<title>"` between work items, or a new step in the current
-  spec via `/implement` when it belongs to the active work.
+- End with the handoff ("Ending a turn" in `blueprint/context/ai-interaction.md`):
+  `Status: Cause found` (or `Blocked - cause not found`). `Next: /fix "<title>"`
+  between work items, or, when it belongs to the active work, reply "add a
+  repair step" (a spec change for your OK, then `/ready`).

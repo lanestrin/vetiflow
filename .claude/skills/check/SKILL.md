@@ -59,18 +59,18 @@ A table: *Done when* item, what was done, what was observed, PASS or FAIL.
 State plainly anything you could not observe and why. Do not mark the spec
 `verified` from here; `/implement` owns status.
 
-Then the next step (see "Choosing the next step" in
-`blueprint/context/ai-interaction.md`):
+Then end ("Ending a turn" in `blueprint/context/ai-interaction.md`). Inside
+`/ready`, a FAIL is repaired without asking and this section does not apply.
 
-- **All PASS:** one step, no prompt. Next: `/complete`.
-- **A FAIL:**
-  1. Fix it: `/implement` and describe the failure, then `/check` again
-     (Recommended when the app does not do what the spec says).
-  2. `/debug` to find the cause first (Recommended when it is unclear).
-  3. The spec was wrong: Claude proposes a corrected *Done when* for your OK.
-- **Could not observe an item:** say what is missing (the app not running, no
-  browser tool, no test data) and how to provide it, then `/check` again; or
-  `/check guide` to try it yourself.
+- **All PASS:** `Status: App check passed; ready to archive and prepare
+  publication.` `Next: /complete`
+- **A FAIL:** `Status: Blocked - <Done when> failed in the running app.`
+  `Next: /ready` (it repairs in scope and checks again). When the cause is
+  unclear, `Next: /debug` instead. When the spec itself was wrong, propose the
+  corrected *Done when* and ask for an OK.
+- **Could not observe an item:** `Status: Blocked - could not observe <item>
+  (<what is missing>).` `Next:` how to provide it, then `/check` (or
+  `/check guide` to try it yourself).
 
 ## Guide mode
 

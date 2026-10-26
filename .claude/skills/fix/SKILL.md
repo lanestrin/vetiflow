@@ -6,7 +6,7 @@ disable-model-invocation: true
 
 # fix - spec a bug or small change
 
-A fix runs the same loop as a feature (`/implement`, `/verify`, `/complete`) but
+A fix runs the same loop as a feature (`/ready`, `/complete`, `/approve`) but
 starts here, is lighter, and is archived to `blueprint/history/fixes/`. It is
 never added to the build plan.
 
@@ -15,14 +15,13 @@ never added to the build plan.
 - A description: `/fix "board shows discharged patients in the count"`.
 - Or a finding ID from `findings.md`: `/fix F-03`. Only between work items,
   because this overwrites `current-feature.md`. While a spec is active, repair
-  findings through `/implement` instead.
+  findings through `/ready` instead.
 - If the cause is not known yet, run `/debug` first.
 
 ## Preflight
 
-`current-feature.md` must be the empty stub. If not, stop and offer the same
-choice as `/feature` step 1: finish the current spec first (Recommended), or
-drop it. Then delete stale landing drafts as `/feature` step 1 does.
+`current-feature.md` must be the empty stub. If not, stop as `/feature` step 1
+does (`Next: /ready` to finish the active spec, or reply "drop it"). Then delete stale landing drafts as `/feature` step 1 does.
 
 ## Write the spec
 
@@ -31,9 +30,10 @@ First heading `# Fix: <title>`, then:
 - **Type:** Fix
 - **Status:** not started
 - **Branch:** `fix/<kebab-title>`
-- **Audit:** `required` or `not needed`, with a one-line reason, from "When to
-  audit" in `blueprint/context/ai-interaction.md`. A fix that adds a missing
-  auth, owner-scope or redaction check is `required`.
+- **Audit:** `recommended` or `not needed`, with a one-line reason, from "When
+  to recommend an audit" in `blueprint/context/ai-interaction.md`. A fix that
+  adds a missing auth, owner-scope or redaction check is `recommended`. It is
+  advice for the person, never a gate.
 - **Fixes:** `<finding ID>` (only when fixing a finding)
 - **The problem:** what is wrong, where (file and line), and how to reproduce it.
 - **The fix:** the root-cause repair and what it must not break. Adding a
@@ -48,6 +48,6 @@ First heading `# Fix: <title>`, then:
 - If it turns out to be a feature, stop and suggest a build-plan item instead.
 - Same conventions as everything else (`coding-standards.md`).
 
-Then stop and offer the same choice as `/feature` step 7: OK the spec
-(Recommended; Claude sets `Status: approved`, then type `/implement`), change
-it, answer open questions first, or drop it.
+Then stop exactly as `/feature` step 7 does, ending with
+`Status: Spec prepared; awaiting your approval.` and
+`Next: Reply "OK and build".`

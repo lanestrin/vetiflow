@@ -23,9 +23,9 @@ another `/approve`.
 
 All must pass. Stop at the first that fails and report it as "When something
 fails or stops" in `blueprint/context/ai-interaction.md` says: what stopped, that
-nothing was committed or pushed, the options from the check's **If it fails**
-line (as a selection when there is more than one), and that `/approve` reruns
-every check when run again.
+nothing was committed or pushed, and that `/approve` reruns every check when run
+again. `Next` is the first path in the check's **If it fails** line; name any
+other path in one sentence.
 
 1. **Branch:** `git branch --show-current` is a work branch, not `main`.
    **If it fails:** `git switch -c <branch from the spec or history file>` (the
@@ -40,7 +40,7 @@ every check when run again.
    commit after review passes, since the spec stays archived.
    **If it fails:** a spec in `current-feature.md`: `/complete` (it runs its
    gates and writes both drafts), then `/approve`; for a spec not yet
-   `verified`, `/implement` first. A stub with no history file for this branch:
+   `verified`, `/ready` first. A stub with no history file for this branch:
    the work has no spec; `/fix "<what>"` to give it one.
 3. **Verify:** run `scripts/verify.ps1 -ReuseIfCurrent` (see "Reusing a run" in
    `/verify`) and report whether it reused or ran. Any FAIL or SKIP stops here.
@@ -55,7 +55,9 @@ every check when run again.
    **If it fails:** the options from that table, then `/approve`.
 5. **Nothing to commit?** If the tree is clean and the branch is already pushed
    and up to date, say so and stop.
-   **Next:** nothing to do here; open or check the PR, or `/status`.
+   `Status: Nothing to commit; the branch is already pushed.`
+   `Next: Review CI and squash-merge the PR when checks pass` (or open it, if
+   none is open).
 
 ## 2. Commit
 
@@ -67,10 +69,11 @@ every check when run again.
    - Given message: write it to a temp file in the scratchpad and use `-F`.
 4. Never pass `--no-verify`, `--amend` or `--no-gpg-sign`. If a hook fails,
    report its output and stop.
-   **If it fails:** nothing was committed. Say what the hook reported, then
-   offer: 1. Claude fixes what the hook flagged in this work, `/verify`, then
-   `/approve` (Recommended when it is in this work's files). 2. `/fix "<what>"`
-   on its own branch when it is unrelated.
+   **If it fails:** nothing was committed. Say what the hook reported.
+   `Status: Blocked - the commit hook rejected the commit.` When the problem is
+   in this work's files, Claude fixes it and runs `/verify`, then
+   `Next: /approve`. When it is unrelated: `Next: /fix "<what>"` on its own
+   branch.
 
 ## 3. Push
 
@@ -105,4 +108,12 @@ every check when run again.
   | --- | --- |
   | CI is green and the review is done | Squash-merge the PR on GitHub. |
   | CI fails or review asks for changes | Ask Claude for the change on this branch (standards and tests still apply). Claude runs `/verify`, adds the new Verify lines and what changed to the history file's `## Result`, and rewrites `landing-commit.txt` as a follow-up message. Then `/approve` again; the push updates the PR. Do not reopen `current-feature.md`. |
-  | After the merge | `git switch main`, `git pull`, `git branch -d <branch>`, delete `blueprint/context/landing-commit.txt` and `landing-pr.md`, `/clear`, then `/feature` for the next item (or `/status`). The history file is final from here. |
+  | After the merge | `git switch main`, `git pull`, `git branch -d <branch>`, delete `blueprint/context/landing-commit.txt` and `landing-pr.md`, then `/feature` for the next item (or `/status`). `/clear` first is optional, to start with a fresh context. The history file is final from here. |
+
+- Then end ("Ending a turn" in `blueprint/context/ai-interaction.md`), naming
+  only what happened:
+  - PR opened or updated: `Status: Changes committed and pushed; PR opened (or
+    updated).` `Next: Review CI and squash-merge the PR when checks pass.`
+  - No `gh`: `Status: Changes committed and pushed; PR not opened yet.`
+    `Next: Open the PR at <url> with the title and description shown above.`
+  - Never say merged: Claude does not merge.

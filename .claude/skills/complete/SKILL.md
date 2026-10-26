@@ -14,14 +14,14 @@ writes.
 
 All must pass. Stop at the first that fails and report it as "When something
 fails or stops" in `blueprint/context/ai-interaction.md` says: which gates passed,
-what stopped, that nothing was archived yet, the options from the gate's
-**If it fails** line (as a selection when there is more than one), and that
-`/complete` reruns every gate when run again.
+what stopped, that nothing was archived yet, and that `/complete` reruns every
+gate when run again. `Next` is the first path in the gate's **If it fails**
+line; name any other path in one sentence.
 
 1. **Spec ready:** `blueprint/context/current-feature.md` holds a real spec,
    every build step is ticked and `Status` is `verified`.
    **If it fails:** an empty stub means there is nothing to complete; `/status`.
-   Otherwise one step: `/implement` (it resumes at the first unticked step and
+   Otherwise one step: `/ready` (it resumes at the first unticked step and
    sets `verified` after Verify), then `/complete`.
 2. **Branch:** the current branch is the spec's `**Branch:**`, not `main`.
    **If it fails:** one step: `git switch <branch>` (uncommitted changes come
@@ -35,19 +35,8 @@ what stopped, that nothing was archived yet, the options from the gate's
    `open` or `fixed`.
    **If it fails:** list the blocking IDs and titles, then the options from
    `/audit`'s report for P0 or P1 (repair, Recommended; or dispute). A `fixed`
-   finding only needs confirming: `/clear`, `/audit`, then `/complete`.
-5. **Audit:** read the spec's `**Audit:**` line. When it says `not needed` but
-   the diff now meets "When to audit" in `ai-interaction.md`, treat it as
-   `required` and say why. When `required`, `findings.md` must have an
-   `Audit run` line for this branch. When the work needs a person-started
-   review (see "Independent review" in `ai-interaction.md`), that line must be
-   a full `session` audit after the last change, not only `subagent` runs.
-   **If it fails:** say why the work needs an audit, then offer:
-   1. Audit now: `/clear`, then `/audit`, then `/complete` (Recommended).
-   2. Skip it: Claude records "Audit: skipped by the person" and the reason in
-      the Result, then continues from gate 6. Only for low-risk reasons, such as
-      docs-only changes; never for phase S or 8, owner data or migrations.
-6. **Files:** `git status` shows only files in the spec's scope plus workflow
+   finding only needs confirming: `/audit focused`, then `/complete`.
+5. **Files:** `git status` shows only files in the spec's scope plus workflow
    files.
    **If it fails:** list the files and why each does not belong, then the options
    from `/verify`'s "Unexpected files" table, then `/complete`.
@@ -89,13 +78,11 @@ files:
 Tell the person:
 
 - The history file written and the build-plan line ticked.
-- The commit message in full and the PR title, so they can review them.
-- Then offer (see "Choosing the next step"):
-  1. `/approve`: commits, pushes and hands over the PR (Recommended).
-  2. Edit the drafts first: say what to change in the message or PR text;
-     Claude rewrites the files, then `/approve`.
-  3. Land it by hand: `git add -A`,
-     `git commit -F blueprint/context/landing-commit.txt`,
-     `git push -u origin <branch>`, then open the PR with `landing-pr.md`.
+- The commit message in full and the PR title, so they can review them. Say in
+  one sentence that they can ask for changes to the drafts first, or land by
+  hand with `git commit -F blueprint/context/landing-commit.txt`.
+- Then end ("Ending a turn" in `blueprint/context/ai-interaction.md`):
+  `Status: Results archived; commit and PR drafts prepared. Nothing committed
+  yet.` `Next: /approve`
 
 What happens after the PR is open (review changes, merging) is in `/approve`.

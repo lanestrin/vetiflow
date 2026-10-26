@@ -17,14 +17,16 @@ In one batch, read:
 - `git status`, the current branch, and `git log --oneline -5`
 - the Commands section of `CLAUDE.md`
 
-- Empty stub: stop; there is nothing to build. Next: `/feature` or `/fix`.
-- `Status: not started`: the spec has not been approved. Offer (see "Choosing
-  the next step" in `blueprint/context/ai-interaction.md`): 1. OK it now (Claude
-  sets `approved` and continues) (Recommended once they have read it).
-  2. Change it first.
+Stops here end with the handoff ("Ending a turn" in
+`blueprint/context/ai-interaction.md`):
+
+- Empty stub: `Status: Nothing in progress.` `Next: /feature` (or
+  `/fix "<what>"`).
+- `Status: not started`: `Status: Spec prepared; awaiting your approval.`
+  `Next: Reply "OK and build"` (or say what to change).
 - `approved` or `in progress`: build from the first unticked step.
-- `verified` with every step ticked: nothing left to build; show the review
-  packet's next-step choice (section 6).
+- `verified` with every step ticked: nothing left to build; give section 6's
+  packet and handoff.
 
 ## 2. Branch
 
@@ -45,8 +47,9 @@ For each unticked step, in order:
    says. If the step needs a product decision, a new package, or scope beyond
    the spec, stop and offer: change the spec (Recommended, shows the exact
    change for an OK), or build it later as a separate build-plan item or `/fix`.
-   If the work now meets "When to audit", set the spec's `**Audit:**` line to
-   `required` and say why.
+   If the work now changes application code, database behaviour or
+   application config ("When to recommend an audit"), set the spec's
+   `**Audit:**` line to `recommended` and say why.
 3. Add the step's tests in the same change when it adds logic (see Testing in
    `coding-standards.md`). For a bug, write the failing test first.
 4. Model change? Follow `/migration` for the migration in this step.
@@ -60,9 +63,7 @@ For each unticked step, in order:
    - config (`Program.cs`, `appsettings*.json`, `vite.config.ts`, `tsconfig*.json`);
    - security (sign-in, roles, owner scope, redaction);
    - database code (`Data/`, entities, migrations).
-6. Self-review the diff: spec coverage, sign-in and role checks, owner scope,
-   no PII in logs, error handling, nothing unrelated.
-7. Tick the step's box only after its check passes. If it repaired a finding,
+6. Tick the step's box only after its check passes. If it repaired a finding,
    mark that finding `fixed` in `findings.md` (never `closed`).
 
 Do not narrate passing steps. Keep the checkboxes current and continue. If a
@@ -92,21 +93,15 @@ Read `blueprint/context/findings.md`. Then present:
 - Changes grouped by area (server, data, client, tests).
 - Checks run, with their real results.
 - Open findings, if any. Open P0 or P1 findings block `/complete`.
-- The spec's `**Audit:**` line.
+- The spec's `**Audit:**` line, on its own line. When it is `recommended`, say
+  why, and that `/audit` is optional.
 - Risks and anything you could not verify (for example, UI not yet seen in a browser).
 
-Then offer the next step (see "Choosing the next step"). The first option follows
-the loop:
+Then end ("Ending a turn" in `blueprint/context/ai-interaction.md`):
 
-1. The next loop step (Recommended):
-   - Audit `required`: `/clear`, then `/audit`.
-   - Otherwise, when a *Done when* needs the running app: `/check` (or
-     `/check guide` to try it yourself).
-   - Otherwise: `/complete`.
-2. Hand the rest to `/ready`: review in a fresh subagent, repair and re-review
-   up to 3 rounds, `/check` when needed, then stop before `/complete`.
-3. Walk me through it first: a read-only tour per step (purpose, key files and
-   symbols, data flow, non-obvious decisions), then this choice again.
-4. Request changes: say what; they become spec changes for your OK.
+- A *Done when* needs the running app: `Status: Implementation complete;
+  verification passed; app check pending.` `Next: /check`
+- Otherwise: `Status: Implementation complete; verification passed; ready to
+  archive and prepare publication.` `Next: /complete`
 
 Never commit, push or merge from this skill.

@@ -11,12 +11,11 @@ output is `blueprint/context/current-feature.md`.
 
 ## 1. Preflight
 
-- Read `blueprint/context/current-feature.md`. If it holds a real spec, stop and
-  offer (see "Choosing the next step" in `blueprint/context/ai-interaction.md`):
-  1. Finish it first: `/implement`, or `/status` to see where it stands
-     (Recommended).
-  2. Drop it: Claude resets `current-feature.md` and `findings.md` to their stubs
-     (from `main`), then `/feature` again.
+- Read `blueprint/context/current-feature.md`. If it holds a real spec, stop
+  ("Ending a turn" in `blueprint/context/ai-interaction.md`):
+  `Status: Blocked - <spec title> is still active.` `Next: /ready` to finish
+  it. Say in one sentence that replying "drop it" resets `current-feature.md`
+  and `findings.md` to their stubs (from `main`) instead.
 - Delete `blueprint/context/landing-commit.txt` and `landing-pr.md` if present.
   They are git-ignored drafts from finished work and must not reach `/approve`
   on the new branch.
@@ -62,8 +61,9 @@ add them under the parent in the build plan, then spec only the first.
 Use `reference/feature-spec-template.md`. Rules:
 
 - **Branch:** the branch named in the build plan. If none, `feature/<kebab-title>`.
-- **Audit:** `required` or `not needed`, with a one-line reason, from "When to
-  audit" in `blueprint/context/ai-interaction.md`.
+- **Audit:** `recommended` or `not needed`, with a one-line reason, from "When
+  to recommend an audit" in `blueprint/context/ai-interaction.md`. It is advice
+  for the person, never a gate.
 - **Build steps:** ordered checkboxes. Each leaves the app working, is small
   enough to review, and ends with an observable *Done when* that names the check
   (a test name, an endpoint response, a screen state).
@@ -93,12 +93,14 @@ Fix what you find, then write the file.
 ## 7. Stop for review
 
 Tell the person: the item, the branch, the number of steps, the Audit line, what
-the critique changed, and any open questions. Then offer (see "Choosing the next
-step" in `blueprint/context/ai-interaction.md`):
+the critique changed, and any open questions. Approving a spec is a genuine
+decision, so name the replies in one sentence: "OK and build" (Claude sets
+`Status: approved` and follows `.claude/skills/ready/SKILL.md` in the same
+turn), "OK only" (approve; `/ready` later), what to change, or "drop it"
+(Claude resets `current-feature.md` to its stub). Then end ("Ending a turn" in
+`blueprint/context/ai-interaction.md`):
 
-1. **OK the spec** (Recommended, unless an open question blocks building):
-   Claude sets `Status: approved`; then type `/implement`.
-2. **Change it:** say what; the spec is rewritten and offered again.
-3. **Answer the open questions first** (Recommended when one blocks building):
-   the answers go into the spec, which is offered again.
-4. **Drop it:** Claude resets `current-feature.md` to its stub.
+- No blocking question: `Status: Spec prepared; awaiting your approval.`
+  `Next: Reply "OK and build".`
+- An open question blocks building: `Status: Spec prepared; one decision
+  needed before building.` `Next:` the question, asked as a selection.
