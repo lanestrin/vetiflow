@@ -27,7 +27,9 @@ private owner page tells each owner how their own pet is doing, in calm words.
 - **Managers.** See the whole board, rooms and team load; later, the audit log.
 - **Pet owners.** Never see the staff board. They get a private page for their
   own pet only, with calm wording and no acuity, reached through a scoped,
-  expiring link or sign-in.
+  expiring link or sign-in. In the sign-in demo (section 10) they are "pet
+  parents" and sign in with a demo account; production access follows build
+  plan S.8.
 
 Staff use shared clinic workstations, so sessions must lock quickly.
 
@@ -58,7 +60,8 @@ Staff use shared clinic workstations, so sessions must lock quickly.
 - `Handoff`: a handoff between staff and its acknowledgement.
 - `AiSummary`: AI drafts and their confirmation.
 - `StaffMember`, `Room`.
-- Planned, by build-plan item: staff accounts (S.15), owner access links
+- Planned, by build-plan item: `Account` for the sign-in demo (S.16,
+  section 10), staff accounts (S.15), owner access links
   (S.8), owner contact log (6.4), owner updates (6.5), discharge outcome
   (6.2), clinic settings (9.3), audit log (8.1).
 
@@ -100,8 +103,11 @@ Not part of v1. Open question.
 
 Routes:
 
-- `/` - staff ER board
-- owner page route - decided in build plan 6.3
+- `/` - goes to the signed-in user's home, or `/sign-in` (from S.18)
+- `/sign-in` - the sign-in screen (section 10)
+- `/er` - staff ER board, hospital team members only
+- `/pet-parent` - the pet parent home: minimal in the demo (S.18), replaced by
+  the owner page (6.3, final route decided there)
 
 ## 8. Deployment - Where and how will this ship?
 
@@ -223,3 +229,149 @@ Routes:
 - One clinic at a time. Multi-clinic tenancy is not a requirement.
 - AI output is a draft until a clinician confirms it. Owner contact details
   never go to the AI provider.
+
+## 10. Sign-in proof of concept (demo)
+
+A free, local demo of sign-in for both kinds of user (build plan M3a, S.16 to
+S.19), built against `blueprint/reference/vetiflow-login-mock.html`. It is
+not production authentication; the limits are listed at the end.
+
+### Approach
+
+- **No paid service.** Accounts live in our own Postgres. Passwords are hashed
+  with ASP.NET Core's built-in `PasswordHasher<T>` (no new package, no
+  Identity tables). No email or SMS provider is called.
+- **Sessions:** the framework's built-in bearer token (`AddBearerToken`),
+  kept by the client in `sessionStorage` and sent as an `Authorization`
+  header. The client (Vercel) and API (Render) are different sites, so a
+  session cookie would be a third-party cookie that browsers block; a header
+  needs no CSRF protection. Closing the tab forgets the session.
+- **Phone code:** simulated. While `DemoSignIn:Enabled` is `true`, the code
+  `123456` verifies a number that belongs to an account. No text is sent.
+  When the setting is not on, phone sign-in is refused.
+
+### Accounts and roles
+
+`Account` (S.16) links one sign-in to exactly one person:
+
+| Field | Notes |
+| --- | --- |
+| `Id` | |
+| `Kind` | `TeamMember` or `PetParent`, stored as text |
+| `StaffMemberId` | set for a team member; foreign key, restrict |
+| `OwnerId` | set for a pet parent; foreign key, restrict |
+| `Email` | optional, unique, stored lower-case |
+| `PhoneNumber` | optional, unique, stored as `+1` and 10 digits |
+| `PasswordHash` | set when the account signs in by email |
+| `IsActive` | an inactive account can't sign in |
+| `CreatedAt` | |
+
+A check constraint holds that exactly one of `StaffMemberId` and `OwnerId` is
+set and that it matches `Kind`, and that the account has an email or a phone.
+The experience a user lands in comes only from `Kind`, never from the email
+address or a choice on the screen. A team member's clinical role
+(veterinarian, technician) stays on `StaffMember` for S.6.
+
+### Demo accounts
+
+Fictional, as in the mockup, seeded only when `Database:SeedDemoData` is on
+and no account exists yet (the case seed skips once any case exists, so
+accounts get their own check):
+
+| Experience | Linked to | Email | Phone |
+| --- | --- | --- | --- |
+| Hospital team member | Jordan Lee (seeded veterinarian) | `team@vetiflow.demo` | 312-555-0101 |
+| Pet parent | Morgan Hale (seeded owner of Buddy) | `parent@vetiflow.demo` | 312-555-0102 |
+
+Both use the demo password `welcome1`, and the screen lists both accounts as
+samples. Both use the same made-up domain, which shows the role comes from the
+account record.
+
+### Screens and states
+
+One `/sign-in` page, laid out as the mockup: a brand panel ("Care moves
+fast.") beside the form on wide screens, stacked above it on narrow ones (the
+mockup's breakpoints are 800 and 650 px). Heading "Welcome back", with the
+line "Sign in to continue. We'll find the right portal for your account." An
+Email / Phone switch (tabs) chooses the method; there is no role choice.
+
+- **Email:** "Email address" and "Password" fields, "Forgot password?", and
+  "Sign in".
+- **Phone:** "Mobile phone number" and "Text me a sign-in code". Then a
+  "Verification code" field with "Verify and sign in", and the note "Demo
+  mode: no text is sent. Use code 123456."
+- **Working:** the button is disabled and says what is happening while the
+  request runs.
+- **Field errors:** an empty or badly formed email, number or code is shown
+  at the field before anything is sent.
+- **No match** (the mockup's wording; demo-only, see limits):
+  - unknown email: "We couldn't match that demo account. Try one of the
+    sample emails below."
+  - wrong password: "Use welcome1 for this demo account."
+  - unknown number: "We couldn't match that demo phone. Try one of the
+    sample numbers below."
+  - code requested: "Demo verification is ready. No text was sent."
+  - wrong code: "Use 123456 for this demo."
+  - inactive account: "This demo account is turned off."
+- **Forgot password?:** "Password reset is a placeholder in this no-cost
+  demo." (recovery is S.15).
+- **Help:** the top-bar link opens the demo notes (sample accounts, no texts
+  sent).
+- **Unavailable:** a server or network error shows "Sign-in isn't available
+  right now. Try again in a moment."
+- **Success:** the mockup's panel: "You're all set". A team member sees
+  "Welcome to your care team", a pet parent "Welcome back", then "Continue as
+  Hospital team member" or "Continue as Pet parent", and "Back to sign in".
+  Continue opens `/er` or `/pet-parent`.
+- **Signed in:** `/er` shows "Signed in as <name> (demo)" and Sign out.
+  `/pet-parent` shows a calm welcome and the names of the account's own pets
+  and whether each is in our care: no acuity, no clinical notes, and no IDs
+  in the URL (the API reads the owner from the token).
+- **Guards:** signed out, any page goes to `/sign-in`. Signed in, `/sign-in`
+  goes home. A pet parent who opens `/er` goes to `/pet-parent`.
+- **Session ended:** a `401` after sign-in returns to `/sign-in` with "Your
+  session ended. Sign in again."
+- **Demo label:** every page says it is a demo with fictional data.
+- Messages are announced to screen readers (`aria-live`); every field has a
+  label.
+
+### Acceptance criteria
+
+1. The team member signs in by email and by phone and lands on the board.
+2. The pet parent signs in by email and by phone and lands on the pet parent
+   home with only their own pets.
+3. No one chooses a role. Changing an account's `Kind` and link (in the
+   database) changes where the same email lands.
+4. An unknown email, a wrong password, an unknown number and a wrong code
+   each show their message, keep the user on the screen, and sign no one in.
+5. No text is sent and no SMS or email service is called. With
+   `DemoSignIn:Enabled` off, phone sign-in is refused.
+6. A pet parent can't see the board: `/er` redirects, and `GET /api/cases`
+   answers `403`. Signed out, it answers `401`.
+7. Sign out returns to `/sign-in`, and the back button doesn't reopen the
+   board.
+8. The screen works at 320 px, tablet and desktop widths with no horizontal
+   scroll, by keyboard alone, and with AA contrast.
+9. Only fictional data appears, and every page is labelled as a demo.
+
+### Assumptions and production limits to revisit
+
+- The no-match messages name the problem and the demo values, as the mockup
+  does. That helps a demo but tells a stranger which accounts exist. With real
+  accounts, use one message for a wrong email or password (S.5).
+- The fixed code `123456`, the shared password and the listed sample accounts
+  are demo-only. `DemoSignIn:Enabled` and the demo accounts exist only in the
+  demo environment (8.10), never with real data.
+- Production phone sign-in needs an SMS provider (a paid service and a
+  decision). Production email sign-in follows the login-provider decision
+  (S.5), and pet parent access the owner-access decision (S.8).
+- A token in `sessionStorage` can be read by injected script; the CSP in 8.2
+  is the guard.
+- Token keys are lost when the container restarts, so a redeploy signs
+  everyone out. Production keeps the keys or uses the provider's tokens.
+- Not in the demo: rate limiting and lockout (S.9), session timeout and quick
+  lock (S.14), invitations, recovery and deactivation flows (S.15), per-role
+  permissions such as who may set acuity (S.6), and sign-in on the SignalR hub
+  (S.7; it sends case IDs only).
+- `Account` is the demo's table. S.5 decides whether it is kept, hardened or
+  replaced by the chosen provider's accounts.
