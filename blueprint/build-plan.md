@@ -65,7 +65,7 @@ The app isn't live yet, so security comes before the features that depend on kno
 - [ ] **S.10** `chore/secrets-handling`: connection strings and API keys only in user secrets and Render/Vercel environment variables, nothing secret in `VITE_` variables, secret scanning on, and a rotation note.
 - [ ] **S.11** `chore/db-least-privilege`: the app connects with a database user that can't change the schema; a separate user runs migrations.
 - [ ] **S.12** `feature/input-validation`: length and format limits on every request, ProblemDetails errors, no stack traces or internal details in production responses [13].
-- [ ] **S.13** `fix/supabase-lockdown`: Supabase serves tables in `public` through its REST API with the anon key. Turn on row level security with no policies (or revoke the `anon` and `authenticated` grants) on every VetiFlow table.
+- [x] **S.13** `fix/supabase-lockdown`: Supabase serves tables in `public` through its REST API with the anon key. Turn on row level security with no policies (or revoke the `anon` and `authenticated` grants) on every VetiFlow table. Done (history/features/S.13-supabase-lockdown.md).
 - [ ] **S.14** `feature/session-timeout`: short idle timeout and a quick lock for shared ER workstations (after S.5).
 
 ## Phase 2: Live board you can change

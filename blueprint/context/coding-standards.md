@@ -60,6 +60,10 @@ Avoid overengineering:
 - Every model change ships its migration in the same branch. Use `/migration`.
   `dotnet ef migrations has-pending-model-changes` must report none.
 - Never edit a migration that is already on `main`. Add a new one.
+- Every table in `public` has row level security enabled with no policies, so
+  Supabase's REST and GraphQL APIs serve nothing. A migration that adds a table
+  enables it (`ALTER TABLE ... ENABLE ROW LEVEL SECURITY`);
+  `RowLevelSecurityTests` fails otherwise.
 - Domain rules live on the entity when they can: `EmergencyCase.RecordTriage`
   is the only way to set `Acuity`.
 
