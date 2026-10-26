@@ -12,6 +12,8 @@ public class MigrationTests(VetiFlowApiFactory factory)
 {
 	private const string InitialCreate = "20260904010253_InitialCreate";
 
+	private const string DataModelIntegrity = "20261024141817_DataModelIntegrity";
+
 	private readonly CancellationToken _cancellationToken = TestContext.Current.CancellationToken;
 
 	// Fails when the model changed without a migration being added.
@@ -81,6 +83,39 @@ public class MigrationTests(VetiFlowApiFactory factory)
 		Assert.Equal(CaseStage.Treatment, emergencyCase.Stage);
 		Assert.Equal(CaseStatus.Blocked, emergencyCase.Status);
 		Assert.Equal(AcuityLevel.Critical, emergencyCase.Acuity);
+	}
+
+	// AddOwners adds a non-null status column; cases written before it must get
+	// a valid enum name, and their patients keep no owner.
+	[Fact]
+	public async Task AddOwners_ExistingCasesStartNotYetUpdated()
+	{
+		await using var dbContext = await CreateEmptyDatabaseAsync();
+		var migrator = dbContext.GetService<IMigrator>();
+		await migrator.MigrateAsync(DataModelIntegrity, _cancellationToken);
+
+		var patientId = Guid.NewGuid();
+		var caseId = Guid.NewGuid();
+		var now = DateTimeOffset.UtcNow;
+		await dbContext.Database.ExecuteSqlAsync($"""
+			INSERT INTO "Patients" ("Id", "Name", "Species")
+			VALUES ({patientId}, 'Buddy', 'Dog')
+			""", _cancellationToken);
+		await dbContext.Database.ExecuteSqlAsync($"""
+			INSERT INTO "EmergencyCases"
+				("Id", "PatientId", "ArrivalTime", "PresentingComplaint",
+				 "Stage", "Status", "LastUpdated")
+			VALUES ({caseId}, {patientId}, {now}, 'Collapse', 'Triage', 'Unassigned', {now})
+			""", _cancellationToken);
+
+		await migrator.MigrateAsync(cancellationToken: _cancellationToken);
+
+		var emergencyCase = await dbContext.EmergencyCases
+			.Include(c => c.Patient)
+			.SingleAsync(c => c.Id == caseId, _cancellationToken);
+		Assert.Equal(OwnerUpdateStatus.NotYetUpdated, emergencyCase.OwnerUpdateStatus);
+		Assert.Null(emergencyCase.LastOwnerUpdateAt);
+		Assert.Null(emergencyCase.Patient.OwnerId);
 	}
 
 	private async Task<VetiFlowDbContext> CreateEmptyDatabaseAsync() =>

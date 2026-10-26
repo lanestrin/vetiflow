@@ -13,6 +13,14 @@ public static class TestData
 		Breed = "Mixed"
 	};
 
+	public static Owner Owner() => new()
+	{
+		FirstName = "Owner",
+		LastName = Unique(),
+		Phone = "555-0100",
+		Email = "owner@example.com"
+	};
+
 	public static Room Room() => new()
 	{
 		Name = $"Room {Unique()}",

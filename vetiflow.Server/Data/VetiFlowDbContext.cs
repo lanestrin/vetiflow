@@ -10,6 +10,8 @@ public class VetiFlowDbContext : DbContext
 	{
 	}
 
+	public DbSet<Owner> Owners => Set<Owner>();
+
 	public DbSet<Patient> Patients => Set<Patient>();
 
 	public DbSet<EmergencyCase> EmergencyCases => Set<EmergencyCase>();

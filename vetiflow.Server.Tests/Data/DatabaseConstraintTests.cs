@@ -88,6 +88,24 @@ public class DatabaseConstraintTests(VetiFlowApiFactory factory)
 	}
 
 	[Fact]
+	public async Task Owner_WithPatient_CannotBeDeleted()
+	{
+		var owner = TestData.Owner();
+		var patient = TestData.Patient();
+		patient.Owner = owner;
+		await SaveAsync(TestData.Case(patient));
+
+		await using var dbContext = factory.CreateDbContext();
+
+		await AssertViolatesAsync(
+			() => dbContext.Owners
+				.Where(o => o.Id == owner.Id)
+				.ExecuteDeleteAsync(_cancellationToken),
+			PostgresErrorCodes.ForeignKeyViolation,
+			"FK_Patients_Owners_OwnerId");
+	}
+
+	[Fact]
 	public async Task Case_WithTriageHistory_CannotBeDeleted()
 	{
 		var emergencyCase = TestData.Case(TestData.Patient());
