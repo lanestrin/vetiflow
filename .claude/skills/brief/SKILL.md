@@ -24,4 +24,6 @@ Read-only. Writes nothing. Use `/feature` to write the actual spec.
 - **Risks:** security, data migration, breaking the client contract.
 - **Size:** small (one step, under 150 lines), medium (2 to 4 steps), or large
   (should be split; suggest the split).
-- **Next:** `/feature <id>`, or the decision to make first.
+- End with the handoff ("Ending a turn" in `blueprint/context/ai-interaction.md`):
+  `Status: Briefing ready for <id>.` `Next: /feature <id>`, or the decision to
+  make first.

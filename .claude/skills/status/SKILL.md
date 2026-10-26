@@ -18,7 +18,8 @@ Read-only. Writes nothing.
 
 - **Branch:** name, and whether it matches the spec's `**Branch:**`.
 - **Active work:** spec title, status, "step 3 of 5 done", the `**Audit:**`
-  line and whether an `Audit run` line exists, or "nothing in progress".
+  recommendation and whether an `Audit run` line exists, or "nothing in
+  progress".
 - **Findings:** for example "1 P1 open, 2 P3 open", and whether `/complete` is blocked.
 - **Working tree:** clean, or the changed files grouped by area. Flag changes
   that do not belong to the active spec.
@@ -32,17 +33,18 @@ Read-only. Writes nothing.
   | State | Next |
   | --- | --- |
   | No spec, on `main` | `/feature` (next item) or `/fix "<what>"` |
-  | Spec `not started` | Read it, then OK it (becomes `approved`) or change it |
-  | Spec `approved` or `in progress` | `/implement` (resumes at the first unticked step), or `/ready` to build, review and repair in one loop |
-  | `verified`, only `subagent` audit runs, work needs a person-started review | `/clear`, then `/audit` |
-  | `verified`, Audit `required`, no `Audit run` line | `/clear`, then `/audit` |
-  | Open P0/P1 findings | `/implement`, "repair F-01", then `/clear` and `/audit` |
-  | `fixed` P0/P1 findings, none open | `/clear`, then `/audit` |
-  | `verified`, a *Done when* needs the app, not yet checked | `/check` |
-  | `verified`, ready | `/complete` |
+  | Spec `not started` | Read it, then "OK and build" (runs `/ready`), OK only, or change it |
+  | Spec `approved` or `in progress` | `/ready` (resumes at the first unticked step) |
+  | Open P0/P1 findings | `/ready` (adds and builds the repair steps), then `/audit focused` |
+  | `fixed` P0/P1 findings, none open | `/audit focused` |
+  | `verified`, a *Done when* needs the app, not yet checked | `/check` (or `/ready`, which runs it) |
+  | `verified`, ready | `/complete` (the Audit line may recommend an optional `/audit` first) |
   | On a work branch (not `main`), stub spec, a history file with ``**Branch:** `<current branch>` ``, `landing-commit.txt` present, uncommitted changes | `/approve` |
   | Pushed, PR open | Merge on GitHub when CI is green |
 
-  When more than one row fits (for example `/check` or `/complete` when it is
-  unclear whether the app needs checking), offer them as a selection with the
-  recommended one first (see "Choosing the next step").
+  When more than one row fits, pick the safer one (for example `/check` before
+  `/complete` when it is unclear whether the app needs checking).
+
+End with the handoff ("Ending a turn" in `blueprint/context/ai-interaction.md`):
+`Status:` the state in a few words (for example "Spec verified; app check
+pending.") and `Next:` the command from the table.

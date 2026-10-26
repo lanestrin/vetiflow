@@ -1,6 +1,6 @@
 ---
 name: audit
-description: Review the current branch diff against main for security, data, EF Core, testing and standards problems, and record findings with IDs and severities in blueprint/context/findings.md. Use for /audit, /audit security, /audit tests, /audit focused (a re-review after a repair), or before completing risky work.
+description: Review the current branch diff against main for security, data, EF Core, testing and standards problems, and record findings with IDs and severities in blueprint/context/findings.md. Runs only when the person types /audit, /audit security, /audit tests or /audit focused (a re-check after a repair).
 disable-model-invocation: true
 ---
 
@@ -10,18 +10,20 @@ Read-only for product code. The only file this skill writes is
 `blueprint/context/findings.md`. A clean audit does not prove the app works;
 that is `/check`.
 
+Runs only when the person asks for it (see "When to recommend an audit" in
+`blueprint/context/ai-interaction.md`). No other skill starts it, and it starts
+no other agents. `/clear` first is optional: a fresh context helps a large
+review, but it is not required. If this session wrote the changes, say so in
+the report.
+
 ## Input
 
 - `/audit` or `/audit current`: the whole branch delta, all lenses.
 - `/audit security`, `/audit data`, `/audit tests`, `/audit quality`: one lens.
-- `/audit focused`: a re-review after a repair, used by `/ready` rounds 2 and 3.
-  Covers only the files changed since the last review, their callers and
-  tests, regressions those changes could cause, and every `open` or `fixed`
-  finding. All lenses apply to that scope.
-- The loop runs it after `/clear`, so the reviewer is not the session that
-  wrote the code. If this session wrote the changes, say so in the report.
-  `/ready` runs it in a fresh subagent instead (see "Independent review" in
-  `blueprint/context/ai-interaction.md`).
+- `/audit focused`: a re-check after a repair. Covers only the files changed
+  since the last review, their callers and tests, regressions those changes
+  could cause, and every `open` or `fixed` finding. All lenses apply to that
+  scope.
 
 ## 1. Gather
 
@@ -88,46 +90,32 @@ Never mark anything `accepted` on your own; only the person's choice can.
 Lower a severity only after re-checking it against the code, and write the
 evidence into the finding (`Lowered from P1: <what the re-check showed>`).
 
-Every run, clean or not, ends the file with one line so `/complete` gate 5 can
-see the audit happened. The reviewer is `session` when the person started this
-session for the audit, `subagent` when `/ready` started it; the mode is `full`
-or `focused`:
+Every run, clean or not, ends the file with one line, so the history records
+that the audit happened:
 
 ```markdown
-Audit run <YYYY-MM-DD> on `<branch>` (<session|subagent>, <full|focused>): <n> new findings, <n> closed.
+Audit run <YYYY-MM-DD> on `<branch>` (<full|focused>): <n> new findings, <n> closed.
 ```
 
 ## 5. Report
 
-**Started by `/ready`:** return this summary and offer no next step:
+List findings by severity with ID and title, say whether Verify ran or was
+reused, then say whether `/complete` is blocked (any P0 or P1 `open` or
+`fixed`). "Continue" below means `/ready` when the spec still has work or a
+*Done when* needs the running app, otherwise `/complete`.
 
-```
-Mode: focused (round 2)
-Verify: reused (or: ran, PASS)
-New: F-27 [P3] <title>
-Closed: F-26
-Still open or fixed: none
-Blockers: none (or: the IDs, with the Done when or hard rule a blocking P2 breaks)
-Lowered: none (or: F-26 P1 -> P3, <evidence>)
-```
+Then end ("Ending a turn" in `blueprint/context/ai-interaction.md`):
 
-**Otherwise:** list findings by severity with ID and title, then say whether `/complete` is
-blocked (any P0 or P1 `open` or `fixed`). "Continue" below means the next loop
-step: `/check` when a *Done when* needs the running app, otherwise `/complete`.
-
-Then offer the next step (see "Choosing the next step" in
-`blueprint/context/ai-interaction.md`):
-
-- **No findings:** one step, no prompt. Say what to type: continue.
-- **Only P2 or P3:**
-  1. Continue now (Recommended when only P3).
-  2. Repair first: `/implement`, then "repair F-02" (Recommended for a P2).
-  3. Accept: Claude marks the chosen findings `accepted`, then continue.
-- **Any P0 or P1:**
-  1. Repair: `/implement`, then "repair F-01" (it adds a repair step for your
-     OK, fixes it and runs Verify), then `/clear` and `/audit` again
-     (Recommended).
-  2. Dispute a finding: say why; Claude re-checks it with the code and either
-     keeps it or lowers it, giving the evidence.
+- **No findings, or only P3:** `Status: Audit complete; no blockers.`
+  `Next:` continue. For P3s, say in one sentence that replying "repair F-NN"
+  or "accept F-NN" is also possible.
+- **A P2, none higher:** `Status: Audit complete; P2 F-NN worth fixing before
+  this closes.` `Next: Reply "repair F-NN"` (Claude adds the repair step for
+  your OK and builds it as `/ready` does). Mention "accept F-NN" and continuing
+  in one sentence.
+- **Any P0 or P1:** `Status: Blocked - F-NN <title>.` `Next: /ready` (it adds
+  the repair steps, fixes them and runs Verify; then `/audit focused`).
+  Mention that you can dispute a finding by saying why; Claude re-checks it
+  with the code and keeps it or lowers it, giving the evidence.
 
 Between work items, a finding is repaired with `/fix F-03` instead.

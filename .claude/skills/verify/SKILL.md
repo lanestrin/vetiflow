@@ -74,8 +74,9 @@ never reused. Report a reuse as a reuse, never as a new run.
    below are included.
 3. If anything failed or a file is unexpected, do not call the work done. Report
    it as "When something fails or stops" in `blueprint/context/ai-interaction.md`
-   says, offering the options from the tables below as a selection when there is
-   more than one.
+   says, with the recommended option from the tables below as `Next`.
+4. When run on its own, end with the handoff ("Ending a turn"): for example
+   `Status: Verification passed (ran fresh).` and the loop's next command.
 
 Never skip, disable or delete a test to make Verify pass.
 
@@ -88,7 +89,7 @@ stopped: `/verify`, `/complete` or `/approve`.
 | --- | --- | --- |
 | `FAIL  Docker (not running ...)`, or server tests: "Docker is either not running or misconfigured" | Environment | 1. Start Docker Desktop, wait for "Engine running", rerun (Recommended). 2. Set `VETIFLOW_TEST_POSTGRES` to a local Postgres for this terminal, rerun. |
 | Server build: MSB3027, "file is locked by vetiflow.Server" | Environment | 1. Stop the running app (Ctrl+C in its terminal), rerun (Recommended). |
-| A test, lint or build error in this work's files | Error | 1. Fix it: while a spec step is in progress Claude fixes it now; otherwise `/implement` and describe it (Recommended when the cause is clear). 2. `/debug` to find the cause first (Recommended when it is not). |
+| A test, lint or build error in this work's files | Error | 1. Fix it: while a spec step is in progress Claude fixes it now; otherwise `/ready` and describe it (Recommended when the cause is clear). 2. `/debug` to find the cause first (Recommended when it is not). |
 | An error in code this work did not touch | Error | 1. Note it and `/fix "<what>"` on its own branch after this one; continue only if it does not block this work (Recommended). 2. Fix it here as a spec change, when it blocks this work. |
 | `FAIL  Workflow tests` | Error | 1. Read the failed check names in the output; fix the guardrail file it names, never weaken the check or the rule (Recommended). 2. `/debug` when the cause is unclear. |
 

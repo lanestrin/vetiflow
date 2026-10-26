@@ -4,15 +4,34 @@
 > code. When a convention is decided in review, add it here so the next feature
 > follows it.
 
-## Proportional engineering
+## Readable code
 
-Build for what the current spec needs, not for hypothetical scale.
+Correctness and security first, then code a junior developer can follow. Build
+for what the current spec needs, not for hypothetical scale.
 
+- Name things after the domain (`EmergencyCase`, `RecordTriage`, `waitMinutes`)
+  and follow the framework's usual conventions.
+- Give each function, class and component one coherent job. Keep related logic
+  together. Extract a helper when it names an intent, isolates a separate
+  responsibility or removes real duplication.
+- Prefer plain `if`s and loops to clever expressions or long chained calls.
+- Make side effects (saving, sending, broadcasting) and business rules easy to
+  spot: on the entity, in a named method, not buried inside a mapping.
+- Tests read as a story: clear setup, one action, the expected outcome.
+
+Avoid overengineering:
+
+- No length limits for functions, and no swarm of tiny one-line methods.
 - Reuse existing code, the .NET and React standard libraries, and installed
   packages before adding anything.
-- Add an abstraction, package, service or config setting only for a current
-  requirement. An interface with one implementation needs a reason (a test fake
-  is a reason; "we might swap it later" is not).
+- Add an interface, layer, factory, generic utility, package, service, config
+  setting or design pattern only for a current, concrete need. An interface
+  with one implementation needs a reason (a test fake is a reason; "we might
+  swap it later" is not). Use SOLID to solve a real design problem, not as a
+  checklist.
+- Code that looks similar is not automatically one abstraction. Wait until the
+  cases really share a rule.
+- Do not refactor unrelated code for style. Note it as a build-plan idea.
 - Simplicity never removes real security checks: sign-in, role checks, owner
   scope, input validation, no PII in logs.
 
@@ -130,7 +149,8 @@ Tests are a gate, not an extra. Both runners exist, so:
 
 ## Comments
 
-- Comment the why, not the what. Delete comments that restate the code.
+- Comment the why, not the what: a non-obvious decision or constraint. Delete
+  comments that restate the code.
 - No banner comments or section dividers.
 - A comment earns its place for a non-obvious decision, a gotcha, or a link to
   a spec or issue.

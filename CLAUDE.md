@@ -16,7 +16,7 @@ These always apply, with or without a skill.
 
 - **Commit and push only through `/approve`**, which only the person runs. Otherwise leave changes in the working tree. Never merge, force-push or commit to `main`.
 - **One work item per branch.** Never build on `main`. Never mix two build-plan items in one branch.
-- **Spec before code.** Planned work starts with `/feature`, unplanned work with `/fix`. Wait for the person's OK on the spec; its status then becomes `approved`. The one exception: changes asked for in review of an open PR go on the same branch without a new spec (step 7 of the loop in `blueprint/context/ai-interaction.md`). Repair steps that `/ready` adds for blocking findings fall under the approved spec and need no new OK; any other spec change does.
+- **Spec before code.** Planned work starts with `/feature`, unplanned work with `/fix`. Wait for the person's OK on the spec; its status then becomes `approved`. The one exception: changes asked for in review of an open PR go on the same branch without a new spec (step 7 of the loop in `blueprint/context/ai-interaction.md`). Repair steps that `/ready` adds for blocking findings from an audit the person asked for fall under the approved spec and need no new OK; any other spec change does.
 - **Never run migrations against production.** Apply migrations only with `scripts/db-target.ps1 -Migrate` and start the app (which migrates on startup) only with `scripts/db-target.ps1 -StartApp`. They run the command only for a local database and bind it to the exact connection string they checked. A plain `scripts/db-target.ps1` check authorizes nothing, and never run `dotnet ef database update` or `dotnet run --project vetiflow.Server` directly.
 - **Never touch secret values.** Never read, edit, create, print or copy real `.env` files or their variants, and never run commands that list secret values (`dotnet user-secrets list`, `printenv`, `env`, `Get-ChildItem env:`), not even masked. Test protections only with harmless fixtures. `.claude/settings.json` denies these to Claude's tools and a hook blocks the usual spellings of the commands, but neither stops a script that reads files or variables itself, and on native Windows there is no sandbox (see the Safety section of `blueprint/context/ai-interaction.md`).
 - **Verify before saying done.** Run `scripts/verify.ps1` and report the real output. Never say a check passed without running it.
@@ -28,7 +28,7 @@ These always apply, with or without a skill.
 
 - `blueprint/project-plan.md` - what VetiFlow is for, users, data, stack, constraints. Read before planning.
 - `blueprint/build-plan.md` - the ordered list of work items with stable IDs and branch names.
-- `blueprint/context/coding-standards.md` - read before changing code or writing tests.
+- `blueprint/context/coding-standards.md` - read before changing code or writing tests. "Readable code" is the house style: clear names, one job per unit, no speculative layers.
 - `blueprint/context/ai-interaction.md` - read when running a workflow skill.
 - `blueprint/context/current-feature.md` - the one spec being built in this checkout.
 - `blueprint/context/findings.md` - open audit findings for the current work.
@@ -36,17 +36,17 @@ These always apply, with or without a skill.
 
 ## Workflow
 
-The loop (full description in `blueprint/context/ai-interaction.md`): `/feature` or `/fix` -> `/implement` -> `/audit` (when the spec says required, after `/clear`) -> `/check` -> `/complete` -> `/approve` -> the person squash-merges the PR. `/ready` can run `/implement` through `/check` as one bounded loop (fresh-subagent reviews, up to 3 repair rounds) and stops before `/complete`. `/verify` runs inside `/implement` and `/complete`. When unsure what to type next, `/status`.
+The loop (full description in `blueprint/context/ai-interaction.md`): `/feature` or `/fix` -> "OK and build" (runs `/ready`: build, repair in-scope failures, Verify, `/check` when needed, readiness report) -> `/complete` -> `/approve` -> the person squash-merges the PR. `/implement` builds step by step instead, if wanted. `/audit` runs only when the person types it; the spec's Audit line only recommends one for application changes and never blocks `/complete`. `/clear` is optional context management, never a required step. `/verify` runs inside `/ready`, `/implement` and `/complete`. When unsure what to type next, `/status`. Every task and command ends with a `Status:` line and one `Next:` action ("Ending a turn" in `ai-interaction.md`).
 
 | Need | Command |
 | --- | --- |
 | Start the next planned item | `/feature` or `/feature 2.3` |
-| Build the approved spec | `/implement` |
-| Build, review and repair until ready for `/complete` | `/ready` |
+| Build the approved spec, repair and check until ready for `/complete` | `/ready` (or "OK and build" on the spec) |
+| Build it one step at a time | `/implement` |
 | Run every automated check | `/verify` |
 | Run a few tests quickly | `/test <filter>` |
 | Prove it in the running app | `/check`, or `/check guide` for steps to try yourself |
-| Review the branch for problems | `/audit` |
+| Review the branch for problems (only when you want one) | `/audit`, or `/audit focused` to re-check repairs |
 | Finish and archive the work | `/complete` |
 | Commit, push and open the PR | `/approve`, or `/approve "<message>"` |
 | A bug or small unplanned change | `/fix "<what is wrong>"` |

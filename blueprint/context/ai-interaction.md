@@ -26,20 +26,40 @@ here. Every work item, planned or not, goes through it. The spec lives in
 `not started` -> `approved` -> `in progress` -> `verified`. `/complete` then
 archives it.
 
+The normal path is: spec -> OK and build (`/ready`) -> `/complete` -> `/approve`.
+
+**Who does what.** Each piece has one job; each policy lives in one place and
+the others link to it.
+
+| Piece | Its one job | Policy it owns |
+| --- | --- | --- |
+| Spec (`current-feature.md`) | the approved scope and its *Done when* criteria | - |
+| `/feature`, `/fix` | write the spec, then stop for your OK | - |
+| `/implement` | build approved steps, with tests | narrow and broader checks (section 3) |
+| `/verify` | run every check and record the evidence | reusing a run |
+| `/ready` | coordinate `/implement`, repairs, Verify and `/check` | when to continue and when to stop |
+| `/audit` | review the change, only when you ask | finding severities |
+| `/complete` | archive and draft the commit and PR | completion gates |
+| `/approve` | commit, push and hand over the PR | the publish boundary |
+| `/status` | report where things are and the next command | - |
+| This file | the loop, the audit recommendation, failure reports | - |
+
 1. **Spec.** `/feature` (planned work) or `/fix` (unplanned work) writes the spec,
-   including the `**Audit:**` line (see "When to audit"), and stops. You choose:
-   OK it, change it, or drop it. On OK its status becomes `approved`. Nothing is
-   built before that.
-2. **Build.** `/implement` creates the spec's branch from the latest `main` and
-   builds one step at a time, with a test for any logic (`/test` for quick
-   checks). It runs Verify once at the end, sets `verified`, and ends with a
-   review packet and a choice of next steps.
-3. **Audit**, only when the spec says `required`. `/clear` first, so the review
-   comes from a session that did not write the code, then `/audit`. P0 or P1
-   findings go back to `/implement`, then `/audit` again.
+   including the `**Audit:**` line (see "When to recommend an audit"), and
+   stops. You choose: OK and build, OK only, change it, or drop it. On OK its
+   status becomes `approved`. Nothing is built before that.
+2. **Build.** "OK and build" (or `/ready` later) creates the spec's branch from
+   the latest `main`, builds every step with a test for any logic, repairs
+   in-scope failures, runs Verify, runs `/check` when a *Done when* needs the
+   app, and ends with a readiness report. `/implement` does the build part
+   only, one step at a time, if you want to go step by step.
+3. **Audit, only on request.** Claude never starts `/audit`. When the spec says
+   `recommended`, the readiness report says why; you type `/audit` if you want
+   one. A P0 or P1 it finds blocks `/complete`: `/ready` repairs it, then
+   `/audit focused` confirms the repair.
 4. **Prove it.** `/check` runs the app against the "Done when" items that need
-   it; `/check guide` gives you steps to try yourself. Skipped when nothing can
-   be observed in the app.
+   it; `/check guide` gives you steps to try yourself. `/ready` runs it for you;
+   it is skipped when nothing can be observed in the app.
 5. **Complete.** `/complete` reruns the gates, including Verify, archives the
    spec to `blueprint/history/`, ticks the build plan, and drafts the commit
    message and PR description.
@@ -47,57 +67,58 @@ archives it.
    over the PR.
 7. **Merge.** You squash-merge on GitHub once CI is green. Changes asked for in
    review are made on the same branch, then `/approve` again. After the merge,
-   `/clear` and start the next item from the updated `main`.
+   start the next item from the updated `main`.
 
-**`/ready` runs steps 2 to 4 as one bounded loop.** After you OK the spec, it
-builds, has a fresh subagent review the change, repairs blocking findings
-(adding the repair steps to the spec without asking), has them re-reviewed, and
-runs `/check` when needed: at most 3 review rounds. It stops for you only at
-exceptions (a product or scope choice, accepting a risk or skipping a check, a
-setup or secret problem, a repeated failure, the round limit) and stops before
-`/complete`. Steps 5 to 7 stay yours. The manual path (`/implement`, `/clear`,
-`/audit`) works as before.
+**`/ready` is the default path after you OK the spec.** It runs steps 2 and 4
+without asking you to type `/implement` per step, adds no review stage, and
+stops before `/complete`; its skill lists when it stops to ask. Steps 5 to 7
+stay yours.
 
-`/verify` runs inside steps 2 and 5. Run it yourself whenever you want the full
-check. Each run records its result in `.verify/evidence.json`; `/audit`,
-`/complete` and `/approve` reuse it only when it was a full PASS and no file
-outside the workflow bookkeeping changed since, and otherwise run Verify again
-(see "Reusing a run" in `/verify`).
+**`/clear` is optional.** It frees context, for example before a large next
+task. No step requires it.
+
+`/verify` runs inside steps 2 and 5, and you can run it any time. Later gates
+reuse its evidence instead of rerunning unchanged checks (see "Reusing a run"
+in `/verify`). CI runs its own checks on every PR and never reads local
+evidence.
 
 **Resuming after a lost chat or `/clear`.** Progress lives in files: the spec's
-status and ticked steps, `findings.md`, history and git. `/implement` continues
-from the first unticked step. `/status` says where things are and what to type
-next.
+status and ticked steps, `findings.md`, history and git. `/ready` and
+`/implement` continue from the first unticked step. `/status` says where things
+are and what to type next.
 
 **Without the skills.** You can also just ask for a change in chat. The rules
 here and in `coding-standards.md` still apply: a branch, small steps, tests for
 logic, Verify before done.
 
-## When to audit
+## When to recommend an audit
 
-The spec's `**Audit:**` line is `required` when the work touches any of:
+`/audit` runs only when you type it. Claude never starts it, never starts a
+reviewer subagent for it, and adds no self-review phase. The spec's
+`**Audit:**` line is only a recommendation, and it never blocks `/complete`:
 
-- build plan phase S or 8;
-- sign-in, roles, owner access or the owner page;
-- migrations or stored data;
-- AI input or output;
-- a hard rule in `CLAUDE.md`, or a workflow skill's safety checks;
-- or a diff over about 400 lines.
+- `recommended - <reason>` when the work changes application code
+  (`vetiflow.Server/`, `vetiflow.client/src/`), database behaviour (entities,
+  `Data/`, migrations, stored data) or application config (`Program.cs`,
+  `appsettings*.json`, `vite.config.ts`, the server `Dockerfile`). The reason
+  names the risk, for example build plan phase S or 8, sign-in, roles, owner
+  access, AI input or output, or a diff over about 400 lines.
+- `not needed - <reason>` when the work is limited to Claude skills, workflow
+  instructions (safety instructions included), docs, scripts or other tooling.
 
-Otherwise it is `not needed`. Both come with a one-line reason. If the work grows
-into one of these while building, `/implement` changes the line to `required`
-and says why. `/complete` gate 5 reads it.
+If the work grows into application code while building, `/implement` changes the
+line to `recommended` and says why. The readiness report and the review packet
+repeat the recommendation.
 
-## Independent review
+**Real problems block, however they were found.**
 
-The reviewer must not be the session that wrote the code. For routine work, a
-fresh subagent started by `/ready` (a new agent, never a fork of the session)
-counts. Work on build plan phase S or 8, migrations or stored data, a hard rule
-in `CLAUDE.md`, or a workflow skill's safety checks also needs one full
-`/audit` in a session you start (`/clear`, then `/audit`) after the last change.
-Each `Audit run` line in `findings.md` names its reviewer (`session` or
-`subagent`), and `/complete` gate 5 checks for a `session` line on that work.
-The reviewer writes the line, so this is advisory, not enforced.
+- A defect Claude finds while building is fixed in scope, with a regression
+  test. If fixing it is outside the spec, `/ready` stops and asks.
+- A failed or skipped required check blocks (`/complete` gate 3).
+- P0 or P1 findings from an audit you asked for block while `open` or `fixed`.
+  `/ready` repairs them, and `/audit focused` confirms the repair.
+- Never waive a risk, suppress a finding or lower a severity to finish. Only
+  you accept a finding, and only a P2 or P3.
 
 ## Branching
 
@@ -156,25 +177,51 @@ The hard rules in `CLAUDE.md` always apply. In addition:
 - Never disable, skip or delete a test to make Verify pass. A failing test is
   either a real bug or a wrong test; say which and why.
 
-## Choosing the next step
+## Ending a turn
 
-Whenever there is more than one sensible next step, let the person choose:
+Every task and every workflow command ends with two lines, and nothing after
+them:
 
-- Ask with a selection prompt (the AskUserQuestion tool): 2 to 4 options, the
-  recommended one first with "(Recommended)" in its label, each with one line on
-  what it does and what follows. The person can always type their own answer.
-- Without that tool, use a numbered list, mark the recommended option, and ask
-  for the number.
-- Recommend from the facts and say why in one line: the safer option when the
-  risk is real, the shorter path when it is not.
-- After the choice, act on it straight away when Claude can (record a skipped
-  audit, accept a finding, stash files, add a repair step to the spec). When it
-  is a command only the person can run (`/implement`, `/ready`, `/audit`,
-  `/check`, `/complete`, `/approve`, `/fix`, `/clear`), say exactly what to
-  type, in order.
-- Inside `/ready`, the choices on its continue list (in its skill) are made
-  without asking; only its stop list comes back to you.
-- With only one sensible next step, skip the prompt and say what to type.
+```
+Status: <what is complete, awaiting a decision, or blocked>
+Next: <one exact command, reply, or action>
+```
+
+| After | Status | Next |
+| --- | --- | --- |
+| A spec is written | Spec prepared; awaiting your approval. | Reply "OK and build". |
+| `/ready` finishes | Implementation complete; verification passed; ready to archive and prepare publication. | `/complete` |
+| `/complete` | Results archived; commit and PR drafts prepared. | `/approve` |
+| `/approve` | Changes committed and pushed; PR opened (or updated). | Review CI and squash-merge the PR when checks pass. |
+| A stop | Blocked - <specific reason>. | <the action or decision needed to continue> |
+
+Rules:
+
+- **One next action.** Recommend the single best step, from the facts, with its
+  reason in one line when it is not obvious. Name an alternative in a sentence
+  above the two lines only when it is a real option.
+- **Ask only for a genuine decision** (approving a spec, a product or scope
+  choice, accepting a risk or a finding). Then use a selection prompt (the
+  AskUserQuestion tool) with 2 to 4 options, the recommended one first with
+  "(Recommended)" in its label, or a numbered list without the tool. The
+  two-line handoff follows once the decision is made, or names the reply
+  needed.
+- **No vague endings**: never "let me know", "shall I continue?" or "anything
+  else?".
+- **Name the exact state, and never a later one.** In order: implementation
+  complete, verification passed (say whether it ran or was reused), publication
+  prepared (drafts written), committed, pushed, PR opened, merged, deployed.
+  Claude never sees a merge or deploy happen unless it checked.
+- **An audit recommendation is a separate line** above the handoff ("Audit:
+  recommended - <reason>; optional, `/audit`"). It is never the `Next`.
+- **While `/ready` is working:** brief milestone lines and keep going. The
+  handoff comes only when it finishes or stops.
+- **Acting on a choice:** when Claude can do it (accept a finding, stash files,
+  follow `/ready` after "OK and build"), it does so straight away. When only the
+  person can run it (`/ready`, `/audit`, `/check`, `/complete`, `/approve`,
+  `/fix`), `Next` is the exact text to type.
+- Skills end with this handoff; they name their usual `Status` and `Next` and
+  link here instead of restating these rules.
 
 ## When something fails or stops
 
@@ -183,17 +230,18 @@ way. "Next: `/audit`" on its own is not enough. Always say:
 
 1. **What happened**, in plain words, and which kind it is:
    - **Error:** something is broken (a failing test, a build error, a rejected push).
-   - **Safety stop:** a gate working as designed (audit required, wrong branch,
+   - **Safety stop:** a gate working as designed (a blocking finding, wrong branch,
      unrelated files).
    - **Environment problem:** the machine, not the code (Docker not running, the
      app holding a file lock, a tool not installed).
 2. **What changed:** "nothing", or exactly which files or state changed before
    the stop.
-3. **What you do next:** the options, as in "Choosing the next step". The
-   common ones are in the "Common failures" and "Unexpected files" tables in
-   `/verify`.
-4. **What happens after:** what success looks like, and where the loop resumes
+3. **What happens after:** what success looks like, and where the loop resumes
    (for example "then `/complete` again; it reruns every gate").
+4. **The handoff** ("Ending a turn"): `Status: Blocked - <reason>.` and `Next:`
+   the recommended way out. The usual ones are in the "Common failures" and
+   "Unexpected files" tables in `/verify`; offer a choice only when the way
+   out is a genuine decision.
 
 Also:
 
