@@ -1,5 +1,7 @@
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using vetiflow.Server.Data;
+using vetiflow.Server.Hosting;
 using vetiflow.Server.Hubs;
 using vetiflow.Server.Json;
 
@@ -29,18 +31,30 @@ builder.Services.AddDbContext<VetiFlowDbContext>(options =>
 
 builder.Services.AddSignalR();
 
+var allowedOrigins = CorsOrigins.Read(builder.Configuration);
+
 builder.Services.AddCors(options =>
 {
 	options.AddPolicy("VetiFlowClient", policy =>
 	{
 		policy
-						.WithOrigins(
-										"https://vetiflow.vercel.app",
-										"https://localhost:52540")
+						.WithOrigins(allowedOrigins)
 						.AllowAnyHeader()
 						.AllowAnyMethod()
 						.AllowCredentials();
 	});
+});
+
+// Render terminates TLS and forwards the scheme and client address. Only the
+// nearest proxy's values count, so a client cannot spoof its own address.
+// Render publishes no fixed proxy addresses, and the container is reachable
+// only through Render, so the known-proxy lists are cleared.
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+	options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+	options.ForwardLimit = 1;
+	options.KnownIPNetworks.Clear();
+	options.KnownProxies.Clear();
 });
 
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
@@ -59,9 +73,16 @@ using (var scope = app.Services.CreateScope())
 		app.Logger);
 }
 
+// First, so everything after it sees the real scheme and client address.
+app.UseForwardedHeaders();
+
 if (app.Environment.IsDevelopment())
 {
 	app.MapOpenApi();
+}
+else
+{
+	app.UseHsts();
 }
 
 app.UseHttpsRedirection();

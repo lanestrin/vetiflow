@@ -18,4 +18,7 @@ COPY --from=build /app/publish ./
 
 ENV ASPNETCORE_ENVIRONMENT=Production
 
+# The .NET images ship a non-root 'app' user; run as it, not as root.
+USER $APP_UID
+
 ENTRYPOINT ["sh", "-c", "dotnet vetiflow.Server.dll --urls http://0.0.0.0:${PORT:-10000}"]

@@ -95,12 +95,25 @@ Routes:
 
 ## 8. Deployment - Where and how will this ship?
 
-- **API:** Docker container on Render, running as a non-root user.
+- **API:** Docker container on Render, running as the image's non-root `app`
+  user (`USER $APP_UID`; `ServerImageTests` checks it).
 - **Client:** Vercel, SPA routing.
-- **Database:** Supabase Postgres.
+- **Database:** Supabase Postgres. Render has no IPv6 and Supabase's direct
+  host is IPv6-only, so Render's `ConnectionStrings__VetiFlowDatabase` must be
+  the **session pooler** string (Supabase: Connect, Session pooler; port 5432,
+  user `postgres.<project-ref>`).
 - **Env vars by name:** `ConnectionStrings__VetiFlowDatabase` on Render;
-  `VITE_API_BASE_URL` on Vercel. Planned by build plan S.3:
-  `Cors__AllowedOrigins__0`. Nothing secret goes in a `VITE_` variable.
+  `VITE_API_BASE_URL` on Vercel. Nothing secret goes in a `VITE_` variable.
+- **CORS:** allowed browser origins come from `Cors:AllowedOrigins`.
+  `appsettings.json` allows `https://vetiflow.vercel.app`, and
+  `appsettings.Development.json` allows the Vite dev server
+  `https://localhost:52540` instead. To change production, set
+  `Cors__AllowedOrigins__0` (and `__1`, ...) on Render. Startup refuses an
+  empty list, `*`, and anything but a bare `https://host[:port]` origin.
+- **Behind Render's proxy:** the API takes the scheme and client address from
+  `X-Forwarded-Proto` and `X-Forwarded-For`, trusting only the nearest proxy,
+  so a client cannot spoof its address. Outside Development, HTTPS responses
+  carry HSTS (ASP.NET Core defaults).
 - **Startup database settings** (build plan S.1):
   `Database__MigrateOnStartup` and `Database__SeedDemoData`, both `false`
   unless set. `appsettings.Development.json` and the test host turn both on;
