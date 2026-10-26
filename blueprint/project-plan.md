@@ -110,12 +110,39 @@ Routes:
 - **Client:** Vercel, SPA routing.
 - **Database:** Supabase Postgres. Render has no IPv6 and Supabase's direct
   host is IPv6-only, so Render's `ConnectionStrings__VetiFlowDatabase` must be
-  the **session pooler** string (Supabase: Connect, Session pooler; port 5432,
-  user `postgres.<project-ref>`).
+  the **session pooler** string (Supabase: Connect, Session pooler; port 5432).
+- **Database users** (build plan S.10b):
+  - The API connects as `vetiflow_app` (pooler user
+    `vetiflow_app.<project-ref>`). It reads and writes rows in every table
+    through one RLS policy each, but owns no table, so it can't create, alter
+    or drop anything or write migration history. `AddAppRole` creates it
+    without a password. `DELETE` is granted for now; 8.13 revokes it.
+  - Migrations run as `postgres` (pooler user `postgres.<project-ref>`, the
+    tables' owner) through `ConnectionStrings__VetiFlowMigrations`, which is
+    set on Render only during a migration deploy. Locally and in tests, with
+    no migration string, the app's own connection migrates.
+  - Supabase's `anon` and `authenticated` roles have no policy and read
+    nothing.
+  - **One-time cutover** (after S.10b merges):
+    1. Render: set `Database__MigrateOnStartup=true` and
+       `ConnectionStrings__VetiFlowMigrations` to the current `postgres`
+       pooler string; save, so the deploy applies `AddAppRole`.
+    2. Supabase SQL editor: `ALTER ROLE vetiflow_app WITH LOGIN PASSWORD
+       '<new, generated>';` then check that `SELECT has_schema_privilege(
+       'vetiflow_app', 'public', 'CREATE');` returns `false`.
+    3. Render: set `ConnectionStrings__VetiFlowDatabase` to the pooler string
+       with user `vetiflow_app.<project-ref>` and that password; delete
+       `ConnectionStrings__VetiFlowMigrations` and
+       `Database__MigrateOnStartup`; save.
+    4. Check `GET /api/health` is `healthy`, the board loads and a stage
+       change saves.
 - **Secrets and rotation:**
-  - The database connection string is the only secret today. Locally it lives
-    in user secrets (`ConnectionStrings:VetiFlowDatabase`); on Render it is
-    `ConnectionStrings__VetiFlowDatabase`. Never in source or `appsettings*.json`.
+  - The database connection strings are the only secrets today. Locally the
+    app's lives in user secrets (`ConnectionStrings:VetiFlowDatabase`); on
+    Render it is `ConnectionStrings__VetiFlowDatabase` (the `vetiflow_app`
+    user). `ConnectionStrings__VetiFlowMigrations` (the `postgres` user) is on
+    Render only during a migration deploy. Never in source or
+    `appsettings*.json`.
   - `VITE_API_BASE_URL` on Vercel is public: every `VITE_` variable ends up in
     the browser bundle, so nothing secret goes in one.
   - `scripts/tests/secrets-config.tests.ps1` (run by Verify and CI) fails if a
@@ -123,11 +150,13 @@ Routes:
     client uses a `VITE_` variable not on its allowlist, or if an env file
     other than `.env.example` is tracked. GitHub secret scanning and push
     protection catch other secrets.
-  - Rotate the database password when it may have been exposed or someone
-    with access leaves: reset it in Supabase (Project Settings, Database),
-    update `ConnectionStrings__VetiFlowDatabase` on Render and save (it
-    redeploys), check `GET /api/health` is `healthy`, then update local user
-    secrets.
+  - Rotate a database password when it may have been exposed or someone
+    with access leaves. The app's: in the Supabase SQL editor
+    `ALTER ROLE vetiflow_app WITH PASSWORD '<new, generated>';`, update
+    `ConnectionStrings__VetiFlowDatabase` on Render and save (it redeploys),
+    and check `GET /api/health` is `healthy`. The `postgres` password: reset
+    it in Supabase (Project Settings, Database); it is only needed for the
+    next migration deploy. Update local user secrets if they used either.
 - **CORS:** allowed browser origins come from `Cors:AllowedOrigins`.
   `appsettings.json` allows `https://vetiflow.vercel.app`, and
   `appsettings.Development.json` allows the Vite dev server
@@ -172,11 +201,14 @@ Routes:
   `Database__MigrateOnStartup` off, the app refuses to start and logs which
   migrations are missing; Render marks the deploy failed and keeps the
   previous build serving. When a merged change adds a migration:
-  1. On Render, set `Database__MigrateOnStartup=true` (Environment).
+  1. On Render, set `Database__MigrateOnStartup=true` and
+     `ConnectionStrings__VetiFlowMigrations` to the `postgres` pooler string
+     (Environment).
   2. Deploy the commit (Manual Deploy, or the save triggers one).
   3. Check the deploy log for the applied migrations and `GET /api/health`
      for `healthy`.
-  4. Set `Database__MigrateOnStartup` back to `false` (or delete it).
+  4. Delete both settings. Without the migration string, a migration attempt
+     runs as `vetiflow_app`, is refused, and the deploy fails safely.
 
 ## 9. Usage model and constraints
 
