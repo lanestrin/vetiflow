@@ -76,7 +76,7 @@ Needs no decisions and no sign-in. Every write in M2 relies on S.12's errors.
 - [x] **S.10** `chore/secrets-handling`: connection strings and API keys only in user secrets and Render/Vercel environment variables, nothing secret in `VITE_` variables, secret scanning on, and a rotation note; the app connects with a database user that can't change the schema, and a separate user runs migrations (merged in from S.11 on 2026-10-26). Split into (both done):
   - [x] **S.10a** `chore/secrets-handling`: a workflow test that keeps connection strings out of `appsettings*.json` and allows only known, non-secret `VITE_` variables; a secrets and rotation section in the project plan; GitHub secret scanning and push protection on. Done (history/features/S.10a-secrets-handling.md).
   - [x] **S.10b** `chore/least-privilege-db`: an app role that can read and write rows but not change the schema, RLS policies for it, migrations through a separate privileged connection used only during a migration deploy, and the Supabase and Render steps. Done (history/features/S.10b-least-privilege-db.md).
-- [ ] **1.4** `fix/dependabot-alerts`: resolve any open alerts that remain after PR #13's `npm audit fix` (check brace-expansion, source-map-js, zod).
+- [x] **1.4** `fix/dependabot-alerts`: resolve any open alerts that remain after PR #13's `npm audit fix` (check brace-expansion, source-map-js, zod). Done (history/features/1.4-dependabot-alerts.md).
 
 ## M2: Manual staff journey on demo data
 
