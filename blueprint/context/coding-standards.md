@@ -222,8 +222,11 @@ added as `(#<n>)`. That keeps the history and GitHub's generated release notes
 readable.
 
 Protect `main`: require a pull request before merging, and require the CI checks
-"Server tests" and "Client lint, build and tests" to pass. Nothing then reaches
-`main` without review and green CI.
+"Server tests", "Client lint, build and tests" and "PR title" to pass. Nothing
+then reaches `main` without review and green CI. The first two run
+`scripts/verify.ps1` (`-ServerOnly` and `-ClientOnly`), the same Verify you run
+locally; "PR title" runs `scripts/check-pr-title.ps1` against the subject rules
+above.
 
 Squash merge and branch protection are GitHub repository settings; nothing in
 the repo enforces them.

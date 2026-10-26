@@ -1,0 +1,10 @@
+# Keeps the SHA-pinned actions in .github/workflows current. The "chore"
+# prefix gives PR titles like "chore: bump ...", which pass the PR title check.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: chore

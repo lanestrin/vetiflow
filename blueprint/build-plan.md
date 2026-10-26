@@ -46,7 +46,7 @@ less.
 - [x] **1.3** `feature/test-suite`: GitHub Actions runs server tests, client lint, build and tests on every PR and push to `main`. Merged with 1.2 (PR #13).
 - [ ] **1.4** `fix/dependabot-alerts`: resolve any open alerts that remain after PR #13's `npm audit fix` (check brace-expansion, source-map-js, zod).
 - [ ] **1.5** `docs/readme`: README with a screenshot, the live link and local setup.
-- [ ] **1.6** `chore/ci-verify-script`: make CI call `scripts/verify.ps1` so CI and local checks can never drift apart.
+- [x] **1.6** `chore/ci-verify-script`: make CI call `scripts/verify.ps1` so CI and local checks can never drift apart. Done (history/features/1.6-ci-verify-script.md).
 - [ ] **1.7** `chore/release-notes`: `.github/release.yml` so GitHub's generated release notes group squash-merged commits by type (features, fixes, chores), plus a first tag.
 
 ## Phase S: Security foundations (before Phase 2)
