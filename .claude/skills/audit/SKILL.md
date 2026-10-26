@@ -1,6 +1,6 @@
 ---
 name: audit
-description: Review the current branch diff against main for security, data, EF Core, testing and standards problems, and record findings with IDs and severities in blueprint/context/findings.md. Use for /audit, /audit security, /audit tests, or before completing risky work.
+description: Review the current branch diff against main for security, data, EF Core, testing and standards problems, and record findings with IDs and severities in blueprint/context/findings.md. Use for /audit, /audit security, /audit tests, /audit focused (a re-review after a repair), or before completing risky work.
 disable-model-invocation: true
 ---
 
@@ -14,8 +14,14 @@ that is `/check`.
 
 - `/audit` or `/audit current`: the whole branch delta, all lenses.
 - `/audit security`, `/audit data`, `/audit tests`, `/audit quality`: one lens.
+- `/audit focused`: a re-review after a repair, used by `/ready` rounds 2 and 3.
+  Covers only the files changed since the last review, their callers and
+  tests, regressions those changes could cause, and every `open` or `fixed`
+  finding. All lenses apply to that scope.
 - The loop runs it after `/clear`, so the reviewer is not the session that
   wrote the code. If this session wrote the changes, say so in the report.
+  `/ready` runs it in a fresh subagent instead (see "Independent review" in
+  `blueprint/context/ai-interaction.md`).
 
 ## 1. Gather
 
@@ -26,8 +32,8 @@ that is `/check`.
 
 ## 2. Run available signals
 
-Reuse a passing `/verify` from this session when no files changed since;
-otherwise run `/verify`. Failing checks are findings.
+Run `scripts/verify.ps1 -ReuseIfCurrent` (see "Reusing a run" in `/verify`) and
+report whether it reused or ran. Any FAIL or SKIP is a finding.
 
 ## 3. Review with these lenses
 
@@ -41,7 +47,8 @@ otherwise run `/verify`. Failing checks are findings.
 - AI: owner details stripped before sending, intake notes treated as untrusted.
 
 **Data and EF Core**
-- Model change has a migration; `has-pending-model-changes` is clean.
+- Model change has a migration; `MigrationTests.Model_MatchesLatestMigration`
+  passed in Verify's server tests.
 - Enum renames update stored rows. No cascade deletes. Indexes match the rules.
 - Queries: `AsNoTracking`, projection to DTOs, no N+1, active cases filtered by
   `DischargedAt IS NULL` where needed.
@@ -78,17 +85,33 @@ Severity:
 Use P0 or P1 only with a concrete code path or a broken rule. When re-checking a
 `fixed` finding, move it to `closed` if the repair holds, or back to `open`.
 Never mark anything `accepted` on your own; only the person's choice can.
+Lower a severity only after re-checking it against the code, and write the
+evidence into the finding (`Lowered from P1: <what the re-check showed>`).
 
 Every run, clean or not, ends the file with one line so `/complete` gate 5 can
-see the audit happened:
+see the audit happened. The reviewer is `session` when the person started this
+session for the audit, `subagent` when `/ready` started it; the mode is `full`
+or `focused`:
 
 ```markdown
-Audit run <YYYY-MM-DD> on `<branch>`: <n> new findings, <n> closed.
+Audit run <YYYY-MM-DD> on `<branch>` (<session|subagent>, <full|focused>): <n> new findings, <n> closed.
 ```
 
 ## 5. Report
 
-List findings by severity with ID and title, then say whether `/complete` is
+**Started by `/ready`:** return this summary and offer no next step:
+
+```
+Mode: focused (round 2)
+Verify: reused (or: ran, PASS)
+New: F-27 [P3] <title>
+Closed: F-26
+Still open or fixed: none
+Blockers: none (or: the IDs, with the Done when or hard rule a blocking P2 breaks)
+Lowered: none (or: F-26 P1 -> P3, <evidence>)
+```
+
+**Otherwise:** list findings by severity with ID and title, then say whether `/complete` is
 blocked (any P0 or P1 `open` or `fixed`). "Continue" below means the next loop
 step: `/check` when a *Done when* needs the running app, otherwise `/complete`.
 

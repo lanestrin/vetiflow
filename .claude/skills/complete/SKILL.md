@@ -27,8 +27,8 @@ what stopped, that nothing was archived yet, the options from the gate's
    **If it fails:** one step: `git switch <branch>` (uncommitted changes come
    along), then `/complete`. If the work was built on `main`:
    `git switch -c <branch>` moves the uncommitted changes to the new branch.
-3. **Verify:** run `/verify` with no options now; do not reuse an old result if
-   files changed since. A SKIP counts as a failure.
+3. **Verify:** run `scripts/verify.ps1 -ReuseIfCurrent` (see "Reusing a run" in
+   `/verify`) and report whether it reused or ran. Any FAIL or SKIP stops here.
    **If it fails:** the options from `/verify`'s "Common failures" table, then
    `/complete`.
 4. **Findings:** `blueprint/context/findings.md` has no P0 or P1 finding that is
@@ -39,7 +39,9 @@ what stopped, that nothing was archived yet, the options from the gate's
 5. **Audit:** read the spec's `**Audit:**` line. When it says `not needed` but
    the diff now meets "When to audit" in `ai-interaction.md`, treat it as
    `required` and say why. When `required`, `findings.md` must have an
-   `Audit run` line for this branch.
+   `Audit run` line for this branch. When the work needs a person-started
+   review (see "Independent review" in `ai-interaction.md`), that line must be
+   a full `session` audit after the last change, not only `subagent` runs.
    **If it fails:** say why the work needs an audit, then offer:
    1. Audit now: `/clear`, then `/audit`, then `/complete` (Recommended).
    2. Skip it: Claude records "Audit: skipped by the person" and the reason in

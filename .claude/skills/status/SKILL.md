@@ -33,7 +33,8 @@ Read-only. Writes nothing.
   | --- | --- |
   | No spec, on `main` | `/feature` (next item) or `/fix "<what>"` |
   | Spec `not started` | Read it, then OK it (becomes `approved`) or change it |
-  | Spec `approved` or `in progress` | `/implement` (resumes at the first unticked step) |
+  | Spec `approved` or `in progress` | `/implement` (resumes at the first unticked step), or `/ready` to build, review and repair in one loop |
+  | `verified`, only `subagent` audit runs, work needs a person-started review | `/clear`, then `/audit` |
   | `verified`, Audit `required`, no `Audit run` line | `/clear`, then `/audit` |
   | Open P0/P1 findings | `/implement`, "repair F-01", then `/clear` and `/audit` |
   | `fixed` P0/P1 findings, none open | `/clear`, then `/audit` |

@@ -47,6 +47,9 @@ Thumbs.db
 # Claude Code local settings
 .claude/settings.local.json
 
+# Verify evidence and step logs written by scripts/verify.ps1
+.verify/
+
 # Workflow drafts written by /complete
 blueprint/context/landing-commit.txt
 blueprint/context/landing-pr.md

@@ -25,7 +25,8 @@ Pick the smallest reproduction:
 - The board not updating: two tabs, the browser console, the SignalR connection
   state, and the hub message (or its absence).
 - A migration or database error: `dotnet ef migrations list`,
-  `has-pending-model-changes`, and the exact SQL error. Local database only.
+  `has-pending-model-changes` (after `dotnet tool restore`, which installs the
+  pinned `dotnet-ef`), and the exact SQL error. Local database only.
 - A client error: the browser console and network tab, or the failing Vitest output.
 
 If it does not reproduce, say so and list what was tried.

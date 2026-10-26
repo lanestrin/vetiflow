@@ -42,11 +42,10 @@ every check when run again.
    gates and writes both drafts), then `/approve`; for a spec not yet
    `verified`, `/implement` first. A stub with no history file for this branch:
    the work has no spec; `/fix "<what>"` to give it one.
-3. **Verify:** `/complete` gate 3 ran Verify just before writing the drafts.
-   Skip it when every changed file outside `blueprint/` is older than
-   `landing-commit.txt` (only `/complete`'s own files changed since). Otherwise,
-   or with a given message and no `landing-commit.txt`, run `/verify` with no
-   options now. Any FAIL or SKIP stops here.
+3. **Verify:** run `scripts/verify.ps1 -ReuseIfCurrent` (see "Reusing a run" in
+   `/verify`) and report whether it reused or ran. Any FAIL or SKIP stops here.
+   `/complete`'s archive and drafts do not change the fingerprint, so its
+   result is reused unless other files changed since.
    **If it fails:** the options from `/verify`'s "Common failures" table, then
    `/approve`.
 4. **Files:** `git status --short --untracked-files=all`. Stop if any path is in

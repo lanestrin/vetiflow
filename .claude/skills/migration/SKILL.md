@@ -12,6 +12,8 @@ touches a hosted database.
 ## 1. Before generating
 
 - The model change (entity, `OnModelCreating`) is done and builds.
+- `dotnet tool restore` has run in this clone (it installs the `dotnet-ef`
+  version pinned in `.config/dotnet-tools.json`; Verify does not run it).
 - `dotnet ef migrations has-pending-model-changes --project vetiflow.Server`
   reports a change. If it reports none, there is nothing to migrate.
 - No migration that is already on `main` gets edited. Always add a new one.

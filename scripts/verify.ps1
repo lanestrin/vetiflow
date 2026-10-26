@@ -6,6 +6,14 @@
   This is the one Verify command. You, Claude and CI run the same script, so
   "it passed" means the same thing everywhere.
 
+  Each step's full output goes to .verify/logs/<step>.log. The console shows one
+  line per step and the summary, plus the end of the log when a step fails.
+  Every run writes .verify/evidence.json (result, mode, steps, file fingerprint);
+  see scripts/verify-evidence.ps1.
+
+  -ReuseIfCurrent skips the run when the last one was a full PASS and no file has
+  changed since (workflow bookkeeping aside); otherwise it says why and runs in full.
+
   Server tests need Docker running (Testcontainers) or VETIFLOW_TEST_POSTGRES
   pointing at an existing Postgres server.
 
@@ -13,41 +21,84 @@
   pwsh -File scripts/verify.ps1
   pwsh -File scripts/verify.ps1 -ServerOnly
   pwsh -File scripts/verify.ps1 -ClientOnly
+  pwsh -File scripts/verify.ps1 -ReuseIfCurrent
 #>
 param(
 	[switch]$ServerOnly,
-	[switch]$ClientOnly
+	[switch]$ClientOnly,
+	[switch]$ReuseIfCurrent
 )
 
 $ErrorActionPreference = 'Stop'
 $repoRoot = Split-Path -Parent $PSScriptRoot
-$results = [System.Collections.Generic.List[string]]::new()
+. (Join-Path $PSScriptRoot 'verify-evidence.ps1')
 
-function Write-Summary {
-	Write-Host ''
-	Write-Host 'Verify summary'
-	foreach ($line in $results) { Write-Host "  $line" }
+$evidencePath = Join-Path $repoRoot '.verify/evidence.json'
+$logFolder = Join-Path $repoRoot '.verify/logs'
+$steps = [System.Collections.Generic.List[object]]::new()
+
+if ($ServerOnly -and $ClientOnly) {
+	Write-Host 'Use -ServerOnly or -ClientOnly, not both.'
+	exit 1
+}
+$mode = if ($ServerOnly) { 'server' } elseif ($ClientOnly) { 'client' } else { 'full' }
+
+if ($ReuseIfCurrent) {
+	if ($mode -ne 'full') {
+		Write-Host '-ReuseIfCurrent reuses or runs a full Verify; it cannot be combined with -ServerOnly or -ClientOnly.'
+		exit 1
+	}
+	$check = Test-VerifyEvidence -Path $evidencePath -Fingerprint (Get-VerifyFingerprint -RepoRoot $repoRoot)
+	if ($check.Reusable) {
+		$evidence = $check.Evidence
+		Write-Host "Reusing Verify PASS from $($evidence.finishedAt) ($($evidence.branch) @ $("$($evidence.head)".Substring(0, 7)))"
+		Write-Host ''
+		Write-Host 'Verify summary (reused)'
+		foreach ($step in $evidence.steps) { Write-Host "  $($step.result)  $($step.name)" }
+		exit 0
+	}
+	Write-Host "Not reusing the last Verify: $($check.Reason). Running it in full."
 }
 
-function Stop-Verify([string]$Line) {
-	$results.Add($Line)
-	Write-Summary
+# An interrupted run must leave no evidence behind. The fingerprint is taken
+# before any step, so a file edited during the run makes the evidence stale.
+Remove-VerifyEvidence -Path $evidencePath
+$fingerprint = Get-VerifyFingerprint -RepoRoot $repoRoot
+if (Test-Path $logFolder) { Remove-Item (Join-Path $logFolder '*.log') -Force }
+else { New-Item -ItemType Directory $logFolder | Out-Null }
+
+function Complete-Verify([string]$Result) {
+	Write-VerifyEvidence -Path $evidencePath -RepoRoot $repoRoot -Result $Result -Mode $mode -Steps $steps -Fingerprint $fingerprint
+	Write-Host ''
+	Write-Host 'Verify summary'
+	foreach ($step in $steps) { Write-Host "  $($step.result)  $($step.name)$($step.note)" }
+}
+
+function Stop-Verify([string]$Name, [string]$Note) {
+	$steps.Add([ordered]@{ name = $Name; result = 'FAIL'; note = " ($Note)" })
+	Complete-Verify 'FAIL'
 	exit 1
 }
 
 # $OnFailure runs only when the step fails, to print a hint about the likely cause.
 function Invoke-Step([string]$Name, [scriptblock]$Command, [scriptblock]$OnFailure) {
-	Write-Host ''
 	Write-Host "==> $Name" -ForegroundColor Cyan
-	& $Command
-	$exitCode = $LASTEXITCODE
+	$logPath = Join-Path $logFolder (($Name.ToLowerInvariant() -replace '[^a-z0-9]+', '-') + '.log')
+	$exitCode = Invoke-VerifyCommand -Command $Command -LogPath $logPath
 	if ($exitCode -ne 0) {
+		$relativeLog = $logPath.Substring($repoRoot.Length + 1).Replace('\', '/')
+		Write-Host ''
+		Write-Host "Last 60 lines of $relativeLog" -ForegroundColor Yellow
+		Get-Content $logPath -Tail 60 | ForEach-Object { Write-Host $_ }
 		if ($OnFailure) { & $OnFailure }
-		Stop-Verify "FAIL  $Name (exit code $exitCode)"
+		Stop-Verify $Name "exit code $exitCode, full output in $relativeLog"
 	}
-	$results.Add("PASS  $Name")
+	$steps.Add([ordered]@{ name = $Name; result = 'PASS'; note = '' })
 }
 
+# UTF-8 for the run, so test output with non-ASCII characters logs correctly.
+$consoleEncoding = [Console]::OutputEncoding
+[Console]::OutputEncoding = New-Object System.Text.UTF8Encoding $false
 Push-Location $repoRoot
 try {
 	# Checks for the workflow's own guardrails. Fast, so they run in every mode, and
@@ -63,18 +114,21 @@ try {
 	if (-not $ClientOnly) {
 		# Testcontainers needs Docker unless the tests use an existing Postgres server.
 		# Checking first gives one clear line instead of a failure in every database test.
-		# Windows PowerShell 5.1 throws on redirected native stderr, hence the try.
+		# The exit code is the only signal: Docker may warn on stderr while running.
 		if (-not $env:VETIFLOW_TEST_POSTGRES) {
-			$dockerRunning = $false
+			$global:LASTEXITCODE = 1
 			try {
-				docker info *> $null
-				$dockerRunning = ($LASTEXITCODE -eq 0)
+				$ErrorActionPreference = 'Continue'
+				docker info --format '{{.ServerVersion}}' *> $null
 			}
 			catch {
-				$dockerRunning = $false
+				$global:LASTEXITCODE = 1
 			}
-			if (-not $dockerRunning) {
-				Stop-Verify 'FAIL  Docker (not running: start Docker Desktop or set VETIFLOW_TEST_POSTGRES)'
+			finally {
+				$ErrorActionPreference = 'Stop'
+			}
+			if ($global:LASTEXITCODE -ne 0) {
+				Stop-Verify 'Docker' 'not running: start Docker Desktop or set VETIFLOW_TEST_POSTGRES'
 			}
 		}
 
@@ -85,12 +139,8 @@ try {
 				Write-Host 'vetiflow.Server is running and locks its exe (MSB3027). Stop it, then rerun.' -ForegroundColor Yellow
 			}
 		}
+		# Includes MigrationTests, which fail when the model has changes no migration captures.
 		Invoke-Step 'Server tests' { dotnet test --project vetiflow.Server.Tests --no-build }
-
-		# dotnet-ef is pinned in .config/dotnet-tools.json, so the migration check
-		# always runs with the same version and never depends on a global install.
-		Invoke-Step 'Tool restore' { dotnet tool restore }
-		Invoke-Step 'No pending model changes' { dotnet ef migrations has-pending-model-changes --project vetiflow.Server }
 	}
 
 	if (-not $ServerOnly) {
@@ -114,7 +164,8 @@ try {
 }
 finally {
 	Pop-Location
+	[Console]::OutputEncoding = $consoleEncoding
 }
 
-Write-Summary
+Complete-Verify 'PASS'
 exit 0
