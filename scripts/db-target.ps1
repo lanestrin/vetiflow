@@ -145,9 +145,15 @@ if (-not ($Migrate -or $StartApp)) { exit 0 }
 # Each change is undone afterwards, so a caller that ran this script with & (not
 # -File) gets its own environment back and no connection string stays in it.
 $saved = @{}
+# PowerShell passes $null to a .NET string parameter as "". Windows treats ""
+# as remove, but Linux keeps an empty variable, so a removal passes a real null.
+function Set-ProcessVariable([string]$Name, $Value) {
+	if ($null -eq $Value) { [Environment]::SetEnvironmentVariable($Name, [NullString]::Value) }
+	else { [Environment]::SetEnvironmentVariable($Name, $Value) }
+}
 function Set-ChildVariable([string]$Name, $Value) {
 	if (-not $saved.ContainsKey($Name)) { $saved[$Name] = [Environment]::GetEnvironmentVariable($Name) }
-	[Environment]::SetEnvironmentVariable($Name, $Value)
+	Set-ProcessVariable $Name $Value
 }
 try {
 	foreach ($name in @([Environment]::GetEnvironmentVariables().Keys)) {
@@ -169,6 +175,6 @@ try {
 	$exitCode = $LASTEXITCODE
 }
 finally {
-	foreach ($name in $saved.Keys) { [Environment]::SetEnvironmentVariable($name, $saved[$name]) }
+	foreach ($name in $saved.Keys) { Set-ProcessVariable $name $saved[$name] }
 }
 exit $exitCode

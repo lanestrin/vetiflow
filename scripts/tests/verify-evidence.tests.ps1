@@ -146,10 +146,10 @@ if (Test-Path $evidenceScript) {
 			Assert-True ($LASTEXITCODE -ne 0) 'a command that cannot start fails the step (outside a try block)'
 			Assert-True ((Get-Content $stepLog -Raw) -match 'vetiflow-no-such-command') 'the log names the command that could not start'
 
-			$exitCode = Invoke-VerifyCommand -Command { cmd /c exit 3 } -LogPath $stepLog
+			$exitCode = Invoke-VerifyCommand -Command { & $powershellExe -NoProfile -Command 'exit 3' } -LogPath $stepLog
 			Assert-True ($exitCode -eq 3) 'a failing command returns its exit code'
 
-			$exitCode = Invoke-VerifyCommand -Command { cmd /c 'echo step warning 1>&2 & exit 0' } -LogPath $stepLog
+			$exitCode = Invoke-VerifyCommand -Command { & $powershellExe -NoProfile -Command "[Console]::Error.WriteLine('step warning'); exit 0" } -LogPath $stepLog
 			Assert-True ($exitCode -eq 0) 'stderr from a command that exits 0 does not fail the step'
 			Assert-True ((Get-Content $stepLog -Raw) -match 'step warning') 'stderr is logged'
 		}
