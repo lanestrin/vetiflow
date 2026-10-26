@@ -43,6 +43,7 @@ Every item that adds a write also:
 - **Security gates real clinic data, not features:** decided 2026-10-26. Manual features are built and shown on demo data first. No real clinic data until M1, M3 and the M7 gate are done.
 - **AI table design** (before 5.1): keep `AiSummary` and `Handoff` separate, or merge them into one `AiGeneration` table.
 - **Login provider** (before S.5): ASP.NET Core Identity in our own database, or an external provider such as Supabase Auth or Microsoft Entra.
+- **Sign-in proof of concept:** decided 2026-10-26. A free local simulation (M3a): accounts in our own database, the framework's built-in password hashing and bearer tokens, and a fixed demo phone code with no text sent. No paid authentication, email or SMS service. The login-provider and owner-access decisions stay open for production.
 - **Stage transition rules** (before 2.1): which stage moves are allowed, for example any move forward and back only to Triage or Recheck.
 - **Case status and blockers** (before 4.9): whether staff set the status, it is derived from open blockers, or both.
 - **Discharge outcomes and corrections** (before 6.2 and 6.7): the outcome list (for example home, transferred, admitted, deceased), and who may correct or reopen a discharged case.
@@ -102,12 +103,24 @@ holds demo data only.
 - [ ] **6.2** `feature/discharge`: discharge with an outcome, set `DischargedAt`, the room frees itself (it is derived), write `Discharged`, and the case leaves the board.
 - [ ] **4.7** `feature/duplicate-patients`: warn on likely duplicates (same name, species and owner) at intake; merge only if the decision says so.
 
+## M3a: Sign-in proof of concept (demo)
+
+A free, local simulation of sign-in for both roles, built against
+`blueprint/reference/vetiflow-login-mock.html`. It needs no decision and can be
+built alongside M2. It is not production authentication: details, acceptance
+criteria and limits are in project plan section 10.
+
+- [ ] **S.16** `feature/demo-accounts`: `Account` entity and migration (RLS and `AppRoleAccess.Grant`) linking each sign-in to one `StaffMember` or one `Owner`, password hashing with the framework's `PasswordHasher`, and the two seeded demo accounts, with database tests.
+- [ ] **S.17** `feature/demo-email-sign-in`: `POST /api/auth/email` (email and password to a bearer token), `GET /api/auth/me` (name and experience), and the board and stage endpoints require a hospital team member (`401` signed out, `403` for a pet parent).
+- [ ] **S.18** `feature/sign-in-screen`: `/sign-in` with the Email option to the mockup, the success panel, routing to `/er` or `/pet-parent`, a minimal pet parent home, sign out, route guards and the session-ended state.
+- [ ] **S.19** `feature/demo-phone-sign-in`: `POST /api/auth/phone/start` and `POST /api/auth/phone/verify` with the fixed code `123456` only while `DemoSignIn:Enabled` is on, no text sent, and the Phone option on the screen.
+
 ## M3: Sign-in and roles
 
 Needs the login-provider decision. Once decided it can run alongside M2. Must
 be done before real clinic data.
 
-- [ ] **S.5** `feature/auth-login`: staff login (provider per the decision above), secure cookies or short-lived tokens, logout, CSRF protection if cookies are used; every API endpoint requires a signed-in user by default, and writes fill the existing `*ByStaffId` fields from the signed-in user.
+- [ ] **S.5** `feature/auth-login`: staff login (provider per the decision above, building on or replacing the M3a proof of concept), secure cookies or short-lived tokens, logout, CSRF protection if cookies are used; every API endpoint requires a signed-in user by default, and writes fill the existing `*ByStaffId` fields from the signed-in user.
 - [ ] **S.15** `feature/staff-accounts`: invite a staff member, link the account to a `StaffMember`, deactivate (blocks sign-in at once), and account recovery per the provider.
 - [ ] **S.6** `feature/auth-roles`: roles (Veterinarian, Technician, Manager, Owner) and authorization policies, so for example only clinicians can set acuity or confirm AI output.
 - [ ] **S.7** `feature/hub-authorization`: require sign-in on the SignalR hub, pass the token safely, and broadcast IDs only, with no patient data in hub messages.
@@ -142,15 +155,15 @@ Tasks, communication and handoffs around the journey in M2.
 
 ## M6: Private owner experience
 
-- [ ] **S.8** `feature/owner-access-control`: owners can only see their own pet's case on the owner page (resource-based checks, no guessable links); access expires and staff can revoke it, with a clear expired-link page.
+- [ ] **S.8** `feature/owner-access-control`: owners can only see their own pet's case on the owner page (resource-based checks, no guessable links); access expires and staff can revoke it, with a clear expired-link page. Replaces the demo pet parent sign-in (S.18, S.19) for production.
 - [ ] **6.5** `feature/owner-updates`: staff write an owner-facing update, and a clinician approves it before the owner page can show it.
-- [ ] **6.3** `feature/owner-page`: the private owner page, using the client labels and only staff-confirmed owner notes (S.8 merges first).
+- [ ] **6.3** `feature/owner-page`: the private owner page, using the client labels and only staff-confirmed owner notes (S.8 merges first). Replaces the minimal demo pet parent home (S.18).
 
 ## M7: Launch gate and pilot
 
 All of these must be done before VetiFlow holds real clinic data.
 
-- [ ] **8.10** `chore/demo-environment`: a separate Render service and Supabase project with demo data only, so production holds real data only; Vercel previews point at demo.
+- [ ] **8.10** `chore/demo-environment`: a separate Render service and Supabase project with demo data only, so production holds real data only; Vercel previews point at demo. Demo sign-in (`DemoSignIn:Enabled`, the demo accounts) exists only in the demo environment.
 - [ ] **7.4** `feature/demo-mode`: demo banner, Reset demo button, scheduled reseed, rate limit on writes, in the demo environment only [19, 20].
 - [ ] **8.1** `feature/audit-log`: record who viewed or changed patient and owner data, and when; viewable by managers.
 - [ ] **8.2** `feature/security-headers`: CSP, `X-Content-Type-Options`, `Referrer-Policy`, frame-ancestors and `X-Robots-Tag: noindex` on Vercel and the API.
