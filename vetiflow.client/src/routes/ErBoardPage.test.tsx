@@ -37,6 +37,15 @@ describe("ErBoardPage", () => {
     ).toBeInTheDocument();
   });
 
+  it("names the browser tab while loading and once loaded", async () => {
+    serveCases([buildCase()]);
+    render(<ErBoardPage />);
+
+    expect(document.title).toBe("ER Board · VetiFlow");
+    await screen.findByRole("heading", { level: 1, name: "VetiFlow ER Board" });
+    expect(document.title).toBe("ER Board · VetiFlow");
+  });
+
   it("places each case in the lane for its stage", async () => {
     serveCases([
       buildCase({ patientName: "Buddy", stage: "triage" }),

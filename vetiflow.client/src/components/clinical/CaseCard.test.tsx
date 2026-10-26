@@ -19,7 +19,8 @@ describe("CaseCard", () => {
       />
     );
 
-    expect(screen.getByRole("heading", { name: "Buddy" })).toBeInTheDocument();
+    // Level 3: the card sits under its lane's level-2 heading.
+    expect(screen.getByRole("heading", { level: 3, name: "Buddy" })).toBeInTheDocument();
     expect(screen.getByText("Dog • Golden Retriever")).toBeInTheDocument();
     expect(screen.getByText("Collapsed on walk")).toBeInTheDocument();
     expect(screen.getByText("Critical")).toBeInTheDocument();
