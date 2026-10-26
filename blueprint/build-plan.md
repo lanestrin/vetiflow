@@ -73,9 +73,9 @@ Every item that adds a write also:
 Needs no decisions and no sign-in. Every write in M2 relies on S.12's errors.
 
 - [x] **S.12** `feature/input-validation`: length and format limits on every request, ProblemDetails errors, no stack traces or internal details in production responses [13]. Done (history/features/S.12-input-validation.md).
-- [ ] **S.10** `chore/secrets-handling`: connection strings and API keys only in user secrets and Render/Vercel environment variables, nothing secret in `VITE_` variables, secret scanning on, and a rotation note; the app connects with a database user that can't change the schema, and a separate user runs migrations (merged in from S.11 on 2026-10-26). Split into:
+- [x] **S.10** `chore/secrets-handling`: connection strings and API keys only in user secrets and Render/Vercel environment variables, nothing secret in `VITE_` variables, secret scanning on, and a rotation note; the app connects with a database user that can't change the schema, and a separate user runs migrations (merged in from S.11 on 2026-10-26). Split into (both done):
   - [x] **S.10a** `chore/secrets-handling`: a workflow test that keeps connection strings out of `appsettings*.json` and allows only known, non-secret `VITE_` variables; a secrets and rotation section in the project plan; GitHub secret scanning and push protection on. Done (history/features/S.10a-secrets-handling.md).
-  - [ ] **S.10b** `chore/least-privilege-db`: an app role that can read and write rows but not change the schema, RLS policies for it, migrations through a separate privileged connection used only during a migration deploy, and the Supabase and Render steps.
+  - [x] **S.10b** `chore/least-privilege-db`: an app role that can read and write rows but not change the schema, RLS policies for it, migrations through a separate privileged connection used only during a migration deploy, and the Supabase and Render steps. Done (history/features/S.10b-least-privilege-db.md).
 - [ ] **1.4** `fix/dependabot-alerts`: resolve any open alerts that remain after PR #13's `npm audit fix` (check brace-expansion, source-map-js, zod).
 
 ## M2: Manual staff journey on demo data
@@ -157,6 +157,7 @@ All of these must be done before VetiFlow holds real clinic data.
 - [ ] **8.3** `chore/log-redaction`: keep patient and owner details, tokens and connection strings out of logs.
 - [ ] **7.5** `chore/logging`: structured logging with correlation IDs.
 - [ ] **8.5** `chore/privacy-data-handling`: synthetic data only in the demo, a retention policy, owner data export and delete, and a privacy notice.
+- [ ] **8.13** `chore/revoke-app-delete`: once the back-end schema is final, revoke `DELETE` from the `vetiflow_app` role on every table except where a feature needs it (owner data deletion, 8.5), with a test that the role can't delete elsewhere. S.10b granted it for now (decided 2026-10-26).
 - [ ] **8.6** `chore/backups`: Supabase backups or point-in-time recovery turned on, with a tested restore.
 - [ ] **8.9** `chore/monitoring`: uptime alert on `/api/health`, error alerting and log retention.
 - [ ] **8.7** `chore/security-scanning`: extend Dependabot from GitHub Actions to npm and NuGet, so new vulnerabilities show up on PRs. CodeQL default setup is already on (seen 2026-10-26, S.10a); keep it on.

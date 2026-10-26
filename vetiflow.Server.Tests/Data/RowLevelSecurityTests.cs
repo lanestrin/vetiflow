@@ -5,8 +5,8 @@ using vetiflow.Server.Tests.Infrastructure;
 namespace vetiflow.Server.Tests.Data;
 
 // Supabase serves every table in "public" to its anon and authenticated roles
-// through the REST and GraphQL APIs. Row level security with no policies
-// leaves those roles nothing, while the API (the tables' owner) is unaffected.
+// through the REST and GraphQL APIs. Row level security leaves those roles
+// nothing: the only policy is for vetiflow_app, the API's role (AppRoleTests).
 public class RowLevelSecurityTests(VetiFlowApiFactory factory)
 {
 	private readonly CancellationToken _cancellationToken = TestContext.Current.CancellationToken;
@@ -29,7 +29,8 @@ public class RowLevelSecurityTests(VetiFlowApiFactory factory)
 		Assert.Empty(unprotected);
 	}
 
-	// A role granted SELECT, as Supabase grants anon, must still read nothing.
+	// A role granted SELECT, as Supabase grants anon, must still read nothing
+	// unless a policy names it.
 	[Fact]
 	public async Task NonOwnerRole_ReadsNoRows()
 	{

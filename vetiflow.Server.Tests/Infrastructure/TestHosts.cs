@@ -16,11 +16,17 @@ public static class TestHosts
 		string connectionString,
 		string environment = "Testing",
 		bool? migrateOnStartup = null,
-		bool? seedDemoData = null) =>
+		bool? seedDemoData = null,
+		string? migrationConnectionString = null) =>
 		new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
 		{
 			builder.UseEnvironment(environment);
 			builder.UseSetting("ConnectionStrings:VetiFlowDatabase", connectionString);
+
+			if (migrationConnectionString is not null)
+			{
+				builder.UseSetting("ConnectionStrings:VetiFlowMigrations", migrationConnectionString);
+			}
 
 			// Unset means the app's own default, which is what production gets.
 			if (migrateOnStartup is not null)

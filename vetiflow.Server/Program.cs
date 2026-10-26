@@ -78,7 +78,8 @@ using (var scope = app.Services.CreateScope())
 		scope.ServiceProvider.GetRequiredService<VetiFlowDbContext>(),
 		migrateOnStartup: app.Configuration.GetValue<bool>("Database:MigrateOnStartup"),
 		seedDemoData: app.Configuration.GetValue<bool>("Database:SeedDemoData"),
-		app.Logger);
+		app.Logger,
+		migrationConnectionString: app.Configuration.GetConnectionString("VetiFlowMigrations"));
 }
 
 // First, so everything after it sees the real scheme and client address.

@@ -64,4 +64,46 @@ public class StartupTests(VetiFlowApiFactory factory)
 		var body = await response.Content.ReadFromJsonAsync<JsonElement>(_cancellationToken);
 		Assert.Equal("disconnected", body.GetProperty("database").GetString());
 	}
+
+	// Production's shape: the app runs as vetiflow_app and migrates only through
+	// the privileged migration connection.
+	[Fact]
+	public async Task Startup_AsAppRole_WithMigrationConnection_ServesBoard()
+	{
+		var adminConnectionString = await factory.Postgres.CreateDatabaseAsync();
+		await using var appLogin = await AppRoleLogin.CreateAsync(adminConnectionString);
+		using var host = TestHosts.Create(
+			appLogin.ConnectionString,
+			migrateOnStartup: true,
+			seedDemoData: true,
+			migrationConnectionString: adminConnectionString);
+		using var client = host.CreateClient();
+
+		var cases = await client.GetFromJsonAsync<JsonElement[]>("/api/cases", _cancellationToken);
+		var caseId = cases![0].GetProperty("id").GetGuid();
+		var update = await client.PatchAsJsonAsync(
+			$"/api/cases/{caseId}/stage",
+			new { stage = "treatment" },
+			_cancellationToken);
+
+		Assert.NotEmpty(cases);
+		Assert.Equal(HttpStatusCode.NoContent, update.StatusCode);
+	}
+
+	// Turning migrations on without the migration connection fails the deploy
+	// instead of changing anything: the app role can't create tables.
+	[Fact]
+	public async Task Startup_AsAppRole_WithoutMigrationConnection_RefusesToMigrate()
+	{
+		var adminConnectionString = await factory.Postgres.CreateDatabaseAsync();
+		await using var appLogin = await AppRoleLogin.CreateAsync(adminConnectionString);
+		using var host = TestHosts.Create(appLogin.ConnectionString, migrateOnStartup: true);
+
+		var exception = Record.Exception(() => host.Server);
+
+		Assert.NotNull(exception);
+		Assert.Contains("permission denied", exception.ToString());
+		await using var dbContext = VetiFlowApiFactory.CreateDbContext(adminConnectionString);
+		Assert.Empty(await dbContext.Database.GetAppliedMigrationsAsync(_cancellationToken));
+	}
 }

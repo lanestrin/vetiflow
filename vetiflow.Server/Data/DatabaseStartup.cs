@@ -7,16 +7,21 @@ namespace vetiflow.Server.Data;
 // The production migration step is in blueprint/project-plan.md, section 8.
 public static class DatabaseStartup
 {
+	// In production the app's own connection is the vetiflow_app role, which
+	// can't change the schema, so migrations need the privileged
+	// migrationConnectionString. Without one (local development, tests) the
+	// app's connection migrates.
 	public static async Task PrepareAsync(
 		VetiFlowDbContext dbContext,
 		bool migrateOnStartup,
 		bool seedDemoData,
-		ILogger logger)
+		ILogger logger,
+		string? migrationConnectionString = null)
 	{
 		if (migrateOnStartup)
 		{
 			// Fails loudly on purpose: someone asked for this migration.
-			await dbContext.Database.MigrateAsync();
+			await MigrateAsync(dbContext, migrationConnectionString);
 		}
 		else if (await dbContext.Database.CanConnectAsync())
 		{
@@ -30,7 +35,8 @@ public static class DatabaseStartup
 					string.Join(", ", pending));
 				throw new InvalidOperationException(
 					$"The database is missing {pending.Count} migration(s). " +
-					"Set Database__MigrateOnStartup=true for this deploy, then set it back to false.");
+					"Set Database__MigrateOnStartup=true and ConnectionStrings__VetiFlowMigrations " +
+					"for this deploy, then remove both.");
 			}
 		}
 		else
@@ -44,5 +50,20 @@ public static class DatabaseStartup
 		{
 			await DbSeeder.SeedAsync(dbContext);
 		}
+	}
+
+	private static async Task MigrateAsync(VetiFlowDbContext dbContext, string? migrationConnectionString)
+	{
+		if (string.IsNullOrWhiteSpace(migrationConnectionString))
+		{
+			await dbContext.Database.MigrateAsync();
+			return;
+		}
+
+		await using var migrationContext = new VetiFlowDbContext(
+			new DbContextOptionsBuilder<VetiFlowDbContext>()
+				.UseNpgsql(migrationConnectionString)
+				.Options);
+		await migrationContext.Database.MigrateAsync();
 	}
 }
