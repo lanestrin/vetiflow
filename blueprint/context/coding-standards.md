@@ -81,43 +81,6 @@ Avoid overengineering:
 - Display labels for staff and owners live in the client, separate from the
   API's enum values. Owner-facing text never shows acuity.
 
-## Frontend accessibility
-
-- Target WCAG 2.2 level AA for new or changed UI. Use semantic HTML first:
-  buttons for actions, links for navigation, labelled inputs and logical headings.
-- Every action works with a keyboard, including an alternative to drag and drop.
-  Keep focus visible and predictable; dialogs manage and restore focus.
-- Give controls accessible names. Associate instructions and validation errors
-  with their fields. Give meaningful images useful alt text and decorative
-  images empty alt text.
-- Never communicate acuity, status or errors through colour alone. Support
-  sufficient contrast, text zoom, narrow screens and reduced-motion preferences.
-- Announce important asynchronous changes with appropriate live regions,
-  without moving focus or repeatedly announcing the entire board.
-- When UI behaviour changes, use existing tests for accessible names, keyboard
-  interactions and errors where applicable. Use the existing `/check` for visual
-  and focus behaviour; record anything not checked. Automated checks alone do
-  not establish accessibility compliance. Do not add another review stage.
-
-Reference: [WCAG 2.2 quick reference](https://www.w3.org/WAI/WCAG22/quickref/).
-
-## SEO and private pages
-
-- Public pages intended for search need descriptive titles and descriptions,
-  logical headings, meaningful links and appropriate canonical URLs. Add sitemap
-  entries or structured data only for actual public content that needs them.
-- Staff boards, case details and private owner pages are not search content.
-  Protect them with server-side access checks, exclude them from public sitemaps,
-  and use `noindex` metadata or response headers as appropriate. Neither
-  `noindex` nor `robots.txt` provides access control.
-- Never put owner or patient details, clinical notes or access tokens in page
-  titles, descriptions, social previews, structured data or sitemaps. Private
-  pages use generic titles and previews.
-- Use the existing frontend stack. Do not add an SEO package, rendering framework
-  or metadata layer without a current public-page requirement.
-
-Reference: [Google Search content controls](https://developers.google.com/search/docs/crawling-indexing/control-what-you-share).
-
 ## Styling
 
 - SCSS modules per component. Shared values in `src/styles/_tokens.scss`.
@@ -139,50 +102,6 @@ Reference: [Google Search content controls](https://developers.google.com/search
   Vercel. Never in source, `appsettings*.json` or `.env` files in git.
 - A new security risk found while working goes into the build plan as its own
   item, not into the current branch.
-
-### Browser and frontend security
-
-- Browser code and hidden UI controls are not authorization boundaries. The API
-  validates each request, role and resource scope; send only the data that user
-  is authorized to receive.
-- Treat user content, API responses and AI output as untrusted. Render text
-  through React's normal escaping. Do not use `dangerouslySetInnerHTML`, raw DOM
-  HTML insertion, `eval` or executable generated code. If rich HTML is required,
-  agree on a sanitization approach before introducing it.
-- Validate untrusted link destinations and allow only the protocols the feature
-  needs. Never execute AI-generated links, commands or instructions automatically.
-- Do not store credentials, session tokens or owner/clinical records in
-  `localStorage`, `sessionStorage`, IndexedDB or offline caches. Clear in-memory
-  private state on logout or user changes. Keep sensitive data out of browser
-  logs, analytics and third-party error reports.
-- Use the approved authentication design. Cookie authentication needs secure,
-  HttpOnly cookies with appropriate SameSite settings and CSRF protection for
-  state-changing requests. Do not invent client-only authentication.
-- Minimize third-party scripts and dependencies, especially on private pages.
-  Use HTTPS and appropriate CSP, framing, referrer and cache-control headers;
-  configure them at the server or hosting layer for the relevant routes.
-- Test relevant denied-access, invalid-input and untrusted-content cases when
-  implementing a feature. Follow the existing audit-on-request policy.
-
-Reference: [OWASP DOM XSS prevention](https://cheatsheetseries.owasp.org/cheatsheets/DOM_based_XSS_Prevention_Cheat_Sheet.html).
-
-### AI and sensitive data
-
-- Use synthetic records in coding-assistant prompts, fixtures and screenshots.
-  Do not send real owner or clinical records to coding assistants or external
-  tools without explicit authorization. Existing secret-access restrictions
-  always apply.
-- Application AI calls go through an approved server-side integration. Send only
-  the data the task needs, strip owner contact details and secrets, and do not
-  log prompts or responses containing private data by default.
-- Treat intake notes, retrieved documents and AI output as data, not trusted
-  instructions. They cannot grant access, override validation, trigger tool
-  actions or weaken secret protections.
-- Validate AI output before using it and preserve the clinician-confirmation
-  requirement for clinical suggestions. Never let model output authorize access
-  to another owner's case.
-
-Reference: [OWASP prompt injection prevention](https://cheatsheetseries.owasp.org/cheatsheets/LLM_Prompt_Injection_Prevention_Cheat_Sheet.html).
 
 ## Testing
 
