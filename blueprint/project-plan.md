@@ -36,21 +36,31 @@ Staff use shared clinic workstations, so sessions must lock quickly.
 1. Live staff board: lanes by stage, cards with acuity, wait timer and next action.
 2. Change a case's stage (drag and drop, and a keyboard menu) with live updates.
 3. Case detail drawer: patient, owner, triage, vitals, tasks, timeline.
-4. Intake, triage, staff and room assignment, tasks and blockers.
-5. AI assistance: intake summary and handoff drafts, always marked unconfirmed until a clinician confirms.
-6. Handoffs and discharge.
-7. Private owner page.
-8. Staff sign-in and roles before any of the above goes live.
+4. Patient and owner records with search; intake for a new or existing patient,
+   with an unknown owner allowed.
+5. Triage, vitals, staff and room assignment, tasks and blockers.
+6. Owner communication log and clinician-approved owner updates.
+7. Manual handoffs and discharge; case history and corrections.
+8. Administration: staff, rooms and clinic settings.
+9. Private owner page.
+10. AI assistance: intake summary and handoff drafts, always marked unconfirmed
+    until a clinician confirms. Every workflow works without AI.
+11. Staff sign-in and roles before any real clinic data.
 
 ## 4. Data - What are we storing?
 
 - `Patient` (name, species, breed, sex) and, from build plan 0.2, `Owner` with contact details.
 - `EmergencyCase`: stage, status, current acuity, assigned doctor, technician and room, next action, arrival and discharge times.
 - `TriageAssessment`: the history of acuity decisions. The case's current acuity comes from the latest one through `RecordTriage`.
+- `VitalsRecord`: repeated vitals on a case. Recording them never changes acuity.
 - `CaseTask`: tasks and blockers on a case.
 - `CaseEvent`: the case timeline (stage changes and other events).
-- `AiSummary` and `Handoff`: AI drafts and their confirmation.
+- `Handoff`: a handoff between staff and its acknowledgement.
+- `AiSummary`: AI drafts and their confirmation.
 - `StaffMember`, `Room`.
+- Planned, by build-plan item: staff accounts (S.15), owner access links
+  (S.8), owner contact log (6.4), owner updates (6.5), discharge outcome
+  (6.2), clinic settings (9.3), audit log (8.1).
 
 Rules that later features must keep:
 
@@ -159,9 +169,11 @@ Routes:
 - Internet-facing. Holds owner contact details and clinical notes.
 - Staff are trusted only after sign-in, and only for their role. Owners are
   untrusted users and reach only their own pet's case.
-- Not live yet. Security foundations (build plan phase S) come before features
-  that depend on knowing who the user is, and the phase 8 gate must be done
-  before launch.
+- Deployed with demo data only, not in clinical use. Manual features may be
+  built and shown on demo data first. Real clinic data only after build-plan
+  milestones M1 (safe foundations), M3 (sign-in and roles) and the M7 launch
+  gate. Until S.5 the API accepts unauthenticated writes, so it holds demo data
+  only.
 - One clinic at a time. Multi-clinic tenancy is not a requirement.
 - AI output is a draft until a clinician confirms it. Owner contact details
   never go to the AI provider.
