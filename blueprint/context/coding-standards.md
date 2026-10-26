@@ -46,6 +46,9 @@ Avoid overengineering:
 - Enums serialise as camelCase strings. Reject numeric and unknown enum values.
 - Errors return ProblemDetails. No stack traces or internal details in
   production responses.
+- Request bodies are limited to 1 MB in Kestrel (`Program.cs`); a larger body
+  gets a `413`.
+- Every text field in a request DTO has a `[StringLength]` limit.
 - `async` all the way, pass `CancellationToken` through to EF calls.
 
 ## EF Core and Postgres

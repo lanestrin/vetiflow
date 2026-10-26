@@ -72,7 +72,7 @@ Every item that adds a write also:
 
 Needs no decisions and no sign-in. Every write in M2 relies on S.12's errors.
 
-- [ ] **S.12** `feature/input-validation`: length and format limits on every request, ProblemDetails errors, no stack traces or internal details in production responses [13].
+- [x] **S.12** `feature/input-validation`: length and format limits on every request, ProblemDetails errors, no stack traces or internal details in production responses [13]. Done (history/features/S.12-input-validation.md).
 - [ ] **S.10** `chore/secrets-handling`: connection strings and API keys only in user secrets and Render/Vercel environment variables, nothing secret in `VITE_` variables, secret scanning on, and a rotation note; the app connects with a database user that can't change the schema, and a separate user runs migrations (merged in from S.11 on 2026-10-26).
 - [ ] **1.4** `fix/dependabot-alerts`: resolve any open alerts that remain after PR #13's `npm audit fix` (check brace-expansion, source-map-js, zod).
 
