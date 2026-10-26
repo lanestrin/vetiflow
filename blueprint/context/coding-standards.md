@@ -104,6 +104,9 @@ Avoid overengineering:
   within length limits.
 - Secrets live in user secrets locally and environment variables on Render and
   Vercel. Never in source, `appsettings*.json` or `.env` files in git.
+- Browser origins come only from `Cors:AllowedOrigins`, as bare
+  `https://host[:port]` origins. Never `*`, `AllowAnyOrigin()` or an origin
+  in code; add a new one to configuration (project plan section 8).
 - A new security risk found while working goes into the build plan as its own
   item, not into the current branch.
 
