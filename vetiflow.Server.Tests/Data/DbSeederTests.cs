@@ -27,4 +27,24 @@ public class DbSeederTests(VetiFlowApiFactory factory)
 		Assert.Equal(casesAfterFirstRun, await dbContext.EmergencyCases.CountAsync(_cancellationToken));
 		Assert.Equal(patientsAfterFirstRun, await dbContext.Patients.CountAsync(_cancellationToken));
 	}
+
+	[Fact]
+	public async Task SeedAsync_LinksEachDemoPatientToAnOwner()
+	{
+		await using var dbContext = VetiFlowApiFactory.CreateDbContext(
+			await factory.Postgres.CreateDatabaseAsync());
+		await dbContext.Database.MigrateAsync(_cancellationToken);
+
+		await DbSeeder.SeedAsync(dbContext);
+
+		var patients = await dbContext.Patients
+			.Include(patient => patient.Owner)
+			.ToListAsync(_cancellationToken);
+		Assert.NotEmpty(patients);
+		Assert.All(patients, patient => Assert.NotNull(patient.Owner));
+
+		// Demo contact details must stay synthetic.
+		var emails = patients.Select(patient => patient.Owner!.Email).OfType<string>();
+		Assert.All(emails, email => Assert.EndsWith("@example.com", email));
+	}
 }

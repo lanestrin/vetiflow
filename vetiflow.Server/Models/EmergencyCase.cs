@@ -29,6 +29,15 @@ public enum AcuityLevel
 	Low
 }
 
+// Whether the owner has been told how this case is going.
+public enum OwnerUpdateStatus
+{
+	NotYetUpdated,
+	Updated,
+	AwaitingOwnerReply,
+	ConsentNeeded
+}
+
 public class EmergencyCase
 {
 	public Guid Id { get; set; } = Guid.NewGuid();
@@ -64,6 +73,11 @@ public class EmergencyCase
 	public Room? Room { get; set; }
 
 	public string? NextAction { get; set; }
+
+	public OwnerUpdateStatus OwnerUpdateStatus { get; set; } = OwnerUpdateStatus.NotYetUpdated;
+
+	// Null until staff first update the owner.
+	public DateTimeOffset? LastOwnerUpdateAt { get; set; }
 
 	public DateTimeOffset LastUpdated { get; set; } = DateTimeOffset.UtcNow;
 

@@ -51,12 +51,37 @@ public static class DbSeeder
 		var imaging = new Room { Name = "Imaging", Type = RoomType.Imaging };
 		var surgery = new Room { Name = "Surgery", Type = RoomType.Surgery };
 
+		// Synthetic contact details only: 555-01xx numbers and example.com.
+		var buddyOwner = new Owner
+		{
+			FirstName = "Morgan",
+			LastName = "Hale",
+			Phone = "555-0101",
+			Email = "morgan.hale@example.com"
+		};
+
+		var lunaOwner = new Owner
+		{
+			FirstName = "Casey",
+			LastName = "Rivera",
+			Phone = "555-0102",
+			Email = "casey.rivera@example.com"
+		};
+
+		var maxOwner = new Owner
+		{
+			FirstName = "Taylor",
+			LastName = "Brooks",
+			Phone = "555-0103"
+		};
+
 		var buddy = new Patient
 		{
 			Name = "Buddy",
 			Species = "Dog",
 			Breed = "Golden Retriever",
-			Sex = PatientSex.MaleIntact
+			Sex = PatientSex.MaleIntact,
+			Owner = buddyOwner
 		};
 
 		var luna = new Patient
@@ -64,7 +89,8 @@ public static class DbSeeder
 			Name = "Luna",
 			Species = "Cat",
 			Breed = "Domestic Shorthair",
-			Sex = PatientSex.FemaleSpayed
+			Sex = PatientSex.FemaleSpayed,
+			Owner = lunaOwner
 		};
 
 		var max = new Patient
@@ -72,7 +98,8 @@ public static class DbSeeder
 			Name = "Max",
 			Species = "Dog",
 			Breed = "German Shepherd",
-			Sex = PatientSex.MaleNeutered
+			Sex = PatientSex.MaleNeutered,
+			Owner = maxOwner
 		};
 
 		var buddyCase = new EmergencyCase
@@ -87,7 +114,8 @@ public static class DbSeeder
 			AssignedDoctor = drLee,
 			AssignedTechnician = techOrtiz,
 			Room = treatmentBay1,
-			NextAction = "Move to treatment immediately"
+			NextAction = "Move to treatment immediately",
+			OwnerUpdateStatus = OwnerUpdateStatus.ConsentNeeded
 		};
 
 		buddyCase.RecordTriage(new TriageAssessment
@@ -127,7 +155,9 @@ public static class DbSeeder
 			AssignedDoctor = drShah,
 			AssignedTechnician = techKim,
 			Room = exam1,
-			NextAction = "Review bloodwork results"
+			NextAction = "Review bloodwork results",
+			OwnerUpdateStatus = OwnerUpdateStatus.Updated,
+			LastOwnerUpdateAt = now.AddMinutes(-15)
 		};
 
 		lunaCase.RecordTriage(new TriageAssessment

@@ -22,4 +22,9 @@ public class Patient
 	public PatientSex? Sex { get; set; }
 
 	public DateOnly? DateOfBirth { get; set; }
+
+	// Null for strays and owners not yet known.
+	public Guid? OwnerId { get; set; }
+
+	public Owner? Owner { get; set; }
 }

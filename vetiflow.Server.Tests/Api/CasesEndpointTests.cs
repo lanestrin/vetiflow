@@ -61,6 +61,28 @@ public class CasesEndpointTests(VetiFlowApiFactory factory)
 		Assert.Equal(JsonValueKind.String, item.GetProperty("arrivalTime").ValueKind);
 	}
 
+	// The board is shown to every staff screen; owner contact details never
+	// belong in it.
+	[Fact]
+	public async Task GetCases_DoesNotExposeOwnerDetails()
+	{
+		var owner = TestData.Owner();
+		var patient = TestData.Patient();
+		patient.Owner = owner;
+		var emergencyCase = TestData.Case(patient);
+		await SaveAsync(emergencyCase);
+		using var client = factory.CreateClient();
+
+		var cases = await client.GetFromJsonAsync<JsonElement[]>("/api/cases", _cancellationToken);
+
+		var item = Assert.Single(cases!, item => item.GetProperty("id").GetGuid() == emergencyCase.Id);
+		var json = item.GetRawText();
+		Assert.False(item.TryGetProperty("owner", out _), "The board list must not include the owner.");
+		Assert.DoesNotContain(owner.Phone!, json);
+		Assert.DoesNotContain(owner.Email!, json);
+		Assert.DoesNotContain(owner.LastName, json);
+	}
+
 	[Fact]
 	public async Task GetCases_UntriagedCase_HasNullAcuity()
 	{

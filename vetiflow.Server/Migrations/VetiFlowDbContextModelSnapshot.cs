@@ -170,10 +170,17 @@ namespace vetiflow.Server.Migrations
                     b.Property<DateTimeOffset?>("DischargedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<DateTimeOffset?>("LastOwnerUpdateAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<DateTimeOffset>("LastUpdated")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("NextAction")
+                        .HasColumnType("text");
+
+                    b.Property<string>("OwnerUpdateStatus")
+                        .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<Guid>("PatientId")
@@ -258,6 +265,31 @@ namespace vetiflow.Server.Migrations
                     b.ToTable("Handoffs");
                 });
 
+            modelBuilder.Entity("vetiflow.Server.Models.Owner", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Email")
+                        .HasColumnType("text");
+
+                    b.Property<string>("FirstName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("LastName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Phone")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Owners");
+                });
+
             modelBuilder.Entity("vetiflow.Server.Models.Patient", b =>
                 {
                     b.Property<Guid>("Id")
@@ -274,6 +306,9 @@ namespace vetiflow.Server.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<Guid?>("OwnerId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("Sex")
                         .HasColumnType("text");
 
@@ -282,6 +317,8 @@ namespace vetiflow.Server.Migrations
                         .HasColumnType("text");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("OwnerId");
 
                     b.ToTable("Patients");
                 });
@@ -503,6 +540,16 @@ namespace vetiflow.Server.Migrations
                     b.Navigation("FromStaff");
 
                     b.Navigation("ToStaff");
+                });
+
+            modelBuilder.Entity("vetiflow.Server.Models.Patient", b =>
+                {
+                    b.HasOne("vetiflow.Server.Models.Owner", "Owner")
+                        .WithMany()
+                        .HasForeignKey("OwnerId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Owner");
                 });
 
             modelBuilder.Entity("vetiflow.Server.Models.TriageAssessment", b =>
