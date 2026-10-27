@@ -291,9 +291,12 @@ account record.
 
 ### Screens and states
 
-One `/sign-in` page, laid out as the mockup: a brand panel ("Care moves
-fast.") beside the form on wide screens, stacked above it on narrow ones (the
-mockup's breakpoints are 800 and 650 px). Heading "Welcome back", with the
+One `/sign-in` page, laid out as the stakeholders' landing design
+(`blueprint/reference/landing-page`, S.20a): on screens 85rem and wider the
+story ("Care moves fast.") and benefits on the left, the dog-and-cat art in
+the middle and the sign-in card on the right; narrower screens stack the
+brand, the art as a hero band, the story, the card and the benefits.
+Heading "Welcome back", with the
 line "Sign in to continue. We'll find the right portal for your account." An
 Email / Phone switch (tabs) chooses the method; there is no role choice.
 

@@ -94,6 +94,9 @@ project plan section 10.
   - [x] **S.18b** `feature/session-and-board-lock`: the board and stage endpoints require a hospital team member (`401` signed out, `403` for a pet parent); the client sends the token on board requests; route guards (`/` goes home by role, signed out goes to `/sign-in`, a pet parent on `/er` goes to `/pet-parent`); "Signed in as ... (demo)" with Sign out on the board; and the session-ended state. Done (history/features/S.18b-session-and-board-lock.md).
   - [x] **S.18c** `feature/pet-parent-home`: `GET /api/pet-parent/pets` (owner from the token, no IDs in the URL) and the `/pet-parent` page listing the account's own pets and whether each is in care, in calm wording with no acuity. Done (history/features/S.18c-pet-parent-home.md).
 - [x] **S.19** `feature/demo-phone-sign-in`: `POST /api/auth/phone/start` and `POST /api/auth/phone/verify` with the fixed code `123456` only while `DemoSignIn:Enabled` is on, no text sent, and the Phone option on the screen. Done (history/features/S.19-demo-phone-sign-in.md).
+- [ ] **S.20** `feature/landing-sign-in`: the stakeholders' new sign-in landing design (`blueprint/reference/landing-page/`, added 2026-10-27, top priority) on the existing `/sign-in` page, keeping every sign-in behaviour from S.18 and S.19. Split into:
+  - [x] **S.20a** `feature/landing-sign-in-layout`: the full-width background art, the paw brand, the three-benefit story, the restyled sign-in card (tab icons, field icons, show-password), and the tablet and phone layouts with the art as a hero. Done (history/features/S.20a-landing-sign-in-layout.md).
+  - [ ] **S.20b** `feature/landing-emergency-bar`: the "Need emergency care?" bar with Call Now and View Directions; until a real hospital number and address exist, both open a demo notice instead of dialling or opening maps.
 
 ## M2: Manual staff journey on demo data
 

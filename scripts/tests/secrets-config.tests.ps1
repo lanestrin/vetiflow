@@ -70,7 +70,11 @@ foreach ($settingsFile in $settingsFiles) {
 	Assert-True ($secrets.Count -eq 0) "${settingsFile}: no connection string or password"
 }
 
-$clientFiles = @($trackedFiles | Where-Object { $_ -like 'vetiflow.client/*' -and (Get-TrackedEnvFiles @($_)).Count -eq 0 })
+# A tracked file deleted in the working tree (not yet committed) has nothing to scan.
+$clientFiles = @($trackedFiles | Where-Object {
+	$_ -like 'vetiflow.client/*' -and (Get-TrackedEnvFiles @($_)).Count -eq 0 -and
+		(Test-Path -LiteralPath (Join-Path $repoRoot $_))
+})
 Assert-True ($clientFiles.Count -gt 0) 'client files are found'
 $unknownVite = @(foreach ($clientFile in $clientFiles) {
 	foreach ($name in Get-UnknownViteVariables (Get-Content -Raw -LiteralPath (Join-Path $repoRoot $clientFile))) {

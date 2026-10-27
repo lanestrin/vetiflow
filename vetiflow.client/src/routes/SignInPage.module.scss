@@ -1,23 +1,109 @@
-// Two columns from the mockup: brand story beside the form, stacked on phones.
+// The landing design (blueprint/reference/landing-page): story on the left,
+// the art's animals in the middle, the sign-in card on the right. Below 85rem
+// the animals no longer fit between the two, so everything stacks in reading
+// order: brand, art, story, card, benefits.
+
+// Colours sampled from the art, so the page and the image meet without a seam.
+$cream: #fdfdf9;
+$navy: #1a2e40;
+$muted: #556372;
+
 .shell {
+	// The story column ends where the art's cream ends (see .art).
+	--gutter: clamp(2rem, 4.5vw, 4.5rem);
+	--story-width: clamp(20rem, 29vw, 34rem);
+
+	position: relative;
 	display: grid;
-	grid-template-columns: 1fr 1fr;
+	grid-template-columns: var(--story-width) minmax(2rem, 1fr) clamp(24rem, 30vw, 30rem);
+	grid-template-rows: auto auto auto 1fr auto;
+	grid-template-areas:
+		"brand . card"
+		"story . card"
+		"benefits . card"
+		". . card"
+		"tagline . card";
+	row-gap: 2.75rem;
 	min-height: 100vh;
-	background: #f2f6f3;
+	padding: 2.5rem var(--gutter);
+	overflow: hidden;
+	background: $cream;
 }
 
-.main {
-	display: flex;
-	flex-direction: column;
-	min-height: 100vh;
-	background: #fbfcfa;
+// Wide screens: the page sits on the art, one screen tall. 30% across is
+// where its cream meets the photo, so it is shifted left by 30% of its width
+// from the end of the story column. On very wide screens it starts further
+// right so its right edge still reaches the page edge (the art is 1.99 times
+// as wide as tall, so its right 70% is 1.393 screen heights). If the page is
+// taller than the screen, the art's foot fades into the page.
+.art {
+	position: absolute;
+	inset-block-start: 0;
+	left: max(calc(var(--gutter) + var(--story-width)), calc(100% - 139vh));
+	height: 100vh;
+	aspect-ratio: 1672 / 840;
+	background-color: $cream;
+	background-image:
+		linear-gradient(transparent 88%, $cream),
+		image-set(
+			url("../assets/sign-in/background-1x.webp") 1x,
+			url("../assets/sign-in/background-2x.webp") 2x
+		);
+	background-size: 100% 100%;
+	transform: translateX(-30%);
 }
 
+.brandArea,
+.storyArea,
+.cardArea,
+.benefitsArea,
+.tagline {
+	position: relative;
+	z-index: 1;
+	min-width: 0;
+}
+
+.brandArea {
+	grid-area: brand;
+}
+
+.storyArea {
+	grid-area: story;
+	align-self: end;
+}
+
+.benefitsArea {
+	grid-area: benefits;
+}
+
+.tagline {
+	grid-area: tagline;
+	color: $muted;
+	font-size: 0.6875rem;
+	font-weight: 600;
+	letter-spacing: 0.2em;
+	text-transform: uppercase;
+}
+
+.cardArea {
+	grid-area: card;
+	align-self: center;
+}
+
+// Solid white, so no text ever depends on the art behind it.
+.card {
+	position: relative;
+	padding: 2.75rem clamp(1.5rem, 2.6vw, 2.75rem) 1.75rem;
+	border-radius: 1.5rem;
+	background: var(--color-surface);
+	box-shadow: 0 1.5rem 3.5rem rgb(26 46 64 / 12%);
+}
+
+// Help sits in the card's corner, so it takes no row of its own.
 .topBar {
-	display: flex;
-	justify-content: flex-end;
-	padding-block: 1.9rem;
-	padding-inline: clamp(1.5rem, 5vw, 4rem);
+	position: absolute;
+	inset-block-start: 0.75rem;
+	inset-inline-end: clamp(1rem, 2vw, 2rem);
 }
 
 .topLink {
@@ -25,7 +111,7 @@
 	padding-inline: var(--space-2);
 	border: 0;
 	background: none;
-	color: var(--color-text-secondary);
+	color: $navy;
 	font-size: 0.875rem;
 	font-weight: 600;
 	text-decoration: underline;
@@ -37,17 +123,12 @@
 	}
 }
 
-.content {
-	width: min(100% - 3rem, 27rem);
-	margin: auto;
-	padding-block: 1.9rem 2.8rem;
-}
-
 .heading {
 	margin: 0;
-	color: var(--color-care-navy);
-	font-size: 1.95rem;
-	letter-spacing: -0.03em;
+	color: $navy;
+	font-size: 2.25rem;
+	font-weight: 800;
+	letter-spacing: -0.045em;
 
 	&:focus {
 		outline: none;
@@ -60,8 +141,8 @@
 }
 
 .subheading {
-	margin: var(--space-2) 0 var(--space-5);
-	color: var(--color-text-secondary);
+	margin: var(--space-2) 0 var(--space-4);
+	color: $muted;
 	font-size: 0.9375rem;
 	line-height: 1.55;
 }
@@ -70,30 +151,33 @@
 	display: grid;
 	grid-template-columns: 1fr 1fr;
 	gap: var(--space-1);
-	margin-block-end: var(--space-5);
+	margin-block-end: var(--space-4);
 	padding: var(--space-1);
-	border: 1px solid #c9d7d2;
-	border-radius: 0.7rem;
-	background: #eef4f1;
+	border: 1px solid #d5e0db;
+	border-radius: 0.75rem;
+	background: #f3f6f4;
 }
 
 .tab {
-	min-height: 2.5rem;
-	border: 0;
-	border-radius: var(--radius-md);
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: var(--space-2);
+	min-height: 2.75rem;
+	border: 1px solid transparent;
+	border-radius: 0.6rem;
 	background: transparent;
-	color: var(--color-text-secondary);
+	color: $muted;
 	font-size: 0.875rem;
-	font-weight: 700;
+	font-weight: 600;
 	cursor: pointer;
 
-	// Selected shows by shape and weight, not colour alone.
+	// Selected shows by an outlined box and weight, not colour alone.
 	&[aria-selected="true"] {
-		background: var(--color-surface);
-		color: var(--color-care-navy);
-		box-shadow:
-			inset 0 -3px 0 var(--color-care-teal),
-			0 1px 4px rgb(21 62 58 / 8%);
+		border-color: #8fb3a2;
+		background: #eaf2ee;
+		color: $navy;
+		font-weight: 700;
 	}
 
 	&:focus-visible {
@@ -106,10 +190,11 @@
 	display: flex;
 	align-items: center;
 	gap: var(--space-3);
-	margin: var(--space-5) 0 var(--space-4);
-	color: var(--color-text-secondary);
-	font-size: 0.75rem;
-	letter-spacing: 0.06em;
+	margin: var(--space-4) 0 var(--space-3);
+	color: $muted;
+	font-size: 0.6875rem;
+	font-weight: 600;
+	letter-spacing: 0.18em;
 	text-transform: uppercase;
 
 	&::before,
@@ -123,42 +208,40 @@
 
 .note {
 	display: flex;
+	align-items: center;
 	gap: var(--space-3);
-	padding: var(--space-3);
-	border: 1px solid #dfebe6;
+	padding: var(--space-3) var(--space-4);
 	border-radius: var(--radius-lg);
-	background: #f5f9f6;
+	background: #eff5f2;
 }
 
 .shield {
 	display: grid;
 	place-items: center;
-	flex: 0 0 1.5rem;
-	height: 1.5rem;
-	border-radius: 0.45rem;
-	background: #e2f3ec;
-	color: var(--color-care-teal);
+	flex: 0 0 2.25rem;
+	height: 2.25rem;
+	border-radius: 50%;
+	background: #dcebe3;
+	color: #2e6b57;
 }
 
 .noteTitle {
 	display: block;
-	color: #2f4a50;
+	color: $navy;
 	font-size: 0.8125rem;
 }
 
 .noteText {
 	display: block;
-	margin-block-start: var(--space-1);
-	color: var(--color-text-secondary);
-	font-size: 0.8125rem;
+	margin-block-start: 0.15rem;
+	color: $muted;
+	font-size: 0.75rem;
 	line-height: 1.45;
 }
 
 .demo {
 	margin-block-start: var(--space-4);
-	padding-block-start: var(--space-3);
-	border-block-start: 1px solid #dfe8e4;
-	color: var(--color-text-secondary);
+	color: $muted;
 	font-size: 0.8125rem;
 	line-height: 1.6;
 }
@@ -166,7 +249,7 @@
 .demoSummary {
 	width: max-content;
 	min-height: 1.75rem;
-	color: #2f4a50;
+	color: $navy;
 	font-weight: 700;
 	cursor: pointer;
 
@@ -198,45 +281,84 @@
 }
 
 .footer {
-	margin: var(--space-5) 0 0;
-	color: var(--color-text-secondary);
+	margin: var(--space-4) 0 0;
+	color: $muted;
 	font-size: 0.8125rem;
 	text-align: center;
 }
 
 .tiny {
-	margin: var(--space-4) 0 0;
-	color: var(--color-text-secondary);
+	margin: var(--space-2) 0 0;
+	color: $muted;
 	font-size: 0.75rem;
+	font-style: italic;
 	text-align: center;
 }
 
-@media (max-width: 50rem) {
+// Tablet and phone: one column in reading order, the art as a hero band.
+@media (max-width: 84.99rem) {
 	.shell {
-		grid-template-columns: 0.9fr 1.1fr;
+		--gutter: clamp(1rem, 5vw, 2.5rem);
+
+		grid-template-columns: minmax(0, 36rem);
+		grid-template-rows: none;
+		grid-template-areas:
+			"brand"
+			"art"
+			"story"
+			"card"
+			"benefits"
+			"tagline";
+		justify-content: center;
+		row-gap: 1.75rem;
+		padding-block: 1.25rem 2.5rem;
+	}
+
+	// Cropped to the animals: 143% tall shows them at about 70% of the band;
+	// never narrower than the screen (the art is 1.99 times as wide as tall).
+	// The fades melt its top and bottom into the page.
+	.art {
+		position: relative;
+		inset: auto;
+		left: auto;
+		grid-area: art;
+		height: clamp(12rem, 45vw, 26rem);
+		// Full bleed: out of the 36rem column to the screen edges.
+		margin-inline: calc(50% - 50vw);
+		aspect-ratio: auto;
+		background-image:
+			linear-gradient($cream, transparent 18%, transparent 72%, $cream),
+			image-set(
+				url("../assets/sign-in/background-1x.webp") 1x,
+				url("../assets/sign-in/background-2x.webp") 2x
+			);
+		background-position: 0 0, 30% 77%;
+		background-repeat: no-repeat;
+		background-size: 100% 100%, auto max(143%, 51vw);
+		transform: none;
+	}
+
+	.storyArea {
+		align-self: auto;
+		margin-block-start: -1rem;
+	}
+
+	.tagline {
+		text-align: center;
 	}
 }
 
-@media (max-width: 40.625rem) {
+@media (max-width: 40.62rem) {
 	.shell {
-		display: block;
+		row-gap: 1.25rem;
 	}
 
-	.main {
-		min-height: auto;
-	}
-
-	.topBar {
-		padding-block: var(--space-3);
-		padding-inline: 1.375rem;
-	}
-
-	.content {
-		width: min(100% - 2.5rem, 27rem);
-		padding-block: var(--space-4) 2.2rem;
+	.card {
+		padding: 1.5rem 1.25rem;
+		border-radius: 1.25rem;
 	}
 
 	.heading {
-		font-size: 1.7rem;
+		font-size: 1.85rem;
 	}
 }

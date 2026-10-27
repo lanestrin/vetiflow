@@ -1,24 +1,25 @@
-import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { EmailSignInForm } from "../components/auth/EmailSignInForm";
 import { PhoneSignInForm } from "../components/auth/PhoneSignInForm";
 import { experienceHome, type SignInRouteState } from "../components/auth/experienceHome";
 import { useSession } from "../components/auth/useSession";
-import { SignInBrandPanel } from "../components/auth/SignInBrandPanel";
+import { SignInBenefits, SignInBrand, SignInStory } from "../components/auth/SignInStory";
 import { SignInSuccess } from "../components/auth/SignInSuccess";
+import { MailIcon, PhoneIcon, ShieldIcon } from "../components/auth/signInIcons";
 import { clearAccessToken } from "../services/session";
 import type { SignedInUser } from "../types/Auth";
 import styles from "./SignInPage.module.scss";
 
 type SignInMethod = "email" | "phone";
 
-const methods: { method: SignInMethod; label: string }[] = [
-  { method: "email", label: "Email" },
-  { method: "phone", label: "Phone" }
+const methods: { method: SignInMethod; label: string; icon: ReactNode }[] = [
+  { method: "email", label: "Email", icon: <MailIcon /> },
+  { method: "phone", label: "Phone", icon: <PhoneIcon /> }
 ];
 
-// The demo sign-in page (build plan S.18a), laid out as
-// blueprint/reference/vetiflow-login-mock.html.
+// The demo sign-in page (build plan S.18a), laid out as the landing design in
+// blueprint/reference/landing-page (S.20a).
 const sessionEndedMessage = "Your session ended. Sign in again.";
 
 export function SignInPage() {
@@ -86,16 +87,24 @@ export function SignInPage() {
   return (
     <div className={styles.shell}>
       <title>Sign in · VetiFlow</title>
-      <SignInBrandPanel />
+      {/* One art layer: behind the page on wide screens, a hero band on narrow ones. */}
+      <div className={styles.art} aria-hidden="true" />
 
-      <main className={styles.main}>
-        <div className={styles.topBar}>
-          <button type="button" className={styles.topLink} onClick={openDemo}>
-            Help
-          </button>
-        </div>
+      <div className={styles.brandArea}>
+        <SignInBrand />
+      </div>
+      <div className={styles.storyArea}>
+        <SignInStory />
+      </div>
 
-        <div className={styles.content}>
+      <main className={styles.cardArea}>
+        <div className={styles.card}>
+          <div className={styles.topBar}>
+            <button type="button" className={styles.topLink} onClick={openDemo}>
+              Help
+            </button>
+          </div>
+
           <h1 ref={headingRef} tabIndex={-1} className={styles.heading}>
             {signedInUser ? "You're all set" : "Welcome back"}
           </h1>
@@ -130,6 +139,7 @@ export function SignInPage() {
                     onClick={() => setMethod(entry.method)}
                     onKeyDown={handleTabKeyDown}
                   >
+                    {entry.icon}
                     {entry.label}
                   </button>
                 ))}
@@ -157,7 +167,9 @@ export function SignInPage() {
 
               <p className={styles.divider}>Secure access</p>
               <div className={styles.note}>
-                <span className={styles.shield} aria-hidden="true">✓</span>
+                <span className={styles.shield}>
+                  <ShieldIcon />
+                </span>
                 <span>
                   <strong className={styles.noteTitle}>Your account picks up where you belong</strong>
                   <span className={styles.noteText}>
@@ -191,6 +203,11 @@ export function SignInPage() {
           <p className={styles.tiny}>Proof of concept · Demo accounts only</p>
         </div>
       </main>
+
+      <div className={styles.benefitsArea}>
+        <SignInBenefits />
+      </div>
+      <footer className={styles.tagline}>Thoughtful care. Clear communication.</footer>
     </div>
   );
 }
