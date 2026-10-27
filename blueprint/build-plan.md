@@ -97,6 +97,7 @@ project plan section 10.
 - [ ] **S.20** `feature/landing-sign-in`: the stakeholders' new sign-in landing design (`blueprint/reference/landing-page/`, added 2026-10-27, top priority) on the existing `/sign-in` page, keeping every sign-in behaviour from S.18 and S.19. Split into:
   - [x] **S.20a** `feature/landing-sign-in-layout`: the full-width background art, the paw brand, the three-benefit story, the restyled sign-in card (tab icons, field icons, show-password), and the tablet and phone layouts with the art as a hero. Done (history/features/S.20a-landing-sign-in-layout.md).
   - [ ] **S.20b** `feature/landing-emergency-bar`: the "Need emergency care?" bar with Call Now and View Directions; until a real hospital number and address exist, both open a demo notice instead of dialling or opening maps.
+  - [x] **S.20c** `feature/landing-living-shapes`: the dog-and-cat photo in a slowly morphing blob with a mint halo, and the page's other green shapes and dots moving gently (after the designer's reference, codepen.io/supah/pen/PoZrzQx); still for reduced motion. Moved ahead of S.20b on 2026-10-27. Done (history/features/S.20c-landing-living-shapes.md).
 
 ## M2: Manual staff journey on demo data
 

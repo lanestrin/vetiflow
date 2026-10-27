@@ -30,12 +30,12 @@ $muted: #556372;
 	background: $cream;
 }
 
-// Wide screens: the page sits on the art, one screen tall. 30% across is
-// where its cream meets the photo, so it is shifted left by 30% of its width
-// from the end of the story column. On very wide screens it starts further
-// right so its right edge still reaches the page edge (the art is 1.99 times
-// as wide as tall, so its right 70% is 1.393 screen heights). If the page is
-// taller than the screen, the art's foot fades into the page.
+// Wide screens: the page sits on the art (SignInScene), one screen tall. 30%
+// across is where the photo's edge rests, so the box is shifted left by 30%
+// of its width from the end of the story column. On very wide screens it
+// starts further right so its right edge still reaches the page edge (the box
+// is 1.99 times as wide as tall, so its right 70% is 1.393 screen heights).
+// If the page is taller than the screen, the art's foot fades into the page.
 .art {
 	position: absolute;
 	inset-block-start: 0;
@@ -43,14 +43,15 @@ $muted: #556372;
 	height: 100vh;
 	aspect-ratio: 1672 / 840;
 	background-color: $cream;
-	background-image:
-		linear-gradient(transparent 88%, $cream),
-		image-set(
-			url("../assets/sign-in/background-1x.webp") 1x,
-			url("../assets/sign-in/background-2x.webp") 2x
-		);
-	background-size: 100% 100%;
 	transform: translateX(-30%);
+
+	&::after {
+		content: "";
+		position: absolute;
+		inset: 0;
+		background: linear-gradient(transparent 88%, $cream);
+		pointer-events: none;
+	}
 }
 
 .brandArea,
@@ -314,28 +315,21 @@ $muted: #556372;
 		padding-block: 1.25rem 2.5rem;
 	}
 
-	// Cropped to the animals: 143% tall shows them at about 70% of the band;
-	// never narrower than the screen (the art is 1.99 times as wide as tall).
-	// The fades melt its top and bottom into the page.
+	// The scene switches to its round photo blob, centred in the band.
 	.art {
 		position: relative;
 		inset: auto;
 		left: auto;
 		grid-area: art;
-		height: clamp(12rem, 45vw, 26rem);
+		height: clamp(14rem, 60vw, 26rem);
 		// Full bleed: out of the 36rem column to the screen edges.
 		margin-inline: calc(50% - 50vw);
 		aspect-ratio: auto;
-		background-image:
-			linear-gradient($cream, transparent 18%, transparent 72%, $cream),
-			image-set(
-				url("../assets/sign-in/background-1x.webp") 1x,
-				url("../assets/sign-in/background-2x.webp") 2x
-			);
-		background-position: 0 0, 30% 77%;
-		background-repeat: no-repeat;
-		background-size: 100% 100%, auto max(143%, 51vw);
 		transform: none;
+
+		&::after {
+			content: none;
+		}
 	}
 
 	.storyArea {
