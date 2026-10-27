@@ -1,13 +1,17 @@
-import { useId, useState, type FormEvent } from "react";
+import { useId, useRef, useState, type FormEvent } from "react";
 import { finishSignIn, signInByEmail } from "../../services/authApi";
-import type { SignedInUser } from "../../types/Auth";
+import type { SignedInUser, SignInFailure } from "../../types/Auth";
+import { FieldError, StatusMessage } from "./FormMessages";
 import { PrimaryButton } from "./PrimaryButton";
 import { EyeIcon, EyeOffIcon, LockIcon, MailIcon } from "./signInIcons";
-import { failureMessages } from "./signInMessages";
+import { failureMessages, noMessage, type FormMessage } from "./signInMessages";
+import { useSignInRequest } from "./useSignInRequest";
 import styles from "./SignInForm.module.scss";
 
 interface EmailSignInFormProps {
   onSignedIn: (user: SignedInUser) => void;
+  // False while the Phone tab is chosen: a running request is cancelled.
+  isActive: boolean;
   // A message to show before anything is typed, such as "session ended".
   notice?: string;
 }
@@ -21,62 +25,81 @@ const forgotPasswordMessage = "Password reset is a placeholder in this no-cost d
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-function validate(email: string, password: string): FieldErrors {
-  const errors: FieldErrors = {};
-
+function emailError(email: string): string | undefined {
   if (email === "") {
-    errors.email = "Enter your email address.";
-  } else if (!emailPattern.test(email)) {
-    errors.email = "Enter an email address like you@example.com.";
+    return "Enter your email address.";
   }
 
-  if (password === "") {
-    errors.password = "Enter your password.";
-  }
-
-  return errors;
+  return emailPattern.test(email) ? undefined : "Enter an email address like you@example.com.";
 }
 
-export function EmailSignInForm({ onSignedIn, notice = "" }: EmailSignInFormProps) {
+// Sign-in only needs the password filled in; the API checks it.
+function passwordError(password: string): string | undefined {
+  return password === "" ? "Enter your password." : undefined;
+}
+
+export function EmailSignInForm({ onSignedIn, isActive, notice = "" }: EmailSignInFormProps) {
   const id = useId();
+  const emailRef = useRef<HTMLInputElement>(null);
+  const passwordRef = useRef<HTMLInputElement>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
-  const [message, setMessage] = useState(notice);
-  const [isSigningIn, setIsSigningIn] = useState(false);
+  const [message, setMessage] = useState<FormMessage>(notice ? { text: notice, tone: "info" } : noMessage);
   const [isPasswordShown, setIsPasswordShown] = useState(false);
+  const request = useSignInRequest(isActive);
 
   const emailErrorId = `${id}-email-error`;
   const passwordErrorId = `${id}-password-error`;
 
+  // Errors appear on submit. After that, a field that was wrong is checked
+  // again as it is corrected, so its error clears without another submit.
+  function changeEmail(value: string) {
+    setEmail(value);
+    if (fieldErrors.email) {
+      setFieldErrors((errors) => ({ ...errors, email: emailError(value.trim()) }));
+    }
+  }
+
+  function changePassword(value: string) {
+    setPassword(value);
+    if (fieldErrors.password) {
+      setFieldErrors((errors) => ({ ...errors, password: passwordError(value) }));
+    }
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
+    if (request.isWorking) {
+      return;
+    }
+
     const trimmedEmail = email.trim();
-    const errors = validate(trimmedEmail, password);
+    const errors = { email: emailError(trimmedEmail), password: passwordError(password) };
     setFieldErrors(errors);
-    setMessage("");
+    setMessage(noMessage);
 
     if (errors.email || errors.password) {
+      (errors.email ? emailRef : passwordRef).current?.focus();
       return;
     }
 
-    setIsSigningIn(true);
-    const result = await signInByEmail(trimmedEmail, password);
+    const outcome = await request.run(async (signal): Promise<SignedInUser | SignInFailure> => {
+      const result = await signInByEmail(trimmedEmail, password, signal);
+      return result.ok ? finishSignIn(result.accessToken, signal) : result.failure;
+    });
 
-    if (!result.ok) {
-      setIsSigningIn(false);
-      setMessage(failureMessages[result.failure]);
-      return;
-    }
-
-    try {
-      const user = await finishSignIn(result.accessToken);
-      setPassword("");
-      onSignedIn(user);
-    } catch {
-      setIsSigningIn(false);
-      setMessage(failureMessages.unavailable);
+    if (outcome.kind === "failed") {
+      setMessage({ text: failureMessages.unavailable, tone: "error" });
+    } else if (outcome.kind === "done") {
+      const userOrFailure = outcome.value;
+      if (typeof userOrFailure === "string") {
+        setMessage({ text: failureMessages[userOrFailure], tone: "error" });
+      } else {
+        setPassword("");
+        onSignedIn(userOrFailure);
+      }
     }
   }
 
@@ -88,19 +111,18 @@ export function EmailSignInForm({ onSignedIn, notice = "" }: EmailSignInFormProp
           <span className={styles.leadingIcon}><MailIcon /></span>
           <input
             id={`${id}-email`}
+            ref={emailRef}
             className={styles.input}
             type="email"
             autoComplete="username"
             placeholder="you@example.com"
             value={email}
-            onChange={(event) => setEmail(event.target.value)}
+            onChange={(event) => changeEmail(event.target.value)}
             aria-invalid={fieldErrors.email ? true : undefined}
             aria-describedby={fieldErrors.email ? emailErrorId : undefined}
           />
         </div>
-        {fieldErrors.email && (
-          <p id={emailErrorId} className={styles.fieldError}>{fieldErrors.email}</p>
-        )}
+        {fieldErrors.email && <FieldError id={emailErrorId} text={fieldErrors.email} />}
       </div>
 
       <div className={styles.field}>
@@ -109,7 +131,7 @@ export function EmailSignInForm({ onSignedIn, notice = "" }: EmailSignInFormProp
           <button
             type="button"
             className={styles.link}
-            onClick={() => setMessage(forgotPasswordMessage)}
+            onClick={() => setMessage({ text: forgotPasswordMessage, tone: "info" })}
           >
             Forgot password?
           </button>
@@ -118,12 +140,13 @@ export function EmailSignInForm({ onSignedIn, notice = "" }: EmailSignInFormProp
           <span className={styles.leadingIcon}><LockIcon /></span>
           <input
             id={`${id}-password`}
+            ref={passwordRef}
             className={`${styles.input} ${styles.inputWithButton}`}
             type={isPasswordShown ? "text" : "password"}
             autoComplete="current-password"
             placeholder="Enter your password"
             value={password}
-            onChange={(event) => setPassword(event.target.value)}
+            onChange={(event) => changePassword(event.target.value)}
             aria-invalid={fieldErrors.password ? true : undefined}
             aria-describedby={fieldErrors.password ? passwordErrorId : undefined}
           />
@@ -137,17 +160,17 @@ export function EmailSignInForm({ onSignedIn, notice = "" }: EmailSignInFormProp
             {isPasswordShown ? <EyeOffIcon /> : <EyeIcon />}
           </button>
         </div>
-        {fieldErrors.password && (
-          <p id={passwordErrorId} className={styles.fieldError}>{fieldErrors.password}</p>
-        )}
+        {fieldErrors.password && <FieldError id={passwordErrorId} text={fieldErrors.password} />}
       </div>
 
-      <PrimaryButton type="submit" disabled={isSigningIn}>
-        {isSigningIn ? "Signing in…" : "Sign in"}
-        {!isSigningIn && <span aria-hidden="true"> →</span>}
-      </PrimaryButton>
+      <div className={styles.actions}>
+        <PrimaryButton type="submit" disabled={request.isWorking}>
+          {request.isWorking ? "Signing in…" : "Sign in"}
+          {!request.isWorking && <span aria-hidden="true"> →</span>}
+        </PrimaryButton>
 
-      <p className={styles.message} role="status" aria-live="polite">{message}</p>
+        <StatusMessage message={message} />
+      </div>
     </form>
   );
 }

@@ -1,5 +1,14 @@
 import type { SignInFailure } from "../../types/Auth";
 
+// What a sign-in form's status line says, and how it reads: an error, plain
+// information (such as "session ended"), or good news.
+export interface FormMessage {
+  text: string;
+  tone: "error" | "info" | "success";
+}
+
+export const noMessage: FormMessage = { text: "", tone: "info" };
+
 // The demo's wording for each failure (project plan section 10). The API sends
 // codes only; what people read lives here, for both sign-in methods.
 export const failureMessages: Record<SignInFailure, string> = {

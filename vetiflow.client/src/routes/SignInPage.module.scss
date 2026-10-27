@@ -173,8 +173,9 @@ $muted: #556372;
 	line-height: 1.55;
 }
 
-// Motion for the tabs and panels; reduced motion turns it off below.
-$motion: 250ms cubic-bezier(0.22, 1, 0.36, 1);
+// The tabs and panels move on the shared tokens; reduced motion turns them
+// off below.
+$motion: var(--motion-base) var(--ease-out);
 
 .tabs {
 	position: relative;
@@ -234,53 +235,48 @@ $motion: 250ms cubic-bezier(0.22, 1, 0.36, 1);
 	}
 }
 
-// The forms' wrapper eases to the visible form's height (--panel-height, set
-// from SignInPage once measured). It clips while it moves; the padding, undone
-// by the negative margin, leaves room for the 3px focus outlines.
+// Both forms in one grid cell, so the cell is as tall as the taller one and
+// the card's edges and buttons stay put when switching. Nothing has a fixed
+// height: errors, larger text and longer words make the cell grow.
 .panels {
-	margin: -0.375rem;
-	padding: 0.375rem;
-	overflow: hidden;
-	transition: height $motion;
+	display: grid;
+}
 
-	// Natural height until the first measurement arrives.
-	&[style*="--panel-height"] {
-		height: calc(var(--panel-height) + 0.75rem);
+// The hidden form keeps its space (visibility, not display). SignInPage also
+// makes it inert, so it can't be reached by Tab or a screen reader.
+// Each panel is a column, so its form can fill the cell and keep its button
+// at the foot.
+.panel {
+	display: flex;
+	flex-direction: column;
+	grid-area: 1 / 1;
+	min-width: 0;
+
+	&[hidden] {
+		display: flex;
+		visibility: hidden;
+	}
+
+	// The form that appears fades in, rising slightly.
+	&:not([hidden]) {
+		animation: panel-in $motion;
 	}
 }
 
-// The form that appears fades in from the side of its tab.
-@keyframes panel-from-left {
+@keyframes panel-in {
 	from {
 		opacity: 0;
-		transform: translateX(-0.75rem);
+		transform: translateY(0.25rem);
 	}
-}
-
-@keyframes panel-from-right {
-	from {
-		opacity: 0;
-		transform: translateX(0.75rem);
-	}
-}
-
-.panelFromLeft:not([hidden]) {
-	animation: panel-from-left $motion;
-}
-
-.panelFromRight:not([hidden]) {
-	animation: panel-from-right $motion;
 }
 
 @media (prefers-reduced-motion: reduce) {
 	.tabHighlight,
-	.tab,
-	.panels {
+	.tab {
 		transition: none;
 	}
 
-	.panelFromLeft:not([hidden]),
-	.panelFromRight:not([hidden]) {
+	.panel:not([hidden]) {
 		animation: none;
 	}
 }

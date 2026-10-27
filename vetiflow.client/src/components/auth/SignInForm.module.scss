@@ -1,7 +1,18 @@
 // Shared by the email and phone sign-in forms.
+$fast: var(--motion-fast) var(--ease-out);
+$error: #a3392d;
+
+// Fills its panel; SignInPage stacks both panels in one cell.
 .form {
 	display: flex;
+	flex: 1;
 	flex-direction: column;
+}
+
+// The primary button and the status line sit at the form's foot, so they
+// line up between the email and phone forms.
+.actions {
+	margin-block-start: auto;
 }
 
 .field {
@@ -55,9 +66,15 @@
 	background: var(--color-surface);
 	color: var(--color-text-primary);
 	font-size: 0.9375rem;
+	// The outline is not listed, so focus shows at once.
+	transition: border-color $fast, box-shadow $fast;
 
 	&::placeholder {
 		color: #6b7a7d;
+	}
+
+	&:hover {
+		border-color: #4f6366;
 	}
 
 	&:focus-visible {
@@ -65,9 +82,11 @@
 		outline-offset: 2px;
 	}
 
+	// A thicker edge drawn inside (no layout shift), on top of the colour and
+	// the error text.
 	&[aria-invalid="true"] {
-		border-color: #a3392d;
-		border-width: 2px;
+		border-color: $error;
+		box-shadow: inset 0 0 0 1px $error;
 	}
 }
 
@@ -90,6 +109,7 @@
 	color: #556372;
 	cursor: pointer;
 	transform: translateY(-50%);
+	transition: color $fast;
 
 	&:hover {
 		color: #1a2e40;
@@ -101,11 +121,34 @@
 	}
 }
 
+// The icon and the words mark an error, not the colour alone.
+%withIcon {
+	display: flex;
+	align-items: flex-start;
+	gap: var(--space-2);
+
+	svg {
+		flex: none;
+		width: 1.1em;
+		height: 1.1em;
+		margin-block-start: 0.15em;
+	}
+}
+
+@keyframes appear {
+	from {
+		opacity: 0;
+	}
+}
+
 .fieldError {
+	@extend %withIcon;
+
 	margin: var(--space-2) 0 0;
-	color: #a3392d;
+	color: $error;
 	font-size: 0.8125rem;
 	line-height: 1.4;
+	animation: appear $fast;
 }
 
 .link {
@@ -125,22 +168,45 @@
 	}
 }
 
+// The status line keeps a line's height when empty, so a message appearing
+// doesn't move the button above it. Its tone comes from FormMessages.
 .message {
+	@extend %withIcon;
+
 	min-height: 1.25rem;
 	margin: var(--space-3) 0 0;
-	color: #a3392d;
 	font-size: 0.875rem;
 	line-height: 1.45;
+
+	&:not(:empty) {
+		animation: appear $fast;
+	}
 }
 
-// Good news in the status line (the demo code is ready): green, and worded
-// as success, so it never relies on colour alone.
-.messageReady {
-	min-height: 1.25rem;
-	margin: var(--space-3) 0 0;
+.messageError {
+	color: $error;
+}
+
+.messageInfo {
+	color: #2f4a50;
+}
+
+// Good news (the demo code is ready): green, with a check and worded as
+// success.
+.messageSuccess {
 	color: #1d6b55;
-	font-size: 0.875rem;
-	line-height: 1.45;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.input,
+	.revealButton {
+		transition: none;
+	}
+
+	.fieldError,
+	.message:not(:empty) {
+		animation: none;
+	}
 }
 
 .sentTo {

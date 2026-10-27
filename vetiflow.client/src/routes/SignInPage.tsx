@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { EmailSignInForm } from "../components/auth/EmailSignInForm";
 import { EmergencyBar } from "../components/auth/EmergencyBar";
@@ -9,7 +9,6 @@ import { SignInBenefits, SignInBrand, SignInStory } from "../components/auth/Sig
 import { SignInScene } from "../components/auth/SignInScene";
 import { SignInSuccess } from "../components/auth/SignInSuccess";
 import { MailIcon, PhoneIcon, ShieldIcon } from "../components/auth/signInIcons";
-import { useMeasuredHeight } from "../components/auth/useMeasuredHeight";
 import { clearAccessToken } from "../services/session";
 import type { SignedInUser } from "../types/Auth";
 import styles from "./SignInPage.module.scss";
@@ -36,12 +35,6 @@ export function SignInPage() {
   const headingRef = useRef<HTMLHeadingElement>(null);
   const demoSummaryRef = useRef<HTMLElement>(null);
   const tabRefs = useRef<Record<SignInMethod, HTMLButtonElement | null>>({ email: null, phone: null });
-  const [emailPanel, setEmailPanel] = useState<HTMLDivElement | null>(null);
-  const [phonePanel, setPhonePanel] = useState<HTMLDivElement | null>(null);
-  // The panels' wrapper eases to the visible form's height.
-  const panelHeight = useMeasuredHeight(method === "email" ? emailPanel : phonePanel);
-  const panelsStyle =
-    panelHeight === undefined ? undefined : ({ "--panel-height": `${panelHeight}px` } as CSSProperties);
 
   // Success replaces the form, so move focus to the new heading.
   useEffect(() => {
@@ -158,29 +151,35 @@ export function SignInPage() {
                 ))}
               </div>
 
-              <div className={styles.panels} style={panelsStyle}>
+              {/* Both panels share one cell, so the card is as tall as the
+                  taller form and doesn't move when switching. The hidden one
+                  keeps its space but is inert: out of the tab order and the
+                  accessibility tree. Both stay mounted, so typed values are
+                  kept. */}
+              <div className={styles.panels}>
                 <div
-                  ref={setEmailPanel}
                   id="sign-in-panel-email"
-                  className={styles.panelFromLeft}
+                  className={styles.panel}
                   role="tabpanel"
                   aria-labelledby="sign-in-tab-email"
                   hidden={method !== "email"}
+                  inert={method !== "email"}
                 >
                   <EmailSignInForm
                     onSignedIn={setSignedInUser}
+                    isActive={method === "email"}
                     notice={routeState?.sessionEnded ? sessionEndedMessage : undefined}
                   />
                 </div>
                 <div
-                  ref={setPhonePanel}
                   id="sign-in-panel-phone"
-                  className={styles.panelFromRight}
+                  className={styles.panel}
                   role="tabpanel"
                   aria-labelledby="sign-in-tab-phone"
                   hidden={method !== "phone"}
+                  inert={method !== "phone"}
                 >
-                  <PhoneSignInForm onSignedIn={setSignedInUser} />
+                  <PhoneSignInForm onSignedIn={setSignedInUser} isActive={method === "phone"} />
                 </div>
               </div>
 
