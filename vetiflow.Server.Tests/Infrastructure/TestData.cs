@@ -34,6 +34,24 @@ public static class TestData
 		Role = role
 	};
 
+	// Valid accounts with unique contact details; tests change one field to
+	// break a rule.
+	public static Account TeamMemberAccount(StaffMember staffMember) => new()
+	{
+		Kind = AccountKind.TeamMember,
+		StaffMember = staffMember,
+		Email = $"team.{Unique()}@example.com",
+		PhoneNumber = UniquePhone()
+	};
+
+	public static Account PetParentAccount(Owner owner) => new()
+	{
+		Kind = AccountKind.PetParent,
+		Owner = owner,
+		Email = $"parent.{Unique()}@example.com",
+		PhoneNumber = UniquePhone()
+	};
+
 	public static CaseTask Task(
 		CaseTaskType type = CaseTaskType.Task,
 		CaseTaskStatus status = CaseTaskStatus.Open) => new()
@@ -51,4 +69,6 @@ public static class TestData
 	};
 
 	private static string Unique() => Guid.NewGuid().ToString("N")[..8];
+
+	private static string UniquePhone() => "+1" + Random.Shared.NextInt64(1_000_000_000, 10_000_000_000);
 }

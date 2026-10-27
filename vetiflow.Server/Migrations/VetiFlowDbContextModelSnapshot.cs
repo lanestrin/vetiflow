@@ -22,6 +22,63 @@ namespace vetiflow.Server.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("vetiflow.Server.Models.Account", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Email")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid?>("OwnerId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("PasswordHash")
+                        .HasColumnType("text");
+
+                    b.Property<string>("PhoneNumber")
+                        .HasColumnType("text");
+
+                    b.Property<Guid?>("StaffMemberId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Email")
+                        .IsUnique();
+
+                    b.HasIndex("OwnerId")
+                        .IsUnique();
+
+                    b.HasIndex("PhoneNumber")
+                        .IsUnique();
+
+                    b.HasIndex("StaffMemberId")
+                        .IsUnique();
+
+                    b.ToTable("Accounts", t =>
+                        {
+                            t.HasCheckConstraint("CK_Accounts_EmailLowerCase", "\"Email\" = lower(\"Email\")");
+
+                            t.HasCheckConstraint("CK_Accounts_HasEmailOrPhone", "\"Email\" IS NOT NULL OR \"PhoneNumber\" IS NOT NULL");
+
+                            t.HasCheckConstraint("CK_Accounts_KindMatchesLink", "(\"Kind\" = 'TeamMember' AND \"StaffMemberId\" IS NOT NULL AND \"OwnerId\" IS NULL) OR (\"Kind\" = 'PetParent' AND \"OwnerId\" IS NOT NULL AND \"StaffMemberId\" IS NULL)");
+
+                            t.HasCheckConstraint("CK_Accounts_PhoneFormat", "\"PhoneNumber\" ~ '^\\+1[0-9]{10}$'");
+                        });
+                });
+
             modelBuilder.Entity("vetiflow.Server.Models.AiSummary", b =>
                 {
                     b.Property<Guid>("Id")
@@ -439,6 +496,23 @@ namespace vetiflow.Server.Migrations
                     b.HasIndex("RecordedByStaffId");
 
                     b.ToTable("VitalsRecords");
+                });
+
+            modelBuilder.Entity("vetiflow.Server.Models.Account", b =>
+                {
+                    b.HasOne("vetiflow.Server.Models.Owner", "Owner")
+                        .WithMany()
+                        .HasForeignKey("OwnerId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("vetiflow.Server.Models.StaffMember", "StaffMember")
+                        .WithMany()
+                        .HasForeignKey("StaffMemberId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Owner");
+
+                    b.Navigation("StaffMember");
                 });
 
             modelBuilder.Entity("vetiflow.Server.Models.AiSummary", b =>
