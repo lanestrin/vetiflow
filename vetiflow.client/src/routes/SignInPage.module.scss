@@ -36,6 +36,8 @@ $muted: #556372;
 // starts further right so its right edge still reaches the page edge (the box
 // is 1.99 times as wide as tall, so its right 70% is 1.393 screen heights).
 // If the page is taller than the screen, the art's foot fades into the page.
+// Shapes may spill past the box's left side (the box often starts inside the
+// page) but are clipped at its top, right and bottom.
 .art {
 	position: absolute;
 	inset-block-start: 0;
@@ -44,11 +46,13 @@ $muted: #556372;
 	aspect-ratio: 1672 / 840;
 	background-color: $cream;
 	transform: translateX(-30%);
+	clip-path: inset(0 0 0 -100vw);
 
+	// The fade reaches as far left as the shapes can, so it has no seam.
 	&::after {
 		content: "";
 		position: absolute;
-		inset: 0;
+		inset: 0 0 0 -100vw;
 		background: linear-gradient(transparent 88%, $cream);
 		pointer-events: none;
 	}

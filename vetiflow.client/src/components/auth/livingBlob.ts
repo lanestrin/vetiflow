@@ -14,6 +14,9 @@ export interface BlobSettings {
   points: number;
   // The same seed always gives the same shape and timings.
   seed: number;
+  // Widen or flatten the shape; 1 (the default) keeps it round.
+  stretchX?: number;
+  stretchY?: number;
 }
 
 export interface BlobPoint {
@@ -93,8 +96,8 @@ export function blobPath(settings: BlobSettings, points: BlobPoint[], seconds: n
     points.map((point) => {
       const radius = pointRadius(point, settings, seconds, isStill);
       return {
-        x: settings.centerX + Math.cos(point.angle) * radius,
-        y: settings.centerY + Math.sin(point.angle) * radius
+        x: settings.centerX + Math.cos(point.angle) * radius * (settings.stretchX ?? 1),
+        y: settings.centerY + Math.sin(point.angle) * radius * (settings.stretchY ?? 1)
       };
     })
   );

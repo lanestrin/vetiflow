@@ -61,6 +61,23 @@ describe("livingBlob", () => {
     expect(value).toBeLessThan(1);
   });
 
+  it("stretches the shape", () => {
+    const points = createBlobPoints(settings);
+    const coordinates = (path: string) => path.replace(/[MCz]/g, " ").trim().split(/\s+/).map(Number);
+    const plain = coordinates(blobPath(settings, points, 0, true));
+    const wide = coordinates(blobPath({ ...settings, stretchX: 2 }, points, 0, true));
+
+    // Coordinates alternate x, y: every x is twice as far from the centre,
+    // every y is unchanged.
+    const xs = (values: number[]) => values.filter((_, index) => index % 2 === 0);
+    const ys = (values: number[]) => values.filter((_, index) => index % 2 === 1);
+
+    xs(wide).forEach((x, index) => {
+      expect(x - settings.centerX).toBeCloseTo((xs(plain)[index] - settings.centerX) * 2, 0);
+    });
+    expect(ys(wide)).toEqual(ys(plain));
+  });
+
   it("keeps durations within the given range", () => {
     for (const point of createBlobPoints(settings)) {
       expect(point.duration).toBeGreaterThanOrEqual(settings.minDuration);
