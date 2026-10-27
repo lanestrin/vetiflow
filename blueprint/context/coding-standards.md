@@ -92,10 +92,81 @@ Avoid overengineering:
 
 ## Styling
 
-- SCSS modules per component. Shared values in `src/styles/_tokens.scss`.
-- No inline styles. AA contrast. Visible focus states.
+- Use a co-located `.module.scss` for component or page styles. Give classes
+  clear names based on their purpose, and keep each module responsible for its
+  own UI. Do not borrow another component's private classes.
+- Keep resets, shared token declarations and application-wide base styles in
+  `src/styles/`, loaded once through `globals.scss` in `main.tsx`. Component
+  modules reference the existing CSS variables rather than re-emitting globals.
+- Reuse `src/styles/_tokens.scss` for shared colours, spacing, radii and other
+  consistent design choices. Add a token for a real shared decision, not every
+  individual measurement. Do not duplicate existing tokens under new names.
+- Reuse a React component when markup, behaviour and appearance repeat. Use a
+  Sass mixin only for a meaningful presentation pattern already needed by
+  multiple components. Repeated `display: flex` or `padding` alone is not enough.
+- Small duplication is fine when styles belong to different concepts. Avoid a
+  giant shared stylesheet, a utility class for every property, or a new styling
+  framework without an approved need. Use `@use` for Sass modules, not `@import`.
+- Prefer simple class selectors and shallow nesting. Keep responsive rules and
+  state styles near their component. Avoid ID selectors, broad global overrides,
+  cross-component selectors and `!important`; document a concrete integration
+  need if one is unavoidable. Do not fight specificity with stronger selectors.
+- Express variants through named classes or component props, rather than copying
+  whole stylesheets. No inline styles. Remove styles made unused by the current
+  change, and do not restyle unrelated components.
+- Use Grid or Flexbox for normal layout and fluid sizing before absolute
+  positioning or fixed dimensions. Allow text and content to grow; avoid fixed
+  content heights and overflow clipping that hides content or focus indicators.
+- Use `rem` for text and scalable spacing where appropriate, unitless line
+  heights, and logical properties such as `padding-inline` when they clarify
+  layout. Pixels are fine for borders and other genuinely fixed details.
 - UI that recreates a design is built against a screenshot in
-  `blueprint/reference/`, not a description.
+  `blueprint/reference/`, not a description. Screenshots guide appearance;
+  responsive behaviour and accessibility requirements still apply.
+
+### Responsive and accessible design
+
+- All new or changed screens must be responsive and target WCAG 2.2 level AA.
+  Support phone, tablet and desktop layouts, including 320 CSS pixels wide.
+  Add breakpoints when content needs them, not for a catalogue of device sizes.
+- Reflow ordinary pages and forms without horizontal page scrolling or lost
+  actions. A genuinely two-dimensional ER board may use a clearly scrollable
+  region; its cards and controls must remain readable and operable. Do not hide
+  overflow to conceal a broken layout.
+- Support 200% text resizing and reflow at 400% browser zoom on a desktop-sized
+  viewport. Do not disable zoom or let labels, errors and buttons overlap or
+  disappear. Reserve space for images and icons to avoid layout jumps.
+- Design for colour-vision differences, including red-green and blue-yellow
+  deficiencies. Acuity, timer escalation, task status, charts and validation
+  must have visible text or another clear non-colour cue. For example, show
+  "Critical" on an acuity badge and "Overdue" beside an escalated timer; do not
+  rely on red versus green. Screen-reader-only labels are not a visible cue.
+- Meet contrast ratios of at least 4.5:1 for normal text and 3:1 for large text
+  as defined by WCAG. Necessary control boundaries, icons and state indicators
+  meet applicable 3:1 non-text contrast requirements. Check each foreground and
+  background combination, including coloured badges and interaction states.
+- Use semantic HTML, labelled controls and logical headings. Give meaningful
+  images useful alt text and decorative images empty alt text. Associate errors
+  with their inputs and announce important asynchronous changes appropriately.
+- All actions work by keyboard, including an alternative to drag and drop.
+  Keep focus order predictable and focus visible with `:focus-visible`; never
+  remove an outline without an equally visible replacement. Dialogs manage and
+  restore focus, and sticky UI must not obscure the focused control.
+- Provide usable touch targets and spacing. Keep hover, focus, active, disabled,
+  loading and error states understandable without hover or colour alone.
+  Respect `prefers-reduced-motion`; avoid unnecessary flashing and movement.
+- For changed UI, use the existing `/check` to observe narrow and wide layouts,
+  zoom, long content and keyboard operation as relevant. Check colour-dependent
+  information with colour-vision simulation or a grayscale view when available,
+  and use a screen reader for changed interactions when available. Record what
+  was actually checked and any limitations; simulation and automated tests alone
+  do not establish compliance. Add no audit or self-review stage by default.
+
+References: [Vite CSS Modules](https://vite.dev/guide/features.html#css-modules)
+and [Sass modules](https://sass-lang.com/documentation/at-rules/use/).
+Accessibility: [WCAG 2.2](https://www.w3.org/TR/WCAG22/),
+[use of colour](https://www.w3.org/WAI/WCAG22/Understanding/use-of-color.html)
+and [reflow](https://www.w3.org/WAI/WCAG22/Understanding/reflow.html).
 
 ## Security
 
