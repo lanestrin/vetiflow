@@ -1,7 +1,7 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { failureMessages } from "../components/auth/signInMessages";
 import { readAccessToken } from "../services/session";
 import { apiUrl, server } from "../test/server";
@@ -341,6 +341,30 @@ describe("SignInPage", () => {
   });
 
   describe("phone", () => {
+    // Sending and the code check are simulated with short waits; fake timers
+    // jump past them (and still run on their own, so waitFor works).
+    beforeEach(() => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+      server.events.removeAllListeners();
+    });
+
+    async function passTheWait() {
+      await act(() => vi.advanceTimersByTimeAsync(1000));
+    }
+
+    // The paths of every request the page makes from here on.
+    function recordRequests() {
+      const paths: string[] = [];
+      server.events.on("request:start", ({ request }) => {
+        paths.push(new URL(request.url).pathname);
+      });
+      return paths;
+    }
+
     function openPhoneTab() {
       fireEvent.click(screen.getByRole("tab", { name: "Phone" }));
     }
@@ -350,65 +374,76 @@ describe("SignInPage", () => {
       fireEvent.click(screen.getByRole("button", { name: /text me a sign-in code/i }));
     }
 
+    async function sendCodeAndWait(phoneNumber: string) {
+      sendCode(phoneNumber);
+      await passTheWait();
+      await waitFor(() => expect(screen.getByLabelText("Verification code")).toBeEnabled());
+    }
+
     function enterCode(code: string) {
       fireEvent.change(screen.getByLabelText("Verification code"), { target: { value: code } });
       fireEvent.click(screen.getByRole("button", { name: "Verify and sign in" }));
     }
 
-    function servePhoneStart(status = 200, code?: string) {
+    function servePhoneVerify(user: SignedInUser) {
       server.use(
-        http.post(apiUrl("/api/auth/phone/start"), () =>
-          status === 200 ? HttpResponse.json({}) : HttpResponse.json({ status, code }, { status })
-        )
+        http.post(apiUrl("/api/auth/phone/verify"), () =>
+          HttpResponse.json({ tokenType: "Bearer", accessToken: "phone-token", expiresIn: 3600 })
+        ),
+        http.get(apiUrl("/api/auth/me"), () => HttpResponse.json(user))
       );
     }
 
-    it("asks for a 10-digit number before sending", () => {
+    it("shows the code field from the start, off until a code is sent", () => {
+      renderSignIn();
+      openPhoneTab();
+
+      expect(screen.getByLabelText("Mobile phone number")).toBeEnabled();
+      const codeInput = screen.getByLabelText("Verification code");
+      expect(codeInput).toBeDisabled();
+      expect(codeInput).toHaveAttribute("placeholder", "Send a code first");
+      expect(screen.queryByRole("button", { name: "Send again" })).not.toBeInTheDocument();
+    });
+
+    it("asks for a 10-digit number before sending", async () => {
+      const requests = recordRequests();
       renderSignIn();
       openPhoneTab();
 
       sendCode("555-0101");
+      await passTheWait();
 
       const input = screen.getByLabelText("Mobile phone number");
       expect(input).toHaveAttribute("aria-invalid", "true");
       expect(input).toHaveAccessibleDescription(
         "Enter a 10-digit mobile number like 312-555-0101. Demo mode: no text is sent. The next step shows the code to use."
       );
+      expect(screen.getByLabelText("Verification code")).toBeDisabled();
+      expect(requests).toEqual([]);
     });
 
-    it("says no text was sent and moves to the code", async () => {
-      servePhoneStart();
+    it("pretends to send, then opens the code field without asking the API", async () => {
+      const requests = recordRequests();
       renderSignIn();
       openPhoneTab();
 
-      sendCode("312-555-0101");
+      sendCode("312-555-0102");
 
-      const codeInput = await screen.findByLabelText("Verification code");
+      expect(screen.getByRole("button", { name: "Sending…" })).toBeDisabled();
+      await passTheWait();
+      const codeInput = screen.getByLabelText("Verification code");
       await waitFor(() => expect(codeInput).toHaveFocus());
+      expect(codeInput).toHaveAttribute("placeholder", "6-digit code");
       expect(screen.getByRole("status")).toHaveTextContent("Demo verification is ready. No text was sent.");
-      expect(screen.getByText(/Demo mode: no text is sent/)).toHaveTextContent("Use code 123456.");
-    });
-
-    it.each([
-      ["unknownPhone", 401, "We couldn't match that demo phone. Try one of the sample numbers below."],
-      ["phoneSignInOff", 403, "Phone sign-in is turned off for this demo. Use email instead."]
-    ])("shows the message for %s when sending", async (code, status, message) => {
-      servePhoneStart(status, code);
-      renderSignIn();
-      openPhoneTab();
-
-      sendCode("312-555-0199");
-
-      expect(await screen.findByText(message)).toBeInTheDocument();
-      expect(screen.queryByLabelText("Verification code")).not.toBeInTheDocument();
+      expect(screen.getByText(/Use code/)).toHaveTextContent("Demo mode: no text is sent. Use code 123456.");
+      expect(screen.getByRole("button", { name: "Verify and sign in" })).toBeEnabled();
+      expect(requests).toEqual([]);
     });
 
     it("asks for the 6-digit code", async () => {
-      servePhoneStart();
       renderSignIn();
       openPhoneTab();
-      sendCode("312-555-0101");
-      await screen.findByLabelText("Verification code");
+      await sendCodeAndWait("312-555-0101");
 
       enterCode("12");
 
@@ -416,75 +451,103 @@ describe("SignInPage", () => {
       expect(screen.getByText("Enter the 6-digit code.")).toBeInTheDocument();
     });
 
-    it("says to use 123456 when the code is wrong", async () => {
-      servePhoneStart();
-      server.use(
-        http.post(apiUrl("/api/auth/phone/verify"), () =>
-          HttpResponse.json({ status: 401, code: "wrongCode" }, { status: 401 })
-        )
-      );
+    it("says to use 123456 when the code is wrong, without asking the API", async () => {
+      const requests = recordRequests();
       renderSignIn();
       openPhoneTab();
-      sendCode("312-555-0101");
-      await screen.findByLabelText("Verification code");
+      await sendCodeAndWait("312-555-0101");
 
       enterCode("654321");
 
+      expect(screen.getByRole("button", { name: "Signing in…" })).toBeDisabled();
+      await passTheWait();
       expect(await screen.findByText("Use 123456 for this demo.")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Verify and sign in" })).toBeEnabled();
+      expect(requests).toEqual([]);
       expect(readAccessToken()).toBeNull();
     });
 
-    it("goes back to the number, and can send again", async () => {
-      let starts = 0;
+    it.each([
+      ["unknownPhone", 401, "We couldn't match that demo phone. Try one of the sample numbers below."],
+      ["phoneSignInOff", 403, "Phone sign-in is turned off for this demo. Use email instead."]
+    ])("shows the message for %s when verifying", async (code, status, message) => {
       server.use(
-        http.post(apiUrl("/api/auth/phone/start"), () => {
-          starts += 1;
-          return HttpResponse.json({});
-        })
+        http.post(apiUrl("/api/auth/phone/verify"), () => HttpResponse.json({ status, code }, { status }))
       );
       renderSignIn();
       openPhoneTab();
-      sendCode("312-555-0101");
-      await screen.findByLabelText("Verification code");
+      await sendCodeAndWait("312-555-0199");
 
-      fireEvent.click(screen.getByRole("button", { name: "Send again" }));
-      await waitFor(() => expect(starts).toBe(2));
-      fireEvent.click(screen.getByRole("button", { name: "Use a different number" }));
+      enterCode("123456");
+      await passTheWait();
 
-      expect(screen.getByLabelText("Mobile phone number")).toHaveValue("312-555-0101");
-      expect(screen.queryByLabelText("Verification code")).not.toBeInTheDocument();
+      expect(await screen.findByText(message)).toBeInTheDocument();
+      expect(readAccessToken()).toBeNull();
     });
 
-    it("returns focus to the phone field after Use a different number", async () => {
-      servePhoneStart();
+    it("turns the code field off again when the number changes", async () => {
       renderSignIn();
       openPhoneTab();
-      sendCode("312-555-0101");
-      await screen.findByLabelText("Verification code");
+      await sendCodeAndWait("312-555-0101");
+      fireEvent.change(screen.getByLabelText("Verification code"), { target: { value: "123" } });
 
-      fireEvent.click(screen.getByRole("button", { name: "Use a different number" }));
+      fireEvent.change(screen.getByLabelText("Mobile phone number"), { target: { value: "312-555-0102" } });
 
-      expect(screen.getByLabelText("Mobile phone number")).toHaveFocus();
+      const codeInput = screen.getByLabelText("Verification code");
+      expect(codeInput).toBeDisabled();
+      expect(codeInput).toHaveValue("");
+      expect(screen.getByRole("status")).toBeEmptyDOMElement();
+      expect(screen.getByRole("button", { name: /text me a sign-in code/i })).toBeEnabled();
+      expect(screen.queryByRole("button", { name: "Send again" })).not.toBeInTheDocument();
+    });
+
+    it("sends again and keeps the code field on", async () => {
+      const requests = recordRequests();
+      renderSignIn();
+      openPhoneTab();
+      await sendCodeAndWait("312-555-0101");
+
+      fireEvent.click(screen.getByRole("button", { name: "Send again" }));
+
+      expect(screen.getByRole("button", { name: "Sending…" })).toBeDisabled();
+      expect(screen.getByRole("status")).toBeEmptyDOMElement();
+      await passTheWait();
+      await waitFor(() =>
+        expect(screen.getByRole("status")).toHaveTextContent("Demo verification is ready. No text was sent.")
+      );
+      expect(screen.getByLabelText("Verification code")).toBeEnabled();
+      expect(requests).toEqual([]);
     });
 
     it("focuses the field that needs fixing", async () => {
-      servePhoneStart();
       renderSignIn();
       openPhoneTab();
 
       sendCode("555");
       expect(screen.getByLabelText("Mobile phone number")).toHaveFocus();
 
-      sendCode("312-555-0101");
-      await screen.findByLabelText("Verification code");
+      await sendCodeAndWait("312-555-0101");
       screen.getByRole("button", { name: "Verify and sign in" }).focus();
       enterCode("12");
       expect(screen.getByLabelText("Verification code")).toHaveFocus();
     });
 
+    it("drops a send that finishes after switching to Email", async () => {
+      renderSignIn();
+      openPhoneTab();
+      sendCode("312-555-0101");
+
+      fireEvent.click(screen.getByRole("tab", { name: "Email" }));
+      await passTheWait();
+      openPhoneTab();
+
+      expect(screen.getByLabelText("Verification code")).toBeDisabled();
+      expect(screen.getByRole("button", { name: /text me a sign-in code/i })).toBeEnabled();
+      expect(screen.getByRole("status")).toBeEmptyDOMElement();
+    });
+
     it("drops a code check that finishes after switching to Email", async () => {
       const answer = holdResponse();
-      servePhoneStart();
       server.use(
         http.post(apiUrl("/api/auth/phone/verify"), async () => {
           await answer.released;
@@ -494,9 +557,9 @@ describe("SignInPage", () => {
       );
       renderSignIn();
       openPhoneTab();
-      sendCode("312-555-0101");
-      await screen.findByLabelText("Verification code");
+      await sendCodeAndWait("312-555-0101");
       enterCode("123456");
+      await passTheWait();
 
       fireEvent.click(screen.getByRole("tab", { name: "Email" }));
       answer.release();
@@ -508,23 +571,32 @@ describe("SignInPage", () => {
       expect(readAccessToken()).toBeNull();
     });
 
+    it("checks the code once when Verify is pressed twice", async () => {
+      servePhoneVerify(teamMember);
+      const requests = recordRequests();
+      renderSignIn();
+      openPhoneTab();
+      await sendCodeAndWait("312-555-0101");
+
+      enterCode("123456");
+      fireEvent.submit(screen.getByLabelText("Verification code"));
+      await passTheWait();
+
+      await screen.findByRole("heading", { level: 1, name: "You're all set" });
+      expect(requests.filter((path) => path.endsWith("/api/auth/phone/verify"))).toHaveLength(1);
+    });
+
     it.each([
       [teamMember, "312-555-0101", "Continue as Hospital team member", "Board opened"],
       [petParent, "312-555-0102", "Continue as Pet parent", "Pet parent home opened"]
     ])("signs in %o by phone and continues to the right experience", async (user, phoneNumber, continueLabel, destination) => {
-      servePhoneStart();
-      server.use(
-        http.post(apiUrl("/api/auth/phone/verify"), () =>
-          HttpResponse.json({ tokenType: "Bearer", accessToken: "phone-token", expiresIn: 3600 })
-        ),
-        http.get(apiUrl("/api/auth/me"), () => HttpResponse.json(user))
-      );
+      servePhoneVerify(user);
       renderSignIn();
       openPhoneTab();
-      sendCode(phoneNumber);
-      await screen.findByLabelText("Verification code");
+      await sendCodeAndWait(phoneNumber);
 
       enterCode("123456");
+      await passTheWait();
 
       expect(await screen.findByRole("heading", { level: 1, name: "You're all set" })).toBeInTheDocument();
       expect(readAccessToken()).toBe("phone-token");

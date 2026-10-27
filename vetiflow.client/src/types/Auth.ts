@@ -20,7 +20,3 @@ export type SignInFailure =
 export type SignInResult =
   | { ok: true; accessToken: string }
   | { ok: false; failure: SignInFailure };
-
-export type PhoneStartResult =
-  | { ok: true }
-  | { ok: false; failure: SignInFailure };

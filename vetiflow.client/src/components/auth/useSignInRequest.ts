@@ -47,3 +47,19 @@ export function useSignInRequest(isActive: boolean) {
 
   return { isWorking, run };
 }
+
+// A pause for steps the demo only simulates, run inside `run` so it is
+// cancelled like a real request.
+export function delay(ms: number, signal: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(resolve, ms);
+    signal.addEventListener(
+      "abort",
+      () => {
+        clearTimeout(timer);
+        reject(signal.reason);
+      },
+      { once: true }
+    );
+  });
+}

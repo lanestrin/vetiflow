@@ -65,39 +65,8 @@ public class AuthController : ControllerBase
 		return SignIn(CreatePrincipal(account), BearerTokenDefaults.AuthenticationScheme);
 	}
 
-	// Step one of phone sign-in: is this a demo account's number? Nothing is
-	// sent and nothing is stored; the demo code is fixed (DemoSignIn).
-	[HttpPost("phone/start")]
-	[AllowAnonymous]
-	public async Task<IActionResult> StartPhoneSignIn(
-		PhoneStartRequest request,
-		CancellationToken cancellationToken)
-	{
-		if (!IsPhoneSignInOn())
-		{
-			return PhoneSignInOff();
-		}
-
-		if (!DemoSignIn.TryNormalizePhone(request.PhoneNumber, out var phoneNumber))
-		{
-			return InvalidPhoneNumber();
-		}
-
-		var account = await FindByPhoneAsync(phoneNumber, cancellationToken);
-
-		if (account is null)
-		{
-			return SignInFailed("unknownPhone");
-		}
-
-		if (!account.IsActive)
-		{
-			return SignInFailed("inactiveAccount");
-		}
-
-		return Ok(new { });
-	}
-
+	// Demo phone sign-in. Sending the code is simulated in the browser, so this
+	// is the only phone step: the number and the fixed demo code (DemoSignIn).
 	[HttpPost("phone/verify")]
 	[AllowAnonymous]
 	public async Task<IActionResult> VerifyPhoneSignIn(
