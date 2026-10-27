@@ -1,8 +1,8 @@
 import { useId, useState, type FormEvent } from "react";
-import { getSignedInUser, signInByEmail } from "../../services/authApi";
-import { clearAccessToken, saveAccessToken } from "../../services/session";
-import type { SignedInUser, SignInFailure } from "../../types/Auth";
+import { finishSignIn, signInByEmail } from "../../services/authApi";
+import type { SignedInUser } from "../../types/Auth";
 import { PrimaryButton } from "./PrimaryButton";
+import { failureMessages } from "./signInMessages";
 import styles from "./SignInForm.module.scss";
 
 interface EmailSignInFormProps {
@@ -15,15 +15,6 @@ interface FieldErrors {
   email?: string;
   password?: string;
 }
-
-// The demo's wording for each failure (project plan section 10). The API sends
-// codes only; what people read lives here.
-const failureMessages: Record<SignInFailure, string> = {
-  unknownAccount: "We couldn't match that demo account. Try one of the sample emails below.",
-  wrongPassword: "Use welcome1 for this demo account.",
-  inactiveAccount: "This demo account is turned off.",
-  unavailable: "Sign-in isn't available right now. Try again in a moment."
-};
 
 const forgotPasswordMessage = "Password reset is a placeholder in this no-cost demo.";
 
@@ -77,14 +68,11 @@ export function EmailSignInForm({ onSignedIn, notice = "" }: EmailSignInFormProp
       return;
     }
 
-    saveAccessToken(result.accessToken);
-
     try {
-      const user = await getSignedInUser(result.accessToken);
+      const user = await finishSignIn(result.accessToken);
       setPassword("");
       onSignedIn(user);
     } catch {
-      clearAccessToken();
       setIsSigningIn(false);
       setMessage(failureMessages.unavailable);
     }

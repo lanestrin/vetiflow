@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { EmailSignInForm } from "../components/auth/EmailSignInForm";
+import { PhoneSignInForm } from "../components/auth/PhoneSignInForm";
 import { experienceHome, type SignInRouteState } from "../components/auth/experienceHome";
 import { useSession } from "../components/auth/useSession";
 import { SignInBrandPanel } from "../components/auth/SignInBrandPanel";
@@ -151,9 +152,7 @@ export function SignInPage() {
                 aria-labelledby="sign-in-tab-phone"
                 hidden={method !== "phone"}
               >
-                <p className={styles.comingSoon}>
-                  Phone sign-in with a demo code is coming next.
-                </p>
+                <PhoneSignInForm onSignedIn={setSignedInUser} />
               </div>
 
               <p className={styles.divider}>Secure access</p>
@@ -178,6 +177,10 @@ export function SignInPage() {
                   <dd><code>team@vetiflow.demo</code> or <code>parent@vetiflow.demo</code></dd>
                   <dt>Password</dt>
                   <dd><code>welcome1</code></dd>
+                  <dt>Phone</dt>
+                  <dd><code>312-555-0101</code> or <code>312-555-0102</code></dd>
+                  <dt>Demo code</dt>
+                  <dd><code>123456</code></dd>
                 </dl>
               </details>
 

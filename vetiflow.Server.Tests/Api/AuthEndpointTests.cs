@@ -3,6 +3,7 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
 using vetiflow.Server.Data;
 using vetiflow.Server.Models;
@@ -179,6 +180,130 @@ public class AuthEndpointTests(VetiFlowApiFactory factory)
 
 		Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
 		Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+	}
+
+	// Phone sign-in (S.19): the demo numbers, every usual way of writing them.
+	[Theory]
+	[InlineData("312-555-0101")]
+	[InlineData("(312) 555-0101")]
+	[InlineData("3125550101")]
+	[InlineData("+1 312 555 0101")]
+	public async Task StartPhone_DemoNumber_IsReady(string phoneNumber)
+	{
+		using var client = factory.CreateClient();
+
+		var response = await StartPhoneAsync(client, phoneNumber);
+
+		Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+	}
+
+	[Fact]
+	public async Task StartPhone_UnknownNumber_ReturnsUnknownPhone()
+	{
+		using var client = factory.CreateClient();
+
+		var response = await StartPhoneAsync(client, "312-555-0199");
+
+		await AssertSignInFailedAsync(response, "unknownPhone");
+	}
+
+	[Theory]
+	[InlineData("555-0101")]
+	[InlineData("+44 20 7946 0958")]
+	[InlineData("call 3125550101")]
+	public async Task StartPhone_InvalidNumber_ReturnsValidationProblem(string phoneNumber)
+	{
+		using var client = factory.CreateClient();
+
+		var response = await StartPhoneAsync(client, phoneNumber);
+
+		Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+		Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+	}
+
+	[Fact]
+	public async Task VerifyPhone_TeamNumberAndDemoCode_ReturnsBearerToken()
+	{
+		using var client = factory.CreateClient();
+
+		var response = await VerifyPhoneAsync(client, "312-555-0101", "123456");
+
+		Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+		var me = await MeWithTokenAsync(client, response);
+		Assert.Equal("Jordan Lee", me.GetProperty("name").GetString());
+		Assert.Equal("teamMember", me.GetProperty("experience").GetString());
+	}
+
+	[Fact]
+	public async Task VerifyPhone_PetParentNumberAndDemoCode_ReturnsBearerToken()
+	{
+		using var client = factory.CreateClient();
+
+		var response = await VerifyPhoneAsync(client, "(312) 555-0102", "123456");
+
+		Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+		var me = await MeWithTokenAsync(client, response);
+		Assert.Equal("petParent", me.GetProperty("experience").GetString());
+	}
+
+	[Fact]
+	public async Task VerifyPhone_WrongCode_ReturnsWrongCode()
+	{
+		using var client = factory.CreateClient();
+
+		var response = await VerifyPhoneAsync(client, "312-555-0101", "654321");
+
+		await AssertSignInFailedAsync(response, "wrongCode");
+	}
+
+	[Fact]
+	public async Task VerifyPhone_InactiveAccount_ReturnsInactiveAccount()
+	{
+		var account = TestData.PetParentAccount(TestData.Owner());
+		account.IsActive = false;
+		await using (var dbContext = factory.CreateDbContext())
+		{
+			dbContext.Accounts.Add(account);
+			await dbContext.SaveChangesAsync(_cancellationToken);
+		}
+		using var client = factory.CreateClient();
+
+		var response = await VerifyPhoneAsync(client, account.PhoneNumber!, "123456");
+
+		await AssertSignInFailedAsync(response, "inactiveAccount");
+	}
+
+	// Where the setting is off (production with real data), the published code
+	// must not work at all.
+	[Fact]
+	public async Task PhoneSignIn_WhenDemoSignInIsOff_ReturnsPhoneSignInOff()
+	{
+		using var host = factory.WithWebHostBuilder(builder => builder.UseSetting("DemoSignIn:Enabled", "false"));
+		using var client = host.CreateClient();
+
+		var start = await StartPhoneAsync(client, "312-555-0101");
+		var verify = await VerifyPhoneAsync(client, "312-555-0101", "123456");
+
+		foreach (var response in new[] { start, verify })
+		{
+			Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+			var problem = await response.Content.ReadFromJsonAsync<JsonElement>(_cancellationToken);
+			Assert.Equal("phoneSignInOff", problem.GetProperty("code").GetString());
+		}
+	}
+
+	private Task<HttpResponseMessage> StartPhoneAsync(HttpClient client, string phoneNumber) =>
+		client.PostAsJsonAsync("/api/auth/phone/start", new { phoneNumber }, _cancellationToken);
+
+	private Task<HttpResponseMessage> VerifyPhoneAsync(HttpClient client, string phoneNumber, string code) =>
+		client.PostAsJsonAsync("/api/auth/phone/verify", new { phoneNumber, code }, _cancellationToken);
+
+	private async Task<JsonElement> MeWithTokenAsync(HttpClient client, HttpResponseMessage tokenResponse)
+	{
+		var token = await tokenResponse.Content.ReadFromJsonAsync<JsonElement>(_cancellationToken);
+		client.DefaultRequestHeaders.Authorization =
+			new AuthenticationHeaderValue("Bearer", token.GetProperty("accessToken").GetString());
+		return await client.GetFromJsonAsync<JsonElement>("/api/auth/me", _cancellationToken);
 	}
 
 	private Task<HttpResponseMessage> SignInAsync(HttpClient client, string email, string password) =>
