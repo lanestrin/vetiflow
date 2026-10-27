@@ -57,19 +57,22 @@ const wideLayout: SceneLayout = {
   ]
 };
 
-// Narrow screens: the hero band, the photo in a round blob as in the reference.
+// Narrow screens: the hero band. The photo blob is stretched wide, like the
+// page's other mint shapes, so it fills most of a phone's width; the frame is
+// close to a phone band's shape.
 const bandLayout: SceneLayout = {
-  viewBox: "0 0 1000 460",
-  image: { x: 134, y: -21, width: 860, height: 483 },
+  viewBox: "0 0 1000 620",
+  image: { x: -81, y: -89, width: 1366, height: 768 },
   blobs: {
-    halo: { centerX: 505, centerY: 232, minRadius: 205, maxRadius: 228, minDuration: 3.5, maxDuration: 6.5, points: 9, seed: 23, fill: halo },
-    photo: { centerX: 500, centerY: 230, minRadius: 196, maxRadius: 214, minDuration: 3, maxDuration: 6, points: 9, seed: 11, fill: "none" }
+    halo: { centerX: 505, centerY: 314, minRadius: 270, maxRadius: 292, minDuration: 3.5, maxDuration: 6.5, points: 9, seed: 23, stretchX: 1.68, fill: halo },
+    photo: { centerX: 500, centerY: 310, minRadius: 258, maxRadius: 276, minDuration: 3, maxDuration: 6, points: 9, seed: 11, stretchX: 1.68, fill: "none" }
   },
+  // Just outside the shape's lower right.
   dots: [
-    { x: 690, y: 385, r: 10 },
-    { x: 668, y: 405, r: 7.5 },
-    { x: 688, y: 418, r: 9.5 },
-    { x: 655, y: 428, r: 8.5 }
+    { x: 880, y: 545, r: 12 },
+    { x: 852, y: 571, r: 9 },
+    { x: 878, y: 590, r: 12.5 },
+    { x: 838, y: 603, r: 11 }
   ]
 };
 
