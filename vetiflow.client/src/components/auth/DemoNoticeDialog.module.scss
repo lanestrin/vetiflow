@@ -1,0 +1,54 @@
+// The demo notice, in the landing design's colours.
+.dialog {
+	width: min(100% - 2rem, 26rem);
+	padding: 0;
+	border: 0;
+	border-radius: 1.25rem;
+	background: var(--color-surface);
+	color: #1a2e40;
+	box-shadow: 0 1.5rem 3.5rem rgb(26 46 64 / 22%);
+
+	&::backdrop {
+		background: rgb(25 60 57 / 55%);
+	}
+}
+
+.inner {
+	padding: 1.75rem 1.5rem 1.5rem;
+}
+
+.title {
+	margin: 0;
+	font-size: 1.25rem;
+	font-weight: 800;
+	letter-spacing: -0.02em;
+}
+
+.text {
+	margin: 0.75rem 0 1.5rem;
+	color: #3d4b59;
+	font-size: 0.9375rem;
+	line-height: 1.55;
+}
+
+.ok {
+	min-width: 6rem;
+	min-height: 2.75rem;
+	padding-inline: 1.5rem;
+	border: 0;
+	border-radius: 999px;
+	background: #1a2e40;
+	color: #fff;
+	font-size: 0.9375rem;
+	font-weight: 700;
+	cursor: pointer;
+
+	&:hover {
+		background: #24405a;
+	}
+
+	&:focus-visible {
+		outline: 3px solid var(--color-focus);
+		outline-offset: 2px;
+	}
+}

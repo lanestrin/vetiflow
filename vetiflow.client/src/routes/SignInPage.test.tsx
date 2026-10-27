@@ -58,6 +58,12 @@ describe("SignInPage", () => {
     expect(screen.getByRole("tab", { name: "Email" })).toHaveAttribute("aria-selected", "true");
   });
 
+  it("ends with the emergency bar", () => {
+    renderSignIn();
+
+    expect(screen.getByRole("complementary", { name: "Emergency veterinary care" })).toBeInTheDocument();
+  });
+
   it("keeps the art and icons out of the screen reader's way", () => {
     renderSignIn();
 
