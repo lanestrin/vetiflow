@@ -13,22 +13,49 @@ public class CasesEndpointTests(VetiFlowApiFactory factory)
 {
 	private readonly CancellationToken _cancellationToken = TestContext.Current.CancellationToken;
 
+	// Untriaged first (risk unknown, next step is triage), then Critical to Low,
+	// then the longest wait. Acuity is stored as text, so this also proves the
+	// query ranks it rather than sorting alphabetically.
 	[Fact]
-	public async Task GetCases_ReturnsNewestFirst()
+	public async Task GetCases_OrdersByAcuityThenLongestWait()
 	{
-		var older = TestData.Case(TestData.Patient());
-		older.ArrivalTime = DateTimeOffset.UtcNow.AddHours(-2);
-		var newer = TestData.Case(TestData.Patient());
-		newer.ArrivalTime = DateTimeOffset.UtcNow.AddHours(-1);
-		await SaveAsync(older, newer);
+		var low = CaseWith(AcuityLevel.Low, minutesAgo: 300);
+		var highNewer = CaseWith(AcuityLevel.High, minutesAgo: 60);
+		var highOlder = CaseWith(AcuityLevel.High, minutesAgo: 180);
+		var urgent = CaseWith(AcuityLevel.Urgent, minutesAgo: 30);
+		var critical = CaseWith(AcuityLevel.Critical, minutesAgo: 20);
+		var untriaged = CaseWith(acuity: null, minutesAgo: 10);
+		await SaveAsync(low, highNewer, highOlder, urgent, critical, untriaged);
+		using var client = factory.CreateClient();
+
+		var cases = await client.GetFromJsonAsync<JsonElement[]>("/api/cases", _cancellationToken);
+
+		// Other tests add cases in parallel, so compare only this test's own.
+		var expected = new[] { untriaged, critical, urgent, highOlder, highNewer, low }
+			.Select(emergencyCase => emergencyCase.Id)
+			.ToList();
+		var actual = cases!
+			.Select(item => item.GetProperty("id").GetGuid())
+			.Where(expected.Contains)
+			.ToList();
+		Assert.Equal(expected, actual);
+	}
+
+	// Discharged patients have left the ER, so they leave the board and its counts.
+	[Fact]
+	public async Task GetCases_LeavesOutDischargedCases()
+	{
+		var active = TestData.Case(TestData.Patient());
+		var discharged = TestData.Case(TestData.Patient());
+		discharged.DischargedAt = DateTimeOffset.UtcNow;
+		await SaveAsync(active, discharged);
 		using var client = factory.CreateClient();
 
 		var cases = await client.GetFromJsonAsync<JsonElement[]>("/api/cases", _cancellationToken);
 
 		var ids = cases!.Select(item => item.GetProperty("id").GetGuid()).ToList();
-		Assert.True(
-			ids.IndexOf(newer.Id) < ids.IndexOf(older.Id),
-			"The newer case should be listed before the older one.");
+		Assert.Contains(active.Id, ids);
+		Assert.DoesNotContain(discharged.Id, ids);
 	}
 
 	// The client depends on this exact shape, including camelCase enum names.
@@ -36,11 +63,18 @@ public class CasesEndpointTests(VetiFlowApiFactory factory)
 	public async Task GetCases_ReturnsCaseInClientContractShape()
 	{
 		var patient = TestData.Patient();
-		var emergencyCase = TestData.Case(patient);
+		var room = TestData.Room();
+		var doctor = TestData.StaffMember(StaffRole.Veterinarian);
+		var technician = TestData.StaffMember(StaffRole.Technician);
+		var blocker = TestData.Task(CaseTaskType.Blocker);
+		var emergencyCase = TestData.Case(patient, room);
 		emergencyCase.Stage = CaseStage.Triage;
 		emergencyCase.Status = CaseStatus.ReadyForNextStep;
 		emergencyCase.WeightKg = 12.5m;
 		emergencyCase.NextAction = "Recheck vitals";
+		emergencyCase.AssignedDoctor = doctor;
+		emergencyCase.AssignedTechnician = technician;
+		emergencyCase.Tasks.Add(blocker);
 		emergencyCase.RecordTriage(new TriageAssessment { Acuity = AcuityLevel.Urgent });
 		await SaveAsync(emergencyCase);
 		using var client = factory.CreateClient();
@@ -59,6 +93,49 @@ public class CasesEndpointTests(VetiFlowApiFactory factory)
 		Assert.Equal("urgent", item.GetProperty("acuity").GetString());
 		Assert.Equal("Recheck vitals", item.GetProperty("nextAction").GetString());
 		Assert.Equal(JsonValueKind.String, item.GetProperty("arrivalTime").ValueKind);
+		Assert.Equal(JsonValueKind.String, item.GetProperty("lastUpdated").ValueKind);
+		AssertReference(item.GetProperty("assignedDoctor"), doctor.Id, $"{doctor.FirstName} {doctor.LastName}");
+		AssertReference(item.GetProperty("assignedTechnician"), technician.Id, $"{technician.FirstName} {technician.LastName}");
+		AssertReference(item.GetProperty("room"), room.Id, room.Name);
+		var listedBlocker = Assert.Single(item.GetProperty("blockers").EnumerateArray());
+		Assert.Equal(blocker.Id, listedBlocker.GetProperty("id").GetGuid());
+		Assert.Equal(blocker.Description, listedBlocker.GetProperty("description").GetString());
+	}
+
+	[Fact]
+	public async Task GetCases_UnassignedCase_HasNullStaffAndRoomAndNoBlockers()
+	{
+		var emergencyCase = TestData.Case(TestData.Patient());
+		await SaveAsync(emergencyCase);
+		using var client = factory.CreateClient();
+
+		var cases = await client.GetFromJsonAsync<JsonElement[]>("/api/cases", _cancellationToken);
+
+		var item = Assert.Single(cases!, item => item.GetProperty("id").GetGuid() == emergencyCase.Id);
+		Assert.Equal(JsonValueKind.Null, item.GetProperty("assignedDoctor").ValueKind);
+		Assert.Equal(JsonValueKind.Null, item.GetProperty("assignedTechnician").ValueKind);
+		Assert.Equal(JsonValueKind.Null, item.GetProperty("room").ValueKind);
+		Assert.Empty(item.GetProperty("blockers").EnumerateArray());
+	}
+
+	// Only what still blocks the case: not resolved blockers, not ordinary tasks.
+	[Fact]
+	public async Task GetCases_ListsOnlyOpenBlockers()
+	{
+		var openBlocker = TestData.Task(CaseTaskType.Blocker);
+		var emergencyCase = TestData.Case(TestData.Patient());
+		emergencyCase.Tasks.Add(openBlocker);
+		emergencyCase.Tasks.Add(TestData.Task(CaseTaskType.Blocker, CaseTaskStatus.Done));
+		emergencyCase.Tasks.Add(TestData.Task(CaseTaskType.Blocker, CaseTaskStatus.Cancelled));
+		emergencyCase.Tasks.Add(TestData.Task(CaseTaskType.Task));
+		await SaveAsync(emergencyCase);
+		using var client = factory.CreateClient();
+
+		var cases = await client.GetFromJsonAsync<JsonElement[]>("/api/cases", _cancellationToken);
+
+		var item = Assert.Single(cases!, item => item.GetProperty("id").GetGuid() == emergencyCase.Id);
+		var listed = Assert.Single(item.GetProperty("blockers").EnumerateArray());
+		Assert.Equal(openBlocker.Id, listed.GetProperty("id").GetGuid());
 	}
 
 	// The board is shown to every staff screen; owner contact details never
@@ -205,6 +282,25 @@ public class CasesEndpointTests(VetiFlowApiFactory factory)
 			$"/api/cases/{caseId}/stage",
 			new StringContent(body, System.Text.Encoding.UTF8, "application/json"),
 			_cancellationToken);
+
+	private static void AssertReference(JsonElement reference, Guid id, string name)
+	{
+		Assert.Equal(id, reference.GetProperty("id").GetGuid());
+		Assert.Equal(name, reference.GetProperty("name").GetString());
+	}
+
+	private static EmergencyCase CaseWith(AcuityLevel? acuity, int minutesAgo)
+	{
+		var emergencyCase = TestData.Case(TestData.Patient());
+		emergencyCase.ArrivalTime = DateTimeOffset.UtcNow.AddMinutes(-minutesAgo);
+
+		if (acuity is not null)
+		{
+			emergencyCase.RecordTriage(new TriageAssessment { Acuity = acuity.Value });
+		}
+
+		return emergencyCase;
+	}
 
 	private async Task SaveAsync(params EmergencyCase[] cases)
 	{

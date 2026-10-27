@@ -27,4 +27,15 @@ public class EmergencyCaseListItemDto
 	public DateTimeOffset ArrivalTime { get; set; }
 
 	public string? NextAction { get; set; }
+
+	public CaseReferenceDto? AssignedDoctor { get; set; }
+
+	public CaseReferenceDto? AssignedTechnician { get; set; }
+
+	public CaseReferenceDto? Room { get; set; }
+
+	// Open blockers only, oldest first; empty when nothing blocks the case.
+	public required List<CaseBlockerDto> Blockers { get; set; }
+
+	public DateTimeOffset LastUpdated { get; set; }
 }

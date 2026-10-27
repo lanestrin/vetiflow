@@ -34,4 +34,21 @@ export interface EmergencyCaseListItem {
   acuity: AcuityLevel | null;
   arrivalTime: string;
   nextAction: string | null;
+  assignedDoctor: CaseReference | null;
+  assignedTechnician: CaseReference | null;
+  room: CaseReference | null;
+  // Open blockers only, oldest first.
+  blockers: CaseBlocker[];
+  lastUpdated: string;
+}
+
+// A staff member or room on a case.
+export interface CaseReference {
+  id: string;
+  name: string;
+}
+
+export interface CaseBlocker {
+  id: string;
+  description: string;
 }
