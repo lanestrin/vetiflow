@@ -1,0 +1,65 @@
+.list {
+	display: grid;
+	gap: var(--space-3);
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.pet {
+	display: grid;
+	grid-template-columns: 1fr auto;
+	gap: var(--space-1) var(--space-3);
+	align-items: center;
+	padding: var(--space-4);
+	border: 1px solid #c9ddd5;
+	border-radius: var(--radius-lg);
+	background: var(--color-surface);
+}
+
+.name {
+	color: var(--color-care-navy);
+	font-size: 1.125rem;
+	font-weight: 700;
+}
+
+.species {
+	grid-column: 1;
+	color: var(--color-text-secondary);
+	font-size: 0.9375rem;
+}
+
+.inCare,
+.notInCare {
+	grid-column: 2;
+	grid-row: 1 / span 2;
+	padding: var(--space-1) var(--space-3);
+	border-radius: 999px;
+	font-size: 0.875rem;
+	font-weight: 700;
+	white-space: nowrap;
+}
+
+.inCare {
+	background: var(--color-care-mint);
+	color: var(--color-care-teal);
+}
+
+.notInCare {
+	border: 1px solid #9fb3b0;
+	color: var(--color-text-secondary);
+}
+
+// Narrow screens: the status moves under the name instead of squeezing it.
+@media (max-width: 22rem) {
+	.pet {
+		grid-template-columns: 1fr;
+	}
+
+	.inCare,
+	.notInCare {
+		grid-column: 1;
+		grid-row: auto;
+		justify-self: start;
+	}
+}

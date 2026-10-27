@@ -8,4 +8,7 @@ public static class AuthNames
 
 	// Hospital team members only (the board, from S.18).
 	public const string TeamMemberPolicy = "TeamMember";
+
+	// Pet parents only (their own pets, from S.18c).
+	public const string PetParentPolicy = "PetParent";
 }
