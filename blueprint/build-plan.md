@@ -88,8 +88,8 @@ not production authentication: details, acceptance criteria and limits are in
 project plan section 10.
 
 - [x] **S.16** `feature/demo-accounts`: `Account` entity and migration (RLS and `AppRoleAccess.Grant`) linking each sign-in to one `StaffMember` or one `Owner`, password hashing with the framework's `PasswordHasher`, and the two seeded demo accounts, with database tests. Done (history/features/S.16-demo-accounts.md).
-- [ ] **S.17** `feature/demo-email-sign-in`: `POST /api/auth/email` (email and password to a bearer token), `GET /api/auth/me` (name and experience), and the board and stage endpoints require a hospital team member (`401` signed out, `403` for a pet parent).
-- [ ] **S.18** `feature/sign-in-screen`: `/sign-in` with the Email option to the mockup, the success panel, routing to `/er` or `/pet-parent`, a minimal pet parent home, sign out, route guards and the session-ended state.
+- [x] **S.17** `feature/demo-email-sign-in`: `POST /api/auth/email` (email and password to a bearer token), `GET /api/auth/me` (name and experience), and the `TeamMember` policy, ready for S.18. Done (history/features/S.17-demo-email-sign-in.md).
+- [ ] **S.18** `feature/sign-in-screen`: `/sign-in` with the Email option to the mockup, the success panel, routing to `/er` or `/pet-parent`, a minimal pet parent home, sign out, route guards and the session-ended state; the board and stage endpoints require a hospital team member (`401` signed out, `403` for a pet parent), moved here from S.17 so the deployed board never breaks between the two.
 - [ ] **S.19** `feature/demo-phone-sign-in`: `POST /api/auth/phone/start` and `POST /api/auth/phone/verify` with the fixed code `123456` only while `DemoSignIn:Enabled` is on, no text sent, and the Phone option on the screen.
 
 ## M2: Manual staff journey on demo data
