@@ -163,8 +163,30 @@ $muted: #556372;
 	}
 }
 
+// Phones: compact, so the sign-in card comes up early. The lead is the one
+// paragraph that only repeats the headline.
 @media (max-width: 40.62rem) {
-	.kicker {
+	.kicker,
+	.lead {
 		display: none;
+	}
+
+	.headline {
+		margin-block-start: 0.75rem;
+		font-size: clamp(2rem, 9vw, 2.5rem);
+	}
+}
+
+// Short narrow screens (a phone on its side): the headline alone.
+@media (max-width: 84.99rem) and (max-height: 30rem) {
+	.kicker,
+	.eyebrow,
+	.lead {
+		display: none;
+	}
+
+	.headline {
+		margin-block-start: 0;
+		font-size: 1.85rem;
 	}
 }

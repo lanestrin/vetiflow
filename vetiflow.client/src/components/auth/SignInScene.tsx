@@ -1,4 +1,4 @@
-import { useMemo, useRef } from "react";
+import { useMemo, useRef, useState } from "react";
 import photo1xUrl from "../../assets/sign-in/photo-1x.webp";
 import photo2xUrl from "../../assets/sign-in/photo-2x.webp";
 import { blobPath, createBlobPoints, type BlobSettings } from "./livingBlob";
@@ -6,10 +6,11 @@ import { useAnimationLoop } from "./useAnimationLoop";
 import { useMediaQuery } from "./useMediaQuery";
 import styles from "./SignInScene.module.scss";
 
-// The sign-in page's art (build plan S.20c): the dog-and-cat photo in a slowly
-// breathing blob with a mint halo, and the other mint shapes and dots moving
-// gently, after codepen.io/supah/pen/PoZrzQx. Decorative only. With reduced
-// motion it is drawn once and stands still.
+// The sign-in page's art (build plan S.20c): on wide screens the dog-and-cat
+// photo in a slowly breathing blob with a mint halo, and the other mint
+// shapes and dots moving gently, after codepen.io/supah/pen/PoZrzQx. On
+// narrow screens, only pale mint shapes behind the story text. Decorative
+// only. With reduced motion it is drawn once and stands still.
 
 type BlobName = "halo" | "photo" | "top" | "bottomRight" | "bottomLeft";
 
@@ -22,7 +23,8 @@ interface Dot {
 interface SceneLayout {
   viewBox: string;
   // Where the photo sits, in scene units; the animals are left of its centre.
-  image: { x: number; y: number; width: number; height: number };
+  // Only the wide layout has one.
+  image?: { x: number; y: number; width: number; height: number };
   blobs: Partial<Record<BlobName, BlobSettings & { fill: string }>>;
   dots: Dot[];
 }
@@ -57,23 +59,19 @@ const wideLayout: SceneLayout = {
   ]
 };
 
-// Narrow screens: the hero band. The photo blob is stretched wide, like the
-// page's other mint shapes, so it fills most of a phone's width; the frame is
-// close to a phone band's shape.
-const bandLayout: SceneLayout = {
-  viewBox: "0 0 1000 620",
-  image: { x: -81, y: -89, width: 1366, height: 768 },
+// Narrow screens: a layer behind the brand and story. Pale shapes only, no
+// photo and no dots, so the text on them keeps its contrast wherever they
+// move; they breathe more slowly than the wide art. Drawn to cover (slice),
+// so the frame's shape doesn't matter.
+const heroLayout: SceneLayout = {
+  viewBox: "0 0 1000 800",
   blobs: {
-    halo: { centerX: 505, centerY: 314, minRadius: 270, maxRadius: 292, minDuration: 3.5, maxDuration: 6.5, points: 9, seed: 23, stretchX: 1.68, fill: halo },
-    photo: { centerX: 500, centerY: 310, minRadius: 258, maxRadius: 276, minDuration: 3, maxDuration: 6, points: 9, seed: 11, stretchX: 1.68, fill: "none" }
+    halo: { centerX: 900, centerY: 120, minRadius: 300, maxRadius: 340, minDuration: 6, maxDuration: 10, points: 9, seed: 23, stretchX: 1.2, fill: halo },
+    top: { centerX: 80, centerY: 40, minRadius: 150, maxRadius: 180, minDuration: 6, maxDuration: 9, points: 8, seed: 5, fill: mintDeep },
+    bottomLeft: { centerX: 120, centerY: 820, minRadius: 280, maxRadius: 320, minDuration: 7, maxDuration: 10, points: 9, seed: 9, stretchX: 1.4, fill: mint },
+    bottomRight: { centerX: 960, centerY: 700, minRadius: 140, maxRadius: 170, minDuration: 6, maxDuration: 9, points: 8, seed: 13, fill: mintDeep }
   },
-  // Just outside the shape's lower right.
-  dots: [
-    { x: 880, y: 545, r: 12 },
-    { x: 852, y: 571, r: 9 },
-    { x: 878, y: 590, r: 12.5 },
-    { x: 838, y: 603, r: 11 }
-  ]
+  dots: []
 };
 
 const photoClipId = "sign-in-photo-clip";
@@ -92,7 +90,9 @@ export function SignInScene({ className }: { className?: string }) {
   // high-density screens download it.
   const isHighDensity = useMediaQuery("(min-resolution: 1.5dppx)");
   const photoUrl = isHighDensity ? photo2xUrl : photo1xUrl;
-  const layout = isNarrow ? bandLayout : wideLayout;
+  const layout = isNarrow ? heroLayout : wideLayout;
+  // Watched by the loop, which pauses while the art is off screen.
+  const [svg, setSvg] = useState<SVGSVGElement | null>(null);
   const pathRefs = useRef<Partial<Record<BlobName, SVGPathElement | null>>>({});
   const dotRefs = useRef<(SVGCircleElement | null)[]>([]);
 
@@ -114,7 +114,7 @@ export function SignInScene({ className }: { className?: string }) {
       const offset = dotOffset(index, seconds);
       dot?.setAttribute("transform", `translate(${offset.x.toFixed(1)} ${offset.y.toFixed(1)})`);
     });
-  }, !isStill);
+  }, !isStill, svg);
 
   const startPath = (name: BlobName) => {
     const blob = blobs.find((entry) => entry.name === name);
@@ -123,25 +123,30 @@ export function SignInScene({ className }: { className?: string }) {
 
   return (
     <svg
+      ref={setSvg}
       className={`${styles.scene} ${className ?? ""}`}
       viewBox={layout.viewBox}
-      preserveAspectRatio={isNarrow ? "xMidYMid meet" : "xMidYMid slice"}
+      // The narrow layer is often wider than tall, so it keeps the scene's
+      // top, where its shapes are.
+      preserveAspectRatio={isNarrow ? "xMidYMin slice" : "xMidYMid slice"}
       aria-hidden="true"
       focusable="false"
     >
-      <defs>
-        <clipPath id={photoClipId}>
-          <path
-            ref={(element) => {
-              pathRefs.current.photo = element;
-            }}
-            d={startPath("photo")}
-          />
-        </clipPath>
-      </defs>
+      {layout.image && (
+        <defs>
+          <clipPath id={photoClipId}>
+            <path
+              ref={(element) => {
+                pathRefs.current.photo = element;
+              }}
+              d={startPath("photo")}
+            />
+          </clipPath>
+        </defs>
+      )}
 
       {blobs.map(({ name, settings }) =>
-        name === "photo" ? (
+        name === "photo" && layout.image ? (
           <image
             key={name}
             href={photoUrl}

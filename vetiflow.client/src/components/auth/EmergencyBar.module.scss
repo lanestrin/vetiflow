@@ -9,7 +9,8 @@ $crimson: #d9383a;
 	align-items: center;
 	justify-content: space-between;
 	gap: 1.25rem 2rem;
-	padding: 1.25rem var(--gutter, 2rem);
+	// The safe-area inset is 0 unless the page ever uses viewport-fit=cover.
+	padding: 1.25rem var(--gutter, 2rem) calc(1.25rem + env(safe-area-inset-bottom));
 	background: $green;
 	color: #fff;
 }
@@ -137,5 +138,63 @@ $crimson: #d9383a;
 	.call,
 	.directions {
 		flex: 1 1 11rem;
+	}
+}
+
+// Wide but short windows: the sticky bar takes less of every screen.
+@media (min-width: 85rem) and (max-height: 45rem) {
+	.bar {
+		padding-block: 0.625rem calc(0.625rem + env(safe-area-inset-bottom));
+	}
+
+	.badge {
+		flex-basis: 2.5rem;
+		height: 2.5rem;
+	}
+
+	.heading {
+		font-size: 1.125rem;
+	}
+
+	.text {
+		font-size: 0.875rem;
+	}
+
+	.call,
+	.directions {
+		min-height: 2.75rem;
+	}
+}
+
+// Phones: compact, both actions on one row while they fit. The line about
+// calling the hospital stays; it is the safety message.
+@media (max-width: 40.62rem) {
+	.bar {
+		gap: 0.75rem;
+		padding-block: 1rem calc(1rem + env(safe-area-inset-bottom));
+	}
+
+	.badge {
+		display: none;
+	}
+
+	.heading {
+		font-size: 1.05rem;
+	}
+
+	.text {
+		font-size: 0.8125rem;
+	}
+
+	.actions {
+		gap: 0.5rem;
+	}
+
+	.call,
+	.directions {
+		flex: 1 1 8.5rem;
+		min-height: 2.75rem;
+		padding-inline: 0.75rem;
+		font-size: 0.875rem;
 	}
 }
