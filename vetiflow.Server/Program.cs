@@ -1,9 +1,11 @@
+using Microsoft.AspNetCore.Authentication.BearerToken;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using vetiflow.Server.Data;
 using vetiflow.Server.Hosting;
 using vetiflow.Server.Hubs;
 using vetiflow.Server.Json;
+using vetiflow.Server.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -36,6 +38,20 @@ builder.WebHost.ConfigureKestrel(options => options.Limits.MaxRequestBodySize = 
 // Errors that never reach a controller (an unknown route, an unhandled
 // exception, a rejected body) get the same ProblemDetails shape as model errors.
 builder.Services.AddProblemDetails();
+
+// The sign-in demo's session (project plan section 10): the framework's own
+// bearer token, sent in the Authorization header. The client (Vercel) and API
+// (Render) are different sites, so a cookie would be third-party.
+builder.Services
+				.AddAuthentication(BearerTokenDefaults.AuthenticationScheme)
+				.AddBearerToken();
+
+builder.Services.AddAuthorization(options =>
+{
+	options.AddPolicy(
+		AuthNames.TeamMemberPolicy,
+		policy => policy.RequireClaim(AuthNames.KindClaim, nameof(AccountKind.TeamMember)));
+});
 
 builder.Services.AddSignalR();
 
@@ -108,6 +124,8 @@ else
 app.UseHttpsRedirection();
 
 app.UseCors("VetiFlowClient");
+
+app.UseAuthentication();
 
 app.UseAuthorization();
 
