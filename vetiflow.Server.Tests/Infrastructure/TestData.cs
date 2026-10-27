@@ -27,6 +27,22 @@ public static class TestData
 		Type = RoomType.Exam
 	};
 
+	public static StaffMember StaffMember(StaffRole role) => new()
+	{
+		FirstName = "Staff",
+		LastName = Unique(),
+		Role = role
+	};
+
+	public static CaseTask Task(
+		CaseTaskType type = CaseTaskType.Task,
+		CaseTaskStatus status = CaseTaskStatus.Open) => new()
+	{
+		Type = type,
+		Status = status,
+		Description = $"{type} {Unique()}"
+	};
+
 	public static EmergencyCase Case(Patient patient, Room? room = null) => new()
 	{
 		Patient = patient,

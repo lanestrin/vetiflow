@@ -86,7 +86,7 @@ no AI. Until M3 the API accepts unauthenticated writes, so the deployed app
 holds demo data only.
 
 - [x] **2.9** `chore/board-polish`: heading levels, page title, favicon, and keep every page out of search engines (`noindex` meta, disallow-all `robots.txt`) [25, 26]. Done (history/features/2.9-board-polish.md).
-- [ ] **2.3** `feature/board-query`: active cases only, so discharged patients leave the board and its counts (moved here from 2.9), sort by acuity then wait time, add doctor, technician, room, blockers and `LastUpdated` to the DTO [14–16].
+- [x] **2.3** `feature/board-query`: active cases only, so discharged patients leave the board and its counts (moved here from 2.9), sort by acuity then wait time, add doctor, technician, room, blockers and `LastUpdated` to the DTO [14–16]. Done (history/features/2.3-board-query.md).
 - [ ] **4.6** `feature/patient-owner-records`: create, edit and search patients and owners; a patient may have no owner (a stray, or the owner is not known yet).
 - [ ] **4.1** `feature/case-intake`: create a new case. Split into:
   - [ ] **4.1a** `feature/case-intake-api`: create a case for a new or existing patient, with validation; a second active case for the same patient returns `409` naming the active case; writes `Arrived`; intake fields can be corrected.

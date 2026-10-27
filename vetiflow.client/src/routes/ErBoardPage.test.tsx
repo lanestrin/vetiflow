@@ -63,6 +63,22 @@ describe("ErBoardPage", () => {
     expect(within(await findLane("Incoming")).getByText("No patients")).toBeInTheDocument();
   });
 
+  // The API sorts by acuity and wait; the board must not reorder within a lane.
+  it("lists a lane's cards in the order the API sent them", async () => {
+    serveCases([
+      buildCase({ patientName: "Rex", stage: "treatment", acuity: null }),
+      buildCase({ patientName: "Bella", stage: "treatment", acuity: "critical" }),
+      buildCase({ patientName: "Coco", stage: "treatment", acuity: "low" })
+    ]);
+
+    render(<ErBoardPage />);
+
+    const names = within(await findLane("Treatment"))
+      .getAllByRole("heading", { level: 3 })
+      .map((heading) => heading.textContent);
+    expect(names).toEqual(["Rex", "Bella", "Coco"]);
+  });
+
   it("shows all six workflow lanes in order", async () => {
     render(<ErBoardPage />);
 

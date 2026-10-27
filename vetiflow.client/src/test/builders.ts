@@ -21,6 +21,11 @@ export function buildCase(
     acuity: "high",
     arrivalTime: new Date().toISOString(),
     nextAction: null,
+    assignedDoctor: null,
+    assignedTechnician: null,
+    room: null,
+    blockers: [],
+    lastUpdated: new Date().toISOString(),
     ...overrides
   };
 }
