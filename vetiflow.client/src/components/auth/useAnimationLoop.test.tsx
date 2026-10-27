@@ -1,10 +1,18 @@
-import { render } from "@testing-library/react";
+import { act, render } from "@testing-library/react";
+import { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useAnimationLoop } from "./useAnimationLoop";
 
 function Loop({ onFrame, isRunning }: { onFrame: (seconds: number) => void; isRunning: boolean }) {
   useAnimationLoop(onFrame, isRunning);
   return null;
+}
+
+// Watches its own element, as SignInScene does.
+function WatchedLoop({ onFrame }: { onFrame: (seconds: number) => void }) {
+  const [element, setElement] = useState<HTMLDivElement | null>(null);
+  useAnimationLoop(onFrame, true, element);
+  return <div ref={setElement} />;
 }
 
 describe("useAnimationLoop", () => {
@@ -46,5 +54,29 @@ describe("useAnimationLoop", () => {
     unmount();
 
     expect(window.cancelAnimationFrame).toHaveBeenCalledWith(1);
+  });
+
+  it("pauses while the element is off screen", () => {
+    let report: (isOnScreen: boolean) => void = () => {};
+    vi.stubGlobal(
+      "IntersectionObserver",
+      class {
+        constructor(callback: IntersectionObserverCallback) {
+          report = (isOnScreen) =>
+            callback([{ isIntersecting: isOnScreen } as IntersectionObserverEntry], this as unknown as IntersectionObserver);
+        }
+        observe() {}
+        disconnect() {}
+      }
+    );
+    render(<WatchedLoop onFrame={vi.fn()} />);
+    const framesBefore = vi.mocked(window.requestAnimationFrame).mock.calls.length;
+
+    act(() => report(false));
+    expect(window.cancelAnimationFrame).toHaveBeenCalled();
+    expect(window.requestAnimationFrame).toHaveBeenCalledTimes(framesBefore);
+
+    act(() => report(true));
+    expect(window.requestAnimationFrame).toHaveBeenCalledTimes(framesBefore + 1);
   });
 });

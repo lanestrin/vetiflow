@@ -51,6 +51,8 @@ $muted: #556372;
 	background-color: $cream;
 	transform: translateX(-30%);
 	clip-path: inset(0 0 0 -100vw);
+	// Decorative: never in the way of a click.
+	pointer-events: none;
 
 	// The fade reaches as far left as the shapes can, so it has no seam.
 	&::after {
@@ -109,6 +111,11 @@ $muted: #556372;
 // emergency bar (WCAG 2.2 "Focus not obscured").
 .cardArea :is(a, button, input, summary) {
 	scroll-margin-block-end: 7.5rem;
+
+	// The bar is compact on short windows (EmergencyBar.module.scss).
+	@media (max-height: 45rem) {
+		scroll-margin-block-end: 5.5rem;
+	}
 }
 
 .cardArea {
@@ -390,7 +397,8 @@ $motion: var(--motion-base) var(--ease-out);
 	text-align: center;
 }
 
-// Tablet and phone: one column in reading order, the art as a hero band.
+// Tablet and phone: one column in reading order, with the brand and story on
+// the moving shapes (the scene's blob-only layout).
 @media (max-width: 84.99rem) {
 	.shell {
 		--gutter: clamp(1rem, 5vw, 2.5rem);
@@ -399,7 +407,6 @@ $motion: var(--motion-base) var(--ease-out);
 		grid-template-rows: none;
 		grid-template-areas:
 			"brand"
-			"art"
 			"story"
 			"card"
 			"benefits"
@@ -417,26 +424,37 @@ $motion: var(--motion-base) var(--ease-out);
 		margin-inline: calc(50% - 50vw);
 	}
 
-	// The scene switches to its round photo blob, centred in the band.
+	// Behind the brand and story rows: from the page's top (out past the
+	// shell's padding) to the story's end, and out of the 36rem column to the
+	// screen edges. The scene draws to cover it.
 	.art {
 		position: relative;
 		inset: auto;
 		left: auto;
-		grid-area: art;
-		height: clamp(14rem, 60vw, 26rem);
-		// Full bleed: out of the 36rem column to the screen edges.
+		grid-row: brand-start / story-end;
+		grid-column: 1;
+		height: auto;
+		margin-block-start: -1.25rem;
 		margin-inline: calc(50% - 50vw);
 		aspect-ratio: auto;
 		transform: none;
+		clip-path: inset(0);
+		// The text sets the rows' height; the scene only fills it.
+		contain: size;
+
+		// The shapes fade out before the layer's foot (a mask, not an overlay,
+		// so no edge shows).
+		mask-image: linear-gradient(#000 60%, transparent 95%);
 
 		&::after {
 			content: none;
 		}
 	}
 
+	// Room under the story, so the shapes run on past the text.
 	.storyArea {
 		align-self: auto;
-		margin-block-start: -1rem;
+		padding-block-end: 1.5rem;
 	}
 
 	.tagline {
