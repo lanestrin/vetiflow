@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import { http, HttpResponse } from "msw";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, describe, expect, it } from "vitest";
+import { failureMessages } from "../components/auth/signInMessages";
 import { readAccessToken } from "../services/session";
 import { apiUrl, server } from "../test/server";
 import type { SignedInUser } from "../types/Auth";
@@ -41,6 +42,15 @@ function serveFailure(code: string) {
       HttpResponse.json({ status: 401, title: "Sign-in failed", code }, { status: 401 })
     )
   );
+}
+
+// A response the test lets go of when it chooses, to catch a request in flight.
+function holdResponse() {
+  let release = () => {};
+  const released = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  return { released, release: () => release() };
 }
 
 function fillAndSubmit(email: string, password: string) {
@@ -85,6 +95,57 @@ describe("SignInPage", () => {
   });
 
   it.each([
+    ["", "", "Email address"],
+    ["team@vetiflow.demo", "", "Password"]
+  ])("focuses the first invalid field after a failed submit (%j / %j)", (email, password, field) => {
+    renderSignIn();
+
+    fillAndSubmit(email, password);
+
+    expect(screen.getByLabelText(field)).toHaveFocus();
+  });
+
+  it("shows no error before the first submit", () => {
+    renderSignIn();
+
+    fireEvent.change(screen.getByLabelText("Email address"), { target: { value: "not-an-email" } });
+
+    expect(screen.getByLabelText("Email address")).not.toHaveAttribute("aria-invalid");
+    expect(screen.queryByText(/Enter an email address/)).not.toBeInTheDocument();
+  });
+
+  it("clears a field's error as it is corrected", () => {
+    renderSignIn();
+    fillAndSubmit("", "");
+    const email = screen.getByLabelText("Email address");
+
+    fireEvent.change(email, { target: { value: "team@" } });
+    expect(email).toHaveAccessibleDescription("Enter an email address like you@example.com.");
+
+    fireEvent.change(email, { target: { value: "team@vetiflow.demo" } });
+    expect(email).not.toHaveAttribute("aria-invalid");
+    expect(screen.getByLabelText("Password")).toHaveAccessibleDescription("Enter your password.");
+
+    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "w" } });
+    expect(screen.getByLabelText("Password")).not.toHaveAttribute("aria-invalid");
+  });
+
+  it("keeps typed values when switching methods", () => {
+    renderSignIn();
+    fireEvent.change(screen.getByLabelText("Email address"), { target: { value: "team@vetiflow.demo" } });
+    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "welcome1" } });
+
+    fireEvent.click(screen.getByRole("tab", { name: "Phone" }));
+    fireEvent.change(screen.getByLabelText("Mobile phone number"), { target: { value: "312-555-0101" } });
+    fireEvent.click(screen.getByRole("tab", { name: "Email" }));
+
+    expect(screen.getByLabelText("Email address")).toHaveValue("team@vetiflow.demo");
+    expect(screen.getByLabelText("Password")).toHaveValue("welcome1");
+    fireEvent.click(screen.getByRole("tab", { name: "Phone" }));
+    expect(screen.getByLabelText("Mobile phone number")).toHaveValue("312-555-0101");
+  });
+
+  it.each([
     ["unknownAccount", "We couldn't match that demo account. Try one of the sample emails below."],
     ["wrongPassword", "Use welcome1 for this demo account."],
     ["inactiveAccount", "This demo account is turned off."]
@@ -107,6 +168,58 @@ describe("SignInPage", () => {
     expect(await screen.findByRole("status")).toHaveTextContent(
       "Sign-in isn't available right now. Try again in a moment."
     );
+  });
+
+  it("recovers when the sign-in response is malformed", async () => {
+    server.use(http.post(apiUrl("/api/auth/email"), () => HttpResponse.text("not json")));
+    renderSignIn();
+
+    fillAndSubmit("team@vetiflow.demo", "welcome1");
+
+    expect(await screen.findByText(failureMessages.unavailable)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /sign in/i })).toBeEnabled();
+    expect(readAccessToken()).toBeNull();
+  });
+
+  it("sends one request when sign-in is pressed twice", async () => {
+    let requests = 0;
+    server.use(
+      http.post(apiUrl("/api/auth/email"), () => {
+        requests += 1;
+        return HttpResponse.json({ accessToken: "token-1" });
+      }),
+      http.get(apiUrl("/api/auth/me"), () => HttpResponse.json(teamMember))
+    );
+    renderSignIn();
+
+    fillAndSubmit("team@vetiflow.demo", "welcome1");
+    fireEvent.submit(screen.getByLabelText("Password"));
+
+    await screen.findByRole("heading", { level: 1, name: "You're all set" });
+    expect(requests).toBe(1);
+  });
+
+  it("drops an email sign-in that finishes after switching to Phone", async () => {
+    const answer = holdResponse();
+    server.use(
+      http.post(apiUrl("/api/auth/email"), async () => {
+        await answer.released;
+        return HttpResponse.json({ accessToken: "token-1" });
+      }),
+      http.get(apiUrl("/api/auth/me"), () => HttpResponse.json(teamMember))
+    );
+    renderSignIn();
+    fillAndSubmit("team@vetiflow.demo", "welcome1");
+
+    fireEvent.click(screen.getByRole("tab", { name: "Phone" }));
+    answer.release();
+    fireEvent.click(screen.getByRole("tab", { name: "Email" }));
+
+    await waitFor(() => expect(screen.getByRole("button", { name: /sign in/i })).toBeEnabled());
+    expect(screen.getByLabelText("Email address")).toHaveValue("team@vetiflow.demo");
+    expect(screen.getByRole("status")).toBeEmptyDOMElement();
+    expect(screen.queryByRole("heading", { name: "You're all set" })).not.toBeInTheDocument();
+    expect(readAccessToken()).toBeNull();
   });
 
   it("disables the button while signing in", async () => {
@@ -198,6 +311,12 @@ describe("SignInPage", () => {
     fireEvent.click(screen.getByRole("tab", { name: "Phone" }));
     expect(screen.getByRole("tabpanel", { name: "Phone" })).toBeVisible();
     expect(screen.queryByRole("tabpanel", { name: "Email" })).not.toBeInTheDocument();
+    // It keeps its space on screen, so inert keeps it out of reach.
+    const inertPanels = screen
+      .getAllByRole("tabpanel", { hidden: true })
+      .filter((panel) => panel.hasAttribute("inert"));
+    expect(inertPanels).toHaveLength(1);
+    expect(inertPanels[0]).toHaveAttribute("aria-labelledby", "sign-in-tab-email");
 
     fireEvent.click(screen.getByRole("tab", { name: "Email" }));
     expect(screen.getByRole("tabpanel", { name: "Email" })).toBeVisible();
@@ -252,7 +371,9 @@ describe("SignInPage", () => {
 
       const input = screen.getByLabelText("Mobile phone number");
       expect(input).toHaveAttribute("aria-invalid", "true");
-      expect(input).toHaveAccessibleDescription("Enter a 10-digit mobile number like 312-555-0101.");
+      expect(input).toHaveAccessibleDescription(
+        "Enter a 10-digit mobile number like 312-555-0101. Demo mode: no text is sent. The next step shows the code to use."
+      );
     });
 
     it("says no text was sent and moves to the code", async () => {
@@ -332,6 +453,59 @@ describe("SignInPage", () => {
 
       expect(screen.getByLabelText("Mobile phone number")).toHaveValue("312-555-0101");
       expect(screen.queryByLabelText("Verification code")).not.toBeInTheDocument();
+    });
+
+    it("returns focus to the phone field after Use a different number", async () => {
+      servePhoneStart();
+      renderSignIn();
+      openPhoneTab();
+      sendCode("312-555-0101");
+      await screen.findByLabelText("Verification code");
+
+      fireEvent.click(screen.getByRole("button", { name: "Use a different number" }));
+
+      expect(screen.getByLabelText("Mobile phone number")).toHaveFocus();
+    });
+
+    it("focuses the field that needs fixing", async () => {
+      servePhoneStart();
+      renderSignIn();
+      openPhoneTab();
+
+      sendCode("555");
+      expect(screen.getByLabelText("Mobile phone number")).toHaveFocus();
+
+      sendCode("312-555-0101");
+      await screen.findByLabelText("Verification code");
+      screen.getByRole("button", { name: "Verify and sign in" }).focus();
+      enterCode("12");
+      expect(screen.getByLabelText("Verification code")).toHaveFocus();
+    });
+
+    it("drops a code check that finishes after switching to Email", async () => {
+      const answer = holdResponse();
+      servePhoneStart();
+      server.use(
+        http.post(apiUrl("/api/auth/phone/verify"), async () => {
+          await answer.released;
+          return HttpResponse.json({ accessToken: "phone-token" });
+        }),
+        http.get(apiUrl("/api/auth/me"), () => HttpResponse.json(teamMember))
+      );
+      renderSignIn();
+      openPhoneTab();
+      sendCode("312-555-0101");
+      await screen.findByLabelText("Verification code");
+      enterCode("123456");
+
+      fireEvent.click(screen.getByRole("tab", { name: "Email" }));
+      answer.release();
+      openPhoneTab();
+
+      await waitFor(() => expect(screen.getByRole("button", { name: "Verify and sign in" })).toBeEnabled());
+      expect(screen.getByLabelText("Verification code")).toHaveValue("123456");
+      expect(screen.queryByRole("heading", { name: "You're all set" })).not.toBeInTheDocument();
+      expect(readAccessToken()).toBeNull();
     });
 
     it.each([

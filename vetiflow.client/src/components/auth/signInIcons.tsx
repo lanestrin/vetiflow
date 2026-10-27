@@ -112,3 +112,24 @@ export function PeopleIcon() {
     </LineIcon>
   );
 }
+
+// Beside a field error or a failed sign-in.
+export function AlertIcon() {
+  return (
+    <LineIcon>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7.5v5.5" />
+      <path d="M12 16.5h.01" />
+    </LineIcon>
+  );
+}
+
+// Beside good news, such as "the demo code is ready".
+export function CheckIcon() {
+  return (
+    <LineIcon>
+      <circle cx="12" cy="12" r="9" />
+      <path d="m8 12.5 2.7 2.7L16 9.8" />
+    </LineIcon>
+  );
+}

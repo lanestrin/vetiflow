@@ -67,6 +67,18 @@ describe("signInByEmail", () => {
     await expect(signInByEmail("a@b.demo", "x")).resolves.toEqual({ ok: false, failure: "unavailable" });
   });
 
+  it("says unavailable when the token response is not JSON", async () => {
+    server.use(http.post(apiUrl("/api/auth/email"), () => HttpResponse.text("not json")));
+
+    await expect(signInByEmail("a@b.demo", "x")).resolves.toEqual({ ok: false, failure: "unavailable" });
+  });
+
+  it("says unavailable when the token response has no access token", async () => {
+    server.use(http.post(apiUrl("/api/auth/email"), () => HttpResponse.json({ tokenType: "Bearer" })));
+
+    await expect(signInByEmail("a@b.demo", "x")).resolves.toEqual({ ok: false, failure: "unavailable" });
+  });
+
   it("treats a 401 with an unknown code as unavailable", async () => {
     failWith(401, { status: 401, code: "somethingNew" });
 
@@ -158,6 +170,12 @@ describe("getSignedInUser", () => {
 
     expect(authorization).toBe("Bearer token-1");
     expect(user).toEqual({ name: "Jordan Lee", experience: "teamMember" });
+  });
+
+  it("rejects a signed-in user response without the expected fields", async () => {
+    server.use(http.get(apiUrl("/api/auth/me"), () => HttpResponse.json({ name: "Jordan Lee" })));
+
+    await expect(getSignedInUser("token-1")).rejects.toThrow();
   });
 
   it("throws when the token is not accepted", async () => {

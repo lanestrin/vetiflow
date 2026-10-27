@@ -14,9 +14,17 @@
 	font-size: 0.9375rem;
 	font-weight: 700;
 	cursor: pointer;
+	// The outline is not listed, so focus shows at once.
+	transition: background-color var(--motion-fast) var(--ease-out), transform var(--motion-fast) var(--ease-out);
 
 	&:hover {
 		background: #24405a;
+	}
+
+	// Sinks a pixel while pressed.
+	&:active:not(:disabled) {
+		background: #12212f;
+		transform: translateY(1px);
 	}
 
 	&:focus-visible {
@@ -24,8 +32,17 @@
 		outline-offset: 2px;
 	}
 
+	// Waiting: grey, with the label saying what is happening.
 	&:disabled {
 		background: #5a6a78;
 		cursor: progress;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		transition: none;
+
+		&:active:not(:disabled) {
+			transform: none;
+		}
 	}
 }

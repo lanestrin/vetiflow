@@ -1,18 +1,23 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
+import { flushSync } from "react-dom";
 import { finishSignIn, startPhoneSignIn, verifyPhoneSignIn } from "../../services/authApi";
-import type { SignedInUser } from "../../types/Auth";
+import type { SignedInUser, SignInFailure } from "../../types/Auth";
+import { FieldError, StatusMessage } from "./FormMessages";
 import { PrimaryButton } from "./PrimaryButton";
 import { LockIcon, PhoneIcon } from "./signInIcons";
-import { failureMessages } from "./signInMessages";
+import { failureMessages, noMessage, type FormMessage } from "./signInMessages";
+import { useSignInRequest } from "./useSignInRequest";
 import styles from "./SignInForm.module.scss";
 
 interface PhoneSignInFormProps {
   onSignedIn: (user: SignedInUser) => void;
+  // False while the Email tab is chosen: a running request is cancelled.
+  isActive: boolean;
 }
 
 type Step = "number" | "code";
 
-const readyMessage = "Demo verification is ready. No text was sent.";
+const readyMessage: FormMessage = { text: "Demo verification is ready. No text was sent.", tone: "success" };
 
 // The same rule the API applies: a 10-digit US number, optionally with +1 and
 // the usual separators. The API decides; this only gives a faster field error.
@@ -25,17 +30,27 @@ function looksLikeUsMobile(input: string): boolean {
   return digits.length === 10 || (digits.length === 11 && digits.startsWith("1"));
 }
 
+function phoneError(phoneNumber: string): string {
+  return looksLikeUsMobile(phoneNumber.trim()) ? "" : "Enter a 10-digit mobile number like 312-555-0101.";
+}
+
+function codeError(code: string): string {
+  return /^[0-9]{6}$/.test(code.trim()) ? "" : "Enter the 6-digit code.";
+}
+
 // Demo phone sign-in (build plan S.19), from the login mockup. No text is ever
 // sent: the demo code is fixed and shown on screen.
-export function PhoneSignInForm({ onSignedIn }: PhoneSignInFormProps) {
+export function PhoneSignInForm({ onSignedIn, isActive }: PhoneSignInFormProps) {
   const id = useId();
+  const phoneRef = useRef<HTMLInputElement>(null);
   const codeRef = useRef<HTMLInputElement>(null);
   const [step, setStep] = useState<Step>("number");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [code, setCode] = useState("");
+  // One field shows at a time, so one error is enough.
   const [fieldError, setFieldError] = useState("");
-  const [message, setMessage] = useState({ text: "", isReady: false });
-  const [isWorking, setIsWorking] = useState(false);
+  const [message, setMessage] = useState<FormMessage>(noMessage);
+  const request = useSignInRequest(isActive);
 
   const phoneErrorId = `${id}-phone-error`;
   const codeErrorId = `${id}-code-error`;
@@ -46,75 +61,98 @@ export function PhoneSignInForm({ onSignedIn }: PhoneSignInFormProps) {
     }
   }, [step]);
 
-  async function sendCode() {
-    setIsWorking(true);
-    const result = await startPhoneSignIn(phoneNumber.trim());
-    setIsWorking(false);
+  // As in the email form: checked again as it is corrected, once it was wrong.
+  function changePhoneNumber(value: string) {
+    setPhoneNumber(value);
+    if (fieldError) {
+      setFieldError(phoneError(value));
+    }
+  }
 
-    if (result.ok) {
+  function changeCode(value: string) {
+    setCode(value);
+    if (fieldError) {
+      setFieldError(codeError(value));
+    }
+  }
+
+  async function sendCode() {
+    setMessage(noMessage);
+    const outcome = await request.run((signal) => startPhoneSignIn(phoneNumber.trim(), signal));
+
+    if (outcome.kind === "failed") {
+      setMessage({ text: failureMessages.unavailable, tone: "error" });
+    } else if (outcome.kind === "done" && !outcome.value.ok) {
+      setMessage({ text: failureMessages[outcome.value.failure], tone: "error" });
+    } else if (outcome.kind === "done") {
       setStep("code");
-      setMessage({ text: readyMessage, isReady: true });
-    } else {
-      setMessage({ text: failureMessages[result.failure], isReady: false });
+      setMessage(readyMessage);
     }
   }
 
   async function handleNumberSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setMessage({ text: "", isReady: false });
 
-    if (!looksLikeUsMobile(phoneNumber.trim())) {
-      setFieldError("Enter a 10-digit mobile number like 312-555-0101.");
+    if (request.isWorking) {
       return;
     }
 
-    setFieldError("");
+    const error = phoneError(phoneNumber);
+    setFieldError(error);
+
+    if (error) {
+      setMessage(noMessage);
+      phoneRef.current?.focus();
+      return;
+    }
+
     await sendCode();
   }
 
   async function handleCodeSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setMessage({ text: "", isReady: false });
 
-    if (!/^[0-9]{6}$/.test(code.trim())) {
-      setFieldError("Enter the 6-digit code.");
+    if (request.isWorking) {
       return;
     }
 
-    setFieldError("");
-    setIsWorking(true);
-    const result = await verifyPhoneSignIn(phoneNumber.trim(), code.trim());
+    const error = codeError(code);
+    setFieldError(error);
+    setMessage(noMessage);
 
-    if (!result.ok) {
-      setIsWorking(false);
-      setMessage({ text: failureMessages[result.failure], isReady: false });
+    if (error) {
+      codeRef.current?.focus();
       return;
     }
 
-    try {
-      onSignedIn(await finishSignIn(result.accessToken));
-    } catch {
-      setIsWorking(false);
-      setMessage({ text: failureMessages.unavailable, isReady: false });
+    const outcome = await request.run(async (signal): Promise<SignedInUser | SignInFailure> => {
+      const result = await verifyPhoneSignIn(phoneNumber.trim(), code.trim(), signal);
+      return result.ok ? finishSignIn(result.accessToken, signal) : result.failure;
+    });
+
+    if (outcome.kind === "failed") {
+      setMessage({ text: failureMessages.unavailable, tone: "error" });
+    } else if (outcome.kind === "done") {
+      const userOrFailure = outcome.value;
+      if (typeof userOrFailure === "string") {
+        setMessage({ text: failureMessages[userOrFailure], tone: "error" });
+      } else {
+        onSignedIn(userOrFailure);
+      }
     }
   }
 
+  // The number field comes back with the number still in it, and gets focus
+  // (the button that was pressed has gone).
   function useDifferentNumber() {
-    setStep("number");
-    setCode("");
-    setFieldError("");
-    setMessage({ text: "", isReady: false });
+    flushSync(() => {
+      setStep("number");
+      setCode("");
+      setFieldError("");
+      setMessage(noMessage);
+    });
+    phoneRef.current?.focus();
   }
-
-  const status = (
-    <p
-      className={message.isReady ? styles.messageReady : styles.message}
-      role="status"
-      aria-live="polite"
-    >
-      {message.text}
-    </p>
-  );
 
   if (step === "number") {
     return (
@@ -125,26 +163,32 @@ export function PhoneSignInForm({ onSignedIn }: PhoneSignInFormProps) {
             <span className={styles.leadingIcon}><PhoneIcon /></span>
             <input
               id={`${id}-phone`}
+              ref={phoneRef}
               className={styles.input}
               type="tel"
               inputMode="tel"
               autoComplete="tel"
               placeholder="(555) 555-0123"
               value={phoneNumber}
-              onChange={(event) => setPhoneNumber(event.target.value)}
+              onChange={(event) => changePhoneNumber(event.target.value)}
               aria-invalid={fieldError ? true : undefined}
-              aria-describedby={fieldError ? phoneErrorId : undefined}
+              aria-describedby={fieldError ? `${phoneErrorId} ${id}-phone-note` : `${id}-phone-note`}
             />
           </div>
-          {fieldError && <p id={phoneErrorId} className={styles.fieldError}>{fieldError}</p>}
+          {fieldError && <FieldError id={phoneErrorId} text={fieldError} />}
+          <p id={`${id}-phone-note`} className={styles.note}>
+            Demo mode: no text is sent. The next step shows the code to use.
+          </p>
         </div>
 
-        <PrimaryButton type="submit" disabled={isWorking}>
-          {isWorking ? "Sending…" : "Text me a sign-in code"}
-          {!isWorking && <span aria-hidden="true"> →</span>}
-        </PrimaryButton>
+        <div className={styles.actions}>
+          <PrimaryButton type="submit" disabled={request.isWorking}>
+            {request.isWorking ? "Sending…" : "Text me a sign-in code"}
+            {!request.isWorking && <span aria-hidden="true"> →</span>}
+          </PrimaryButton>
 
-        {status}
+          <StatusMessage message={message} />
+        </div>
       </form>
     );
   }
@@ -167,31 +211,33 @@ export function PhoneSignInForm({ onSignedIn }: PhoneSignInFormProps) {
             placeholder="6-digit code"
             maxLength={6}
             value={code}
-            onChange={(event) => setCode(event.target.value)}
+            onChange={(event) => changeCode(event.target.value)}
             aria-invalid={fieldError ? true : undefined}
             aria-describedby={fieldError ? `${codeErrorId} ${id}-code-note` : `${id}-code-note`}
           />
         </div>
-        {fieldError && <p id={codeErrorId} className={styles.fieldError}>{fieldError}</p>}
+        {fieldError && <FieldError id={codeErrorId} text={fieldError} />}
         <p id={`${id}-code-note`} className={styles.note}>
           Demo mode: no text is sent. Use code <strong>123456</strong>.
         </p>
       </div>
 
-      <PrimaryButton type="submit" disabled={isWorking}>
-        {isWorking ? "Signing in…" : "Verify and sign in"}
-      </PrimaryButton>
+      <div className={styles.actions}>
+        <PrimaryButton type="submit" disabled={request.isWorking}>
+          {request.isWorking ? "Signing in…" : "Verify and sign in"}
+        </PrimaryButton>
 
-      <div className={styles.secondaryActions}>
-        <button type="button" className={styles.link} onClick={useDifferentNumber} disabled={isWorking}>
-          Use a different number
-        </button>
-        <button type="button" className={styles.link} onClick={() => void sendCode()} disabled={isWorking}>
-          Send again
-        </button>
+        <div className={styles.secondaryActions}>
+          <button type="button" className={styles.link} onClick={useDifferentNumber} disabled={request.isWorking}>
+            Use a different number
+          </button>
+          <button type="button" className={styles.link} onClick={() => void sendCode()} disabled={request.isWorking}>
+            Send again
+          </button>
+        </div>
+
+        <StatusMessage message={message} />
       </div>
-
-      {status}
     </form>
   );
 }
