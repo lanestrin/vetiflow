@@ -172,6 +172,113 @@ public class DbSeederTests(VetiFlowApiFactory factory)
 		Assert.Equal(1, await dbContext.StaffMembers.CountAsync(staff => staff.FirstName == "Jordan" && staff.LastName == "Lee", _cancellationToken));
 	}
 
+	// Databases seeded before owners existed have the seeded Buddy with no owner
+	// (AddOwners added Patient.OwnerId without a backfill).
+	[Fact]
+	public async Task SeedAsync_LinksTheOwnerlessBuddyToMorganHale()
+	{
+		await using var dbContext = await MigratedDatabaseAsync();
+		var buddy = OwnerlessBuddy();
+		var buddysCase = TestData.Case(buddy);
+		dbContext.EmergencyCases.Add(buddysCase);
+		await dbContext.SaveChangesAsync(_cancellationToken);
+
+		await SeedTwiceAsync(dbContext);
+
+		Assert.Equal(await DemoPetParentOwnerIdAsync(dbContext), await OwnerOfAsync(dbContext, buddy.Id));
+		Assert.Equal(1, await dbContext.Patients.CountAsync(patient => patient.Name == "Buddy", _cancellationToken));
+		Assert.Null((await dbContext.EmergencyCases.SingleAsync(c => c.Id == buddysCase.Id, _cancellationToken)).DischargedAt);
+	}
+
+	[Fact]
+	public async Task SeedAsync_CreatesBuddyForMorganHaleWhenNoneIsFree()
+	{
+		await using var dbContext = await MigratedDatabaseAsync();
+		dbContext.EmergencyCases.Add(TestData.Case(TestData.Patient()));
+		await dbContext.SaveChangesAsync(_cancellationToken);
+
+		await SeedTwiceAsync(dbContext);
+
+		var ownerId = await DemoPetParentOwnerIdAsync(dbContext);
+		var pets = await dbContext.Patients.Where(patient => patient.OwnerId == ownerId).ToListAsync(_cancellationToken);
+		var pet = Assert.Single(pets);
+		Assert.Equal(("Buddy", "Dog"), (pet.Name, pet.Species));
+	}
+
+	// The state S.18b left behind: Morgan Hale and the accounts exist, he has no
+	// pets, and the old ownerless Buddy is still there.
+	[Fact]
+	public async Task SeedAsync_MendsAMorganHaleCreatedWithoutPets()
+	{
+		await using var dbContext = await MigratedDatabaseAsync();
+		var buddy = OwnerlessBuddy();
+		dbContext.EmergencyCases.Add(TestData.Case(buddy));
+		var morganHale = new Owner { FirstName = "Morgan", LastName = "Hale" };
+		var account = new Account
+		{
+			Kind = AccountKind.PetParent,
+			Owner = morganHale,
+			Email = "parent@vetiflow.demo"
+		};
+		dbContext.Accounts.Add(account);
+		await dbContext.SaveChangesAsync(_cancellationToken);
+
+		await SeedTwiceAsync(dbContext);
+
+		Assert.Equal(morganHale.Id, await OwnerOfAsync(dbContext, buddy.Id));
+	}
+
+	[Fact]
+	public async Task SeedAsync_NeverRelinksAnOwnedBuddy()
+	{
+		await using var dbContext = await MigratedDatabaseAsync();
+		var otherOwner = TestData.Owner();
+		var ownedBuddy = OwnerlessBuddy();
+		ownedBuddy.Owner = otherOwner;
+		dbContext.EmergencyCases.Add(TestData.Case(ownedBuddy));
+		await dbContext.SaveChangesAsync(_cancellationToken);
+
+		await SeedTwiceAsync(dbContext);
+
+		Assert.Equal(otherOwner.Id, await OwnerOfAsync(dbContext, ownedBuddy.Id));
+	}
+
+	private async Task<VetiFlowDbContext> MigratedDatabaseAsync()
+	{
+		var dbContext = VetiFlowApiFactory.CreateDbContext(await factory.Postgres.CreateDatabaseAsync());
+		await dbContext.Database.MigrateAsync(_cancellationToken);
+		return dbContext;
+	}
+
+	private static Patient OwnerlessBuddy()
+	{
+		var buddy = TestData.Patient();
+		buddy.Name = "Buddy";
+		buddy.Species = "Dog";
+		return buddy;
+	}
+
+	private static async Task SeedTwiceAsync(VetiFlowDbContext dbContext)
+	{
+		dbContext.ChangeTracker.Clear();
+		await DbSeeder.SeedAsync(dbContext);
+		dbContext.ChangeTracker.Clear();
+		await DbSeeder.SeedAsync(dbContext);
+		dbContext.ChangeTracker.Clear();
+	}
+
+	private Task<Guid?> DemoPetParentOwnerIdAsync(VetiFlowDbContext dbContext) =>
+		dbContext.Accounts
+			.Where(account => account.Email == "parent@vetiflow.demo")
+			.Select(account => account.OwnerId)
+			.SingleAsync(_cancellationToken);
+
+	private Task<Guid?> OwnerOfAsync(VetiFlowDbContext dbContext, Guid patientId) =>
+		dbContext.Patients
+			.Where(patient => patient.Id == patientId)
+			.Select(patient => patient.OwnerId)
+			.SingleAsync(_cancellationToken);
+
 	private async Task<VetiFlowDbContext> SeededDatabaseAsync()
 	{
 		var dbContext = VetiFlowApiFactory.CreateDbContext(await factory.Postgres.CreateDatabaseAsync());
