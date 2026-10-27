@@ -26,7 +26,7 @@ public class ErrorResponseTests(VetiFlowApiFactory factory)
 	[Fact]
 	public async Task UpdateStage_UnknownCase_ReturnsNotFoundProblem()
 	{
-		using var client = factory.CreateClient();
+		using var client = await factory.CreateSignedInClientAsync(DemoAccounts.TeamEmail);
 
 		var response = await client.PatchAsJsonAsync(
 			$"/api/cases/{Guid.NewGuid()}/stage",
@@ -53,7 +53,7 @@ public class ErrorResponseTests(VetiFlowApiFactory factory)
 	public async Task UpdateStage_MalformedJson_ReturnsValidationProblem()
 	{
 		var emergencyCase = await SaveCaseAsync();
-		using var client = factory.CreateClient();
+		using var client = await factory.CreateSignedInClientAsync(DemoAccounts.TeamEmail);
 
 		var response = await client.PatchAsync(
 			$"/api/cases/{emergencyCase.Id}/stage",
@@ -68,7 +68,7 @@ public class ErrorResponseTests(VetiFlowApiFactory factory)
 	public async Task UpdateStage_WrongContentType_ReturnsUnsupportedMediaTypeProblem()
 	{
 		var emergencyCase = await SaveCaseAsync();
-		using var client = factory.CreateClient();
+		using var client = await factory.CreateSignedInClientAsync(DemoAccounts.TeamEmail);
 
 		var response = await client.PatchAsync(
 			$"/api/cases/{emergencyCase.Id}/stage",
@@ -79,13 +79,18 @@ public class ErrorResponseTests(VetiFlowApiFactory factory)
 	}
 
 	// A real failure in Production: the database is down, so the query throws.
+	// Sign-in is the open endpoint that queries the database (the board needs
+	// a token, and signing in needs the database).
 	[Fact]
-	public async Task GetCases_DatabaseUnreachable_ReturnsProblemWithoutInternals()
+	public async Task SignIn_DatabaseUnreachable_ReturnsProblemWithoutInternals()
 	{
 		using var host = TestHosts.Create(TestHosts.UnreachableDatabase, environment: "Production");
 		using var client = host.CreateClient();
 
-		var response = await client.GetAsync("/api/cases", _cancellationToken);
+		var response = await client.PostAsJsonAsync(
+			"/api/auth/email",
+			new { email = DemoAccounts.TeamEmail, password = "welcome1" },
+			_cancellationToken);
 
 		var problem = await AssertProblemAsync(response, HttpStatusCode.InternalServerError);
 		var json = problem.GetRawText();

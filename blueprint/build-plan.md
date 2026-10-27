@@ -91,7 +91,7 @@ project plan section 10.
 - [x] **S.17** `feature/demo-email-sign-in`: `POST /api/auth/email` (email and password to a bearer token), `GET /api/auth/me` (name and experience), and the `TeamMember` policy, ready for S.18. Done (history/features/S.17-demo-email-sign-in.md).
 - [ ] **S.18** `feature/sign-in-screen`: `/sign-in` with the Email option to the mockup, the success panel, routing to `/er` or `/pet-parent`, a minimal pet parent home, sign out, route guards and the session-ended state; the board and stage endpoints require a hospital team member (`401` signed out, `403` for a pet parent), moved here from S.17 so the deployed board never breaks between the two. Split into:
   - [x] **S.18a** `feature/sign-in-screen`: the `/sign-in` page to the mockup (Email tab; Phone tab marked as coming in S.19), demo banner and sample accounts, every no-match, field and unavailable message, the Forgot password and Help placeholders, the success panel continuing to `/er` or a simple `/pet-parent` welcome, and the token kept in `sessionStorage`. Done (history/features/S.18a-sign-in-screen.md).
-  - [ ] **S.18b** `feature/session-and-board-lock`: the board and stage endpoints require a hospital team member (`401` signed out, `403` for a pet parent); the client sends the token on board requests; route guards (`/` goes home by role, signed out goes to `/sign-in`, a pet parent on `/er` goes to `/pet-parent`); "Signed in as ... (demo)" with Sign out on the board; and the session-ended state.
+  - [x] **S.18b** `feature/session-and-board-lock`: the board and stage endpoints require a hospital team member (`401` signed out, `403` for a pet parent); the client sends the token on board requests; route guards (`/` goes home by role, signed out goes to `/sign-in`, a pet parent on `/er` goes to `/pet-parent`); "Signed in as ... (demo)" with Sign out on the board; and the session-ended state. Done (history/features/S.18b-session-and-board-lock.md).
   - [ ] **S.18c** `feature/pet-parent-home`: `GET /api/pet-parent/pets` (owner from the token, no IDs in the URL) and the `/pet-parent` page listing the account's own pets and whether each is in care, in calm wording with no acuity.
 - [ ] **S.19** `feature/demo-phone-sign-in`: `POST /api/auth/phone/start` and `POST /api/auth/phone/verify` with the fixed code `123456` only while `DemoSignIn:Enabled` is on, no text sent, and the Phone option on the screen.
 
@@ -200,7 +200,14 @@ After M7. Every workflow keeps working without AI.
 ## Later
 
 - [ ] **2.12** `feature/dashboard-stats`: average triage time and open rooms in the top bar (`GET /api/dashboard/summary`).
-- [ ] **1.7** `chore/release-notes`: `.github/release.yml` so GitHub's generated release notes group squash-merged commits by type (features, fixes, chores), plus a first tag.
+- [ ] **1.7** `chore/release-notes`: clean up PR descriptions and release notes.
+  Use the filled `landing-pr.md` body for PRs; the manual GitHub path must
+  clearly replace the auto-filled body rather than append commit text above
+  empty template sections. Keep descriptions concise and omit unused optional
+  sections. Add `.github/release.yml` to group merged PRs by labels (features,
+  fixes, maintenance), with a consistent way to assign labels from the PR type;
+  prepare the first release/tag. Improve existing descriptions where needed,
+  without rewriting Git history.
 - [ ] **7.3** `chore/openapi-client`: generate the TypeScript client from OpenAPI.
 - [ ] **7.7** `docs/adrs`: ADRs in `docs/` (why SignalR, why Postgres, why no Redux).
 

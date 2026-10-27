@@ -141,6 +141,18 @@ describe("SignInPage", () => {
     expect(readAccessToken()).toBeNull();
   });
 
+  it("says the session ended when sent back from an expired session", () => {
+    render(
+      <MemoryRouter initialEntries={[{ pathname: "/sign-in", state: { sessionEnded: true } }]}>
+        <Routes>
+          <Route path="/sign-in" element={<SignInPage />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(screen.getByRole("status")).toHaveTextContent("Your session ended. Sign in again.");
+  });
+
   it("explains that password reset is a placeholder", () => {
     renderSignIn();
 

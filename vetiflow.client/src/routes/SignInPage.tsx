@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
-import { useNavigate } from "react-router-dom";
+import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { EmailSignInForm } from "../components/auth/EmailSignInForm";
+import { experienceHome, type SignInRouteState } from "../components/auth/experienceHome";
+import { useSession } from "../components/auth/useSession";
 import { SignInBrandPanel } from "../components/auth/SignInBrandPanel";
 import { SignInSuccess } from "../components/auth/SignInSuccess";
 import { clearAccessToken } from "../services/session";
@@ -16,8 +18,13 @@ const methods: { method: SignInMethod; label: string }[] = [
 
 // The demo sign-in page (build plan S.18a), laid out as
 // blueprint/reference/vetiflow-login-mock.html.
+const sessionEndedMessage = "Your session ended. Sign in again.";
+
 export function SignInPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const session = useSession();
+  const routeState = location.state as SignInRouteState | null;
   const [method, setMethod] = useState<SignInMethod>("email");
   const [signedInUser, setSignedInUser] = useState<SignedInUser | null>(null);
   const [isDemoOpen, setIsDemoOpen] = useState(false);
@@ -68,6 +75,11 @@ export function SignInPage() {
     if (signedInUser) {
       navigate(signedInUser.experience === "teamMember" ? "/er" : "/pet-parent");
     }
+  }
+
+  // Already signed in when the page opened: go straight home.
+  if (session.kind === "signedIn" && !signedInUser) {
+    return <Navigate to={experienceHome[session.user.experience]} replace />;
   }
 
   return (
@@ -128,7 +140,10 @@ export function SignInPage() {
                 aria-labelledby="sign-in-tab-email"
                 hidden={method !== "email"}
               >
-                <EmailSignInForm onSignedIn={setSignedInUser} />
+                <EmailSignInForm
+                  onSignedIn={setSignedInUser}
+                  notice={routeState?.sessionEnded ? sessionEndedMessage : undefined}
+                />
               </div>
               <div
                 id="sign-in-panel-phone"

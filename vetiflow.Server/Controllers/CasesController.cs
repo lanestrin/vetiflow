@@ -1,15 +1,20 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using vetiflow.Server.Contracts.Cases;
 using vetiflow.Server.Data;
+using vetiflow.Server.Hosting;
 using vetiflow.Server.Hubs;
 using vetiflow.Server.Models;
 
 namespace vetiflow.Server.Controllers;
 
+// The ER board is for hospital team members only: signed out gets 401, a pet
+// parent 403 (owners never see the staff board).
 [ApiController]
 [Route("api/cases")]
+[Authorize(Policy = AuthNames.TeamMemberPolicy)]
 public class CasesController : ControllerBase
 {
 	private readonly VetiFlowDbContext _dbContext;

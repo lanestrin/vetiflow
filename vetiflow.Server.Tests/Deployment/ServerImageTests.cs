@@ -41,7 +41,8 @@ public class ServerImageTests
 	}
 
 	// Kestrel enforces the body limit, and the in-process TestServer does not,
-	// so only the real image can show it.
+	// so only the real image can show it. Sign-in is used because it is open
+	// and reads its body; a protected endpoint answers 401 before reading one.
 	[Fact]
 	public async Task ServerImage_OversizedBody_ReturnsPayloadTooLargeProblem()
 	{
@@ -53,10 +54,10 @@ public class ServerImageTests
 			{
 				BaseAddress = new Uri($"http://{container.Hostname}:{container.GetMappedPublicPort(RenderPort)}")
 			};
-			var stageUrl = $"/api/cases/{Guid.NewGuid()}/stage";
+			const string signInUrl = "/api/auth/email";
 
-			var oversized = await client.PatchAsync(stageUrl, JsonBody(maxRequestBodyBytes + 1), _cancellationToken);
-			var withinLimit = await client.PatchAsync(stageUrl, JsonBody(maxRequestBodyBytes), _cancellationToken);
+			var oversized = await client.PostAsync(signInUrl, JsonBody(maxRequestBodyBytes + 1), _cancellationToken);
+			var withinLimit = await client.PostAsync(signInUrl, JsonBody(maxRequestBodyBytes), _cancellationToken);
 
 			Assert.Equal(HttpStatusCode.RequestEntityTooLarge, oversized.StatusCode);
 			Assert.Equal("application/problem+json", oversized.Content.Headers.ContentType?.MediaType);
@@ -78,10 +79,10 @@ public class ServerImageTests
 		});
 	}
 
-	// A stage update padded to exactly the given number of bytes.
+	// A valid sign-in request padded to exactly the given number of bytes.
 	private static ByteArrayContent JsonBody(int totalBytes)
 	{
-		const string prefix = """{"stage":"treatment","padding":""";
+		const string prefix = """{"email":"team@vetiflow.demo","password":"welcome1","padding":""";
 		const string suffix = "\"}";
 		var json = prefix + new string('x', totalBytes - prefix.Length - suffix.Length) + suffix;
 		var content = new ByteArrayContent(System.Text.Encoding.UTF8.GetBytes(json));

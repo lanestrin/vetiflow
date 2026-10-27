@@ -77,7 +77,8 @@ public class StartupTests(VetiFlowApiFactory factory)
 			migrateOnStartup: true,
 			seedDemoData: true,
 			migrationConnectionString: adminConnectionString);
-		using var client = host.CreateClient();
+		// Signing in reads the seeded account as vetiflow_app too.
+		using var client = await host.CreateClient().SignInAsync(DemoAccounts.TeamEmail);
 
 		var cases = await client.GetFromJsonAsync<JsonElement[]>("/api/cases", _cancellationToken);
 		var caseId = cases![0].GetProperty("id").GetGuid();

@@ -144,6 +144,34 @@ public class DbSeederTests(VetiFlowApiFactory factory)
 		Assert.Equal(casesBefore, await dbContext.EmergencyCases.CountAsync(_cancellationToken));
 	}
 
+	// A database seeded before owners existed has cases but neither demo person.
+	// Skipping the accounts there left the locked board with nobody to sign in.
+	[Fact]
+	public async Task SeedAsync_CreatesMissingDemoPeopleForTheAccounts()
+	{
+		await using var dbContext = VetiFlowApiFactory.CreateDbContext(await factory.Postgres.CreateDatabaseAsync());
+		await dbContext.Database.MigrateAsync(_cancellationToken);
+		dbContext.EmergencyCases.Add(TestData.Case(TestData.Patient()));
+		await dbContext.SaveChangesAsync(_cancellationToken);
+
+		dbContext.ChangeTracker.Clear();
+		await DbSeeder.SeedAsync(dbContext);
+		dbContext.ChangeTracker.Clear();
+		await DbSeeder.SeedAsync(dbContext);
+
+		var accounts = await dbContext.Accounts
+			.Include(account => account.StaffMember)
+			.Include(account => account.Owner)
+			.ToListAsync(_cancellationToken);
+		Assert.Equal(2, accounts.Count);
+		var team = Assert.Single(accounts, account => account.Kind == AccountKind.TeamMember);
+		Assert.Equal(("Jordan", "Lee", StaffRole.Veterinarian), (team.StaffMember!.FirstName, team.StaffMember.LastName, team.StaffMember.Role));
+		var parent = Assert.Single(accounts, account => account.Kind == AccountKind.PetParent);
+		Assert.Equal(("Morgan", "Hale"), (parent.Owner!.FirstName, parent.Owner.LastName));
+		Assert.EndsWith("@example.com", parent.Owner.Email);
+		Assert.Equal(1, await dbContext.StaffMembers.CountAsync(staff => staff.FirstName == "Jordan" && staff.LastName == "Lee", _cancellationToken));
+	}
+
 	private async Task<VetiFlowDbContext> SeededDatabaseAsync()
 	{
 		var dbContext = VetiFlowApiFactory.CreateDbContext(await factory.Postgres.CreateDatabaseAsync());

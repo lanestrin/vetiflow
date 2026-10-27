@@ -3,6 +3,7 @@ import type {
   SignInFailure,
   SignInResult
 } from "../types/Auth";
+import { SessionEndedError } from "./apiErrors";
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "";
 
@@ -46,6 +47,10 @@ export async function getSignedInUser(accessToken: string): Promise<SignedInUser
   const response = await fetch(`${apiBaseUrl}/api/auth/me`, {
     headers: { Authorization: `Bearer ${accessToken}` }
   });
+
+  if (response.status === 401) {
+    throw new SessionEndedError();
+  }
 
   if (!response.ok) {
     throw new Error("Failed to load the signed-in user.");

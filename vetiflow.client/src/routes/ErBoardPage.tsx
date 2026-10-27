@@ -1,4 +1,7 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import type { SignInRouteState } from "../components/auth/experienceHome";
+import { SessionBar } from "../components/auth/SessionBar";
 import { WorkflowLane } from "../components/clinical/WorkflowLane";
 import { ErBoardStatusBar } from "../components/clinical/ErBoardStatusBar";
 import type {
@@ -6,7 +9,10 @@ import type {
   EmergencyCaseListItem
 } from "../types/EmergencyCaseListItem";
 
+import type { SignedInUser } from "../types/Auth";
+import { AccessDeniedError, SessionEndedError } from "../services/apiErrors";
 import { getEmergencyCases } from "../services/casesApi";
+import { clearAccessToken } from "../services/session";
 import { createCaseHubConnection } from "../services/caseHub";
 import styles from "./ErBoardPage.module.scss";
 
@@ -27,7 +33,12 @@ const workflowStages: WorkflowStage[] = [
   { title: "Discharge", stage: "discharge" }
 ];
 
-export function ErBoardPage() {
+interface ErBoardPageProps {
+  user: SignedInUser;
+}
+
+export function ErBoardPage({ user }: ErBoardPageProps) {
+  const navigate = useNavigate();
   const [cases, setCases] = useState<EmergencyCaseListItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -47,8 +58,18 @@ export function ErBoardPage() {
 
         setCases(emergencyCases);
         setError(null);
-      } catch {
-        if (isActive) {
+      } catch (loadError) {
+        if (!isActive) {
+          return;
+        }
+
+        // The token expired or was refused while the board was open.
+        if (loadError instanceof SessionEndedError) {
+          clearAccessToken();
+          navigate("/sign-in", { replace: true, state: { sessionEnded: true } satisfies SignInRouteState });
+        } else if (loadError instanceof AccessDeniedError) {
+          navigate("/pet-parent", { replace: true });
+        } else {
           setError("Unable to load emergency cases.");
         }
       } finally {
@@ -81,7 +102,7 @@ export function ErBoardPage() {
       connection.off("caseUpdated");
       void connection.stop();
     };
-  }, []);
+  }, [navigate]);
 
   if (isLoading) {
     return (
@@ -108,6 +129,8 @@ export function ErBoardPage() {
         <h1 className={styles.title}>VetiFlow ER Board</h1>
 
         <ErBoardStatusBar cases={cases} />
+
+        <SessionBar user={user} />
       </header>
 
       <div className={styles.board}>

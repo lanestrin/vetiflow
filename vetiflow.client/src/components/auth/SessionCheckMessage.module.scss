@@ -1,0 +1,12 @@
+.page {
+	width: min(100% - 2.5rem, 40rem);
+	margin-inline: auto;
+	padding-block: 3rem;
+}
+
+.text {
+	margin: 0;
+	color: var(--color-text-secondary);
+	font-size: 1rem;
+	line-height: 1.6;
+}

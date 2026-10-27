@@ -5,7 +5,7 @@
 }
 
 .heading {
-	margin: 0;
+	margin: var(--space-5) 0 0;
 	color: var(--color-care-navy);
 	font-size: 1.75rem;
 	letter-spacing: -0.02em;
@@ -16,14 +16,4 @@
 	color: var(--color-text-secondary);
 	font-size: 1rem;
 	line-height: 1.6;
-}
-
-.link {
-	color: var(--color-care-teal);
-	font-weight: 700;
-
-	&:focus-visible {
-		outline: 3px solid var(--color-focus);
-		outline-offset: 2px;
-	}
 }
