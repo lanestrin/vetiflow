@@ -51,6 +51,9 @@ builder.Services.AddAuthorization(options =>
 	options.AddPolicy(
 		AuthNames.TeamMemberPolicy,
 		policy => policy.RequireClaim(AuthNames.KindClaim, nameof(AccountKind.TeamMember)));
+	options.AddPolicy(
+		AuthNames.PetParentPolicy,
+		policy => policy.RequireClaim(AuthNames.KindClaim, nameof(AccountKind.PetParent)));
 });
 
 builder.Services.AddSignalR();
