@@ -20,10 +20,12 @@ public class AuthController : ControllerBase
 	private static readonly PasswordHasher<Account> PasswordHasher = new();
 
 	private readonly VetiFlowDbContext _dbContext;
+	private readonly IConfiguration _configuration;
 
-	public AuthController(VetiFlowDbContext dbContext)
+	public AuthController(VetiFlowDbContext dbContext, IConfiguration configuration)
 	{
 		_dbContext = dbContext;
+		_configuration = configuration;
 	}
 
 	[HttpPost("email")]
@@ -58,6 +60,75 @@ public class AuthController : ControllerBase
 		if (verification == PasswordVerificationResult.Failed)
 		{
 			return SignInFailed("wrongPassword");
+		}
+
+		return SignIn(CreatePrincipal(account), BearerTokenDefaults.AuthenticationScheme);
+	}
+
+	// Step one of phone sign-in: is this a demo account's number? Nothing is
+	// sent and nothing is stored; the demo code is fixed (DemoSignIn).
+	[HttpPost("phone/start")]
+	[AllowAnonymous]
+	public async Task<IActionResult> StartPhoneSignIn(
+		PhoneStartRequest request,
+		CancellationToken cancellationToken)
+	{
+		if (!IsPhoneSignInOn())
+		{
+			return PhoneSignInOff();
+		}
+
+		if (!DemoSignIn.TryNormalizePhone(request.PhoneNumber, out var phoneNumber))
+		{
+			return InvalidPhoneNumber();
+		}
+
+		var account = await FindByPhoneAsync(phoneNumber, cancellationToken);
+
+		if (account is null)
+		{
+			return SignInFailed("unknownPhone");
+		}
+
+		if (!account.IsActive)
+		{
+			return SignInFailed("inactiveAccount");
+		}
+
+		return Ok(new { });
+	}
+
+	[HttpPost("phone/verify")]
+	[AllowAnonymous]
+	public async Task<IActionResult> VerifyPhoneSignIn(
+		PhoneVerifyRequest request,
+		CancellationToken cancellationToken)
+	{
+		if (!IsPhoneSignInOn())
+		{
+			return PhoneSignInOff();
+		}
+
+		if (!DemoSignIn.TryNormalizePhone(request.PhoneNumber, out var phoneNumber))
+		{
+			return InvalidPhoneNumber();
+		}
+
+		var account = await FindByPhoneAsync(phoneNumber, cancellationToken);
+
+		if (account is null)
+		{
+			return SignInFailed("unknownPhone");
+		}
+
+		if (!account.IsActive)
+		{
+			return SignInFailed("inactiveAccount");
+		}
+
+		if (request.Code != DemoSignIn.Code)
+		{
+			return SignInFailed("wrongCode");
 		}
 
 		return SignIn(CreatePrincipal(account), BearerTokenDefaults.AuthenticationScheme);
@@ -98,4 +169,28 @@ public class AuthController : ControllerBase
 		((ProblemDetails)result.Value!).Extensions["code"] = code;
 		return result;
 	}
+
+	// The fixed code must never work where the setting is off (production with
+	// real data), so phone sign-in is refused outright there.
+	private bool IsPhoneSignInOn() => _configuration.GetValue<bool>(DemoSignIn.EnabledSetting);
+
+	private ObjectResult PhoneSignInOff()
+	{
+		var result = Problem(statusCode: StatusCodes.Status403Forbidden, title: "Phone sign-in is off");
+		((ProblemDetails)result.Value!).Extensions["code"] = "phoneSignInOff";
+		return result;
+	}
+
+	private ActionResult InvalidPhoneNumber()
+	{
+		ModelState.AddModelError("phoneNumber", "Enter a 10-digit US mobile number.");
+		return ValidationProblem(ModelState);
+	}
+
+	private Task<Account?> FindByPhoneAsync(string phoneNumber, CancellationToken cancellationToken) =>
+		_dbContext.Accounts
+				.AsNoTracking()
+				.Include(account => account.StaffMember)
+				.Include(account => account.Owner)
+				.FirstOrDefaultAsync(account => account.PhoneNumber == phoneNumber, cancellationToken);
 }

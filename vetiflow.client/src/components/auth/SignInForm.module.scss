@@ -58,6 +58,7 @@
 }
 
 .link {
+	min-height: 2.75rem;
 	padding: var(--space-1) 0;
 	border: 0;
 	background: none;
@@ -79,4 +80,35 @@
 	color: #a3392d;
 	font-size: 0.875rem;
 	line-height: 1.45;
+}
+
+// Good news in the status line (the demo code is ready): green, and worded
+// as success, so it never relies on colour alone.
+.messageReady {
+	min-height: 1.25rem;
+	margin: var(--space-3) 0 0;
+	color: #1d6b55;
+	font-size: 0.875rem;
+	line-height: 1.45;
+}
+
+.sentTo {
+	margin: 0 0 var(--space-3);
+	color: var(--color-text-secondary);
+	font-size: 0.875rem;
+}
+
+.note {
+	margin: var(--space-2) 0 0;
+	color: #2f4a50;
+	font-size: 0.8125rem;
+	line-height: 1.45;
+}
+
+.secondaryActions {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: space-between;
+	gap: var(--space-2) var(--space-4);
+	margin-block-start: var(--space-3);
 }

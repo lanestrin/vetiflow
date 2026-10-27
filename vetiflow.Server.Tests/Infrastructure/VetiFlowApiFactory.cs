@@ -43,6 +43,7 @@ public sealed class VetiFlowApiFactory : WebApplicationFactory<Program>, IAsyncL
 		builder.UseSetting("ConnectionStrings:VetiFlowDatabase", _connectionString);
 		builder.UseSetting("Database:MigrateOnStartup", "true");
 		builder.UseSetting("Database:SeedDemoData", "true");
+		builder.UseSetting("DemoSignIn:Enabled", "true");
 	}
 
 	public override async ValueTask DisposeAsync()
