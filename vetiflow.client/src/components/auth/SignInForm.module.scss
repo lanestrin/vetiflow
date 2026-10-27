@@ -1,4 +1,4 @@
-// Shared by the sign-in forms (email now, phone in S.19).
+// Shared by the email and phone sign-in forms.
 .form {
 	display: flex;
 	flex-direction: column;
@@ -24,10 +24,31 @@
 	font-weight: 700;
 }
 
+// A field with a decorative icon on the left (and on the password, the
+// show-password button on the right).
+.inputWrap {
+	position: relative;
+}
+
+.leadingIcon {
+	position: absolute;
+	inset-block: 0;
+	inset-inline-start: 0.9rem;
+	display: flex;
+	align-items: center;
+	color: #556372;
+	pointer-events: none;
+
+	svg {
+		width: 1.1rem;
+		height: 1.1rem;
+	}
+}
+
 .input {
 	width: 100%;
 	min-height: 3rem;
-	padding-inline: var(--space-3);
+	padding-inline: 2.6rem var(--space-3);
 	// 3:1 against white, so the field's edge is visible (WCAG non-text contrast).
 	border: 1px solid #7a8b8e;
 	border-radius: var(--radius-md);
@@ -47,6 +68,36 @@
 	&[aria-invalid="true"] {
 		border-color: #a3392d;
 		border-width: 2px;
+	}
+}
+
+.inputWithButton {
+	padding-inline-end: 3.25rem;
+}
+
+// 44px square, inside the field's right edge.
+.revealButton {
+	position: absolute;
+	inset-block-start: 50%;
+	inset-inline-end: 0.125rem;
+	display: grid;
+	place-items: center;
+	width: 2.75rem;
+	height: 2.75rem;
+	border: 0;
+	border-radius: var(--radius-md);
+	background: none;
+	color: #556372;
+	cursor: pointer;
+	transform: translateY(-50%);
+
+	&:hover {
+		color: #1a2e40;
+	}
+
+	&:focus-visible {
+		outline: 3px solid var(--color-focus);
+		outline-offset: -3px;
 	}
 }
 

@@ -1,17 +1,22 @@
+// The landing design's navy action (S.20a).
 .primary {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: var(--space-1);
 	width: 100%;
 	min-height: 3rem;
 	margin-block-start: var(--space-1);
 	border: 0;
-	border-radius: var(--radius-md);
-	background: var(--color-care-teal);
+	border-radius: 0.6rem;
+	background: #1a2e40;
 	color: var(--color-text-inverse);
 	font-size: 0.9375rem;
 	font-weight: 700;
 	cursor: pointer;
 
 	&:hover {
-		background: #0e5752;
+		background: #24405a;
 	}
 
 	&:focus-visible {
@@ -20,7 +25,7 @@
 	}
 
 	&:disabled {
-		background: #4f6b6e;
+		background: #5a6a78;
 		cursor: progress;
 	}
 }

@@ -58,6 +58,12 @@ describe("SignInPage", () => {
     expect(screen.getByRole("tab", { name: "Email" })).toHaveAttribute("aria-selected", "true");
   });
 
+  it("keeps the art and icons out of the screen reader's way", () => {
+    renderSignIn();
+
+    expect(screen.queryAllByRole("img")).toHaveLength(0);
+  });
+
   it.each([
     ["", "welcome1", "Email address", "Enter your email address."],
     ["not-an-email", "welcome1", "Email address", "Enter an email address like you@example.com."],
@@ -161,6 +167,22 @@ describe("SignInPage", () => {
     expect(screen.getByRole("status")).toHaveTextContent(
       "Password reset is a placeholder in this no-cost demo."
     );
+  });
+
+  it("shows and hides the password", () => {
+    renderSignIn();
+    const password = screen.getByLabelText("Password");
+
+    fireEvent.click(screen.getByRole("button", { name: "Show password" }));
+
+    expect(password).toHaveAttribute("type", "text");
+    const hide = screen.getByRole("button", { name: "Hide password" });
+    expect(hide).toHaveAttribute("aria-pressed", "true");
+
+    fireEvent.click(hide);
+
+    expect(password).toHaveAttribute("type", "password");
+    expect(screen.getByRole("button", { name: "Show password" })).toHaveAttribute("aria-pressed", "false");
   });
 
   it("moves between the tabs with the arrow keys", () => {

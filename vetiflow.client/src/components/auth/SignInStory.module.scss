@@ -1,0 +1,170 @@
+// The landing design's "Calm & Critical Care" colours, used on the sign-in
+// page only so the board keeps the shared tokens.
+$navy: #1a2e40;
+$green: #2e6b57;
+$muted: #556372;
+
+.brandRow {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-2) 2.25rem;
+}
+
+.brand {
+	display: flex;
+	align-items: center;
+	gap: var(--space-3);
+	margin: 0;
+	color: $navy;
+	font-size: 1.85rem;
+	font-weight: 800;
+	letter-spacing: -0.04em;
+}
+
+.paw {
+	width: 2.4rem;
+	height: 2.4rem;
+}
+
+.kicker {
+	margin: 0;
+	color: $muted;
+	font-size: 0.6875rem;
+	font-weight: 600;
+	letter-spacing: 0.2em;
+	text-transform: uppercase;
+}
+
+.story {
+	max-width: 34rem;
+}
+
+.eyebrow {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-2);
+	margin: 0;
+	padding: 0.4rem 0.8rem;
+	border-radius: 999px;
+	background: #e3efe8;
+	color: #2a5a4a;
+	font-size: 0.6875rem;
+	font-weight: 700;
+	letter-spacing: 0.14em;
+	text-transform: uppercase;
+}
+
+.eyebrowDot {
+	width: 0.4rem;
+	height: 0.4rem;
+	border-radius: 50%;
+	background: $green;
+}
+
+.headline {
+	margin: 1.75rem 0 0;
+	color: $navy;
+	font-size: clamp(2.5rem, 3.8vw, 4.25rem);
+	font-weight: 800;
+	line-height: 1.04;
+	letter-spacing: -0.055em;
+}
+
+.headlineAccent {
+	color: $green;
+}
+
+.lead {
+	max-width: 28rem;
+	margin: 1.5rem 0 0;
+	color: $muted;
+	font-size: 1.125rem;
+	line-height: 1.6;
+}
+
+.benefits {
+	display: grid;
+	gap: 1.5rem;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.benefit {
+	display: flex;
+	align-items: center;
+	gap: var(--space-4);
+}
+
+.benefitIcon {
+	display: grid;
+	place-items: center;
+	flex: 0 0 3rem;
+	height: 3rem;
+	border-radius: 50%;
+}
+
+// Each icon has its own soft colour; the title beside it carries the meaning.
+.mint {
+	background: #e3efe8;
+	color: $green;
+}
+
+.lilac {
+	background: #ecebfa;
+	color: #4f46a8;
+}
+
+.peach {
+	background: #fbeedf;
+	color: #9a5418;
+}
+
+.benefitTitle {
+	display: block;
+	color: $navy;
+	font-size: 0.9375rem;
+	font-weight: 700;
+	letter-spacing: -0.01em;
+}
+
+.benefitText {
+	display: block;
+	margin-block-start: 0.2rem;
+	color: $muted;
+	font-size: 0.8125rem;
+	line-height: 1.45;
+}
+
+// Narrow screens: a smaller brand row and headline above the hero art.
+@media (max-width: 84.99rem) {
+	.brand {
+		font-size: 1.5rem;
+	}
+
+	.paw {
+		width: 2rem;
+		height: 2rem;
+	}
+
+	.headline {
+		margin-block-start: 1rem;
+		font-size: clamp(2.25rem, 7.5vw, 3.5rem);
+	}
+
+	.lead {
+		margin-block-start: 1rem;
+		font-size: 1rem;
+	}
+
+	.benefits {
+		gap: 1.25rem;
+	}
+}
+
+@media (max-width: 40.62rem) {
+	.kicker {
+		display: none;
+	}
+}

@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { finishSignIn, startPhoneSignIn, verifyPhoneSignIn } from "../../services/authApi";
 import type { SignedInUser } from "../../types/Auth";
 import { PrimaryButton } from "./PrimaryButton";
+import { LockIcon, PhoneIcon } from "./signInIcons";
 import { failureMessages } from "./signInMessages";
 import styles from "./SignInForm.module.scss";
 
@@ -120,18 +121,21 @@ export function PhoneSignInForm({ onSignedIn }: PhoneSignInFormProps) {
       <form className={styles.form} onSubmit={handleNumberSubmit} noValidate>
         <div className={styles.field}>
           <label className={styles.label} htmlFor={`${id}-phone`}>Mobile phone number</label>
-          <input
-            id={`${id}-phone`}
-            className={styles.input}
-            type="tel"
-            inputMode="tel"
-            autoComplete="tel"
-            placeholder="(555) 555-0123"
-            value={phoneNumber}
-            onChange={(event) => setPhoneNumber(event.target.value)}
-            aria-invalid={fieldError ? true : undefined}
-            aria-describedby={fieldError ? phoneErrorId : undefined}
-          />
+          <div className={styles.inputWrap}>
+            <span className={styles.leadingIcon}><PhoneIcon /></span>
+            <input
+              id={`${id}-phone`}
+              className={styles.input}
+              type="tel"
+              inputMode="tel"
+              autoComplete="tel"
+              placeholder="(555) 555-0123"
+              value={phoneNumber}
+              onChange={(event) => setPhoneNumber(event.target.value)}
+              aria-invalid={fieldError ? true : undefined}
+              aria-describedby={fieldError ? phoneErrorId : undefined}
+            />
+          </div>
           {fieldError && <p id={phoneErrorId} className={styles.fieldError}>{fieldError}</p>}
         </div>
 
@@ -151,20 +155,23 @@ export function PhoneSignInForm({ onSignedIn }: PhoneSignInFormProps) {
 
       <div className={styles.field}>
         <label className={styles.label} htmlFor={`${id}-code`}>Verification code</label>
-        <input
-          id={`${id}-code`}
-          ref={codeRef}
-          className={styles.input}
-          type="text"
-          inputMode="numeric"
-          autoComplete="one-time-code"
-          placeholder="6-digit code"
-          maxLength={6}
-          value={code}
-          onChange={(event) => setCode(event.target.value)}
-          aria-invalid={fieldError ? true : undefined}
-          aria-describedby={fieldError ? `${codeErrorId} ${id}-code-note` : `${id}-code-note`}
-        />
+        <div className={styles.inputWrap}>
+          <span className={styles.leadingIcon}><LockIcon /></span>
+          <input
+            id={`${id}-code`}
+            ref={codeRef}
+            className={styles.input}
+            type="text"
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            placeholder="6-digit code"
+            maxLength={6}
+            value={code}
+            onChange={(event) => setCode(event.target.value)}
+            aria-invalid={fieldError ? true : undefined}
+            aria-describedby={fieldError ? `${codeErrorId} ${id}-code-note` : `${id}-code-note`}
+          />
+        </div>
         {fieldError && <p id={codeErrorId} className={styles.fieldError}>{fieldError}</p>}
         <p id={`${id}-code-note`} className={styles.note}>
           Demo mode: no text is sent. Use code <strong>123456</strong>.
