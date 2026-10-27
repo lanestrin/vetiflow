@@ -1,0 +1,82 @@
+// Shared by the sign-in forms (email now, phone in S.19).
+.form {
+	display: flex;
+	flex-direction: column;
+}
+
+.field {
+	margin-block-end: var(--space-4);
+}
+
+.labelRow {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--space-2);
+}
+
+.label {
+	display: block;
+	margin-block-end: var(--space-2);
+	color: #2f4a50;
+	font-size: 0.8125rem;
+	font-weight: 700;
+}
+
+.input {
+	width: 100%;
+	min-height: 3rem;
+	padding-inline: var(--space-3);
+	// 3:1 against white, so the field's edge is visible (WCAG non-text contrast).
+	border: 1px solid #7a8b8e;
+	border-radius: var(--radius-md);
+	background: var(--color-surface);
+	color: var(--color-text-primary);
+	font-size: 0.9375rem;
+
+	&::placeholder {
+		color: #6b7a7d;
+	}
+
+	&:focus-visible {
+		outline: 3px solid var(--color-focus);
+		outline-offset: 2px;
+	}
+
+	&[aria-invalid="true"] {
+		border-color: #a3392d;
+		border-width: 2px;
+	}
+}
+
+.fieldError {
+	margin: var(--space-2) 0 0;
+	color: #a3392d;
+	font-size: 0.8125rem;
+	line-height: 1.4;
+}
+
+.link {
+	padding: var(--space-1) 0;
+	border: 0;
+	background: none;
+	color: var(--color-care-teal);
+	font-size: 0.8125rem;
+	font-weight: 700;
+	text-decoration: underline;
+	cursor: pointer;
+
+	&:focus-visible {
+		outline: 3px solid var(--color-focus);
+		outline-offset: 2px;
+	}
+}
+
+.message {
+	min-height: 1.25rem;
+	margin: var(--space-3) 0 0;
+	color: #a3392d;
+	font-size: 0.875rem;
+	line-height: 1.45;
+}

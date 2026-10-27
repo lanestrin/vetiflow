@@ -1,0 +1,26 @@
+.primary {
+	width: 100%;
+	min-height: 3rem;
+	margin-block-start: var(--space-1);
+	border: 0;
+	border-radius: var(--radius-md);
+	background: var(--color-care-teal);
+	color: var(--color-text-inverse);
+	font-size: 0.9375rem;
+	font-weight: 700;
+	cursor: pointer;
+
+	&:hover {
+		background: #0e5752;
+	}
+
+	&:focus-visible {
+		outline: 3px solid var(--color-focus);
+		outline-offset: 2px;
+	}
+
+	&:disabled {
+		background: #4f6b6e;
+		cursor: progress;
+	}
+}
