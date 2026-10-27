@@ -1,0 +1,47 @@
+.success {
+	padding: var(--space-5);
+	border: 1px solid #c9ddd5;
+	border-radius: 1rem;
+	background: #f4faf6;
+}
+
+.badge {
+	display: grid;
+	place-items: center;
+	width: 2.6rem;
+	height: 2.6rem;
+	margin-block-end: var(--space-4);
+	border-radius: 0.8rem;
+	background: #dff3e9;
+	color: var(--color-care-teal);
+	font-size: 1.25rem;
+}
+
+.title {
+	margin: 0;
+	font-size: 1.25rem;
+}
+
+.copy {
+	margin: var(--space-3) 0 var(--space-4);
+	color: var(--color-text-secondary);
+	font-size: 0.9375rem;
+	line-height: 1.55;
+}
+
+.back {
+	width: 100%;
+	min-height: 2.75rem;
+	margin-block-start: var(--space-2);
+	border: 0;
+	background: none;
+	color: var(--color-care-teal);
+	font-size: 0.875rem;
+	font-weight: 700;
+	cursor: pointer;
+
+	&:focus-visible {
+		outline: 3px solid var(--color-focus);
+		outline-offset: 2px;
+	}
+}
