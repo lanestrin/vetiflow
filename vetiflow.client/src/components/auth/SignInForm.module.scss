@@ -1,6 +1,9 @@
 // Shared by the email and phone sign-in forms.
 $fast: var(--motion-fast) var(--ease-out);
 $error: #a3392d;
+// The fields' focus ring. Not --color-focus, which also rings controls on
+// the dark navy panels, where teal would be too faint.
+$focus: var(--color-care-teal);
 
 // Fills its panel; SignInPage stacks both panels in one cell.
 .form {
@@ -77,16 +80,27 @@ $error: #a3392d;
 		border-color: #4f6366;
 	}
 
+	// The teal ring shows at once; the border and the soft halo in the gap
+	// under it ease in. Neither changes the field's size.
 	&:focus-visible {
-		outline: 3px solid var(--color-focus);
+		outline: 2px solid $focus;
 		outline-offset: 2px;
+		border-color: $focus;
+		box-shadow: 0 0 0 4px color-mix(in srgb, $focus 15%, transparent);
 	}
 
 	// A thicker edge drawn inside (no layout shift), on top of the colour and
-	// the error text.
+	// the error text. Both shadows are always listed, inset first, so focus
+	// eases the halo in rather than jumping.
 	&[aria-invalid="true"] {
 		border-color: $error;
-		box-shadow: inset 0 0 0 1px $error;
+		box-shadow: inset 0 0 0 1px $error, 0 0 0 0 transparent;
+	}
+
+	// Focus keeps an invalid field red.
+	&[aria-invalid="true"]:focus-visible {
+		outline-color: $error;
+		box-shadow: inset 0 0 0 1px $error, 0 0 0 4px color-mix(in srgb, $error 15%, transparent);
 	}
 }
 
