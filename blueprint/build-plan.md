@@ -79,6 +79,19 @@ Needs no decisions and no sign-in. Every write in M2 relies on S.12's errors.
   - [x] **S.10b** `chore/least-privilege-db`: an app role that can read and write rows but not change the schema, RLS policies for it, migrations through a separate privileged connection used only during a migration deploy, and the Supabase and Render steps. Done (history/features/S.10b-least-privilege-db.md).
 - [x] **1.4** `fix/dependabot-alerts`: resolve any open alerts that remain after PR #13's `npm audit fix` (check brace-expansion, source-map-js, zod). Done (history/features/1.4-dependabot-alerts.md).
 
+## M3a: Sign-in proof of concept (demo)
+
+A free, local simulation of sign-in for both roles, built against
+`blueprint/reference/vetiflow-login-mock.html`. It needs no decision. It was
+moved ahead of M2 on 2026-10-27 so stakeholders can see sign-in first. It is
+not production authentication: details, acceptance criteria and limits are in
+project plan section 10.
+
+- [x] **S.16** `feature/demo-accounts`: `Account` entity and migration (RLS and `AppRoleAccess.Grant`) linking each sign-in to one `StaffMember` or one `Owner`, password hashing with the framework's `PasswordHasher`, and the two seeded demo accounts, with database tests. Done (history/features/S.16-demo-accounts.md).
+- [ ] **S.17** `feature/demo-email-sign-in`: `POST /api/auth/email` (email and password to a bearer token), `GET /api/auth/me` (name and experience), and the board and stage endpoints require a hospital team member (`401` signed out, `403` for a pet parent).
+- [ ] **S.18** `feature/sign-in-screen`: `/sign-in` with the Email option to the mockup, the success panel, routing to `/er` or `/pet-parent`, a minimal pet parent home, sign out, route guards and the session-ended state.
+- [ ] **S.19** `feature/demo-phone-sign-in`: `POST /api/auth/phone/start` and `POST /api/auth/phone/verify` with the fixed code `123456` only while `DemoSignIn:Enabled` is on, no text sent, and the Phone option on the screen.
+
 ## M2: Manual staff journey on demo data
 
 Intake -> case detail -> triage -> assignment -> progression -> discharge, with
@@ -102,18 +115,6 @@ holds demo data only.
 - [ ] **4.9** `feature/case-status-next-action`: set status and next action from the card or drawer, writing `StatusChanged`.
 - [ ] **6.2** `feature/discharge`: discharge with an outcome, set `DischargedAt`, the room frees itself (it is derived), write `Discharged`, and the case leaves the board.
 - [ ] **4.7** `feature/duplicate-patients`: warn on likely duplicates (same name, species and owner) at intake; merge only if the decision says so.
-
-## M3a: Sign-in proof of concept (demo)
-
-A free, local simulation of sign-in for both roles, built against
-`blueprint/reference/vetiflow-login-mock.html`. It needs no decision and can be
-built alongside M2. It is not production authentication: details, acceptance
-criteria and limits are in project plan section 10.
-
-- [ ] **S.16** `feature/demo-accounts`: `Account` entity and migration (RLS and `AppRoleAccess.Grant`) linking each sign-in to one `StaffMember` or one `Owner`, password hashing with the framework's `PasswordHasher`, and the two seeded demo accounts, with database tests.
-- [ ] **S.17** `feature/demo-email-sign-in`: `POST /api/auth/email` (email and password to a bearer token), `GET /api/auth/me` (name and experience), and the board and stage endpoints require a hospital team member (`401` signed out, `403` for a pet parent).
-- [ ] **S.18** `feature/sign-in-screen`: `/sign-in` with the Email option to the mockup, the success panel, routing to `/er` or `/pet-parent`, a minimal pet parent home, sign out, route guards and the session-ended state.
-- [ ] **S.19** `feature/demo-phone-sign-in`: `POST /api/auth/phone/start` and `POST /api/auth/phone/verify` with the fixed code `123456` only while `DemoSignIn:Enabled` is on, no text sent, and the Phone option on the screen.
 
 ## M3: Sign-in and roles
 

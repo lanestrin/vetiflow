@@ -1,5 +1,7 @@
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using vetiflow.Server.Data;
+using vetiflow.Server.Models;
 using vetiflow.Server.Tests.Infrastructure;
 
 namespace vetiflow.Server.Tests.Data;
@@ -68,5 +70,85 @@ public class DbSeederTests(VetiFlowApiFactory factory)
 		// Demo contact details must stay synthetic.
 		var emails = patients.Select(patient => patient.Owner!.Email).OfType<string>();
 		Assert.All(emails, email => Assert.EndsWith("@example.com", email));
+	}
+
+	// The two sign-ins from the login mockup, one per experience; the kind and
+	// link come from the record, not the address.
+	[Fact]
+	public async Task SeedAsync_CreatesTheTwoDemoAccounts()
+	{
+		await using var dbContext = await SeededDatabaseAsync();
+
+		var accounts = await dbContext.Accounts
+			.Include(account => account.StaffMember)
+			.Include(account => account.Owner)
+			.OrderBy(account => account.Email)
+			.ToListAsync(_cancellationToken);
+
+		Assert.Collection(
+			accounts,
+			parent =>
+			{
+				Assert.Equal("parent@vetiflow.demo", parent.Email);
+				Assert.Equal("+13125550102", parent.PhoneNumber);
+				Assert.Equal(AccountKind.PetParent, parent.Kind);
+				Assert.Equal("Morgan Hale", $"{parent.Owner!.FirstName} {parent.Owner.LastName}");
+				Assert.True(parent.IsActive);
+			},
+			team =>
+			{
+				Assert.Equal("team@vetiflow.demo", team.Email);
+				Assert.Equal("+13125550101", team.PhoneNumber);
+				Assert.Equal(AccountKind.TeamMember, team.Kind);
+				Assert.Equal("Jordan Lee", $"{team.StaffMember!.FirstName} {team.StaffMember.LastName}");
+				Assert.True(team.IsActive);
+			});
+	}
+
+	[Fact]
+	public async Task SeedAsync_HashesDemoPasswords()
+	{
+		await using var dbContext = await SeededDatabaseAsync();
+		var passwordHasher = new PasswordHasher<Account>();
+
+		var accounts = await dbContext.Accounts.ToListAsync(_cancellationToken);
+
+		Assert.Equal(2, accounts.Count);
+		Assert.All(accounts, account =>
+		{
+			Assert.NotEqual(DbSeeder.DemoPassword, account.PasswordHash);
+			Assert.Equal(
+				PasswordVerificationResult.Success,
+				passwordHasher.VerifyHashedPassword(account, account.PasswordHash!, DbSeeder.DemoPassword));
+			Assert.Equal(
+				PasswordVerificationResult.Failed,
+				passwordHasher.VerifyHashedPassword(account, account.PasswordHash!, "not-the-password"));
+		});
+	}
+
+	// Databases seeded before accounts existed (any local one) get the accounts
+	// on the next boot, once.
+	[Fact]
+	public async Task SeedAsync_AddsAccountsToAnAlreadySeededDatabase()
+	{
+		await using var dbContext = await SeededDatabaseAsync();
+		await dbContext.Accounts.ExecuteDeleteAsync(_cancellationToken);
+		var casesBefore = await dbContext.EmergencyCases.CountAsync(_cancellationToken);
+
+		dbContext.ChangeTracker.Clear();
+		await DbSeeder.SeedAsync(dbContext);
+		dbContext.ChangeTracker.Clear();
+		await DbSeeder.SeedAsync(dbContext);
+
+		Assert.Equal(2, await dbContext.Accounts.CountAsync(_cancellationToken));
+		Assert.Equal(casesBefore, await dbContext.EmergencyCases.CountAsync(_cancellationToken));
+	}
+
+	private async Task<VetiFlowDbContext> SeededDatabaseAsync()
+	{
+		var dbContext = VetiFlowApiFactory.CreateDbContext(await factory.Postgres.CreateDatabaseAsync());
+		await dbContext.Database.MigrateAsync(_cancellationToken);
+		await DbSeeder.SeedAsync(dbContext);
+		return dbContext;
 	}
 }

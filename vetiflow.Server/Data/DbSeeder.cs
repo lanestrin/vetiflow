@@ -1,17 +1,74 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using vetiflow.Server.Models;
 
 namespace vetiflow.Server.Data;
 
 public static class DbSeeder
 {
+	// Fictional and shown on the demo sign-in screen (project plan section 10).
+	public const string DemoPassword = "welcome1";
+
+	// Each part runs only when its data is missing, so seeding on every boot
+	// never duplicates rows, and a database seeded before accounts existed
+	// still gets them.
 	public static async Task SeedAsync(VetiFlowDbContext dbContext)
 	{
-		if (await dbContext.EmergencyCases.AnyAsync())
+		if (!await dbContext.EmergencyCases.AnyAsync())
 		{
-			return;
+			await SeedCasesAsync(dbContext);
 		}
 
+		if (!await dbContext.Accounts.AnyAsync())
+		{
+			await SeedDemoAccountsAsync(dbContext);
+		}
+	}
+
+	// Two demo sign-ins, linked by name to the seeded people. An account whose
+	// person is missing (a database seeded differently) is skipped.
+	private static async Task SeedDemoAccountsAsync(VetiFlowDbContext dbContext)
+	{
+		var passwordHasher = new PasswordHasher<Account>();
+
+		var jordanLee = await dbContext.StaffMembers
+				.FirstOrDefaultAsync(staff => staff.FirstName == "Jordan" && staff.LastName == "Lee");
+		var morganHale = await dbContext.Owners
+				.FirstOrDefaultAsync(owner => owner.FirstName == "Morgan" && owner.LastName == "Hale");
+
+		if (jordanLee is not null)
+		{
+			dbContext.Accounts.Add(WithDemoPassword(passwordHasher, new Account
+			{
+				Kind = AccountKind.TeamMember,
+				StaffMember = jordanLee,
+				Email = "team@vetiflow.demo",
+				PhoneNumber = "+13125550101"
+			}));
+		}
+
+		if (morganHale is not null)
+		{
+			dbContext.Accounts.Add(WithDemoPassword(passwordHasher, new Account
+			{
+				Kind = AccountKind.PetParent,
+				Owner = morganHale,
+				Email = "parent@vetiflow.demo",
+				PhoneNumber = "+13125550102"
+			}));
+		}
+
+		await dbContext.SaveChangesAsync();
+	}
+
+	private static Account WithDemoPassword(PasswordHasher<Account> passwordHasher, Account account)
+	{
+		account.PasswordHash = passwordHasher.HashPassword(account, DemoPassword);
+		return account;
+	}
+
+	private static async Task SeedCasesAsync(VetiFlowDbContext dbContext)
+	{
 		var now = DateTimeOffset.UtcNow;
 
 		var drLee = new StaffMember
