@@ -38,6 +38,15 @@ export function PhoneIcon() {
   );
 }
 
+export function MapPinIcon() {
+  return (
+    <LineIcon>
+      <path d="M12 21s7-7.1 7-12a7 7 0 0 0-14 0c0 4.9 7 12 7 12Z" />
+      <circle cx="12" cy="9" r="2.4" />
+    </LineIcon>
+  );
+}
+
 export function LockIcon() {
   return (
     <LineIcon>

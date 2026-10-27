@@ -16,17 +16,21 @@ $muted: #556372;
 	position: relative;
 	display: grid;
 	grid-template-columns: var(--story-width) minmax(2rem, 1fr) clamp(24rem, 30vw, 30rem);
-	grid-template-rows: auto auto auto 1fr auto;
+	grid-template-rows: auto auto auto 1fr auto auto;
 	grid-template-areas:
 		"brand . card"
 		"story . card"
 		"benefits . card"
 		". . card"
-		"tagline . card";
+		"tagline . card"
+		"emergency emergency emergency";
 	row-gap: 2.75rem;
 	min-height: 100vh;
-	padding: 2.5rem var(--gutter);
-	overflow: hidden;
+	// No bottom padding: the emergency bar sits flush with the page's foot.
+	padding: 2.5rem var(--gutter) 0;
+	// Clip, not hidden: hidden would make the shell a scroll box and stop the
+	// emergency bar sticking to the window.
+	overflow: clip;
 	background: $cream;
 }
 
@@ -68,6 +72,17 @@ $muted: #556372;
 	min-width: 0;
 }
 
+// Full width at the foot of the page, out past the shell's side padding. On
+// wide screens it sticks to the bottom of the window, as in the design, so it
+// is always in sight even when the card makes the page taller than the screen.
+.emergencyArea {
+	position: sticky;
+	inset-block-end: 0;
+	z-index: 2;
+	grid-area: emergency;
+	margin-inline: calc(-1 * var(--gutter));
+}
+
 .brandArea {
 	grid-area: brand;
 }
@@ -88,6 +103,12 @@ $muted: #556372;
 	font-weight: 600;
 	letter-spacing: 0.2em;
 	text-transform: uppercase;
+}
+
+// When a control gets focus, the browser scrolls it clear of the sticky
+// emergency bar (WCAG 2.2 "Focus not obscured").
+.cardArea :is(a, button, input, summary) {
+	scroll-margin-block-end: 7.5rem;
 }
 
 .cardArea {
@@ -313,10 +334,18 @@ $muted: #556372;
 			"story"
 			"card"
 			"benefits"
-			"tagline";
+			"tagline"
+			"emergency";
 		justify-content: center;
 		row-gap: 1.75rem;
-		padding-block: 1.25rem 2.5rem;
+		padding-block: 1.25rem 0;
+	}
+
+	// Out of the 36rem column to the screen edges, like the hero band. Not
+	// sticky here: on a phone it would cover too much of the form.
+	.emergencyArea {
+		position: relative;
+		margin-inline: calc(50% - 50vw);
 	}
 
 	// The scene switches to its round photo blob, centred in the band.

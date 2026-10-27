@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { EmailSignInForm } from "../components/auth/EmailSignInForm";
+import { EmergencyBar } from "../components/auth/EmergencyBar";
 import { PhoneSignInForm } from "../components/auth/PhoneSignInForm";
 import { experienceHome, type SignInRouteState } from "../components/auth/experienceHome";
 import { useSession } from "../components/auth/useSession";
@@ -211,6 +212,9 @@ export function SignInPage() {
         <SignInBenefits />
       </div>
       <footer className={styles.tagline}>Thoughtful care. Clear communication.</footer>
+      <div className={styles.emergencyArea}>
+        <EmergencyBar />
+      </div>
     </div>
   );
 }
