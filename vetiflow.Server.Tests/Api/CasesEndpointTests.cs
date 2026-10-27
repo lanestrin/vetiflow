@@ -13,6 +13,53 @@ public class CasesEndpointTests(VetiFlowApiFactory factory)
 {
 	private readonly CancellationToken _cancellationToken = TestContext.Current.CancellationToken;
 
+	// The board is for hospital team members only; owners never see it.
+	[Fact]
+	public async Task GetCases_SignedOut_Returns401Problem()
+	{
+		using var client = factory.CreateClient();
+
+		var response = await client.GetAsync("/api/cases", _cancellationToken);
+
+		AssertProblemStatus(response, HttpStatusCode.Unauthorized);
+	}
+
+	[Fact]
+	public async Task GetCases_AsPetParent_Returns403Problem()
+	{
+		using var client = await factory.CreateSignedInClientAsync(DemoAccounts.ParentEmail);
+
+		var response = await client.GetAsync("/api/cases", _cancellationToken);
+
+		AssertProblemStatus(response, HttpStatusCode.Forbidden);
+	}
+
+	[Fact]
+	public async Task UpdateStage_SignedOut_Returns401AndLeavesCaseAlone()
+	{
+		var emergencyCase = TestData.Case(TestData.Patient());
+		await SaveAsync(emergencyCase);
+		using var client = factory.CreateClient();
+
+		var response = await PatchStageAsync(client, emergencyCase.Id, """{"stage":"treatment"}""");
+
+		AssertProblemStatus(response, HttpStatusCode.Unauthorized);
+		await AssertStageAsync(emergencyCase.Id, CaseStage.Incoming);
+	}
+
+	[Fact]
+	public async Task UpdateStage_AsPetParent_Returns403AndLeavesCaseAlone()
+	{
+		var emergencyCase = TestData.Case(TestData.Patient());
+		await SaveAsync(emergencyCase);
+		using var client = await factory.CreateSignedInClientAsync(DemoAccounts.ParentEmail);
+
+		var response = await PatchStageAsync(client, emergencyCase.Id, """{"stage":"treatment"}""");
+
+		AssertProblemStatus(response, HttpStatusCode.Forbidden);
+		await AssertStageAsync(emergencyCase.Id, CaseStage.Incoming);
+	}
+
 	// Untriaged first (risk unknown, next step is triage), then Critical to Low,
 	// then the longest wait. Acuity is stored as text, so this also proves the
 	// query ranks it rather than sorting alphabetically.
@@ -26,7 +73,7 @@ public class CasesEndpointTests(VetiFlowApiFactory factory)
 		var critical = CaseWith(AcuityLevel.Critical, minutesAgo: 20);
 		var untriaged = CaseWith(acuity: null, minutesAgo: 10);
 		await SaveAsync(low, highNewer, highOlder, urgent, critical, untriaged);
-		using var client = factory.CreateClient();
+		using var client = await factory.CreateSignedInClientAsync(DemoAccounts.TeamEmail);
 
 		var cases = await client.GetFromJsonAsync<JsonElement[]>("/api/cases", _cancellationToken);
 
@@ -49,7 +96,7 @@ public class CasesEndpointTests(VetiFlowApiFactory factory)
 		var discharged = TestData.Case(TestData.Patient());
 		discharged.DischargedAt = DateTimeOffset.UtcNow;
 		await SaveAsync(active, discharged);
-		using var client = factory.CreateClient();
+		using var client = await factory.CreateSignedInClientAsync(DemoAccounts.TeamEmail);
 
 		var cases = await client.GetFromJsonAsync<JsonElement[]>("/api/cases", _cancellationToken);
 
@@ -77,7 +124,7 @@ public class CasesEndpointTests(VetiFlowApiFactory factory)
 		emergencyCase.Tasks.Add(blocker);
 		emergencyCase.RecordTriage(new TriageAssessment { Acuity = AcuityLevel.Urgent });
 		await SaveAsync(emergencyCase);
-		using var client = factory.CreateClient();
+		using var client = await factory.CreateSignedInClientAsync(DemoAccounts.TeamEmail);
 
 		var cases = await client.GetFromJsonAsync<JsonElement[]>("/api/cases", _cancellationToken);
 
@@ -107,7 +154,7 @@ public class CasesEndpointTests(VetiFlowApiFactory factory)
 	{
 		var emergencyCase = TestData.Case(TestData.Patient());
 		await SaveAsync(emergencyCase);
-		using var client = factory.CreateClient();
+		using var client = await factory.CreateSignedInClientAsync(DemoAccounts.TeamEmail);
 
 		var cases = await client.GetFromJsonAsync<JsonElement[]>("/api/cases", _cancellationToken);
 
@@ -129,7 +176,7 @@ public class CasesEndpointTests(VetiFlowApiFactory factory)
 		emergencyCase.Tasks.Add(TestData.Task(CaseTaskType.Blocker, CaseTaskStatus.Cancelled));
 		emergencyCase.Tasks.Add(TestData.Task(CaseTaskType.Task));
 		await SaveAsync(emergencyCase);
-		using var client = factory.CreateClient();
+		using var client = await factory.CreateSignedInClientAsync(DemoAccounts.TeamEmail);
 
 		var cases = await client.GetFromJsonAsync<JsonElement[]>("/api/cases", _cancellationToken);
 
@@ -148,7 +195,7 @@ public class CasesEndpointTests(VetiFlowApiFactory factory)
 		patient.Owner = owner;
 		var emergencyCase = TestData.Case(patient);
 		await SaveAsync(emergencyCase);
-		using var client = factory.CreateClient();
+		using var client = await factory.CreateSignedInClientAsync(DemoAccounts.TeamEmail);
 
 		var cases = await client.GetFromJsonAsync<JsonElement[]>("/api/cases", _cancellationToken);
 
@@ -165,7 +212,7 @@ public class CasesEndpointTests(VetiFlowApiFactory factory)
 	{
 		var emergencyCase = TestData.Case(TestData.Patient());
 		await SaveAsync(emergencyCase);
-		using var client = factory.CreateClient();
+		using var client = await factory.CreateSignedInClientAsync(DemoAccounts.TeamEmail);
 
 		var cases = await client.GetFromJsonAsync<JsonElement[]>("/api/cases", _cancellationToken);
 
@@ -179,7 +226,7 @@ public class CasesEndpointTests(VetiFlowApiFactory factory)
 		var emergencyCase = TestData.Case(TestData.Patient());
 		emergencyCase.LastUpdated = DateTimeOffset.UtcNow.AddHours(-1);
 		await SaveAsync(emergencyCase);
-		using var client = factory.CreateClient();
+		using var client = await factory.CreateSignedInClientAsync(DemoAccounts.TeamEmail);
 
 		var response = await client.PatchAsJsonAsync(
 			$"/api/cases/{emergencyCase.Id}/stage",
@@ -196,7 +243,7 @@ public class CasesEndpointTests(VetiFlowApiFactory factory)
 	[Fact]
 	public async Task UpdateStage_UnknownCase_ReturnsNotFound()
 	{
-		using var client = factory.CreateClient();
+		using var client = await factory.CreateSignedInClientAsync(DemoAccounts.TeamEmail);
 
 		var response = await client.PatchAsJsonAsync(
 			$"/api/cases/{Guid.NewGuid()}/stage",
@@ -219,7 +266,7 @@ public class CasesEndpointTests(VetiFlowApiFactory factory)
 	{
 		var emergencyCase = TestData.Case(TestData.Patient());
 		await SaveAsync(emergencyCase);
-		using var client = factory.CreateClient();
+		using var client = await factory.CreateSignedInClientAsync(DemoAccounts.TeamEmail);
 
 		var response = await PatchStageAsync(client, emergencyCase.Id, body);
 
@@ -234,7 +281,7 @@ public class CasesEndpointTests(VetiFlowApiFactory factory)
 	{
 		var emergencyCase = TestData.Case(TestData.Patient());
 		await SaveAsync(emergencyCase);
-		using var client = factory.CreateClient();
+		using var client = await factory.CreateSignedInClientAsync(DemoAccounts.TeamEmail);
 
 		var response = await PatchStageAsync(client, emergencyCase.Id, """{"stage":"surgery"}""");
 
@@ -266,7 +313,7 @@ public class CasesEndpointTests(VetiFlowApiFactory factory)
 			}
 		});
 		await hub.StartAsync(_cancellationToken);
-		using var client = factory.CreateClient();
+		using var client = await factory.CreateSignedInClientAsync(DemoAccounts.TeamEmail);
 
 		await client.PatchAsJsonAsync(
 			$"/api/cases/{emergencyCase.Id}/stage",
@@ -282,6 +329,19 @@ public class CasesEndpointTests(VetiFlowApiFactory factory)
 			$"/api/cases/{caseId}/stage",
 			new StringContent(body, System.Text.Encoding.UTF8, "application/json"),
 			_cancellationToken);
+
+	private static void AssertProblemStatus(HttpResponseMessage response, HttpStatusCode status)
+	{
+		Assert.Equal(status, response.StatusCode);
+		Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+	}
+
+	private async Task AssertStageAsync(Guid caseId, CaseStage expected)
+	{
+		await using var dbContext = factory.CreateDbContext();
+		var saved = await dbContext.EmergencyCases.SingleAsync(c => c.Id == caseId, _cancellationToken);
+		Assert.Equal(expected, saved.Stage);
+	}
 
 	private static void AssertReference(JsonElement reference, Guid id, string name)
 	{

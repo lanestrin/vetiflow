@@ -1,8 +1,50 @@
 import { http, HttpResponse } from "msw";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { buildCase } from "../test/builders";
 import { apiUrl, server } from "../test/server";
+import { AccessDeniedError, SessionEndedError } from "./apiErrors";
 import { getEmergencyCases, updateCaseStage } from "./casesApi";
+import { saveAccessToken } from "./session";
+
+afterEach(() => {
+  sessionStorage.clear();
+});
+
+describe("board requests", () => {
+  it("send the session's token", async () => {
+    saveAccessToken("token-1");
+    const seen: (string | null)[] = [];
+    server.use(
+      http.get(apiUrl("/api/cases"), ({ request }) => {
+        seen.push(request.headers.get("Authorization"));
+        return HttpResponse.json([]);
+      }),
+      http.patch(apiUrl("/api/cases/case-42/stage"), ({ request }) => {
+        seen.push(request.headers.get("Authorization"));
+        return new HttpResponse(null, { status: 204 });
+      })
+    );
+
+    await getEmergencyCases();
+    await updateCaseStage("case-42", "treatment");
+
+    expect(seen).toEqual(["Bearer token-1", "Bearer token-1"]);
+  });
+
+  it("throw SessionEndedError on 401", async () => {
+    server.use(http.get(apiUrl("/api/cases"), () => new HttpResponse(null, { status: 401 })));
+
+    await expect(getEmergencyCases()).rejects.toBeInstanceOf(SessionEndedError);
+  });
+
+  it("throw AccessDeniedError on 403", async () => {
+    server.use(
+      http.patch(apiUrl("/api/cases/case-42/stage"), () => new HttpResponse(null, { status: 403 }))
+    );
+
+    await expect(updateCaseStage("case-42", "treatment")).rejects.toBeInstanceOf(AccessDeniedError);
+  });
+});
 
 describe("getEmergencyCases", () => {
   it("returns the cases from the API", async () => {

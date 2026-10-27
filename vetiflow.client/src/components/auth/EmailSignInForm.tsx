@@ -7,6 +7,8 @@ import styles from "./SignInForm.module.scss";
 
 interface EmailSignInFormProps {
   onSignedIn: (user: SignedInUser) => void;
+  // A message to show before anything is typed, such as "session ended".
+  notice?: string;
 }
 
 interface FieldErrors {
@@ -43,12 +45,12 @@ function validate(email: string, password: string): FieldErrors {
   return errors;
 }
 
-export function EmailSignInForm({ onSignedIn }: EmailSignInFormProps) {
+export function EmailSignInForm({ onSignedIn, notice = "" }: EmailSignInFormProps) {
   const id = useId();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState(notice);
   const [isSigningIn, setIsSigningIn] = useState(false);
 
   const emailErrorId = `${id}-email-error`;

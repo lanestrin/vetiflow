@@ -27,6 +27,9 @@ public sealed class VetiFlowApiFactory : WebApplicationFactory<Program>, IAsyncL
 
 	public VetiFlowDbContext CreateDbContext() => CreateDbContext(_connectionString);
 
+	// A client signed in as a seeded demo account (DemoAccounts).
+	public Task<HttpClient> CreateSignedInClientAsync(string email) => CreateClient().SignInAsync(email);
+
 	public static VetiFlowDbContext CreateDbContext(string connectionString) =>
 		new(new DbContextOptionsBuilder<VetiFlowDbContext>()
 			.UseNpgsql(connectionString)

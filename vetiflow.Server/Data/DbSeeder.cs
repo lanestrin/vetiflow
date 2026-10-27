@@ -25,38 +25,36 @@ public static class DbSeeder
 		}
 	}
 
-	// Two demo sign-ins, linked by name to the seeded people. An account whose
-	// person is missing (a database seeded differently) is skipped.
+	// Two demo sign-ins, linked by name to the seeded people. A database seeded
+	// before those people existed (any older one) gets them created here, so the
+	// locked board always has someone who can sign in.
 	private static async Task SeedDemoAccountsAsync(VetiFlowDbContext dbContext)
 	{
 		var passwordHasher = new PasswordHasher<Account>();
 
 		var jordanLee = await dbContext.StaffMembers
-				.FirstOrDefaultAsync(staff => staff.FirstName == "Jordan" && staff.LastName == "Lee");
+				.FirstOrDefaultAsync(staff => staff.FirstName == "Jordan" && staff.LastName == "Lee")
+				?? new StaffMember { FirstName = "Jordan", LastName = "Lee", Role = StaffRole.Veterinarian };
+		// Synthetic contact details only: 555-01xx and example.com.
 		var morganHale = await dbContext.Owners
-				.FirstOrDefaultAsync(owner => owner.FirstName == "Morgan" && owner.LastName == "Hale");
+				.FirstOrDefaultAsync(owner => owner.FirstName == "Morgan" && owner.LastName == "Hale")
+				?? new Owner { FirstName = "Morgan", LastName = "Hale", Phone = "555-0101", Email = "morgan.hale@example.com" };
 
-		if (jordanLee is not null)
+		dbContext.Accounts.Add(WithDemoPassword(passwordHasher, new Account
 		{
-			dbContext.Accounts.Add(WithDemoPassword(passwordHasher, new Account
-			{
-				Kind = AccountKind.TeamMember,
-				StaffMember = jordanLee,
-				Email = "team@vetiflow.demo",
-				PhoneNumber = "+13125550101"
-			}));
-		}
+			Kind = AccountKind.TeamMember,
+			StaffMember = jordanLee,
+			Email = "team@vetiflow.demo",
+			PhoneNumber = "+13125550101"
+		}));
 
-		if (morganHale is not null)
+		dbContext.Accounts.Add(WithDemoPassword(passwordHasher, new Account
 		{
-			dbContext.Accounts.Add(WithDemoPassword(passwordHasher, new Account
-			{
-				Kind = AccountKind.PetParent,
-				Owner = morganHale,
-				Email = "parent@vetiflow.demo",
-				PhoneNumber = "+13125550102"
-			}));
-		}
+			Kind = AccountKind.PetParent,
+			Owner = morganHale,
+			Email = "parent@vetiflow.demo",
+			PhoneNumber = "+13125550102"
+		}));
 
 		await dbContext.SaveChangesAsync();
 	}
