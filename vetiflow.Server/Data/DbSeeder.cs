@@ -23,6 +23,47 @@ public static class DbSeeder
 		{
 			await SeedDemoAccountsAsync(dbContext);
 		}
+
+		await LinkDemoPetAsync(dbContext);
+	}
+
+	// The demo pet parent should have a pet to show. A fresh seed gives Morgan
+	// Hale Buddy; on databases seeded before owners existed, Buddy has no owner
+	// (AddOwners added Patient.OwnerId without a backfill). Runs every boot but
+	// acts only while the demo Morgan Hale owns no pets, and never takes a pet
+	// that has an owner or creates a case.
+	private static async Task LinkDemoPetAsync(VetiFlowDbContext dbContext)
+	{
+		var ownerId = await dbContext.Accounts
+				.Where(account => account.Email == "parent@vetiflow.demo")
+				.Select(account => account.OwnerId)
+				.SingleOrDefaultAsync();
+
+		if (ownerId is null || await dbContext.Patients.AnyAsync(patient => patient.OwnerId == ownerId))
+		{
+			return;
+		}
+
+		var freeBuddy = await dbContext.Patients
+				.FirstOrDefaultAsync(patient => patient.Name == "Buddy" && patient.Species == "Dog" && patient.OwnerId == null);
+
+		if (freeBuddy is not null)
+		{
+			freeBuddy.OwnerId = ownerId;
+		}
+		else
+		{
+			dbContext.Patients.Add(new Patient
+			{
+				Name = "Buddy",
+				Species = "Dog",
+				Breed = "Golden Retriever",
+				Sex = PatientSex.MaleIntact,
+				OwnerId = ownerId
+			});
+		}
+
+		await dbContext.SaveChangesAsync();
 	}
 
 	// Two demo sign-ins, linked by name to the seeded people. A database seeded
