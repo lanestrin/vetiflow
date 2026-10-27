@@ -96,8 +96,10 @@ Not part of v1. Open question.
   `blueprint/reference/`.
 - Acuity colours and labels: Critical, Urgent, High, Low, in that order.
 - Calm, plain wording on the owner page. No acuity, no clinical shorthand.
-- Accessible: keyboard alternative to drag and drop, `aria-live` for remote
-  changes, AA contrast.
+- Responsive and accessible: phone, tablet and desktop layouts; visible
+  non-colour cues for acuity and status; keyboard alternatives to drag and drop;
+  appropriate live announcements and WCAG 2.2 AA as the target. Follow
+  "Responsive and accessible design" in `context/coding-standards.md`.
 - Staff and owner display labels live in the client, separate from the API's
   enum values.
 
