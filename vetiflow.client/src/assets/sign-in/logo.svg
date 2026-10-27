@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="262" height="245" viewBox="0 0 262 245">
+  <!-- The VetiFlow mark (blueprint/reference/vetiflow_icon.svg), recoloured to
+       the landing design's emergency crimson #D9383A (S.20c). Decorative: the
+       page shows it beside the "VetiFlow" name with empty alt text. -->
+  <defs>
+    <clipPath id="starClip">
+      <path id="starShape" d="M 99 15 H 158 Q 163 15 163 20 V 62 L 205 44 Q 210 41 213 46 L 241 89 Q 244 94 239 97 L 207 118 L 239 156 Q 244 159 241 164 L 213 207 Q 210 212 205 209 L 163 185 V 229 Q 163 234 158 234 H 99 Q 94 234 94 229 V 185 L 55 209 Q 50 212 47 207 L 16 164 Q 12 159 17 156 L 54 118 L 17 97 Q 12 94 16 89 L 45 46 Q 48 41 53 44 L 94 62 V 20 Q 94 15 99 15 Z"/>
+    </clipPath>
+  </defs>
+  <use href="#starShape" fill="#D9383A"/>
+  <path d="M 30 138.5 H 79.5 L 93.5 95.5 L 121 181.5 L 154.5 83.5 L 169 149.2 L 180.7 119.7 L 188.8 138.5 H 232" fill="none" stroke="#FFFFFF" stroke-width="11" stroke-linecap="round" stroke-linejoin="round" clip-path="url(#starClip)"/>
+</svg>

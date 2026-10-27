@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import pawUrl from "../../assets/sign-in/paw.svg";
+import logoUrl from "../../assets/sign-in/logo.svg";
 import { CareUpdatesIcon, MessageIcon, PeopleIcon } from "./signInIcons";
 import styles from "./SignInStory.module.scss";
 
@@ -11,7 +11,7 @@ export function SignInBrand() {
   return (
     <header className={styles.brandRow}>
       <p className={styles.brand}>
-        <img className={styles.paw} src={pawUrl} alt="" width="42" height="42" />
+        <img className={styles.logo} src={logoUrl} alt="" width="42" height="39" />
         VetiFlow
       </p>
       <p className={styles.kicker}>Veterinary care. In sync.</p>

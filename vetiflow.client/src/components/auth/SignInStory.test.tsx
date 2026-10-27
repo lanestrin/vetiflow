@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { SignInBenefits, SignInBrand, SignInStory } from "./SignInStory";
 
 describe("SignInStory", () => {
-  it("names the brand, with the paw hidden from screen readers", () => {
+  it("names the brand, with the logo hidden from screen readers", () => {
     render(<SignInBrand />);
 
     expect(screen.getByText("VetiFlow")).toBeInTheDocument();

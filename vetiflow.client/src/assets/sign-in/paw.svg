@@ -1,9 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title">
-<title id="title">Paw print</title>
-<g fill="#1A2E40">
-<ellipse cx="12" cy="20" rx="6" ry="9" transform="rotate(-26 12 20)"/>
-<ellipse cx="25" cy="11" rx="6.1" ry="9" transform="rotate(-9 25 11)"/>
-<ellipse cx="40" cy="11" rx="6.1" ry="9" transform="rotate(9 40 11)"/>
-<ellipse cx="53" cy="20" rx="6" ry="9" transform="rotate(26 53 20)"/>
-<path d="M32 27c-5.5 0-8.8 5.2-11.4 8.7C17.4 40 12 43.6 12 49.3 12 55 16.7 59 22.4 59c3.8 0 6.8-2.3 9.6-2.3s5.8 2.3 9.6 2.3C47.3 59 52 55 52 49.3c0-5.7-5.4-9.3-8.6-13.6C40.8 32.2 37.5 27 32 27Z"/>
-</g></svg>

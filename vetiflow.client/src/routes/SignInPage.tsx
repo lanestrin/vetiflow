@@ -5,6 +5,7 @@ import { PhoneSignInForm } from "../components/auth/PhoneSignInForm";
 import { experienceHome, type SignInRouteState } from "../components/auth/experienceHome";
 import { useSession } from "../components/auth/useSession";
 import { SignInBenefits, SignInBrand, SignInStory } from "../components/auth/SignInStory";
+import { SignInScene } from "../components/auth/SignInScene";
 import { SignInSuccess } from "../components/auth/SignInSuccess";
 import { MailIcon, PhoneIcon, ShieldIcon } from "../components/auth/signInIcons";
 import { clearAccessToken } from "../services/session";
@@ -88,7 +89,9 @@ export function SignInPage() {
     <div className={styles.shell}>
       <title>Sign in · VetiFlow</title>
       {/* One art layer: behind the page on wide screens, a hero band on narrow ones. */}
-      <div className={styles.art} aria-hidden="true" />
+      <div className={styles.art} aria-hidden="true">
+        <SignInScene />
+      </div>
 
       <div className={styles.brandArea}>
         <SignInBrand />
