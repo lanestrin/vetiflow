@@ -182,27 +182,29 @@ public class AuthEndpointTests(VetiFlowApiFactory factory)
 		Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
 	}
 
-	// Phone sign-in (S.19): the demo numbers, every usual way of writing them.
+	// Phone sign-in (S.19): sending the code is simulated in the browser, so
+	// verify is the only phone endpoint. The demo numbers, every usual way of
+	// writing them.
 	[Theory]
 	[InlineData("312-555-0101")]
 	[InlineData("(312) 555-0101")]
 	[InlineData("3125550101")]
 	[InlineData("+1 312 555 0101")]
-	public async Task StartPhone_DemoNumber_IsReady(string phoneNumber)
+	public async Task VerifyPhone_DemoNumberAnyFormat_ReturnsBearerToken(string phoneNumber)
 	{
 		using var client = factory.CreateClient();
 
-		var response = await StartPhoneAsync(client, phoneNumber);
+		var response = await VerifyPhoneAsync(client, phoneNumber, "123456");
 
 		Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 	}
 
 	[Fact]
-	public async Task StartPhone_UnknownNumber_ReturnsUnknownPhone()
+	public async Task VerifyPhone_UnknownNumber_ReturnsUnknownPhone()
 	{
 		using var client = factory.CreateClient();
 
-		var response = await StartPhoneAsync(client, "312-555-0199");
+		var response = await VerifyPhoneAsync(client, "312-555-0199", "123456");
 
 		await AssertSignInFailedAsync(response, "unknownPhone");
 	}
@@ -211,14 +213,25 @@ public class AuthEndpointTests(VetiFlowApiFactory factory)
 	[InlineData("555-0101")]
 	[InlineData("+44 20 7946 0958")]
 	[InlineData("call 3125550101")]
-	public async Task StartPhone_InvalidNumber_ReturnsValidationProblem(string phoneNumber)
+	public async Task VerifyPhone_InvalidNumber_ReturnsValidationProblem(string phoneNumber)
 	{
 		using var client = factory.CreateClient();
 
-		var response = await StartPhoneAsync(client, phoneNumber);
+		var response = await VerifyPhoneAsync(client, phoneNumber, "123456");
 
 		Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
 		Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+	}
+
+	// The step-one endpoint is gone; nothing answers there.
+	[Fact]
+	public async Task StartPhone_IsGone()
+	{
+		using var client = factory.CreateClient();
+
+		var response = await client.PostAsJsonAsync("/api/auth/phone/start", new { phoneNumber = "312-555-0101" }, _cancellationToken);
+
+		Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
 	}
 
 	[Fact]
@@ -281,19 +294,12 @@ public class AuthEndpointTests(VetiFlowApiFactory factory)
 		using var host = factory.WithWebHostBuilder(builder => builder.UseSetting("DemoSignIn:Enabled", "false"));
 		using var client = host.CreateClient();
 
-		var start = await StartPhoneAsync(client, "312-555-0101");
-		var verify = await VerifyPhoneAsync(client, "312-555-0101", "123456");
+		var response = await VerifyPhoneAsync(client, "312-555-0101", "123456");
 
-		foreach (var response in new[] { start, verify })
-		{
-			Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
-			var problem = await response.Content.ReadFromJsonAsync<JsonElement>(_cancellationToken);
-			Assert.Equal("phoneSignInOff", problem.GetProperty("code").GetString());
-		}
+		Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+		var problem = await response.Content.ReadFromJsonAsync<JsonElement>(_cancellationToken);
+		Assert.Equal("phoneSignInOff", problem.GetProperty("code").GetString());
 	}
-
-	private Task<HttpResponseMessage> StartPhoneAsync(HttpClient client, string phoneNumber) =>
-		client.PostAsJsonAsync("/api/auth/phone/start", new { phoneNumber }, _cancellationToken);
 
 	private Task<HttpResponseMessage> VerifyPhoneAsync(HttpClient client, string phoneNumber, string code) =>
 		client.PostAsJsonAsync("/api/auth/phone/verify", new { phoneNumber, code }, _cancellationToken);

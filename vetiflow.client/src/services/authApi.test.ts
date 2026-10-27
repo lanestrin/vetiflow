@@ -5,7 +5,6 @@ import {
   finishSignIn,
   getSignedInUser,
   signInByEmail,
-  startPhoneSignIn,
   verifyPhoneSignIn
 } from "./authApi";
 import { readAccessToken } from "./session";
@@ -87,19 +86,6 @@ describe("signInByEmail", () => {
 });
 
 describe("phone sign-in", () => {
-  it("starts with the number and reports ready", async () => {
-    let body: unknown;
-    server.use(
-      http.post(apiUrl("/api/auth/phone/start"), async ({ request }) => {
-        body = await request.json();
-        return HttpResponse.json({});
-      })
-    );
-
-    await expect(startPhoneSignIn("312-555-0101")).resolves.toEqual({ ok: true });
-    expect(body).toEqual({ phoneNumber: "312-555-0101" });
-  });
-
   it("verifies the number and code and returns the token", async () => {
     let body: unknown;
     server.use(
@@ -117,24 +103,20 @@ describe("phone sign-in", () => {
   });
 
   it.each([
-    ["/api/auth/phone/start", 401, "unknownPhone"],
-    ["/api/auth/phone/verify", 401, "wrongCode"],
-    ["/api/auth/phone/verify", 401, "inactiveAccount"],
-    ["/api/auth/phone/start", 403, "phoneSignInOff"]
-  ] as const)("returns the %s %i code %s", async (path, status, code) => {
-    server.use(http.post(apiUrl(path), () => HttpResponse.json({ status, code }, { status })));
+    [401, "unknownPhone"],
+    [401, "wrongCode"],
+    [401, "inactiveAccount"],
+    [403, "phoneSignInOff"]
+  ] as const)("returns the %i code %s", async (status, code) => {
+    server.use(http.post(apiUrl("/api/auth/phone/verify"), () => HttpResponse.json({ status, code }, { status })));
 
-    const result = path.endsWith("start")
-      ? await startPhoneSignIn("312-555-0101")
-      : await verifyPhoneSignIn("312-555-0101", "123456");
-
-    expect(result).toEqual({ ok: false, failure: code });
+    await expect(verifyPhoneSignIn("312-555-0101", "123456")).resolves.toEqual({ ok: false, failure: code });
   });
 
   it("treats a network error as unavailable", async () => {
-    server.use(http.post(apiUrl("/api/auth/phone/start"), () => HttpResponse.error()));
+    server.use(http.post(apiUrl("/api/auth/phone/verify"), () => HttpResponse.error()));
 
-    await expect(startPhoneSignIn("312-555-0101")).resolves.toEqual({ ok: false, failure: "unavailable" });
+    await expect(verifyPhoneSignIn("312-555-0101", "123456")).resolves.toEqual({ ok: false, failure: "unavailable" });
   });
 });
 

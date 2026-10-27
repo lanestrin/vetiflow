@@ -1,6 +1,5 @@
 import type {
   Experience,
-  PhoneStartResult,
   SignedInUser,
   SignInFailure,
   SignInResult
@@ -30,19 +29,8 @@ export function signInByEmail(email: string, password: string, signal?: AbortSig
   return requestToken("/api/auth/email", { email, password }, signal);
 }
 
-// Demo phone sign-in, step one (S.19): is this a demo account's number? No
-// text is sent.
-export async function startPhoneSignIn(phoneNumber: string, signal?: AbortSignal): Promise<PhoneStartResult> {
-  const response = await postJson("/api/auth/phone/start", { phoneNumber }, signal);
-
-  if (response === null) {
-    return { ok: false, failure: "unavailable" };
-  }
-
-  return response.ok ? { ok: true } : { ok: false, failure: await readFailure(response) };
-}
-
-// Demo phone sign-in, step two: the fixed demo code for a token.
+// Demo phone sign-in (S.19): the number and the fixed demo code for a token.
+// Sending the code is simulated in the browser; nothing calls the API before this.
 export function verifyPhoneSignIn(
   phoneNumber: string,
   code: string,
