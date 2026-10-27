@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { EmailSignInForm } from "../components/auth/EmailSignInForm";
 import { EmergencyBar } from "../components/auth/EmergencyBar";
@@ -9,6 +9,7 @@ import { SignInBenefits, SignInBrand, SignInStory } from "../components/auth/Sig
 import { SignInScene } from "../components/auth/SignInScene";
 import { SignInSuccess } from "../components/auth/SignInSuccess";
 import { MailIcon, PhoneIcon, ShieldIcon } from "../components/auth/signInIcons";
+import { useMeasuredHeight } from "../components/auth/useMeasuredHeight";
 import { clearAccessToken } from "../services/session";
 import type { SignedInUser } from "../types/Auth";
 import styles from "./SignInPage.module.scss";
@@ -35,6 +36,12 @@ export function SignInPage() {
   const headingRef = useRef<HTMLHeadingElement>(null);
   const demoSummaryRef = useRef<HTMLElement>(null);
   const tabRefs = useRef<Record<SignInMethod, HTMLButtonElement | null>>({ email: null, phone: null });
+  const [emailPanel, setEmailPanel] = useState<HTMLDivElement | null>(null);
+  const [phonePanel, setPhonePanel] = useState<HTMLDivElement | null>(null);
+  // The panels' wrapper eases to the visible form's height.
+  const panelHeight = useMeasuredHeight(method === "email" ? emailPanel : phonePanel);
+  const panelsStyle =
+    panelHeight === undefined ? undefined : ({ "--panel-height": `${panelHeight}px` } as CSSProperties);
 
   // Success replaces the form, so move focus to the new heading.
   useEffect(() => {
@@ -127,6 +134,8 @@ export function SignInPage() {
           ) : (
             <>
               <div className={styles.tabs} role="tablist" aria-label="Sign-in method">
+                {/* One highlight that slides under the selected tab. */}
+                <span className={styles.tabHighlight} data-selected={method} aria-hidden="true" />
                 {methods.map((entry) => (
                   <button
                     key={entry.method}
@@ -149,24 +158,30 @@ export function SignInPage() {
                 ))}
               </div>
 
-              <div
-                id="sign-in-panel-email"
-                role="tabpanel"
-                aria-labelledby="sign-in-tab-email"
-                hidden={method !== "email"}
-              >
-                <EmailSignInForm
-                  onSignedIn={setSignedInUser}
-                  notice={routeState?.sessionEnded ? sessionEndedMessage : undefined}
-                />
-              </div>
-              <div
-                id="sign-in-panel-phone"
-                role="tabpanel"
-                aria-labelledby="sign-in-tab-phone"
-                hidden={method !== "phone"}
-              >
-                <PhoneSignInForm onSignedIn={setSignedInUser} />
+              <div className={styles.panels} style={panelsStyle}>
+                <div
+                  ref={setEmailPanel}
+                  id="sign-in-panel-email"
+                  className={styles.panelFromLeft}
+                  role="tabpanel"
+                  aria-labelledby="sign-in-tab-email"
+                  hidden={method !== "email"}
+                >
+                  <EmailSignInForm
+                    onSignedIn={setSignedInUser}
+                    notice={routeState?.sessionEnded ? sessionEndedMessage : undefined}
+                  />
+                </div>
+                <div
+                  ref={setPhonePanel}
+                  id="sign-in-panel-phone"
+                  className={styles.panelFromRight}
+                  role="tabpanel"
+                  aria-labelledby="sign-in-tab-phone"
+                  hidden={method !== "phone"}
+                >
+                  <PhoneSignInForm onSignedIn={setSignedInUser} />
+                </div>
               </div>
 
               <p className={styles.divider}>Secure access</p>

@@ -191,6 +191,19 @@ describe("SignInPage", () => {
     expect(screen.getByRole("button", { name: "Show password" })).toHaveAttribute("aria-pressed", "false");
   });
 
+  it("keeps only the chosen form reachable after switching back and forth", () => {
+    renderSignIn();
+
+    // A hidden panel is out of the accessibility tree, so role queries skip it.
+    fireEvent.click(screen.getByRole("tab", { name: "Phone" }));
+    expect(screen.getByRole("tabpanel", { name: "Phone" })).toBeVisible();
+    expect(screen.queryByRole("tabpanel", { name: "Email" })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("tab", { name: "Email" }));
+    expect(screen.getByRole("tabpanel", { name: "Email" })).toBeVisible();
+    expect(screen.queryByRole("tabpanel", { name: "Phone" })).not.toBeInTheDocument();
+  });
+
   it("moves between the tabs with the arrow keys", () => {
     renderSignIn();
     const emailTab = screen.getByRole("tab", { name: "Email" });
