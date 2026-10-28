@@ -69,7 +69,9 @@ Decided (later items must keep these):
 - **New intakes are provisional:** decided 2026-10-28. The intake's priority
   sets the acuity and lane, but the case waits in stage Incoming ("Awaiting
   triage", a "<priority> · provisional" tag, unassigned) until a clinician
-  presses **Complete triage** (4.2).
+  presses **Complete triage** (4.2). Completing triage moves the case to stage
+  Triage (awaiting the care team); re-triage keeps the stage; a discharged
+  case cannot be triaged (4.2a, recommended defaults).
 - **Due items are tasks:** decided 2026-10-28. The next reassessment and the
   next client update are task types with a due time and an assignee, like any
   other task. The panel rows show the next open one of each, My work queue lists
@@ -159,7 +161,7 @@ replaces it. Demo data only.
 
 **Triage** (prototype: **Complete triage**, acuity badge, lanes)
 
-- [ ] **4.2a** `feature/triage-api`: complete triage on an incoming case (confirm or change the provisional priority, move it out of Incoming) and re-triage later, always through `RecordTriage` (clinicians only once roles exist), with `Triaged` on the timeline.
+- [x] **4.2a** `feature/triage-api`: complete triage on an incoming case (confirm or change the provisional priority, move it out of Incoming) and re-triage later, always through `RecordTriage` (clinicians only once roles exist), with `Triaged` on the timeline. Done (history/features/4.2a-triage-api.md).
 - [ ] **4.2b** `feature/triage`: **Complete triage** in the panel for incoming cases, re-triage from the panel's **•••** menu; the card's chip, tag and lane update on every open board.
 
 **Stats row** (prototype: four clickable stat cards)
