@@ -114,7 +114,7 @@ holds demo data only.
 - [ ] **4.1** `feature/case-intake`: create a new case. Split into:
   - [ ] **4.1a** `feature/case-intake-api`: create a case for a new or existing patient, with validation; a second active case for the same patient returns `409` naming the active case; writes `Arrived`; intake fields can be corrected.
   - [ ] **4.1b** `feature/case-intake-form`: intake form opened from the board, with patient search or a new patient, and an unknown owner allowed.
-- [ ] **3.1** `feature/case-detail-api`: `GET /api/cases/{id}` with patient, owner, triage, vitals, tasks and timeline.
+- [x] **3.1** `feature/case-detail-api`: `GET /api/cases/{id}` with patient, owner, triage, vitals, tasks and timeline. Done (history/features/3.1-case-detail-api.md).
 - [ ] **3.2** `feature/case-detail-drawer`: the drawer UI, with raw intake notes above the AI summary.
 - [ ] **4.2** `feature/triage-form`: record a triage assessment and set acuity through `RecordTriage` (clinicians only).
 - [ ] **4.8** `feature/vitals-entry`: record vitals through `RecordVitals`, with the history in the drawer showing time and recorder; never changes acuity.

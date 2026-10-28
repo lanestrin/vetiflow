@@ -323,6 +323,200 @@ public class CasesEndpointTests(VetiFlowApiFactory factory)
 		await notified.Task.WaitAsync(TimeSpan.FromSeconds(10), _cancellationToken);
 	}
 
+	// The case detail drawer's data (build plan 3.1).
+	[Fact]
+	public async Task GetCase_ReturnsTheCaseWithPatientOwnerAndStaff()
+	{
+		var patient = TestData.Patient();
+		patient.Owner = TestData.Owner();
+		patient.Sex = PatientSex.FemaleSpayed;
+		var doctor = TestData.StaffMember(StaffRole.Veterinarian);
+		var room = TestData.Room();
+		var emergencyCase = TestData.Case(patient, room);
+		emergencyCase.AssignedDoctor = doctor;
+		emergencyCase.NextAction = "Recheck abdomen";
+		emergencyCase.RecordTriage(new TriageAssessment { Acuity = AcuityLevel.Urgent });
+		await SaveAsync(emergencyCase);
+		using var client = await factory.CreateSignedInClientAsync(DemoAccounts.TeamEmail);
+
+		var detail = await GetCaseAsync(client, emergencyCase.Id);
+
+		Assert.Equal(emergencyCase.Id, detail.GetProperty("id").GetGuid());
+		var patientJson = detail.GetProperty("patient");
+		Assert.Equal(patient.Name, patientJson.GetProperty("name").GetString());
+		Assert.Equal("femaleSpayed", patientJson.GetProperty("sex").GetString());
+		var owner = detail.GetProperty("owner");
+		Assert.Equal(patient.Owner.LastName, owner.GetProperty("lastName").GetString());
+		Assert.Equal(patient.Owner.Phone, owner.GetProperty("phone").GetString());
+		Assert.Equal("Vomiting", detail.GetProperty("presentingComplaint").GetString());
+		Assert.Equal("urgent", detail.GetProperty("acuity").GetString());
+		Assert.Equal("incoming", detail.GetProperty("stage").GetString());
+		Assert.Equal("Recheck abdomen", detail.GetProperty("nextAction").GetString());
+		AssertReference(detail.GetProperty("assignedDoctor"), doctor.Id, $"{doctor.FirstName} {doctor.LastName}");
+		AssertReference(detail.GetProperty("room"), room.Id, room.Name);
+		Assert.Equal(JsonValueKind.Null, detail.GetProperty("assignedTechnician").ValueKind);
+		Assert.Equal(JsonValueKind.Null, detail.GetProperty("dischargedAt").ValueKind);
+	}
+
+	[Fact]
+	public async Task GetCase_PatientWithNoOwner_ReturnsNullOwner()
+	{
+		var emergencyCase = TestData.Case(TestData.Patient());
+		await SaveAsync(emergencyCase);
+		using var client = await factory.CreateSignedInClientAsync(DemoAccounts.TeamEmail);
+
+		var detail = await GetCaseAsync(client, emergencyCase.Id);
+
+		Assert.Equal(JsonValueKind.Null, detail.GetProperty("owner").ValueKind);
+		Assert.Empty(detail.GetProperty("triageAssessments").EnumerateArray());
+		Assert.Empty(detail.GetProperty("vitals").EnumerateArray());
+		Assert.Empty(detail.GetProperty("tasks").EnumerateArray());
+		Assert.Empty(detail.GetProperty("timeline").EnumerateArray());
+	}
+
+	[Fact]
+	public async Task GetCase_ListsTriageAndVitalsNewestFirst()
+	{
+		var technician = TestData.StaffMember(StaffRole.Technician);
+		var emergencyCase = TestData.Case(TestData.Patient());
+		var now = DateTimeOffset.UtcNow;
+		emergencyCase.RecordTriage(new TriageAssessment
+		{
+			Acuity = AcuityLevel.Low,
+			RawIntakeNotes = "First look",
+			AssessedAt = now.AddMinutes(-30)
+		});
+		emergencyCase.RecordTriage(new TriageAssessment
+		{
+			Acuity = AcuityLevel.Critical,
+			RawIntakeNotes = "Worse",
+			AssessedAt = now.AddMinutes(-5),
+			AssessedByStaff = technician
+		});
+		emergencyCase.RecordVitals(new VitalsRecord { HeartRate = 90, RecordedAt = now.AddMinutes(-20) });
+		emergencyCase.RecordVitals(new VitalsRecord
+		{
+			HeartRate = 140,
+			TemperatureF = 103.1m,
+			RecordedAt = now.AddMinutes(-2),
+			RecordedByStaff = technician
+		});
+		await SaveAsync(emergencyCase);
+		using var client = await factory.CreateSignedInClientAsync(DemoAccounts.TeamEmail);
+
+		var detail = await GetCaseAsync(client, emergencyCase.Id);
+
+		var triage = detail.GetProperty("triageAssessments").EnumerateArray().ToList();
+		Assert.Equal(["critical", "low"], triage.Select(item => item.GetProperty("acuity").GetString()));
+		Assert.Equal("Worse", triage[0].GetProperty("rawIntakeNotes").GetString());
+		AssertReference(triage[0].GetProperty("assessedBy"), technician.Id, $"{technician.FirstName} {technician.LastName}");
+		Assert.Equal(JsonValueKind.Null, triage[1].GetProperty("assessedBy").ValueKind);
+		var vitals = detail.GetProperty("vitals").EnumerateArray().ToList();
+		Assert.Equal([140, 90], vitals.Select(item => item.GetProperty("heartRate").GetInt32()));
+		Assert.Equal(103.1m, vitals[0].GetProperty("temperatureF").GetDecimal());
+		AssertReference(vitals[0].GetProperty("recordedBy"), technician.Id, $"{technician.FirstName} {technician.LastName}");
+	}
+
+	[Fact]
+	public async Task GetCase_ListsOpenTasksFirst()
+	{
+		var emergencyCase = TestData.Case(TestData.Patient());
+		var now = DateTimeOffset.UtcNow;
+		var oldDone = TestData.Task(status: CaseTaskStatus.Done);
+		oldDone.CreatedAt = now.AddMinutes(-50);
+		oldDone.ResolvedAt = now.AddMinutes(-40);
+		var olderOpen = TestData.Task(CaseTaskType.Blocker);
+		olderOpen.CreatedAt = now.AddMinutes(-30);
+		var newerOpen = TestData.Task();
+		newerOpen.CreatedAt = now.AddMinutes(-10);
+		emergencyCase.Tasks.AddRange([newerOpen, oldDone, olderOpen]);
+		await SaveAsync(emergencyCase);
+		using var client = await factory.CreateSignedInClientAsync(DemoAccounts.TeamEmail);
+
+		var detail = await GetCaseAsync(client, emergencyCase.Id);
+
+		var tasks = detail.GetProperty("tasks").EnumerateArray().ToList();
+		Assert.Equal([olderOpen.Id, newerOpen.Id, oldDone.Id], tasks.Select(task => task.GetProperty("id").GetGuid()));
+		Assert.Equal("blocker", tasks[0].GetProperty("type").GetString());
+		Assert.Equal("done", tasks[2].GetProperty("status").GetString());
+		Assert.NotEqual(JsonValueKind.Null, tasks[2].GetProperty("resolvedAt").ValueKind);
+	}
+
+	[Fact]
+	public async Task GetCase_ListsTimelineOldestFirst()
+	{
+		var doctor = TestData.StaffMember(StaffRole.Veterinarian);
+		var emergencyCase = TestData.Case(TestData.Patient());
+		var now = DateTimeOffset.UtcNow;
+		emergencyCase.Events.AddRange([
+			new CaseEvent { Type = CaseEventType.Triaged, Description = "Triaged", CreatedAt = now.AddMinutes(-20), CreatedByStaff = doctor },
+			new CaseEvent { Type = CaseEventType.Arrived, Description = "Arrived", CreatedAt = now.AddMinutes(-40) }
+		]);
+		await SaveAsync(emergencyCase);
+		using var client = await factory.CreateSignedInClientAsync(DemoAccounts.TeamEmail);
+
+		var detail = await GetCaseAsync(client, emergencyCase.Id);
+
+		var timeline = detail.GetProperty("timeline").EnumerateArray().ToList();
+		Assert.Equal(["arrived", "triaged"], timeline.Select(item => item.GetProperty("type").GetString()));
+		Assert.Equal(JsonValueKind.Null, timeline[0].GetProperty("createdBy").ValueKind);
+		AssertReference(timeline[1].GetProperty("createdBy"), doctor.Id, $"{doctor.FirstName} {doctor.LastName}");
+	}
+
+	[Fact]
+	public async Task GetCase_ReturnsADischargedCase()
+	{
+		var emergencyCase = TestData.Case(TestData.Patient());
+		emergencyCase.DischargedAt = DateTimeOffset.UtcNow;
+		await SaveAsync(emergencyCase);
+		using var client = await factory.CreateSignedInClientAsync(DemoAccounts.TeamEmail);
+
+		var detail = await GetCaseAsync(client, emergencyCase.Id);
+
+		Assert.NotEqual(JsonValueKind.Null, detail.GetProperty("dischargedAt").ValueKind);
+	}
+
+	[Fact]
+	public async Task GetCase_Unknown_ReturnsNotFound()
+	{
+		using var client = await factory.CreateSignedInClientAsync(DemoAccounts.TeamEmail);
+
+		var response = await client.GetAsync($"/api/cases/{Guid.NewGuid()}", _cancellationToken);
+
+		AssertProblemStatus(response, HttpStatusCode.NotFound);
+	}
+
+	[Fact]
+	public async Task GetCase_SignedOut_Returns401()
+	{
+		var emergencyCase = TestData.Case(TestData.Patient());
+		await SaveAsync(emergencyCase);
+		using var client = factory.CreateClient();
+
+		var response = await client.GetAsync($"/api/cases/{emergencyCase.Id}", _cancellationToken);
+
+		AssertProblemStatus(response, HttpStatusCode.Unauthorized);
+	}
+
+	[Fact]
+	public async Task GetCase_PetParent_Returns403()
+	{
+		var emergencyCase = TestData.Case(TestData.Patient());
+		await SaveAsync(emergencyCase);
+		using var client = await factory.CreateSignedInClientAsync(DemoAccounts.ParentEmail);
+
+		var response = await client.GetAsync($"/api/cases/{emergencyCase.Id}", _cancellationToken);
+
+		AssertProblemStatus(response, HttpStatusCode.Forbidden);
+	}
+
+	private async Task<JsonElement> GetCaseAsync(HttpClient client, Guid caseId)
+	{
+		var response = await client.GetAsync($"/api/cases/{caseId}", _cancellationToken);
+		Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+		return await response.Content.ReadFromJsonAsync<JsonElement>(_cancellationToken);
+	}
+
 	// Sends the body exactly as written, so tests can send numbers and nulls.
 	private Task<HttpResponseMessage> PatchStageAsync(HttpClient client, Guid caseId, string body) =>
 		client.PatchAsync(
