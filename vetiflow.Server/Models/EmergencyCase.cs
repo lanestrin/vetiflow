@@ -41,6 +41,10 @@ public class EmergencyCase
 {
 	public Guid Id { get; set; } = Guid.NewGuid();
 
+	// The number staff use ("ER-2481"). The database assigns it from the
+	// CaseNumbers sequence on insert; leave it 0 for a new case.
+	public int CaseNumber { get; set; }
+
 	public Guid PatientId { get; set; }
 
 	public Patient Patient { get; set; } = null!;

@@ -5,6 +5,10 @@ namespace vetiflow.Server.Data;
 
 public class VetiFlowDbContext : DbContext
 {
+	// Numbers cases for staff ("ER-2481"), counting up from 2401 like the
+	// prototype's ER-24xx (build plan 3.4a).
+	public const string CaseNumberSequence = "CaseNumbers";
+
 	public VetiFlowDbContext(DbContextOptions<VetiFlowDbContext> options)
 			: base(options)
 	{
@@ -46,8 +50,18 @@ public class VetiFlowDbContext : DbContext
 
 	protected override void OnModelCreating(ModelBuilder modelBuilder)
 	{
+		modelBuilder.HasSequence<int>(CaseNumberSequence).StartsAt(2401);
+
 		modelBuilder.Entity<EmergencyCase>(emergencyCase =>
 		{
+			emergencyCase
+					.Property(c => c.CaseNumber)
+					.HasDefaultValueSql($"nextval('\"{CaseNumberSequence}\"')");
+
+			emergencyCase
+					.HasIndex(c => c.CaseNumber)
+					.IsUnique();
+
 			// A patient can have at most one active (not discharged) case.
 			emergencyCase
 					.HasIndex(c => c.PatientId)

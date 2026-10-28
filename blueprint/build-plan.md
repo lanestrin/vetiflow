@@ -126,7 +126,7 @@ replaces it. Demo data only.
 
 **Case numbers**
 
-- [ ] **3.4a** `feature/case-number-api`: a human case number per case ("ER-2481") from a database sequence, with a migration that numbers existing cases, shown in the board list and case detail. (Shown on screen by 2.11b and 3.2b.)
+- [x] **3.4a** `feature/case-number-api`: a human case number per case ("ER-2481") from a database sequence, with a migration that numbers existing cases, shown in the board list and case detail. (Shown on screen by 2.11b and 3.2b.) Done (history/features/3.4a-case-number-api.md).
 
 **Patient flow board** (prototype: "Patient flow")
 

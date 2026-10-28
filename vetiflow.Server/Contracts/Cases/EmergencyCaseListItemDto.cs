@@ -6,6 +6,9 @@ public class EmergencyCaseListItemDto
 {
 	public Guid Id { get; set; }
 
+	// "ER-2481".
+	public required string CaseNumber { get; set; }
+
 	public Guid PatientId { get; set; }
 
 	public required string PatientName { get; set; }

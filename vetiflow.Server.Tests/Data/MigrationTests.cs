@@ -22,6 +22,8 @@ public class MigrationTests(VetiFlowApiFactory factory)
 
 	private const string AddAccounts = "20261027002959_AddAccounts";
 
+	private const string ThreeAcuityLevels = "20261028152018_ThreeAcuityLevels";
+
 	private readonly CancellationToken _cancellationToken = TestContext.Current.CancellationToken;
 
 	// Fails when the model changed without a migration being added.
@@ -242,6 +244,52 @@ public class MigrationTests(VetiFlowApiFactory factory)
 		Assert.Equal("Urgent/Urgent", await ReadStoredAcuityAsync(dbContext, caseIds[0]));
 		Assert.Equal("Low/Low", await ReadStoredAcuityAsync(dbContext, caseIds[1]));
 	}
+
+	// Case numbers (build plan 3.4a): existing cases are numbered from 2401 in
+	// arrival order, and the next new case continues after them.
+	[Fact]
+	public async Task AddCaseNumbers_NumbersExistingCasesByArrival()
+	{
+		await using var dbContext = await CreateEmptyDatabaseAsync();
+		var migrator = dbContext.GetService<IMigrator>();
+		await migrator.MigrateAsync(ThreeAcuityLevels, _cancellationToken);
+		var now = DateTimeOffset.UtcNow;
+		// Inserted newest first, so numbering by insertion order would fail.
+		var newest = await InsertCaseArrivedAtAsync(dbContext, now.AddMinutes(-5));
+		var oldest = await InsertCaseArrivedAtAsync(dbContext, now.AddMinutes(-90));
+		var middle = await InsertCaseArrivedAtAsync(dbContext, now.AddMinutes(-30));
+
+		await migrator.MigrateAsync(cancellationToken: _cancellationToken);
+
+		Assert.Equal(2401, await ReadCaseNumberAsync(dbContext, oldest));
+		Assert.Equal(2402, await ReadCaseNumberAsync(dbContext, middle));
+		Assert.Equal(2403, await ReadCaseNumberAsync(dbContext, newest));
+		var next = await InsertCaseArrivedAtAsync(dbContext, now);
+		Assert.Equal(2404, await ReadCaseNumberAsync(dbContext, next));
+	}
+
+	// A case in the shape before AddCaseNumbers (and after it: the number is
+	// left to the database).
+	private async Task<Guid> InsertCaseArrivedAtAsync(VetiFlowDbContext dbContext, DateTimeOffset arrivalTime)
+	{
+		var patientId = Guid.NewGuid();
+		var caseId = Guid.NewGuid();
+		await dbContext.Database.ExecuteSqlAsync($"""
+			INSERT INTO "Patients" ("Id", "Name", "Species") VALUES ({patientId}, 'Max', 'Dog')
+			""", _cancellationToken);
+		await dbContext.Database.ExecuteSqlAsync($"""
+			INSERT INTO "EmergencyCases"
+				("Id", "PatientId", "ArrivalTime", "PresentingComplaint",
+				 "Stage", "Status", "LastUpdated", "OwnerUpdateStatus")
+			VALUES ({caseId}, {patientId}, {arrivalTime}, 'Lameness', 'Incoming', 'Unassigned', {arrivalTime}, 'NotYetUpdated')
+			""", _cancellationToken);
+		return caseId;
+	}
+
+	private async Task<int> ReadCaseNumberAsync(VetiFlowDbContext dbContext, Guid caseId) =>
+		await dbContext.Database
+			.SqlQuery<int>($"""SELECT "CaseNumber" AS "Value" FROM "EmergencyCases" WHERE "Id" = {caseId}""")
+			.SingleAsync(_cancellationToken);
 
 	// One case per acuity name, each with one assessment at the same name,
 	// written as raw text so the rows don't depend on today's enum.
