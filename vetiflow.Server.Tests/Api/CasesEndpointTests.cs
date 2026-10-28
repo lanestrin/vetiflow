@@ -60,25 +60,25 @@ public class CasesEndpointTests(VetiFlowApiFactory factory)
 		await AssertStageAsync(emergencyCase.Id, CaseStage.Incoming);
 	}
 
-	// Untriaged first (risk unknown, next step is triage), then Critical to Low,
+	// Untriaged first (risk unknown, next step is triage), then Critical, Urgent, Stable,
 	// then the longest wait. Acuity is stored as text, so this also proves the
 	// query ranks it rather than sorting alphabetically.
 	[Fact]
 	public async Task GetCases_OrdersByAcuityThenLongestWait()
 	{
-		var low = CaseWith(AcuityLevel.Low, minutesAgo: 300);
-		var highNewer = CaseWith(AcuityLevel.High, minutesAgo: 60);
-		var highOlder = CaseWith(AcuityLevel.High, minutesAgo: 180);
-		var urgent = CaseWith(AcuityLevel.Urgent, minutesAgo: 30);
+		var stableNewer = CaseWith(AcuityLevel.Stable, minutesAgo: 60);
+		var stableOlder = CaseWith(AcuityLevel.Stable, minutesAgo: 300);
+		var urgentNewer = CaseWith(AcuityLevel.Urgent, minutesAgo: 30);
+		var urgentOlder = CaseWith(AcuityLevel.Urgent, minutesAgo: 180);
 		var critical = CaseWith(AcuityLevel.Critical, minutesAgo: 20);
 		var untriaged = CaseWith(acuity: null, minutesAgo: 10);
-		await SaveAsync(low, highNewer, highOlder, urgent, critical, untriaged);
+		await SaveAsync(stableNewer, stableOlder, urgentNewer, urgentOlder, critical, untriaged);
 		using var client = await factory.CreateSignedInClientAsync(DemoAccounts.TeamEmail);
 
 		var cases = await client.GetFromJsonAsync<JsonElement[]>("/api/cases", _cancellationToken);
 
 		// Other tests add cases in parallel, so compare only this test's own.
-		var expected = new[] { untriaged, critical, urgent, highOlder, highNewer, low }
+		var expected = new[] { untriaged, critical, urgentOlder, urgentNewer, stableOlder, stableNewer }
 			.Select(emergencyCase => emergencyCase.Id)
 			.ToList();
 		var actual = cases!
@@ -382,7 +382,7 @@ public class CasesEndpointTests(VetiFlowApiFactory factory)
 		var now = DateTimeOffset.UtcNow;
 		emergencyCase.RecordTriage(new TriageAssessment
 		{
-			Acuity = AcuityLevel.Low,
+			Acuity = AcuityLevel.Stable,
 			RawIntakeNotes = "First look",
 			AssessedAt = now.AddMinutes(-30)
 		});
@@ -407,7 +407,7 @@ public class CasesEndpointTests(VetiFlowApiFactory factory)
 		var detail = await GetCaseAsync(client, emergencyCase.Id);
 
 		var triage = detail.GetProperty("triageAssessments").EnumerateArray().ToList();
-		Assert.Equal(["critical", "low"], triage.Select(item => item.GetProperty("acuity").GetString()));
+		Assert.Equal(["critical", "stable"], triage.Select(item => item.GetProperty("acuity").GetString()));
 		Assert.Equal("Worse", triage[0].GetProperty("rawIntakeNotes").GetString());
 		AssertReference(triage[0].GetProperty("assessedBy"), technician.Id, $"{technician.FirstName} {technician.LastName}");
 		Assert.Equal(JsonValueKind.Null, triage[1].GetProperty("assessedBy").ValueKind);

@@ -22,7 +22,7 @@ public class EmergencyCaseTests
 	public void RecordTriage_Retriage_KeepsHistoryAndUsesLatestAcuity()
 	{
 		var emergencyCase = NewCase();
-		var first = new TriageAssessment { Acuity = AcuityLevel.High };
+		var first = new TriageAssessment { Acuity = AcuityLevel.Urgent };
 		var second = new TriageAssessment { Acuity = AcuityLevel.Critical };
 
 		emergencyCase.RecordTriage(first);
@@ -57,7 +57,7 @@ public class EmergencyCaseTests
 		emergencyCase.LastUpdated = DateTimeOffset.UtcNow.AddHours(-1);
 		var before = DateTimeOffset.UtcNow;
 
-		emergencyCase.RecordTriage(new TriageAssessment { Acuity = AcuityLevel.Low });
+		emergencyCase.RecordTriage(new TriageAssessment { Acuity = AcuityLevel.Stable });
 
 		Assert.InRange(emergencyCase.LastUpdated, before, DateTimeOffset.UtcNow);
 	}

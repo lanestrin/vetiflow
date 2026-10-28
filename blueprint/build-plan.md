@@ -116,7 +116,7 @@ replaces it. Demo data only.
 
 **Acuity in three levels**
 
-- [ ] **0.4a** `feature/acuity-three-levels-api`: `AcuityLevel` becomes Critical, Urgent, Stable, with a migration that updates stored rows (`High` to `Urgent`, `Low` to `Stable`) on cases and triage assessments; seed and tests follow; board sort keeps untriaged, then Critical, Urgent, Stable.
+- [x] **0.4a** `feature/acuity-three-levels-api`: `AcuityLevel` becomes Critical, Urgent, Stable, with a migration that updates stored rows (`High` to `Urgent`, `Low` to `Stable`) on cases and triage assessments; seed and tests follow; board sort keeps untriaged, then Critical, Urgent, Stable. Done (history/features/0.4a-acuity-three-levels-api.md).
 - [ ] **0.4b** `feature/acuity-three-levels-client`: client types, labels and badges for the three levels, in the prototype's colours (red, amber, teal).
 
 **App shell** (prototype: left rail, top bar)
