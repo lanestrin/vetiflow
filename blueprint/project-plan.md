@@ -93,9 +93,12 @@ Not part of v1. Open question.
 
 - Staff screens: the ER Command Center prototype,
   `blueprint/reference/vetiflow-er-dashboard.html` (decided 2026-10-28). Left
-  rail, top bar with search and profile, stats row, patient flow lanes by
-  acuity, the patient overview panel and the intake dialog. Build to look like
-  the prototype, including its 1050 px and 650 px layouts.
+  rail, top bar with search and profile, stats row (clickable filters), patient
+  flow lanes by acuity, the patient overview panel (with the pain score meter),
+  the intake dialog, and the **My patients** clinician workspace (my cases, my
+  work queue, my status, workload and team). New intakes are provisional and
+  wait in "Awaiting triage" until a clinician completes triage. Build to look
+  like the prototype, including its 1050 px and 650 px layouts.
 - Acuity colours and labels: Critical (red), Urgent (amber), Stable (teal), in
   that order (three levels, decided 2026-10-28; 0.4).
 - Calm, plain wording on the owner page. No acuity, no clinical shorthand.

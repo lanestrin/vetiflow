@@ -9,7 +9,11 @@ Build against the picture, not a description of it.
 
 - `vetiflow-er-dashboard.html`: the ER Command Center prototype (decided
   2026-10-28). Every staff screen is built to look like it. Open it in a
-  browser; resize to 1050 px and 650 px for the tablet and phone layouts.
+  browser (an editor preview doesn't run its scripts); resize to 1050 px and
+  650 px for the tablet and phone layouts. Revised the same day: the
+  **ER board | My patients** switch and clinician workspace, provisional
+  intakes with **Complete triage**, the pain score meter and **Record score**,
+  clickable stat cards, the **Incoming** filter and the door-to-doctor details.
 - `landing-page/`: the sign-in landing design (S.20).
 - `vetiflow-login-mock.html`: the original sign-in mock (S.18).
 - `vetiflow_icon.svg`: the app icon.
