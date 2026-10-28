@@ -1,0 +1,169 @@
+// The prototype's .board, .lanes and .mobiletabs, measured from
+// blueprint/reference/vetiflow-er-dashboard.html.
+
+.board {
+	overflow: hidden;
+	border: 1px solid var(--color-shell-line);
+	border-radius: 15px;
+	background: var(--color-surface);
+	box-shadow: 0 10px 32px rgb(26 55 63 / 6%);
+}
+
+.top {
+	padding: 18px 20px 14px;
+	border-bottom: 1px solid var(--color-shell-line);
+}
+
+.title {
+	margin: 0;
+	color: var(--color-shell-ink);
+	font-size: 15px;
+	font-weight: 700;
+}
+
+.tiny {
+	display: flex;
+	align-items: center;
+	margin: 4px 0 0;
+	color: var(--color-shell-muted);
+	font-size: 11px;
+}
+
+.live {
+	width: 8px;
+	height: 8px;
+	margin-right: 5px;
+	border-radius: 50%;
+	background: var(--color-board-live);
+	box-shadow: 0 0 0 3px #dff5ee;
+}
+
+.dot {
+	margin: 0 5px;
+}
+
+// Phone width only.
+.tabs {
+	display: none;
+	gap: 6px;
+	padding: 10px 12px;
+	overflow: auto;
+	border-bottom: 1px solid var(--color-shell-line);
+}
+
+.tab {
+	padding: 7px 9px;
+	border: 1px solid var(--color-shell-line);
+	border-radius: 8px;
+	background: var(--color-surface);
+	color: #64767c;
+	font: inherit;
+	font-size: 11px;
+	font-weight: 600;
+	white-space: nowrap;
+	cursor: pointer;
+
+	&[aria-pressed="true"] {
+		border-color: var(--color-shell-navy);
+		background: var(--color-shell-navy);
+		color: var(--color-text-inverse);
+	}
+
+	&:focus-visible {
+		outline: 3px solid var(--color-focus);
+		outline-offset: 2px;
+	}
+}
+
+.lanes {
+	display: grid;
+	grid-template-columns: repeat(var(--lane-count), minmax(0, 1fr));
+	min-height: 485px;
+}
+
+.lane {
+	padding: 14px 11px;
+	border-right: 1px solid var(--color-shell-line);
+	background: var(--color-board-lane);
+
+	&:last-child {
+		border-right: 0;
+	}
+}
+
+.laneHead {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin: 0 2px 11px;
+}
+
+.laneTitle {
+	margin: 0;
+	color: var(--color-shell-muted);
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: 0.6px;
+	text-transform: uppercase;
+
+	[data-lane="critical"] & {
+		color: var(--color-acuity-critical);
+	}
+
+	[data-lane="urgent"] & {
+		color: var(--color-acuity-urgent);
+	}
+
+	[data-lane="stable"] & {
+		color: var(--color-acuity-stable);
+	}
+}
+
+.count {
+	padding: 3px 7px;
+	border-radius: 20px;
+	background: var(--color-board-count-bg);
+	color: var(--color-board-count);
+	font-size: 10px;
+	font-weight: 700;
+}
+
+.empty {
+	margin: 0;
+	padding: 18px 0;
+	color: var(--color-shell-muted);
+	font-size: 11px;
+	text-align: center;
+}
+
+.foot {
+	margin: 0;
+	padding: 9px 13px;
+	border-top: 1px solid var(--color-shell-line);
+	color: var(--color-shell-muted);
+	font-size: 10px;
+}
+
+@media (max-width: 650px) {
+	.top {
+		padding: 14px;
+	}
+
+	.tabs {
+		display: flex;
+	}
+
+	.lanes {
+		grid-template-columns: 1fr;
+		min-height: auto;
+	}
+
+	.lane {
+		padding: 12px;
+		border-right: 0;
+
+		&[data-shown="false"] {
+			display: none;
+		}
+	}
+}

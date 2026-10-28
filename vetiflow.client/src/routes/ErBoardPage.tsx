@@ -1,12 +1,9 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import type { SignInRouteState } from "../components/auth/experienceHome";
-import { WorkflowLane } from "../components/clinical/WorkflowLane";
+import { PatientFlowBoard } from "../components/board/PatientFlowBoard";
 import { ErBoardStatusBar } from "../components/clinical/ErBoardStatusBar";
-import type {
-  CaseStage,
-  EmergencyCaseListItem
-} from "../types/EmergencyCaseListItem";
+import type { EmergencyCaseListItem } from "../types/EmergencyCaseListItem";
 
 import { AccessDeniedError, SessionEndedError } from "../services/apiErrors";
 import { getEmergencyCases } from "../services/casesApi";
@@ -14,28 +11,16 @@ import { clearAccessToken } from "../services/session";
 import { createCaseHubConnection } from "../services/caseHub";
 import styles from "./ErBoardPage.module.scss";
 
-interface WorkflowStage {
-  title: string;
-  stage: CaseStage;
-}
-
 // React 19 moves <title> into the document head, so each page names its own tab.
 const pageTitle = <title>ER Board · VetiFlow</title>;
-
-const workflowStages: WorkflowStage[] = [
-  { title: "Incoming", stage: "incoming" },
-  { title: "Triage", stage: "triage" },
-  { title: "Treatment", stage: "treatment" },
-  { title: "Diagnostics", stage: "diagnostics" },
-  { title: "Recheck", stage: "recheck" },
-  { title: "Discharge", stage: "discharge" }
-];
 
 export function ErBoardPage() {
   const navigate = useNavigate();
   const [cases, setCases] = useState<EmergencyCaseListItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [updatedAt, setUpdatedAt] = useState(() => new Date());
+  const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
 
   useEffect(() => {
     let isActive = true;
@@ -51,6 +36,7 @@ export function ErBoardPage() {
         }
 
         setCases(emergencyCases);
+        setUpdatedAt(new Date());
         setError(null);
       } catch (loadError) {
         if (!isActive) {
@@ -125,23 +111,12 @@ export function ErBoardPage() {
         <ErBoardStatusBar cases={cases} />
       </header>
 
-      <div className={styles.board}>
-        {workflowStages.map((workflowStage) => {
-          const stageCases = cases.filter(
-            (emergencyCase) =>
-              emergencyCase.stage === workflowStage.stage
-          );
-
-          return (
-            <WorkflowLane
-              key={workflowStage.stage}
-              title={workflowStage.title}
-              stage={workflowStage.stage}
-              cases={stageCases}
-            />
-          );
-        })}
-      </div>
+      <PatientFlowBoard
+        cases={cases}
+        updatedAt={updatedAt}
+        selectedCaseId={selectedCaseId}
+        onSelect={setSelectedCaseId}
+      />
     </main>
   );
 }

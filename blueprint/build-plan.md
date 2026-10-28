@@ -150,7 +150,7 @@ replaces it. Demo data only.
 **Patient flow board** (prototype: "Patient flow")
 
 - [x] **2.11a** `feature/patient-flow-api`: the board list adds what each card shows: case number, patient age, owner name, location (room and area), the stage and minutes in it, the wait chip value, and the assigned clinician's short name and initials. Done (history/features/2.11a-patient-flow-api.md).
-- [ ] **2.11b** `feature/patient-flow-board`: replace the stage lanes with the prototype's acuity lanes (Critical, Urgent, Stable, with counts), the new cards (name, species · breed · age, wait chip, owner · complaint, tags, stage · minutes, assigned clinician), incoming cards' "<priority> · provisional" tag, "Awaiting triage" and "Unassigned", the selected card, "Updated just now · N active cases", the footer count, live updates through the hub, and the 650 px lane tabs.
+- [x] **2.11b** `feature/patient-flow-board`: replace the stage lanes with the prototype's acuity lanes (Critical, Urgent, Stable, with counts), the new cards (name, species · breed · age, wait chip, owner · complaint, tags, stage · minutes, assigned clinician), incoming cards' "<priority> · provisional" tag, "Awaiting triage" and "Unassigned", the selected card, "Updated just now · N active cases", the footer count, live updates through the hub, and the 650 px lane tabs. Done (history/features/2.11b-patient-flow-board.md).
 
 **New patient intake** (prototype: intake dialog; provisional priority)
 

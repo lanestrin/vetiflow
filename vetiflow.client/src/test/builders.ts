@@ -12,13 +12,17 @@ export function buildCase(
 
   return {
     id: `case-${id}`,
+    caseNumber: `ER-${2400 + id}`,
     patientId: `patient-${id}`,
     patientName: `Patient ${id}`,
     species: "Dog",
     breed: "Beagle",
+    patientDateOfBirth: null,
+    ownerName: null,
     weightKg: 12.4,
     presentingComplaint: "Vomiting",
-    stage: "incoming",
+    stage: "treatment",
+    stageEnteredAt: new Date().toISOString(),
     status: "waiting",
     acuity: "stable",
     arrivalTime: new Date().toISOString(),
@@ -26,6 +30,8 @@ export function buildCase(
     assignedDoctor: null,
     assignedTechnician: null,
     room: null,
+    clinician: null,
+    waitChip: "minutes",
     blockers: [],
     lastUpdated: new Date().toISOString(),
     ...overrides

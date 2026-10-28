@@ -46,6 +46,21 @@
 	--color-shell-avatar-text: #7b594d;
 	--color-shell-toast: #173b43;
 	--color-shell-paper: #f5f7f5;
+	// Patient flow board (2.11b), darkened just enough for AA where needed.
+	--color-board-lane: #fafcfb;
+	--color-board-count: #5d6f75;
+	--color-board-count-bg: #edf1f0;
+	--color-board-wait: #866861;
+	--color-board-wait-bg: #fff2ef;
+	--color-board-selected: #37a89c;
+	--color-board-selected-halo: #d6f0eb;
+	--color-board-tag: #61737a;
+	--color-board-tag-bg: #f1f5f4;
+	--color-board-tag-info: #4c718d;
+	--color-board-tag-info-bg: #edf4fa;
+	--color-board-avatar: #367068;
+	--color-board-avatar-bg: #deebe6;
+	--color-board-live: #20a88d;
 	// Focus
 	--color-focus: #2563eb;
 	--color-focus-on-light: var(--color-care-teal);
