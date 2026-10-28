@@ -8,8 +8,29 @@
 	color: #1a2e40;
 	box-shadow: 0 1.5rem 3.5rem rgb(26 46 64 / 22%);
 
+	&[open] {
+		animation: notice-in var(--motion-base) var(--ease-out);
+	}
+
 	&::backdrop {
 		background: rgb(25 60 57 / 55%);
+	}
+
+	&[open]::backdrop {
+		animation: backdrop-in var(--motion-base) var(--ease-out);
+	}
+}
+
+@keyframes notice-in {
+	from {
+		opacity: 0;
+		transform: translateY(0.5rem);
+	}
+}
+
+@keyframes backdrop-in {
+	from {
+		opacity: 0;
 	}
 }
 
@@ -42,13 +63,33 @@
 	font-size: 0.9375rem;
 	font-weight: 700;
 	cursor: pointer;
+	transition: background-color var(--motion-fast) var(--ease-out), transform var(--motion-fast) var(--ease-out);
 
 	&:hover {
 		background: #24405a;
 	}
 
+	&:active {
+		transform: translateY(1px);
+	}
+
 	&:focus-visible {
-		outline: 3px solid var(--color-focus);
+		outline: 2px solid var(--color-focus-on-light);
 		outline-offset: 2px;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.dialog[open],
+	.dialog[open]::backdrop {
+		animation: none;
+	}
+
+	.ok {
+		transition: none;
+
+		&:active {
+			transform: none;
+		}
 	}
 }

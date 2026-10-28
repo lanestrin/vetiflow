@@ -229,7 +229,7 @@ export function PhoneSignInForm({ onSignedIn, isActive }: PhoneSignInFormProps) 
       </div>
 
       <div className={styles.actions}>
-        <PrimaryButton type="submit" disabled={request.isWorking}>
+        <PrimaryButton type="submit" disabled={request.isWorking} aria-busy={request.isWorking}>
           {buttonText()}
           {!request.isWorking && !codeSent && <span aria-hidden="true"> →</span>}
         </PrimaryButton>

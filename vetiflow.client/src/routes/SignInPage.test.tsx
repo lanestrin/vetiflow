@@ -178,6 +178,7 @@ describe("SignInPage", () => {
 
     expect(await screen.findByText(failureMessages.unavailable)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /sign in/i })).toBeEnabled();
+    expect(screen.getByRole("button", { name: /sign in/i })).toHaveAttribute("aria-busy", "false");
     expect(readAccessToken()).toBeNull();
   });
 
@@ -229,6 +230,7 @@ describe("SignInPage", () => {
     fillAndSubmit("team@vetiflow.demo", "welcome1");
 
     expect(screen.getByRole("button", { name: "Signing in…" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Signing in…" })).toHaveAttribute("aria-busy", "true");
     await screen.findByRole("heading", { level: 1, name: "You're all set" });
   });
 

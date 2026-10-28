@@ -78,6 +78,19 @@ $crimson: #d9383a;
 	font-size: 0.9375rem;
 	font-weight: 700;
 	cursor: pointer;
+	transition: background-color var(--motion-fast) var(--ease-out), transform var(--motion-fast) var(--ease-out);
+
+	&:active {
+		transform: translateY(1px);
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		transition: none;
+
+		&:active {
+			transform: none;
+		}
+	}
 
 	svg {
 		width: 1.1rem;

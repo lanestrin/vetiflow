@@ -3,6 +3,14 @@
 	border: 1px solid #c9ddd5;
 	border-radius: 1rem;
 	background: #f4faf6;
+	animation: success-in var(--motion-base) var(--ease-out);
+}
+
+@keyframes success-in {
+	from {
+		opacity: 0;
+		transform: translateY(0.25rem);
+	}
 }
 
 .badge {
@@ -39,9 +47,25 @@
 	font-size: 0.875rem;
 	font-weight: 700;
 	cursor: pointer;
+	transition: color var(--motion-fast) var(--ease-out), background-color var(--motion-fast) var(--ease-out);
+
+	&:hover {
+		color: var(--color-care-navy);
+		background: var(--color-care-mint);
+	}
 
 	&:focus-visible {
-		outline: 3px solid var(--color-focus);
+		outline: 2px solid var(--color-focus-on-light);
 		outline-offset: 2px;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.success {
+		animation: none;
+	}
+
+	.back {
+		transition: none;
 	}
 }

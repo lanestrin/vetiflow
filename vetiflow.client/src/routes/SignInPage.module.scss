@@ -148,10 +148,16 @@ $muted: #556372;
 	font-size: 0.875rem;
 	font-weight: 600;
 	text-decoration: underline;
+	text-underline-offset: 0.15em;
 	cursor: pointer;
+	transition: color var(--motion-fast) var(--ease-out);
+
+	&:hover {
+		color: var(--color-care-teal);
+	}
 
 	&:focus-visible {
-		outline: 3px solid var(--color-focus);
+		outline: 2px solid var(--color-focus-on-light);
 		outline-offset: 2px;
 	}
 }
@@ -168,7 +174,7 @@ $muted: #556372;
 	}
 
 	&:focus-visible {
-		outline: 3px solid var(--color-focus);
+		outline: 2px solid var(--color-focus-on-light);
 		outline-offset: 4px;
 	}
 }
@@ -183,6 +189,7 @@ $muted: #556372;
 // The tabs and panels move on the shared tokens; reduced motion turns them
 // off below.
 $motion: var(--motion-base) var(--ease-out);
+$panel-fade: 420ms;
 
 .tabs {
 	position: relative;
@@ -237,7 +244,7 @@ $motion: var(--motion-base) var(--ease-out);
 	}
 
 	&:focus-visible {
-		outline: 3px solid var(--color-focus);
+		outline: 2px solid var(--color-focus-on-light);
 		outline-offset: 2px;
 	}
 }
@@ -249,42 +256,37 @@ $motion: var(--motion-base) var(--ease-out);
 	display: grid;
 }
 
-// The hidden form keeps its space (visibility, not display). SignInPage also
-// makes it inert, so it can't be reached by Tab or a screen reader.
-// Each panel is a column, so its form can fill the cell and keep its button
-// at the foot.
+// Visibility waits for the fade; inert removes the outgoing form from
+// keyboard and assistive-technology navigation immediately.
 .panel {
 	display: flex;
 	flex-direction: column;
 	grid-area: 1 / 1;
 	min-width: 0;
+	opacity: 1;
+	transform: translateY(0);
+	visibility: visible;
+	transition: opacity $panel-fade ease-in-out, transform $motion, visibility 0s linear $panel-fade;
 
 	&[hidden] {
 		display: flex;
 		visibility: hidden;
-	}
-
-	// The form that appears fades in, rising slightly.
-	&:not([hidden]) {
-		animation: panel-in $motion;
-	}
-}
-
-@keyframes panel-in {
-	from {
 		opacity: 0;
 		transform: translateY(0.25rem);
+		pointer-events: none;
+	}
+
+	&:not([hidden]) {
+		transition-delay: 0s;
 	}
 }
 
 @media (prefers-reduced-motion: reduce) {
 	.tabHighlight,
-	.tab {
+	.tab,
+	.panel,
+	.topLink {
 		transition: none;
-	}
-
-	.panel:not([hidden]) {
-		animation: none;
 	}
 }
 
@@ -349,15 +351,73 @@ $motion: var(--motion-base) var(--ease-out);
 }
 
 .demoSummary {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
 	width: max-content;
-	min-height: 1.75rem;
+	min-height: 2.75rem;
 	color: $navy;
 	font-weight: 700;
+	list-style: none;
 	cursor: pointer;
+	transition: color var(--motion-fast) var(--ease-out);
+
+	&::marker {
+		content: "";
+	}
+
+	&::-webkit-details-marker {
+		display: none;
+	}
+
+	&::before {
+		content: "";
+		width: 0.4rem;
+		height: 0.4rem;
+		border-inline-end: 2px solid currentColor;
+		border-block-end: 2px solid currentColor;
+		transform: rotate(-45deg);
+		transition: transform $motion;
+	}
+
+	&:hover {
+		color: var(--color-care-teal);
+	}
 
 	&:focus-visible {
-		outline: 3px solid var(--color-focus);
+		outline: 2px solid var(--color-focus-on-light);
 		outline-offset: 2px;
+	}
+}
+
+.demo[open] > .demoSummary::before {
+	transform: rotate(45deg);
+}
+
+// Keep native disclosure behavior in browsers without intrinsic-size animation.
+@supports (interpolate-size: allow-keywords) and selector(::details-content) {
+	.demo {
+		interpolate-size: allow-keywords;
+
+		&::details-content {
+			block-size: 0;
+			opacity: 0;
+			overflow: clip;
+			transition: block-size $motion, opacity $motion, content-visibility var(--motion-base) allow-discrete;
+		}
+
+		&[open]::details-content {
+			block-size: auto;
+			opacity: 1;
+		}
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.demoSummary,
+	.demoSummary::before,
+	.demo::details-content {
+		transition: none;
 	}
 }
 
