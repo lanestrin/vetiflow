@@ -2,8 +2,9 @@ import { http, HttpResponse } from "msw";
 import { afterEach, describe, expect, it } from "vitest";
 import { buildCase } from "../test/builders";
 import { apiUrl, server } from "../test/server";
-import { AccessDeniedError, SessionEndedError } from "./apiErrors";
-import { getEmergencyCases, updateCaseStage } from "./casesApi";
+import type { CaseIntakeRequest } from "../types/CaseIntake";
+import { AccessDeniedError, FormRejectedError, SessionEndedError } from "./apiErrors";
+import { createIntake, getEmergencyCases, updateCaseStage } from "./casesApi";
 import { saveAccessToken } from "./session";
 
 afterEach(() => {
@@ -102,5 +103,70 @@ describe("updateCaseStage", () => {
     await expect(updateCaseStage("case-42", "treatment")).rejects.toThrow(
       "Failed to update case stage."
     );
+  });
+});
+
+const intake: CaseIntakeRequest = {
+  petName: "Toby",
+  species: "Dog",
+  breed: null,
+  age: "5 years",
+  ownerName: "Jo Mills",
+  ownerPhone: "312-555-0177",
+  chiefComplaint: "Acute vomiting",
+  priority: "urgent",
+  triageNotes: null,
+  allergies: null,
+  medications: null,
+  treatmentAuthorization: "notDiscussed",
+  referringClinic: null
+};
+
+describe("createIntake", () => {
+  it("posts the intake with the token and returns the new case", async () => {
+    saveAccessToken("token-1");
+    let sent: { body: unknown; authorization: string | null } | null = null;
+    server.use(
+      http.post(apiUrl("/api/cases/intake"), async ({ request }) => {
+        sent = { body: await request.json(), authorization: request.headers.get("Authorization") };
+        return HttpResponse.json({ id: "case-9", caseNumber: "ER-2489", patientId: "patient-9" }, { status: 201 });
+      })
+    );
+
+    await expect(createIntake(intake)).resolves.toEqual({ id: "case-9", caseNumber: "ER-2489", patientId: "patient-9" });
+    expect(sent).toEqual({ body: intake, authorization: "Bearer token-1" });
+  });
+
+  it("brings back the first message for each refused field", async () => {
+    server.use(
+      http.post(apiUrl("/api/cases/intake"), () =>
+        HttpResponse.json(
+          { status: 400, errors: { OwnerName: ["Enter the pet parent's first and last name.", "Second"], Age: ["Enter an age like 8 years."] } },
+          { status: 400 }
+        ))
+    );
+
+    const error = await createIntake(intake).catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(FormRejectedError);
+    expect((error as FormRejectedError).fieldErrors).toEqual({
+      OwnerName: "Enter the pet parent's first and last name.",
+      Age: "Enter an age like 8 years."
+    });
+  });
+
+  it.each([
+    [401, SessionEndedError],
+    [403, AccessDeniedError]
+  ])("turns %i into its error", async (status, errorType) => {
+    server.use(http.post(apiUrl("/api/cases/intake"), () => new HttpResponse(null, { status })));
+
+    await expect(createIntake(intake)).rejects.toBeInstanceOf(errorType);
+  });
+
+  it("fails plainly on a server error", async () => {
+    server.use(http.post(apiUrl("/api/cases/intake"), () => new HttpResponse(null, { status: 500 })));
+
+    await expect(createIntake(intake)).rejects.toThrow("Failed to add the patient.");
   });
 });
