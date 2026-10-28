@@ -103,15 +103,26 @@ public class AuthController : ControllerBase
 		return SignIn(CreatePrincipal(account), BearerTokenDefaults.AuthenticationScheme);
 	}
 
+	// Read from the account, not the token's claims, so the profile follows
+	// the current staff record. A token can outlive its account: then 401.
 	[HttpGet("me")]
 	[Authorize]
-	public ActionResult<SignedInUserDto> Me()
+	public async Task<ActionResult<SignedInUserDto>> Me(CancellationToken cancellationToken)
 	{
-		return new SignedInUserDto
+		var accountId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+
+		var account = await _dbContext.Accounts
+				.AsNoTracking()
+				.Include(account => account.StaffMember)
+				.Include(account => account.Owner)
+				.FirstOrDefaultAsync(account => account.Id == accountId, cancellationToken);
+
+		if (account is null)
 		{
-			Name = User.FindFirstValue(ClaimTypes.Name)!,
-			Experience = Enum.Parse<AccountKind>(User.FindFirstValue(AuthNames.KindClaim)!)
-		};
+			return Problem(statusCode: StatusCodes.Status401Unauthorized, title: "Signed-in account not found");
+		}
+
+		return SignedInUserDto.From(account);
 	}
 
 	// Only the id, kind and display name: never the email, phone or hash.

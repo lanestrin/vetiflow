@@ -146,6 +146,9 @@ public class AuthEndpointTests(VetiFlowApiFactory factory)
 
 		Assert.Equal("Jordan Lee", me.GetProperty("name").GetString());
 		Assert.Equal("teamMember", me.GetProperty("experience").GetString());
+		Assert.Equal("Dr. Jordan Lee", me.GetProperty("displayName").GetString());
+		Assert.Equal("JL", me.GetProperty("initials").GetString());
+		Assert.Equal("veterinarian", me.GetProperty("role").GetString());
 	}
 
 	[Fact]
@@ -157,6 +160,43 @@ public class AuthEndpointTests(VetiFlowApiFactory factory)
 
 		Assert.Equal("Morgan Hale", me.GetProperty("name").GetString());
 		Assert.Equal("petParent", me.GetProperty("experience").GetString());
+		Assert.Equal("Morgan Hale", me.GetProperty("displayName").GetString());
+		Assert.Equal("MH", me.GetProperty("initials").GetString());
+		Assert.Equal(JsonValueKind.Null, me.GetProperty("role").ValueKind);
+	}
+
+	// Only veterinarians get the "Dr." title (build plan 2.10a).
+	[Fact]
+	public async Task Me_Technician_HasNoTitle()
+	{
+		var staffMember = TestData.StaffMember(StaffRole.Technician);
+		staffMember.FirstName = "sam";
+		var account = await AddAccountAsync(TestData.TeamMemberAccount(staffMember));
+		using var client = await SignedInClientAsync(account.Email!);
+
+		var me = await client.GetFromJsonAsync<JsonElement>("/api/auth/me", _cancellationToken);
+
+		Assert.Equal($"sam {staffMember.LastName}", me.GetProperty("displayName").GetString());
+		Assert.Equal($"S{char.ToUpperInvariant(staffMember.LastName[0])}", me.GetProperty("initials").GetString());
+		Assert.Equal("technician", me.GetProperty("role").GetString());
+	}
+
+	// The token outlives the account: the profile can't be built, so 401.
+	[Fact]
+	public async Task Me_AccountNoLongerExists_Returns401Problem()
+	{
+		var account = await AddAccountAsync(TestData.PetParentAccount(TestData.Owner()));
+		using var client = await SignedInClientAsync(account.Email!);
+		await using (var dbContext = factory.CreateDbContext())
+		{
+			dbContext.Accounts.Remove(await dbContext.Accounts.FindAsync([account.Id], _cancellationToken) ?? throw new InvalidOperationException());
+			await dbContext.SaveChangesAsync(_cancellationToken);
+		}
+
+		var response = await client.GetAsync("/api/auth/me", _cancellationToken);
+
+		Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+		Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
 	}
 
 	[Fact]
@@ -245,6 +285,9 @@ public class AuthEndpointTests(VetiFlowApiFactory factory)
 		var me = await MeWithTokenAsync(client, response);
 		Assert.Equal("Jordan Lee", me.GetProperty("name").GetString());
 		Assert.Equal("teamMember", me.GetProperty("experience").GetString());
+		Assert.Equal("Dr. Jordan Lee", me.GetProperty("displayName").GetString());
+		Assert.Equal("JL", me.GetProperty("initials").GetString());
+		Assert.Equal("veterinarian", me.GetProperty("role").GetString());
 	}
 
 	[Fact]
@@ -310,6 +353,16 @@ public class AuthEndpointTests(VetiFlowApiFactory factory)
 		client.DefaultRequestHeaders.Authorization =
 			new AuthenticationHeaderValue("Bearer", token.GetProperty("accessToken").GetString());
 		return await client.GetFromJsonAsync<JsonElement>("/api/auth/me", _cancellationToken);
+	}
+
+	// Saves an account that signs in with the demo password.
+	private async Task<Account> AddAccountAsync(Account account)
+	{
+		account.PasswordHash = new PasswordHasher<Account>().HashPassword(account, DbSeeder.DemoPassword);
+		await using var dbContext = factory.CreateDbContext();
+		dbContext.Accounts.Add(account);
+		await dbContext.SaveChangesAsync(_cancellationToken);
+		return account;
 	}
 
 	private Task<HttpResponseMessage> SignInAsync(HttpClient client, string email, string password) =>
