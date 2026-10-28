@@ -25,6 +25,58 @@ public static class DbSeeder
 		}
 
 		await LinkDemoPetAsync(dbContext);
+		await RefreshDemoTimesAsync(dbContext);
+	}
+
+	// Demo case times are set relative to the first seed and would otherwise
+	// age forever (a database seeded weeks earlier showed waits of about 1,190
+	// hours). Once the newest active case is older than this, startup moves
+	// every case time forward by the same amount, so the newest active case
+	// arrived FreshestArrivalAge ago, as on a fresh seed, and all gaps stay.
+	private static readonly TimeSpan StaleAfter = TimeSpan.FromHours(12);
+	private static readonly TimeSpan FreshestArrivalAge = TimeSpan.FromMinutes(18);
+
+	private static async Task RefreshDemoTimesAsync(VetiFlowDbContext dbContext)
+	{
+		var newestActiveArrival = await dbContext.EmergencyCases
+				.Where(emergencyCase => emergencyCase.DischargedAt == null)
+				.Select(emergencyCase => (DateTimeOffset?)emergencyCase.ArrivalTime)
+				.MaxAsync();
+
+		var now = DateTimeOffset.UtcNow;
+		if (newestActiveArrival is null || now - newestActiveArrival.Value <= StaleAfter)
+		{
+			return;
+		}
+
+		var by = now - FreshestArrivalAge - newestActiveArrival.Value;
+
+		// All or nothing, so the timeline never ends up half moved.
+		await using var transaction = await dbContext.Database.BeginTransactionAsync();
+
+		await dbContext.EmergencyCases.ExecuteUpdateAsync(setters => setters
+				.SetProperty(emergencyCase => emergencyCase.ArrivalTime, emergencyCase => emergencyCase.ArrivalTime + by)
+				.SetProperty(emergencyCase => emergencyCase.LastUpdated, emergencyCase => emergencyCase.LastUpdated + by)
+				.SetProperty(emergencyCase => emergencyCase.LastOwnerUpdateAt, emergencyCase => emergencyCase.LastOwnerUpdateAt + by)
+				.SetProperty(emergencyCase => emergencyCase.DischargedAt, emergencyCase => emergencyCase.DischargedAt + by));
+		await dbContext.CaseTasks.ExecuteUpdateAsync(setters => setters
+				.SetProperty(task => task.CreatedAt, task => task.CreatedAt + by)
+				.SetProperty(task => task.DueAt, task => task.DueAt + by)
+				.SetProperty(task => task.ResolvedAt, task => task.ResolvedAt + by));
+		await dbContext.VitalsRecords.ExecuteUpdateAsync(setters => setters
+				.SetProperty(vitals => vitals.RecordedAt, vitals => vitals.RecordedAt + by));
+		await dbContext.TriageAssessments.ExecuteUpdateAsync(setters => setters
+				.SetProperty(triage => triage.AssessedAt, triage => triage.AssessedAt + by));
+		await dbContext.CaseEvents.ExecuteUpdateAsync(setters => setters
+				.SetProperty(caseEvent => caseEvent.CreatedAt, caseEvent => caseEvent.CreatedAt + by));
+		await dbContext.AiSummaries.ExecuteUpdateAsync(setters => setters
+				.SetProperty(summary => summary.GeneratedAt, summary => summary.GeneratedAt + by)
+				.SetProperty(summary => summary.ReviewedAt, summary => summary.ReviewedAt + by));
+		await dbContext.Handoffs.ExecuteUpdateAsync(setters => setters
+				.SetProperty(handoff => handoff.CreatedAt, handoff => handoff.CreatedAt + by)
+				.SetProperty(handoff => handoff.AcknowledgedAt, handoff => handoff.AcknowledgedAt + by));
+
+		await transaction.CommitAsync();
 	}
 
 	// The demo pet parent should have a pet to show. A fresh seed gives Morgan
