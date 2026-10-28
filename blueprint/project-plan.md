@@ -14,16 +14,16 @@ asking who is waiting, who is critical, which room is free and what happens
 next. Owners in the waiting room get no updates and ask the front desk again
 and again.
 
-VetiFlow is a real-time ER board: every active case by stage, acuity and wait
-time, updated on every open screen the moment anyone changes it. A separate,
+VetiFlow is a real-time ER board: every active case by acuity, with its stage
+and wait time, updated on every open screen the moment anyone changes it. A separate,
 private owner page tells each owner how their own pet is doing, in calm words.
 
 ## 2. Users - Who is this for?
 
 - **Veterinarians.** Set acuity through triage, own treatment decisions, confirm
   AI drafts and handoffs.
-- **Technicians.** Move cases between stages, record vitals and tasks, see their
-  workload.
+- **Technicians.** Update a case's stage and status, record vitals and tasks,
+  see their workload.
 - **Managers.** See the whole board, rooms and team load; later, the audit log.
 - **Pet owners.** Never see the staff board. They get a private page for their
   own pet only, with calm wording and no acuity, reached through a scoped,
@@ -35,9 +35,10 @@ Staff use shared clinic workstations, so sessions must lock quickly.
 
 ## 3. Features - What does the MVP need?
 
-1. Live staff board: lanes by stage, cards with acuity, wait timer and next action.
-2. Change a case's stage (drag and drop, and a keyboard menu) with live updates.
-3. Case detail drawer: patient, owner, triage, vitals, tasks, timeline.
+1. Live staff board (the ER Command Center): lanes by acuity, cards with stage,
+   wait and care team, and a stats row.
+2. Change a case's stage and status through Update status, with live updates.
+3. Patient overview panel: patient, owner, triage, vitals, tasks, timeline.
 4. Patient and owner records with search; intake for a new or existing patient,
    with an unknown owner allowed.
 5. Triage, vitals, staff and room assignment, tasks and blockers.
@@ -90,14 +91,16 @@ Not part of v1. Open question.
 
 ## 7. UI/UX - How should this look and feel?
 
-- Staff board: dark top bar (logo, hospital and shift, stats), left icon nav,
-  lanes by stage, cards with species icon, coloured acuity badge, large timer,
-  staff name and next action. Build against the screenshots in
-  `blueprint/reference/`.
-- Acuity colours and labels: Critical, Urgent, High, Low, in that order.
+- Staff screens: the ER Command Center prototype,
+  `blueprint/reference/vetiflow-er-dashboard.html` (decided 2026-10-28). Left
+  rail, top bar with search and profile, stats row, patient flow lanes by
+  acuity, the patient overview panel and the intake dialog. Build to look like
+  the prototype, including its 1050 px and 650 px layouts.
+- Acuity colours and labels: Critical (red), Urgent (amber), Stable (teal), in
+  that order (three levels, decided 2026-10-28; 0.4).
 - Calm, plain wording on the owner page. No acuity, no clinical shorthand.
 - Responsive and accessible: phone, tablet and desktop layouts; visible
-  non-colour cues for acuity and status; keyboard alternatives to drag and drop;
+  non-colour cues for acuity and status; everything works by keyboard;
   appropriate live announcements and WCAG 2.2 AA as the target. Follow
   "Responsive and accessible design" in `context/coding-standards.md`.
 - Staff and owner display labels live in the client, separate from the API's
@@ -107,7 +110,8 @@ Routes:
 
 - `/` - goes to the signed-in user's home, or `/sign-in` (from S.18)
 - `/sign-in` - the sign-in screen (section 10)
-- `/er` - staff ER board, hospital team members only
+- `/er` - the ER Command Center, hospital team members only
+- `/records` - Patients (search and records), hospital team members only
 - `/pet-parent` - the pet parent home: minimal in the demo (S.18), replaced by
   the owner page (6.3, final route decided there)
 
