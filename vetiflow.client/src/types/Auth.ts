@@ -4,6 +4,9 @@ export type Experience = "teamMember" | "petParent";
 export interface SignedInUser {
   name: string;
   experience: Experience;
+  // What the top bar's profile shows: "Dr. Jordan Reed" and "JR" (2.10a).
+  displayName: string;
+  initials: string;
 }
 
 // Why a sign-in step failed: the API's codes, plus "unavailable" when the API

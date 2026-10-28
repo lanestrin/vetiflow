@@ -1,19 +1,13 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { FieldError } from "../components/auth/FormMessages";
 import type { SignInRouteState } from "../components/auth/experienceHome";
-import { SessionBar } from "../components/auth/SessionBar";
 import { PatientResults } from "../components/records/PatientResults";
 import { AccessDeniedError, SessionEndedError } from "../services/apiErrors";
 import { searchPatients } from "../services/recordsApi";
 import { clearAccessToken } from "../services/session";
-import type { SignedInUser } from "../types/Auth";
 import type { PatientListItem } from "../types/PatientListItem";
 import styles from "./RecordsPage.module.scss";
-
-interface RecordsPageProps {
-  user: SignedInUser;
-}
 
 // The API's limits (build plan 4.6a): checking here spares a request.
 const minLength = 2;
@@ -47,7 +41,7 @@ function foundMessage(text: string, count: number): string {
 // search text lives in the URL, so reloading or going back shows the same
 // results. RequireExperience lets only team members in; the API's 401 and 403
 // are the real check.
-export function RecordsPage({ user }: RecordsPageProps) {
+export function RecordsPage() {
   const id = useId();
   const navigate = useNavigate();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -137,8 +131,6 @@ export function RecordsPage({ user }: RecordsPageProps) {
       <title>Patient records · VetiFlow</title>
       <header className={styles.header}>
         <h1 className={styles.title}>Patient records</h1>
-        <Link className={styles.backLink} to="/er">Back to board</Link>
-        <SessionBar user={user} />
       </header>
 
       <form className={styles.search} onSubmit={handleSubmit} role="search" noValidate>

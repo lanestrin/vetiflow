@@ -8,13 +8,14 @@ import { createFakeCaseHub } from "../test/fakeCaseHub";
 import { apiUrl, server } from "../test/server";
 import type { SignedInUser } from "../types/Auth";
 import App from "./App";
+import { buildTeamMember, buildPetParent } from "../test/builders";
 
 vi.mock("../services/caseHub", () => ({
   createCaseHubConnection: vi.fn()
 }));
 
-const teamMember: SignedInUser = { name: "Jordan Lee", experience: "teamMember" };
-const petParent: SignedInUser = { name: "Morgan Hale", experience: "petParent" };
+const teamMember: SignedInUser = buildTeamMember();
+const petParent: SignedInUser = buildPetParent();
 
 beforeEach(() => {
   vi.mocked(createCaseHubConnection).mockReturnValue(
@@ -91,6 +92,40 @@ describe("App", () => {
 
     expect(await screen.findByRole("heading", petParentHeading)).toBeInTheDocument();
     expect(screen.queryByRole("heading", recordsHeading)).not.toBeInTheDocument();
+  });
+
+  // Every staff page sits inside the Command Center shell (2.10b).
+  it.each([
+    ["/er", "VetiFlow ER Board", "ER board"],
+    ["/records", "Patient records", "Patients"],
+    ["/overview", "Overview", "Overview"],
+    ["/team", "Team", "Team"],
+    ["/reports", "Reports", "Reports"],
+    ["/settings", "Settings", "Settings"]
+  ])("opens %s inside the shell for a hospital team member", async (path, heading, railLink) => {
+    signInAs(teamMember);
+
+    renderAt(path);
+
+    expect(await screen.findByRole("heading", { level: 1, name: heading })).toBeInTheDocument();
+    expect(screen.getByRole("navigation", { name: "Main" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: railLink })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("button", { name: "Dr. Jordan Lee, account" })).toBeInTheDocument();
+  });
+
+  it.each(["/overview", "/team", "/reports", "/settings"])("sends a signed-out visitor at %s to sign in", async (path) => {
+    renderAt(path);
+
+    expect(await screen.findByRole("heading", signInHeading)).toBeInTheDocument();
+  });
+
+  it("keeps a pet parent off the coming-soon staff pages", async () => {
+    signInAs(petParent);
+
+    renderAt("/team");
+
+    expect(await screen.findByRole("heading", petParentHeading)).toBeInTheDocument();
+    expect(screen.queryByRole("navigation", { name: "Main" })).not.toBeInTheDocument();
   });
 
   it("skips the sign-in page for someone already signed in", async () => {

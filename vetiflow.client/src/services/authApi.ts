@@ -126,9 +126,18 @@ function readSignedInUser(user: unknown): SignedInUser {
     "name" in user &&
     typeof user.name === "string" &&
     "experience" in user &&
-    experiences.some((experience) => experience === user.experience)
+    experiences.some((experience) => experience === user.experience) &&
+    "displayName" in user &&
+    typeof user.displayName === "string" &&
+    "initials" in user &&
+    typeof user.initials === "string"
   ) {
-    return { name: user.name, experience: user.experience as Experience };
+    return {
+      name: user.name,
+      experience: user.experience as Experience,
+      displayName: user.displayName,
+      initials: user.initials
+    };
   }
 
   throw new Error("The signed-in user response was not understood.");

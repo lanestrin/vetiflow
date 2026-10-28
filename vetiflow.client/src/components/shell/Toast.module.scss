@@ -1,0 +1,29 @@
+// The prototype's .toast: navy, bottom centre, rising into place.
+.toast {
+	position: fixed;
+	bottom: 22px;
+	left: 50%;
+	z-index: 30;
+	max-width: calc(100% - 2rem);
+	padding: 11px 17px;
+	border-radius: 10px;
+	background: var(--color-shell-toast);
+	box-shadow: 0 10px 32px rgb(26 55 63 / 6%);
+	color: var(--color-text-inverse);
+	font-size: 0.75rem;
+	opacity: 0;
+	pointer-events: none;
+	transform: translate(-50%, 20px);
+	transition:
+		opacity 250ms var(--ease-out),
+		transform 250ms var(--ease-out);
+
+	&[data-show="true"] {
+		opacity: 1;
+		transform: translate(-50%, 0);
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		transition: none;
+	}
+}

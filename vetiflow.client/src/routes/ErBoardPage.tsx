@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import type { SignInRouteState } from "../components/auth/experienceHome";
-import { SessionBar } from "../components/auth/SessionBar";
 import { WorkflowLane } from "../components/clinical/WorkflowLane";
 import { ErBoardStatusBar } from "../components/clinical/ErBoardStatusBar";
 import type {
@@ -9,7 +8,6 @@ import type {
   EmergencyCaseListItem
 } from "../types/EmergencyCaseListItem";
 
-import type { SignedInUser } from "../types/Auth";
 import { AccessDeniedError, SessionEndedError } from "../services/apiErrors";
 import { getEmergencyCases } from "../services/casesApi";
 import { clearAccessToken } from "../services/session";
@@ -33,11 +31,7 @@ const workflowStages: WorkflowStage[] = [
   { title: "Discharge", stage: "discharge" }
 ];
 
-interface ErBoardPageProps {
-  user: SignedInUser;
-}
-
-export function ErBoardPage({ user }: ErBoardPageProps) {
+export function ErBoardPage() {
   const navigate = useNavigate();
   const [cases, setCases] = useState<EmergencyCaseListItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -129,10 +123,6 @@ export function ErBoardPage({ user }: ErBoardPageProps) {
         <h1 className={styles.title}>VetiFlow ER Board</h1>
 
         <ErBoardStatusBar cases={cases} />
-
-        <Link className={styles.recordsLink} to="/records">Patient records</Link>
-
-        <SessionBar user={user} />
       </header>
 
       <div className={styles.board}>

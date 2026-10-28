@@ -8,6 +8,7 @@ import {
   verifyPhoneSignIn
 } from "./authApi";
 import { readAccessToken } from "./session";
+import { buildTeamMember } from "../test/builders";
 
 afterEach(() => {
   sessionStorage.clear();
@@ -123,10 +124,10 @@ describe("phone sign-in", () => {
 describe("finishSignIn", () => {
   it("keeps the token and returns who signed in", async () => {
     server.use(
-      http.get(apiUrl("/api/auth/me"), () => HttpResponse.json({ name: "Jordan Lee", experience: "teamMember" }))
+      http.get(apiUrl("/api/auth/me"), () => HttpResponse.json(buildTeamMember()))
     );
 
-    await expect(finishSignIn("token-3")).resolves.toEqual({ name: "Jordan Lee", experience: "teamMember" });
+    await expect(finishSignIn("token-3")).resolves.toEqual(buildTeamMember());
     expect(readAccessToken()).toBe("token-3");
   });
 
@@ -139,19 +140,32 @@ describe("finishSignIn", () => {
 });
 
 describe("getSignedInUser", () => {
-  it("sends the token and returns the name and experience", async () => {
+  it("sends the token and returns the name, experience and profile", async () => {
     let authorization: string | null = null;
     server.use(
       http.get(apiUrl("/api/auth/me"), ({ request }) => {
         authorization = request.headers.get("Authorization");
-        return HttpResponse.json({ name: "Jordan Lee", experience: "teamMember" });
+        return HttpResponse.json({ ...buildTeamMember(), role: "veterinarian" });
       })
     );
 
     const user = await getSignedInUser("token-1");
 
     expect(authorization).toBe("Bearer token-1");
-    expect(user).toEqual({ name: "Jordan Lee", experience: "teamMember" });
+    expect(user).toEqual({
+      name: "Jordan Lee",
+      experience: "teamMember",
+      displayName: "Dr. Jordan Lee",
+      initials: "JL"
+    });
+  });
+
+  it("rejects a signed-in user response without the profile", async () => {
+    server.use(
+      http.get(apiUrl("/api/auth/me"), () => HttpResponse.json({ name: "Jordan Lee", experience: "teamMember" }))
+    );
+
+    await expect(getSignedInUser("token-1")).rejects.toThrow();
   });
 
   it("rejects a signed-in user response without the expected fields", async () => {

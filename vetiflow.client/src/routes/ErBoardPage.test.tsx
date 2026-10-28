@@ -5,7 +5,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { SignInRouteState } from "../components/auth/experienceHome";
 import { createCaseHubConnection } from "../services/caseHub";
 import { readAccessToken, saveAccessToken } from "../services/session";
-import type { SignedInUser } from "../types/Auth";
 import { buildCase } from "../test/builders";
 import { createFakeCaseHub } from "../test/fakeCaseHub";
 import { apiUrl, server } from "../test/server";
@@ -35,8 +34,6 @@ async function findLane(name: string) {
   return screen.findByRole("region", { name });
 }
 
-const jordanLee: SignedInUser = { name: "Jordan Lee", experience: "teamMember" };
-
 // Shows the router state the board leaves on /sign-in, so tests can read it.
 function SignInStub() {
   const state = useLocation().state as SignInRouteState | null;
@@ -47,7 +44,7 @@ function renderBoard() {
   return render(
     <MemoryRouter initialEntries={["/er"]}>
       <Routes>
-        <Route path="/er" element={<ErBoardPage user={jordanLee} />} />
+        <Route path="/er" element={<ErBoardPage />} />
         <Route path="/sign-in" element={<SignInStub />} />
       </Routes>
     </MemoryRouter>
@@ -55,19 +52,6 @@ function renderBoard() {
 }
 
 describe("ErBoardPage", () => {
-  it("shows who is signed in", async () => {
-    renderBoard();
-
-    expect(await screen.findByText("Jordan Lee")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Sign out" })).toBeInTheDocument();
-  });
-
-  it("links to patient records", async () => {
-    renderBoard();
-
-    expect(await screen.findByRole("link", { name: "Patient records" })).toHaveAttribute("href", "/records");
-  });
-
   it("sends the person to sign in when the session has ended", async () => {
     saveAccessToken("expired");
     server.use(http.get(apiUrl("/api/cases"), () => new HttpResponse(null, { status: 401 })));

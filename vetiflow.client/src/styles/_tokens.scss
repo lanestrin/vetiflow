@@ -30,11 +30,29 @@
 	--color-acuity-urgent-bg: #fff5e4;
 	--color-acuity-stable: #067970;
 	--color-acuity-stable-bg: #dff4ef;
+	// ER Command Center shell, from blueprint/reference/vetiflow-er-dashboard.html.
+	// Muted text and the avatar's initials are darkened just enough for AA.
+	--color-shell-navy: #132b37;
+	--color-shell-rail-text: #a5b7ba;
+	--color-shell-rail-hover: #234653;
+	--color-shell-rail-marker: #36c5b1;
+	--color-shell-brand: #13a69a;
+	--color-shell-line: #e5ebea;
+	--color-shell-ink: #182b36;
+	--color-shell-muted: #6a797f;
+	--color-shell-placeholder: #697376;
+	--color-shell-field: #f6f8f7;
+	--color-shell-avatar: #f3d6c6;
+	--color-shell-avatar-text: #7b594d;
+	--color-shell-toast: #173b43;
+	--color-shell-paper: #f5f7f5;
 	// Focus
 	--color-focus: #2563eb;
 	--color-focus-on-light: var(--color-care-teal);
 	--color-focus-halo: color-mix(in srgb, var(--color-focus-on-light) 15%, transparent);
 	--color-field-error: #a3392d;
+	// The demo bar above every page
+	--demo-bar-height: 1.5rem;
 	// Spacing
 	--space-1: 0.25rem;
 	--space-2: 0.5rem;

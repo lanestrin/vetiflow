@@ -1,7 +1,9 @@
-﻿import { Route, Routes } from "react-router-dom";
+﻿import { Outlet, Route, Routes } from "react-router-dom";
 import { HomeRedirect } from "../components/auth/HomeRedirect";
 import { RequireExperience } from "../components/auth/RequireExperience";
 import { DemoBar } from "../components/layout/DemoBar";
+import { AppShell } from "../components/shell/AppShell";
+import { ComingSoonPage } from "../routes/ComingSoonPage";
 import { ErBoardPage } from "../routes/ErBoardPage";
 import { PetParentHomePage } from "../routes/PetParentHomePage";
 import { RecordsPage } from "../routes/RecordsPage";
@@ -13,22 +15,25 @@ function App() {
       <DemoBar />
       <Routes>
         <Route path="/" element={<HomeRedirect />} />
+        {/* Every staff page sits inside the Command Center shell (2.10b). */}
         <Route
-          path="/er"
           element={
             <RequireExperience experience="teamMember">
-              {(user) => <ErBoardPage user={user} />}
+              {(user) => (
+                <AppShell user={user}>
+                  <Outlet />
+                </AppShell>
+              )}
             </RequireExperience>
           }
-        />
-        <Route
-          path="/records"
-          element={
-            <RequireExperience experience="teamMember">
-              {(user) => <RecordsPage user={user} />}
-            </RequireExperience>
-          }
-        />
+        >
+          <Route path="/er" element={<ErBoardPage />} />
+          <Route path="/records" element={<RecordsPage />} />
+          <Route path="/overview" element={<ComingSoonPage name="Overview" />} />
+          <Route path="/team" element={<ComingSoonPage name="Team" />} />
+          <Route path="/reports" element={<ComingSoonPage name="Reports" />} />
+          <Route path="/settings" element={<ComingSoonPage name="Settings" />} />
+        </Route>
         <Route path="/sign-in" element={<SignInPage />} />
         <Route
           path="/pet-parent"

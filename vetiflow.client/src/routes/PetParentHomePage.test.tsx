@@ -7,6 +7,7 @@ import { readAccessToken, saveAccessToken } from "../services/session";
 import { apiUrl, server } from "../test/server";
 import type { PetSummary } from "../types/PetSummary";
 import { PetParentHomePage } from "./PetParentHomePage";
+import { buildPetParent } from "../test/builders";
 
 afterEach(() => {
   sessionStorage.clear();
@@ -23,7 +24,7 @@ function renderPage() {
       <Routes>
         <Route
           path="/pet-parent"
-          element={<PetParentHomePage user={{ name: "Morgan Hale", experience: "petParent" }} />}
+          element={<PetParentHomePage user={buildPetParent()} />}
         />
         <Route path="/sign-in" element={<SignInStub />} />
       </Routes>

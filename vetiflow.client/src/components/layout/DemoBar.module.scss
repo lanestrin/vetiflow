@@ -1,6 +1,13 @@
+// A fixed height, so a full-height page below it (the app shell) can fill
+// exactly the rest of the window.
 .bar {
+	height: var(--demo-bar-height);
 	margin: 0;
-	padding: var(--space-1) var(--space-4);
+	padding: 0 var(--space-4);
+	overflow: hidden;
+	line-height: var(--demo-bar-height);
+	white-space: nowrap;
+	text-overflow: ellipsis;
 	background: var(--color-care-navy);
 	color: var(--color-text-inverse);
 	font-size: 0.8125rem;
