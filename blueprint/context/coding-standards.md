@@ -101,6 +101,13 @@ Avoid overengineering:
 - Reuse `src/styles/_tokens.scss` for shared colours, spacing, radii and other
   consistent design choices. Add a token for a real shared decision, not every
   individual measurement. Do not duplicate existing tokens under new names.
+- Form fields and controls on light surfaces use `--color-focus-on-light`
+  and `--color-focus-halo`, with the shared motion tokens for decoration.
+  Keep the focus outline immediately visible, border widths stable and errors
+  distinct when focused or hovered. On dark surfaces, choose a contrasting
+  ring instead. New forms follow the shared sign-in field treatment rather
+  than inventing another focus style. Disable nonessential motion for reduced
+  motion and preserve outlines in forced colors.
 - Reuse a React component when markup, behaviour and appearance repeat. Use a
   Sass mixin only for a meaningful presentation pattern already needed by
   multiple components. Repeated `display: flex` or `padding` alone is not enough.

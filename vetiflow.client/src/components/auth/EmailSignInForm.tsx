@@ -164,7 +164,7 @@ export function EmailSignInForm({ onSignedIn, isActive, notice = "" }: EmailSign
       </div>
 
       <div className={styles.actions}>
-        <PrimaryButton type="submit" disabled={request.isWorking}>
+        <PrimaryButton type="submit" disabled={request.isWorking} aria-busy={request.isWorking}>
           {request.isWorking ? "Signing in…" : "Sign in"}
           {!request.isWorking && <span aria-hidden="true"> →</span>}
         </PrimaryButton>

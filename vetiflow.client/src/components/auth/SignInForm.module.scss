@@ -1,9 +1,9 @@
 // Shared by the email and phone sign-in forms.
 $fast: var(--motion-fast) var(--ease-out);
-$error: #a3392d;
+$error: var(--color-field-error);
 // The fields' focus ring. Not --color-focus, which also rings controls on
 // the dark navy panels, where teal would be too faint.
-$focus: var(--color-care-teal);
+$focus: var(--color-focus-on-light);
 
 // Fills its panel; SignInPage stacks both panels in one cell.
 .form {
@@ -69,14 +69,16 @@ $focus: var(--color-care-teal);
 	background: var(--color-surface);
 	color: var(--color-text-primary);
 	font-size: 0.9375rem;
+	// Match the error state's shadow list so both states interpolate.
+	box-shadow: inset 0 0 0 1px transparent, 0 0 0 0 transparent;
 	// The outline is not listed, so focus shows at once.
-	transition: border-color $fast, box-shadow $fast;
+	transition: border-color $fast, box-shadow $fast, background-color $fast, color $fast;
 
 	&::placeholder {
 		color: #6b7a7d;
 	}
 
-	&:hover:not(:disabled) {
+	&:hover:not(:disabled):not(:focus-visible):not([aria-invalid="true"]) {
 		border-color: #4f6366;
 	}
 
@@ -93,7 +95,7 @@ $focus: var(--color-care-teal);
 		outline: 2px solid $focus;
 		outline-offset: 2px;
 		border-color: $focus;
-		box-shadow: 0 0 0 4px color-mix(in srgb, $focus 15%, transparent);
+		box-shadow: inset 0 0 0 1px transparent, 0 0 0 4px var(--color-focus-halo);
 	}
 
 	// A thicker edge drawn inside (no layout shift), on top of the colour and
@@ -106,6 +108,7 @@ $focus: var(--color-care-teal);
 
 	// Focus keeps an invalid field red.
 	&[aria-invalid="true"]:focus-visible {
+		border-color: $error;
 		outline-color: $error;
 		box-shadow: inset 0 0 0 1px $error, 0 0 0 4px color-mix(in srgb, $error 15%, transparent);
 	}
@@ -130,14 +133,15 @@ $focus: var(--color-care-teal);
 	color: #556372;
 	cursor: pointer;
 	transform: translateY(-50%);
-	transition: color $fast;
+	transition: color $fast, background-color $fast;
 
 	&:hover {
 		color: #1a2e40;
+		background: var(--color-care-mint);
 	}
 
 	&:focus-visible {
-		outline: 3px solid var(--color-focus);
+		outline: 2px solid var(--color-focus-on-light);
 		outline-offset: -3px;
 	}
 }
@@ -181,10 +185,22 @@ $focus: var(--color-care-teal);
 	font-size: 0.8125rem;
 	font-weight: 700;
 	text-decoration: underline;
+	text-underline-offset: 0.15em;
 	cursor: pointer;
+	transition: color $fast, text-decoration-color $fast;
+
+	&:hover:not(:disabled) {
+		color: var(--color-care-navy);
+		text-decoration-color: currentColor;
+	}
+
+	&:disabled {
+		color: var(--color-text-secondary);
+		cursor: progress;
+	}
 
 	&:focus-visible {
-		outline: 3px solid var(--color-focus);
+		outline: 2px solid var(--color-focus-on-light);
 		outline-offset: 2px;
 	}
 }
@@ -220,13 +236,28 @@ $focus: var(--color-care-teal);
 
 @media (prefers-reduced-motion: reduce) {
 	.input,
-	.revealButton {
+	.revealButton,
+	.link {
 		transition: none;
 	}
 
 	.fieldError,
 	.message:not(:empty) {
 		animation: none;
+	}
+}
+
+@media (forced-colors: active) {
+	.input:focus-visible {
+		outline-color: Highlight;
+	}
+
+	.input[aria-invalid="true"] {
+		border-style: dashed;
+
+		&:focus-visible {
+			outline-color: Highlight;
+		}
 	}
 }
 

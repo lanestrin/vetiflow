@@ -15,9 +15,9 @@
 	font-weight: 700;
 	cursor: pointer;
 	// The outline is not listed, so focus shows at once.
-	transition: background-color var(--motion-fast) var(--ease-out), transform var(--motion-fast) var(--ease-out);
+	transition: background-color var(--motion-fast) var(--ease-out), color var(--motion-fast) var(--ease-out), transform var(--motion-fast) var(--ease-out);
 
-	&:hover {
+	&:hover:not(:disabled) {
 		background: #24405a;
 	}
 
@@ -28,7 +28,7 @@
 	}
 
 	&:focus-visible {
-		outline: 3px solid var(--color-focus);
+		outline: 2px solid var(--color-focus-on-light);
 		outline-offset: 2px;
 	}
 
