@@ -13,6 +13,12 @@ describe("AcuityBadge", () => {
     expect(screen.getByText(label)).toHaveAttribute("data-acuity", acuity);
   });
 
+  it("marks an intake's priority as provisional", () => {
+    render(<AcuityBadge acuity="urgent" isProvisional />);
+
+    expect(screen.getByText("Urgent · provisional")).toHaveAttribute("data-acuity", "urgent");
+  });
+
   it("shows that an untriaged patient has no acuity yet", () => {
     render(<AcuityBadge acuity={null} />);
 

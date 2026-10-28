@@ -187,7 +187,7 @@ replaces it. Demo data only.
 **Patient overview panel** (prototype: right-hand panel)
 
 - [x] **3.2a** `feature/patient-overview-api`: the case detail (3.1) adds case number, check-in time, patient age, location (room and area), minutes in stage, and the intake fields (allergies and medications on the patient and at this visit, treatment authorization, referring clinic); no new writes. Next reassessment and client update come from 4.4a. Done (history/features/3.2a-patient-overview-api.md).
-- [ ] **3.2b** `feature/patient-overview-panel`: the panel beside the board for the selected card: header with case number and check-in time, the patient hero (species avatar, name, species · breed · age · weight, acuity badge), the pet parent bar, the vitals tiles, location, care timeline (pending items marked) and next actions; it stacks under the board at 1050 px; the **•••**, Call, Message, Add task, Handoff and Update status controls are shown and wired by the items below.
+- [x] **3.2b** `feature/patient-overview-panel`: the panel beside the board for the selected card: header with case number and check-in time, the patient hero (species avatar, name, species · breed · age · weight, acuity badge), the pet parent bar, the vitals tiles, location, care timeline (pending items marked) and next actions; it stacks under the board at 1050 px; the **•••**, Call, Message, Add task, Handoff and Update status controls are shown and wired by the items below. Done (history/features/3.2b-patient-overview-panel.md).
 
 **Next actions and due items** (prototype: task list, "Next reassessment", "Client update")
 
@@ -197,7 +197,7 @@ replaces it. Demo data only.
 **Vitals and pain** (prototype: four vitals tiles, pain score meter)
 
 - [ ] **4.8a** `feature/vitals-api`: add SpO₂ to `VitalsRecord` (migration), record vitals through `RecordVitals` (never changes acuity), and return which readings are outside the decided ranges; a pain score record (0 to 10, optional notes, when and who; migration) with the latest on the case detail and board list.
-- [ ] **4.8b** `feature/vitals-tiles`: the heart rate, resp rate, temperature (°C, converted from the stored °F) and SpO₂ tiles with the red alert style, "Not recorded" when missing, recording a new set from the panel; the pain score meter and the **Record score** dialog.
+- [ ] **4.8b** `feature/vitals-tiles`: the heart rate, resp rate and temperature tiles (°C, "Not recorded" when missing) exist from 3.2b; 4.8b adds the SpO₂ value, the red alert style and recording a new set from the panel; the pain score meter and the **Record score** dialog.
 
 **Update status** (prototype: "Update status" button)
 

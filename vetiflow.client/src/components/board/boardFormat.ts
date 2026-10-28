@@ -9,6 +9,13 @@ export function minutesSince(isoTime: string, now: Date): number {
   return Math.max(0, Math.floor((now.getTime() - new Date(isoTime).getTime()) / minute));
 }
 
+// Whole months from a "2018-04-02" date of birth to now.
+export function ageInMonths(dateOfBirth: string, now: Date): number {
+  const [year, month, day] = dateOfBirth.split("-").map(Number);
+  const months = (now.getUTCFullYear() - year) * 12 + (now.getUTCMonth() + 1 - month);
+  return now.getUTCDate() < day ? months - 1 : months;
+}
+
 // "8y", or months under one year ("6mo", "<1mo"). Worked out on screen so it
 // never goes stale.
 export function ageLabel(dateOfBirth: string | null, now: Date): string | null {
@@ -16,12 +23,7 @@ export function ageLabel(dateOfBirth: string | null, now: Date): string | null {
     return null;
   }
 
-  const [year, month, day] = dateOfBirth.split("-").map(Number);
-  let months = (now.getUTCFullYear() - year) * 12 + (now.getUTCMonth() + 1 - month);
-  if (now.getUTCDate() < day) {
-    months -= 1;
-  }
-
+  const months = ageInMonths(dateOfBirth, now);
   if (months >= 12) {
     return `${Math.floor(months / 12)}y`;
   }

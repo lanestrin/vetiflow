@@ -1,10 +1,10 @@
 import { http, HttpResponse } from "msw";
 import { afterEach, describe, expect, it } from "vitest";
-import { buildCase } from "../test/builders";
+import { buildCase, buildCaseDetail } from "../test/builders";
 import { apiUrl, server } from "../test/server";
 import type { CaseIntakeRequest } from "../types/CaseIntake";
 import { AccessDeniedError, FormRejectedError, SessionEndedError } from "./apiErrors";
-import { createIntake, getEmergencyCases, updateCaseStage } from "./casesApi";
+import { createIntake, getCase, getEmergencyCases, updateCaseStage } from "./casesApi";
 import { saveAccessToken } from "./session";
 
 afterEach(() => {
@@ -67,6 +67,44 @@ describe("getEmergencyCases", () => {
     await expect(getEmergencyCases()).rejects.toThrow(
       "Failed to load emergency cases."
     );
+  });
+});
+
+describe("getCase", () => {
+  it("returns the case from the API with the session's token", async () => {
+    saveAccessToken("token-1");
+    const detail = buildCaseDetail({ id: "case-42" });
+    let authorization: string | null = null;
+    server.use(
+      http.get(apiUrl("/api/cases/case-42"), ({ request }) => {
+        authorization = request.headers.get("Authorization");
+        return HttpResponse.json(detail);
+      })
+    );
+
+    await expect(getCase("case-42")).resolves.toEqual(detail);
+    expect(authorization).toBe("Bearer token-1");
+  });
+
+  it("returns null when no case has that id", async () => {
+    server.use(http.get(apiUrl("/api/cases/case-42"), () => new HttpResponse(null, { status: 404 })));
+
+    await expect(getCase("case-42")).resolves.toBeNull();
+  });
+
+  it.each([
+    [401, SessionEndedError],
+    [403, AccessDeniedError]
+  ])("turns %i into its error", async (status, errorType) => {
+    server.use(http.get(apiUrl("/api/cases/case-42"), () => new HttpResponse(null, { status })));
+
+    await expect(getCase("case-42")).rejects.toBeInstanceOf(errorType);
+  });
+
+  it("throws on a server error", async () => {
+    server.use(http.get(apiUrl("/api/cases/case-42"), () => new HttpResponse(null, { status: 500 })));
+
+    await expect(getCase("case-42")).rejects.toThrow("Failed to load the case.");
   });
 });
 

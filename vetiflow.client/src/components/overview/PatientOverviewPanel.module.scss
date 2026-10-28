@@ -1,0 +1,417 @@
+// The prototype's aside.detail, measured from
+// blueprint/reference/vetiflow-er-dashboard.html. Muted text uses
+// --color-shell-muted so it stays AA (as on the board).
+
+.panel {
+	overflow: hidden;
+	border: 1px solid var(--color-shell-line);
+	border-radius: 15px;
+	background: var(--color-surface);
+	box-shadow: 0 10px 32px rgb(26 55 63 / 6%);
+	color: var(--color-shell-ink);
+}
+
+.head {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	padding: 17px 19px;
+	border-bottom: 1px solid var(--color-shell-line);
+}
+
+.title {
+	margin: 0;
+	font-size: 15px;
+	font-weight: 700;
+}
+
+.caseLine {
+	margin: 4px 0 0;
+	color: var(--color-shell-muted);
+	font-size: 11px;
+}
+
+.separator {
+	margin: 0 5px;
+}
+
+// Shown before their items wire them; disabled controls look quieter.
+.toolButton,
+.linkButton,
+.button,
+.retry {
+	font: inherit;
+	cursor: pointer;
+
+	&:disabled {
+		cursor: not-allowed;
+		opacity: 0.6;
+	}
+
+	&:focus-visible {
+		outline: 3px solid var(--color-focus);
+		outline-offset: 2px;
+	}
+}
+
+.toolButton {
+	padding: 7px 9px;
+	border: 1px solid var(--color-shell-line);
+	border-radius: 8px;
+	background: var(--color-surface);
+	color: #64767c;
+	font-size: 11px;
+	font-weight: 600;
+}
+
+.linkButton {
+	padding: 2px;
+	border: 0;
+	background: none;
+	color: var(--color-care-teal);
+	font-size: 10px;
+	font-weight: 700;
+}
+
+.message {
+	margin: 0;
+	padding: 17px 19px;
+	color: var(--color-shell-muted);
+	font-size: 12px;
+
+	p {
+		margin: 0 0 10px;
+	}
+}
+
+.retry {
+	padding: 8px 11px;
+	border: 1px solid var(--color-shell-line);
+	border-radius: 10px;
+	background: var(--color-surface);
+	color: var(--color-shell-ink);
+	font-size: 12px;
+	font-weight: 700;
+}
+
+.hero {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding: 17px 19px 13px;
+}
+
+.avatar {
+	display: grid;
+	flex: none;
+	place-items: center;
+	width: 49px;
+	height: 49px;
+	border-radius: 14px;
+	background: #edf3f4;
+	font-size: 25px;
+
+	&[data-species="dog"] {
+		background: #fff0e5;
+	}
+}
+
+.name {
+	margin: 0;
+	font-size: 18px;
+	font-weight: 800;
+	letter-spacing: -0.3px;
+}
+
+.meta {
+	margin: 4px 0 0;
+	color: var(--color-shell-muted);
+	font-size: 11px;
+}
+
+.badge {
+	flex: none;
+	margin-left: auto;
+}
+
+.ownerBar {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	margin: 0 19px;
+	padding: 10px 12px;
+	border-radius: 9px;
+	background: #f7f9f8;
+	font-size: 11px;
+}
+
+.ownerLabel {
+	margin: 0 0 3px;
+	color: var(--color-shell-muted);
+	font-size: 9px;
+	letter-spacing: 0.7px;
+	text-transform: uppercase;
+}
+
+.ownerName {
+	margin: 0;
+	font-weight: 700;
+}
+
+.ownerActions {
+	display: flex;
+	gap: 10px;
+
+	.linkButton {
+		font-size: 11px;
+	}
+}
+
+.vitals {
+	display: grid;
+	grid-template-columns: repeat(4, minmax(0, 1fr));
+	gap: 7px;
+	margin: 0;
+	padding: 14px 19px;
+}
+
+.vital {
+	padding: 9px;
+	border-radius: 9px;
+	background: #f8faf9;
+}
+
+.vitalLabel {
+	color: var(--color-shell-muted);
+	font-size: 9px;
+	letter-spacing: 0.4px;
+	text-transform: uppercase;
+}
+
+.vitalValue {
+	margin: 4px 0 0;
+	overflow-wrap: anywhere;
+	font-size: 13px;
+	font-weight: 700;
+}
+
+.locationSection {
+	padding: 0 19px 14px;
+}
+
+.row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin: 0 0 6px;
+	padding: 8px;
+	border: 1px solid var(--color-shell-line);
+	border-radius: 8px;
+	font-size: 10px;
+
+	.locationSection & {
+		margin: 0;
+	}
+
+	&[data-done="true"] .rowLabel {
+		color: var(--color-shell-muted);
+	}
+}
+
+.rowLabel {
+	font-weight: 600;
+}
+
+.rowMeta {
+	margin-left: auto;
+	color: var(--color-shell-muted);
+	font-size: 9px;
+	text-align: right;
+}
+
+.section {
+	padding: 14px 19px;
+	border-top: 1px solid var(--color-shell-line);
+}
+
+.sectionTop {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-bottom: 11px;
+
+	.sectionTitle {
+		margin: 0;
+	}
+}
+
+.sectionTitle {
+	margin: 0 0 11px;
+	font-size: 12px;
+	font-weight: 700;
+}
+
+.empty {
+	margin: 0;
+	color: var(--color-shell-muted);
+	font-size: 10px;
+}
+
+.timeline {
+	position: relative;
+	margin: 0;
+	padding: 0 0 0 19px;
+	list-style: none;
+
+	&::before {
+		position: absolute;
+		top: 5px;
+		bottom: 9px;
+		left: 5px;
+		width: 1px;
+		background: #dfe8e5;
+		content: "";
+	}
+}
+
+.event {
+	position: relative;
+	margin-bottom: 12px;
+
+	&:last-child {
+		margin: 0;
+	}
+
+	&::before {
+		position: absolute;
+		top: 2px;
+		left: -18px;
+		width: 9px;
+		height: 9px;
+		border: 2px solid var(--color-surface);
+		border-radius: 50%;
+		background: #91c7bb;
+		box-shadow: 0 0 0 1px #91c7bb;
+		content: "";
+	}
+
+	// Hollow dot; "Waiting" says the same in words.
+	&[data-pending="true"]::before {
+		background: var(--color-surface);
+		box-shadow: 0 0 0 1px #8fa5a0;
+	}
+}
+
+.eventLine {
+	display: flex;
+	justify-content: space-between;
+	gap: 8px;
+}
+
+.eventName {
+	font-size: 11px;
+	font-weight: 700;
+}
+
+.eventTime {
+	flex: none;
+	color: var(--color-shell-muted);
+	font-size: 10px;
+}
+
+.eventDetail {
+	margin: 3px 0 0;
+	color: var(--color-shell-muted);
+	font-size: 10px;
+	line-height: 1.4;
+}
+
+.tasks {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.check {
+	display: grid;
+	flex: none;
+	place-items: center;
+	width: 15px;
+	height: 15px;
+	border: 1.5px solid #8fa5a0;
+	border-radius: 5px;
+	color: var(--color-text-inverse);
+	font-size: 10px;
+
+	[data-done="true"] & {
+		border-color: var(--color-care-teal);
+		background: var(--color-care-teal);
+	}
+}
+
+.actions {
+	display: flex;
+	gap: 8px;
+	padding: 12px 19px 17px;
+}
+
+.button {
+	flex: 1;
+	padding: 10px 15px;
+	border: 0;
+	border-radius: 10px;
+	background: var(--color-care-teal);
+	box-shadow: 0 5px 12px #078b8120;
+	color: var(--color-text-inverse);
+	font-size: 14px;
+	font-weight: 700;
+}
+
+.secondary {
+	border: 1px solid var(--color-shell-line);
+	background: var(--color-surface);
+	box-shadow: none;
+	color: var(--color-shell-ink);
+}
+
+// Under the board: two columns, header and actions across both.
+@media (max-width: 1050px) {
+	.panel {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		align-items: start;
+	}
+
+	.head,
+	.message,
+	.actions {
+		grid-column: 1 / -1;
+	}
+
+	.ownerBar {
+		margin: 0 12px;
+	}
+
+	.vitals,
+	.section {
+		padding: 12px;
+	}
+}
+
+@media (max-width: 650px) {
+	.panel {
+		display: block;
+	}
+
+	.ownerBar {
+		margin: 0 19px;
+	}
+}
+
+// Narrow phones: four tiles no longer fit "Not recorded".
+@media (max-width: 480px) {
+	.vitals {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+}

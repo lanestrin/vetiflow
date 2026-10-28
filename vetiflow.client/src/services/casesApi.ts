@@ -2,6 +2,7 @@ import type {
   CaseStage,
   EmergencyCaseListItem
 } from "../types/EmergencyCaseListItem";
+import type { CaseDetail } from "../types/CaseDetail";
 import type { CaseIntakeRequest, CaseIntakeResult } from "../types/CaseIntake";
 import { FormRejectedError } from "./apiErrors";
 import { authorizationHeader, throwIfRefused } from "./apiRequest";
@@ -17,6 +18,26 @@ export async function getEmergencyCases(): Promise<EmergencyCaseListItem[]> {
 
   if (!response.ok) {
     throw new Error("Failed to load emergency cases.");
+  }
+
+  return response.json();
+}
+
+// One case for the patient overview panel (build plan 3.2b), or null when no
+// case has that id.
+export async function getCase(caseId: string): Promise<CaseDetail | null> {
+  const response = await fetch(`${apiBaseUrl}/api/cases/${caseId}`, {
+    headers: authorizationHeader()
+  });
+
+  throwIfRefused(response);
+
+  if (response.status === 404) {
+    return null;
+  }
+
+  if (!response.ok) {
+    throw new Error("Failed to load the case.");
   }
 
   return response.json();
