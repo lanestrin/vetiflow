@@ -91,6 +91,16 @@ public class EmergencyCase
 
 	public DateTimeOffset? DischargedAt { get; set; }
 
+	// What staff confirmed at this visit's intake, so the next visit can check
+	// whether the pet is still on the same medicines and doses. Never logged.
+	public string? AllergiesAtIntake { get; set; }
+
+	public string? MedicationsAtIntake { get; set; }
+
+	public TreatmentAuthorization TreatmentAuthorization { get; set; } = TreatmentAuthorization.NotDiscussed;
+
+	public string? ReferringClinic { get; set; }
+
 	public List<TriageAssessment> TriageAssessments { get; } = [];
 
 	public List<VitalsRecord> VitalsRecords { get; } = [];

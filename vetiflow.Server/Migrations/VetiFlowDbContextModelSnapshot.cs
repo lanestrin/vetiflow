@@ -218,6 +218,9 @@ namespace vetiflow.Server.Migrations
                     b.Property<string>("Acuity")
                         .HasColumnType("text");
 
+                    b.Property<string>("AllergiesAtIntake")
+                        .HasColumnType("text");
+
                     b.Property<DateTimeOffset>("ArrivalTime")
                         .HasColumnType("timestamp with time zone");
 
@@ -241,6 +244,9 @@ namespace vetiflow.Server.Migrations
                     b.Property<DateTimeOffset>("LastUpdated")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("MedicationsAtIntake")
+                        .HasColumnType("text");
+
                     b.Property<string>("NextAction")
                         .HasColumnType("text");
 
@@ -255,6 +261,9 @@ namespace vetiflow.Server.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("ReferringClinic")
+                        .HasColumnType("text");
+
                     b.Property<Guid?>("RoomId")
                         .HasColumnType("uuid");
 
@@ -266,6 +275,10 @@ namespace vetiflow.Server.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("TreatmentAuthorization")
                         .IsRequired()
                         .HasColumnType("text");
 
@@ -367,11 +380,20 @@ namespace vetiflow.Server.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<string>("Allergies")
+                        .HasColumnType("text");
+
                     b.Property<string>("Breed")
+                        .HasColumnType("text");
+
+                    b.Property<string>("CurrentMedications")
                         .HasColumnType("text");
 
                     b.Property<DateOnly?>("DateOfBirth")
                         .HasColumnType("date");
+
+                    b.Property<bool>("DateOfBirthIsEstimated")
+                        .HasColumnType("boolean");
 
                     b.Property<string>("Name")
                         .IsRequired()
