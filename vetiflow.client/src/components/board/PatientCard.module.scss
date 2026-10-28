@@ -1,0 +1,165 @@
+// The prototype's .patient card, measured from
+// blueprint/reference/vetiflow-er-dashboard.html.
+$fast: 150ms var(--ease-out);
+
+.card {
+	position: relative;
+	margin-bottom: 9px;
+	padding: 11px;
+	border: 1px solid var(--color-shell-line);
+	border-radius: 11px;
+	background: var(--color-surface);
+	box-shadow: 0 2px 5px #203b4205;
+	transition:
+		transform $fast,
+		border-color $fast,
+		box-shadow $fast;
+
+	&:hover {
+		border-color: #b8dcd6;
+		box-shadow: 0 8px 17px #203b4210;
+		transform: translateY(-1px);
+	}
+
+	&[data-selected="true"] {
+		border-color: var(--color-board-selected);
+		box-shadow: 0 0 0 2px var(--color-board-selected-halo);
+	}
+
+	&:focus-within {
+		outline: 3px solid var(--color-focus);
+		outline-offset: 2px;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		transition: none;
+
+		&:hover {
+			transform: none;
+		}
+	}
+}
+
+.row {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 8px;
+}
+
+.name {
+	margin: 0;
+	font-size: 13px;
+	font-weight: 700;
+}
+
+// Stretched over the card: the whole card is the click target.
+.select {
+	padding: 0;
+	border: 0;
+	background: none;
+	color: var(--color-shell-ink);
+	font: inherit;
+	text-align: left;
+	cursor: pointer;
+
+	&::after {
+		position: absolute;
+		inset: 0;
+		border-radius: 11px;
+		content: "";
+	}
+
+	&:focus-visible {
+		outline: none;
+	}
+}
+
+.kind {
+	margin: 2px 0 0;
+	color: var(--color-shell-muted);
+	font-size: 10px;
+}
+
+.wait {
+	flex-shrink: 0;
+	padding: 4px 6px;
+	border-radius: 6px;
+	background: var(--color-board-wait-bg);
+	color: var(--color-board-wait);
+	font-size: 10px;
+	font-weight: 700;
+	white-space: nowrap;
+}
+
+.owner {
+	margin: 9px 0 8px;
+	color: var(--color-shell-muted);
+	font-size: 10px;
+}
+
+.tags {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 5px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.tag {
+	padding: 4px 6px;
+	border-radius: 5px;
+	background: var(--color-board-tag-bg);
+	color: var(--color-board-tag);
+	font-size: 9px;
+	font-weight: 600;
+
+	&[data-tone="critical"] {
+		background: var(--color-acuity-critical-bg);
+		color: var(--color-acuity-critical);
+	}
+
+	&[data-tone="urgent"] {
+		background: var(--color-acuity-urgent-bg);
+		color: var(--color-acuity-urgent);
+	}
+
+	// The prototype shows stable as its blue info tag.
+	&[data-tone="stable"] {
+		background: var(--color-board-tag-info-bg);
+		color: var(--color-board-tag-info);
+	}
+}
+
+.foot {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	margin-top: 9px;
+	padding-top: 8px;
+	border-top: 1px solid #f0f3f2;
+	color: var(--color-shell-muted);
+	font-size: 10px;
+}
+
+.assigned {
+	display: flex;
+	align-items: center;
+	gap: 5px;
+	color: #65777c;
+	font-weight: 600;
+}
+
+.avatar {
+	display: grid;
+	place-items: center;
+	width: 18px;
+	height: 18px;
+	border-radius: 50%;
+	background: var(--color-board-avatar-bg);
+	color: var(--color-board-avatar);
+	font-size: 8px;
+	font-weight: 800;
+}

@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -80,56 +80,59 @@ describe("ErBoardPage", () => {
     expect(document.title).toBe("ER Board · VetiFlow");
   });
 
-  it("places each case in the lane for its stage", async () => {
+  it("places each case in the lane for its acuity", async () => {
     serveCases([
-      buildCase({ patientName: "Buddy", stage: "triage" }),
-      buildCase({ patientName: "Mittens", stage: "diagnostics" })
+      buildCase({ patientName: "Buddy", acuity: "critical" }),
+      buildCase({ patientName: "Mittens", acuity: "stable" })
     ]);
 
     renderBoard();
 
     expect(
-      within(await findLane("Triage")).getByRole("heading", { name: "Buddy" })
+      within(await findLane("Critical")).getByRole("heading", { name: "Buddy" })
     ).toBeInTheDocument();
     expect(
-      within(await findLane("Diagnostics")).getByRole("heading", { name: "Mittens" })
+      within(await findLane("Stable")).getByRole("heading", { name: "Mittens" })
     ).toBeInTheDocument();
-    expect(within(await findLane("Incoming")).getByText("No patients")).toBeInTheDocument();
+    expect(within(await findLane("Urgent")).getByText("No patients")).toBeInTheDocument();
   });
 
   // The API sorts by acuity and wait; the board must not reorder within a lane.
   it("lists a lane's cards in the order the API sent them", async () => {
     serveCases([
-      buildCase({ patientName: "Rex", stage: "treatment", acuity: null }),
-      buildCase({ patientName: "Bella", stage: "treatment", acuity: "critical" }),
-      buildCase({ patientName: "Coco", stage: "treatment", acuity: "stable" })
+      buildCase({ patientName: "Rex", acuity: "urgent" }),
+      buildCase({ patientName: "Bella", acuity: "urgent" }),
+      buildCase({ patientName: "Coco", acuity: "urgent" })
     ]);
 
     renderBoard();
 
-    const names = within(await findLane("Treatment"))
-      .getAllByRole("heading", { level: 3 })
+    const names = within(await findLane("Urgent"))
+      .getAllByRole("heading", { level: 4 })
       .map((heading) => heading.textContent);
     expect(names).toEqual(["Rex", "Bella", "Coco"]);
   });
 
-  it("shows all six workflow lanes in order", async () => {
+  it("shows the three acuity lanes in order", async () => {
     renderBoard();
 
-    await findLane("Incoming");
+    await findLane("Critical");
     const lanes = screen
-      .getAllByRole("region")
-      .filter((region) => region.hasAttribute("data-stage"))
-      .map((region) => region.getAttribute("data-stage"));
+      .getAllByRole("heading", { level: 3 })
+      .map((heading) => heading.textContent?.replace("● ", ""));
 
-    expect(lanes).toEqual([
-      "incoming",
-      "triage",
-      "treatment",
-      "diagnostics",
-      "recheck",
-      "discharge"
-    ]);
+    expect(lanes).toEqual(["Critical", "Urgent", "Stable"]);
+  });
+
+  it("selects a card when it is pressed", async () => {
+    serveCases([buildCase({ patientName: "Buddy" }), buildCase({ patientName: "Max" })]);
+    renderBoard();
+
+    const buddy = await screen.findByRole("button", { name: "Buddy" });
+    fireEvent.click(buddy);
+
+    expect(buddy).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Max" })).toHaveAttribute("aria-pressed", "false");
   });
 
   it("shows an error when the cases cannot be loaded", async () => {
@@ -145,18 +148,18 @@ describe("ErBoardPage", () => {
   });
 
   it("reloads the board when the server reports a case update", async () => {
-    const buddy = buildCase({ patientName: "Buddy", stage: "triage" });
+    const buddy = buildCase({ patientName: "Buddy", acuity: "urgent" });
     serveCases([buddy]);
     renderBoard();
-    await findLane("Triage");
+    await within(await findLane("Urgent")).findByRole("heading", { name: "Buddy" });
 
-    serveCases([{ ...buddy, stage: "treatment" }]);
+    serveCases([{ ...buddy, acuity: "critical" }]);
     hub.emit("caseUpdated", buddy.id);
 
     expect(
-      await within(await findLane("Treatment")).findByRole("heading", { name: "Buddy" })
+      await within(await findLane("Critical")).findByRole("heading", { name: "Buddy" })
     ).toBeInTheDocument();
-    expect(within(await findLane("Triage")).getByText("No patients")).toBeInTheDocument();
+    expect(within(await findLane("Urgent")).getByText("No patients")).toBeInTheDocument();
   });
 
   it("still shows the board when live updates cannot connect", async () => {
@@ -175,7 +178,7 @@ describe("ErBoardPage", () => {
 
   it("disconnects from live updates when the page closes", async () => {
     const { unmount } = renderBoard();
-    await findLane("Incoming");
+    await findLane("Critical");
 
     unmount();
 
