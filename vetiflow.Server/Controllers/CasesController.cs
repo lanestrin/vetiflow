@@ -147,7 +147,10 @@ public class CasesController : ControllerBase
 						Species = emergencyCase.Patient.Species,
 						Breed = emergencyCase.Patient.Breed,
 						Sex = emergencyCase.Patient.Sex,
-						DateOfBirth = emergencyCase.Patient.DateOfBirth
+						DateOfBirth = emergencyCase.Patient.DateOfBirth,
+						DateOfBirthIsEstimated = emergencyCase.Patient.DateOfBirthIsEstimated,
+						Allergies = emergencyCase.Patient.Allergies,
+						CurrentMedications = emergencyCase.Patient.CurrentMedications
 					},
 					Owner = emergencyCase.Patient.Owner == null
 						? null
@@ -162,6 +165,7 @@ public class CasesController : ControllerBase
 					PresentingComplaint = emergencyCase.PresentingComplaint,
 					WeightKg = emergencyCase.WeightKg,
 					Stage = emergencyCase.Stage,
+					StageEnteredAt = emergencyCase.StageEnteredAt,
 					Status = emergencyCase.Status,
 					Acuity = emergencyCase.Acuity,
 					ArrivalTime = emergencyCase.ArrivalTime,
@@ -184,11 +188,16 @@ public class CasesController : ControllerBase
 						},
 					Room = emergencyCase.Room == null
 						? null
-						: new CaseReferenceDto
+						: new CaseRoomDto
 						{
 							Id = emergencyCase.Room.Id,
-							Name = emergencyCase.Room.Name
+							Name = emergencyCase.Room.Name,
+							Type = emergencyCase.Room.Type
 						},
+					AllergiesAtIntake = emergencyCase.AllergiesAtIntake,
+					MedicationsAtIntake = emergencyCase.MedicationsAtIntake,
+					TreatmentAuthorization = emergencyCase.TreatmentAuthorization,
+					ReferringClinic = emergencyCase.ReferringClinic,
 					OwnerUpdateStatus = emergencyCase.OwnerUpdateStatus,
 					LastOwnerUpdateAt = emergencyCase.LastOwnerUpdateAt,
 					TriageAssessments = emergencyCase.TriageAssessments

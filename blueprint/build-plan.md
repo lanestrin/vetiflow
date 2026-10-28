@@ -186,7 +186,7 @@ replaces it. Demo data only.
 
 **Patient overview panel** (prototype: right-hand panel)
 
-- [ ] **3.2a** `feature/patient-overview-api`: the case detail (3.1) adds case number, check-in time, patient age, location, and the fields later items fill (next reassessment, client update due); no new writes.
+- [x] **3.2a** `feature/patient-overview-api`: the case detail (3.1) adds case number, check-in time, patient age, location (room and area), minutes in stage, and the intake fields (allergies and medications on the patient and at this visit, treatment authorization, referring clinic); no new writes. Next reassessment and client update come from 4.4a. Done (history/features/3.2a-patient-overview-api.md).
 - [ ] **3.2b** `feature/patient-overview-panel`: the panel beside the board for the selected card: header with case number and check-in time, the patient hero (species avatar, name, species · breed · age · weight, acuity badge), the pet parent bar, the vitals tiles, location, care timeline (pending items marked) and next actions; it stacks under the board at 1050 px; the **•••**, Call, Message, Add task, Handoff and Update status controls are shown and wired by the items below.
 
 **Next actions and due items** (prototype: task list, "Next reassessment", "Client update")
