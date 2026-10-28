@@ -42,8 +42,7 @@ public class CasesController : ControllerBase
 					emergencyCase.Acuity == null ? 0
 					: emergencyCase.Acuity == AcuityLevel.Critical ? 1
 					: emergencyCase.Acuity == AcuityLevel.Urgent ? 2
-					: emergencyCase.Acuity == AcuityLevel.High ? 3
-					: 4)
+					: 3)
 				.ThenBy(emergencyCase => emergencyCase.ArrivalTime)
 				.Select(emergencyCase => new EmergencyCaseListItemDto
 				{

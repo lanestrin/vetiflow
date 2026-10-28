@@ -25,8 +25,7 @@ public enum AcuityLevel
 {
 	Critical,
 	Urgent,
-	High,
-	Low
+	Stable
 }
 
 // Whether the owner has been told how this case is going.
