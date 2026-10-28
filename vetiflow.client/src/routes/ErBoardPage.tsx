@@ -1,8 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import type { SignInRouteState } from "../components/auth/experienceHome";
 import { PatientFlowBoard } from "../components/board/PatientFlowBoard";
 import { ErBoardStatusBar } from "../components/clinical/ErBoardStatusBar";
+import { IntakeDialog } from "../components/intake/IntakeDialog";
+import { useToast } from "../components/shell/toastContext";
+import type { CaseIntakeResult } from "../types/CaseIntake";
 import type { EmergencyCaseListItem } from "../types/EmergencyCaseListItem";
 
 import { AccessDeniedError, SessionEndedError } from "../services/apiErrors";
@@ -21,6 +24,10 @@ export function ErBoardPage() {
   const [error, setError] = useState<string | null>(null);
   const [updatedAt, setUpdatedAt] = useState(() => new Date());
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
+  const [isIntakeOpen, setIsIntakeOpen] = useState(false);
+  const showToast = useToast();
+  // Reloads the board now, without waiting for the hub's notice.
+  const reloadCases = useRef<() => Promise<void>>(async () => {});
 
   useEffect(() => {
     let isActive = true;
@@ -74,6 +81,7 @@ export function ErBoardPage() {
       }
     }
 
+    reloadCases.current = loadCases;
     void loadCases();
     void startLiveUpdates();
 
@@ -83,6 +91,13 @@ export function ErBoardPage() {
       void connection.stop();
     };
   }, [navigate]);
+
+  // The new case appears in its lane, selected (prototype intake).
+  function showNewIntake(result: CaseIntakeResult, petName: string) {
+    setSelectedCaseId(result.id);
+    showToast(`${petName} added to triage queue`);
+    void reloadCases.current();
+  }
 
   if (isLoading) {
     return (
@@ -109,6 +124,10 @@ export function ErBoardPage() {
         <h1 className={styles.title}>VetiFlow ER Board</h1>
 
         <ErBoardStatusBar cases={cases} />
+
+        <button type="button" className={styles.intakeButton} onClick={() => setIsIntakeOpen(true)}>
+          <span aria-hidden="true">＋ </span>New intake
+        </button>
       </header>
 
       <PatientFlowBoard
@@ -116,6 +135,12 @@ export function ErBoardPage() {
         updatedAt={updatedAt}
         selectedCaseId={selectedCaseId}
         onSelect={setSelectedCaseId}
+      />
+
+      <IntakeDialog
+        isOpen={isIntakeOpen}
+        onClose={() => setIsIntakeOpen(false)}
+        onCreated={showNewIntake}
       />
     </main>
   );

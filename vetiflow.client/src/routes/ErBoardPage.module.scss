@@ -7,6 +7,7 @@
 
 .header {
 	display: flex;
+	flex-wrap: wrap;
 	align-items: center;
 	justify-content: space-between;
 	gap: var(--space-4);
@@ -19,3 +20,22 @@
 	font-weight: 700;
 }
 
+// The prototype's .btn "＋ New intake" (2.15b places it in the full heading).
+.intakeButton {
+	padding: 10px 15px;
+	border: 0;
+	border-radius: 10px;
+	background: var(--color-care-teal);
+	box-shadow: 0 5px 12px #078b8120;
+	color: var(--color-text-inverse);
+	font: inherit;
+	font-size: 14px;
+	font-weight: 700;
+	white-space: nowrap;
+	cursor: pointer;
+
+	&:focus-visible {
+		outline: 3px solid var(--color-focus);
+		outline-offset: 2px;
+	}
+}

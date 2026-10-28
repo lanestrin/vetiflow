@@ -55,6 +55,18 @@ describe("PatientFlowBoard", () => {
     expect(screen.queryByRole("region", { name: "Not triaged" })).not.toBeInTheDocument();
   });
 
+  it("shows the lane of a newly selected case at phone width", () => {
+    const cases = [buildCase({ acuity: "critical" }), buildCase({ id: "case-pip", acuity: "stable" })];
+    const { rerender } = render(
+      <PatientFlowBoard cases={cases} updatedAt={new Date()} selectedCaseId={null} onSelect={vi.fn()} />
+    );
+
+    rerender(<PatientFlowBoard cases={cases} updatedAt={new Date()} selectedCaseId="case-pip" onSelect={vi.fn()} />);
+
+    expect(lane("Stable")).toHaveAttribute("data-shown", "true");
+    expect(lane("Critical")).toHaveAttribute("data-shown", "false");
+  });
+
   it("switches the lane shown at phone width with the lane tabs", () => {
     renderBoard([buildCase({ acuity: "critical" })]);
     const tabs = screen.getByRole("group", { name: "Show lane" });

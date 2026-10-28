@@ -53,6 +53,17 @@ export function PatientFlowBoard({ cases, updatedAt, selectedCaseId, onSelect }:
     lanes.unshift({ key: "untriaged", title: "Not triaged", cases: untriaged });
   }
 
+  // At phone width, show the lane of a newly selected case (for example a new
+  // intake), as the prototype does.
+  const selectedLane = lanes.find((lane) => lane.cases.some((emergencyCase) => emergencyCase.id === selectedCaseId))?.key;
+  const [followedLane, setFollowedLane] = useState(selectedLane);
+  if (selectedLane !== followedLane) {
+    setFollowedLane(selectedLane);
+    if (selectedLane) {
+      setShownLane(selectedLane);
+    }
+  }
+
   return (
     <section className={styles.board} aria-labelledby={titleId}>
       <header className={styles.top}>

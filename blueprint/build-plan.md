@@ -161,7 +161,7 @@ replaces it. Demo data only.
 **New patient intake** (prototype: intake dialog; provisional priority)
 
 - [x] **4.1a** `feature/case-intake-api`: create a case for a new or existing patient from the intake fields (name, species, breed, age, pet parent and phone, chief complaint, initial priority through `RecordTriage`, triage notes, allergies, medications, treatment authorization, referring clinic), with the new columns and migration; a second active case for the same patient returns `409` naming the active case; writes `Arrived`; arrival time is set by the server. Done (history/features/4.1a-case-intake-api.md).
-- [ ] **4.1b** `feature/case-intake-form`: the "New patient intake" dialog exactly as in the prototype (two-column form, priority radios, focus on open, Escape and backdrop close, focus returned), field errors, "Add to triage queue" adds the card to its lane, and a toast.
+- [x] **4.1b** `feature/case-intake-form`: the "New patient intake" dialog exactly as in the prototype (two-column form, priority radios, focus on open, Escape and backdrop close, focus returned), field errors, "Add to triage queue" adds the card to its lane, and a toast. Done (history/features/4.1b-case-intake-form.md).
 
 **Triage** (prototype: **Complete triage**, acuity badge, lanes)
 
