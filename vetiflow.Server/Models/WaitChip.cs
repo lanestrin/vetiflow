@@ -11,11 +11,18 @@ public enum WaitChip
 	Minutes
 }
 
-// Decided 2026-10-28, as in the prototype; the first match wins.
+// Decided 2026-10-28 and revised for provisional intakes; the first match
+// wins. A new intake's priority is provisional until triage is complete, so
+// it shows New even when Critical.
 public static class WaitChipRule
 {
 	public static WaitChip For(AcuityLevel? acuity, CaseStatus status, CaseStage stage)
 	{
+		if (stage == CaseStage.Incoming)
+		{
+			return WaitChip.New;
+		}
+
 		if (acuity == AcuityLevel.Critical)
 		{
 			return WaitChip.Stat;
@@ -26,11 +33,6 @@ public static class WaitChipRule
 			return WaitChip.Ready;
 		}
 
-		if (stage == CaseStage.Recheck)
-		{
-			return WaitChip.Recheck;
-		}
-
-		return acuity is null ? WaitChip.New : WaitChip.Minutes;
+		return stage == CaseStage.Recheck ? WaitChip.Recheck : WaitChip.Minutes;
 	}
 }
