@@ -84,6 +84,14 @@ Decided (later items must keep these):
 - **Stat cards filter the board:** decided 2026-10-28. Patients in care shows
   all cases, Awaiting triage and Critical patients filter the board, and Avg.
   door to doctor opens its details.
+- **Allergies and medications:** decided 2026-10-28, kept on the patient and
+  carried to the next visit; each intake also records on the case what was
+  confirmed at that visit, so staff can check next time whether the pet is
+  still on the same medicines and doses.
+- **Intake details** (4.1a, 2026-10-28, recommended defaults): an age as typed
+  ("8 years") is stored as an estimated date of birth; the single "Pet parent /
+  guardian" field is split at the last space (one word is refused); a phone
+  whose digits match an existing owner's reuses that owner.
 - **Owners never see the staff board.** Owners get a private page for their own
   pet only, with calm wording and no acuity. Staff and client labels live in
   the client.
@@ -99,10 +107,6 @@ Decided (later items must keep these):
 
 Open (the item named in brackets needs it before its spec):
 
-- **Age at intake** (before 4.1a): the intake form takes an age ("8 years").
-  Store an estimated date of birth from it, or store the age as given.
-- **Allergies and medications** (before 4.1a): kept on the patient (carry over
-  to the next visit) or on the case.
 - **Shift** (before 2.15a): how "Day shift" is defined (fixed hours or a clinic
   setting). Who is on the floor is decided (My status).
 - **Door to doctor** (before 2.16a): which moment counts as "seen by a doctor"
@@ -154,7 +158,7 @@ replaces it. Demo data only.
 
 **New patient intake** (prototype: intake dialog; provisional priority)
 
-- [ ] **4.1a** `feature/case-intake-api`: create a case for a new or existing patient from the intake fields (name, species, breed, age, pet parent and phone, chief complaint, initial priority through `RecordTriage`, triage notes, allergies, medications, treatment authorization, referring clinic), with the new columns and migration; a second active case for the same patient returns `409` naming the active case; writes `Arrived`; arrival time is set by the server.
+- [x] **4.1a** `feature/case-intake-api`: create a case for a new or existing patient from the intake fields (name, species, breed, age, pet parent and phone, chief complaint, initial priority through `RecordTriage`, triage notes, allergies, medications, treatment authorization, referring clinic), with the new columns and migration; a second active case for the same patient returns `409` naming the active case; writes `Arrived`; arrival time is set by the server. Done (history/features/4.1a-case-intake-api.md).
 - [ ] **4.1b** `feature/case-intake-form`: the "New patient intake" dialog exactly as in the prototype (two-column form, priority radios, focus on open, Escape and backdrop close, focus returned), field errors, "Add to triage queue" adds the card to its lane, and a toast.
 
 **Triage** (prototype: **Complete triage**, acuity badge, lanes)
