@@ -3,6 +3,7 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, describe, expect, it } from "vitest";
 import { readAccessToken, saveAccessToken } from "../../services/session";
 import { SessionBar } from "./SessionBar";
+import { buildTeamMember } from "../../test/builders";
 
 afterEach(() => {
   sessionStorage.clear();
@@ -12,7 +13,7 @@ describe("SessionBar", () => {
   it("names the signed-in person as a demo account", () => {
     render(
       <MemoryRouter>
-        <SessionBar user={{ name: "Jordan Lee", experience: "teamMember" }} />
+        <SessionBar user={buildTeamMember()} />
       </MemoryRouter>
     );
 
@@ -24,7 +25,7 @@ describe("SessionBar", () => {
     render(
       <MemoryRouter initialEntries={["/er"]}>
         <Routes>
-          <Route path="/er" element={<SessionBar user={{ name: "Jordan Lee", experience: "teamMember" }} />} />
+          <Route path="/er" element={<SessionBar user={buildTeamMember()} />} />
           <Route path="/sign-in" element={<p>Sign-in page</p>} />
         </Routes>
       </MemoryRouter>

@@ -5,7 +5,6 @@ $fast: var(--motion-fast) var(--ease-out);
 	flex-direction: column;
 	gap: var(--space-5);
 	width: min(100% - 2rem, 48rem);
-	min-height: 100vh;
 	margin-inline: auto;
 	padding-block: var(--space-5);
 }
@@ -23,20 +22,6 @@ $fast: var(--motion-fast) var(--ease-out);
 	color: var(--color-navy-950);
 	font-size: 1.5rem;
 	font-weight: 700;
-}
-
-.backLink {
-	display: inline-flex;
-	align-items: center;
-	min-height: 2.75rem;
-	color: var(--color-care-teal);
-	font-size: 0.875rem;
-	font-weight: 700;
-
-	&:focus-visible {
-		outline: 3px solid var(--color-focus);
-		outline-offset: 2px;
-	}
 }
 
 .label {

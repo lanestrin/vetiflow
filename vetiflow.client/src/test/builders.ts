@@ -1,3 +1,4 @@
+import type { SignedInUser } from "../types/Auth";
 import type { EmergencyCaseListItem } from "../types/EmergencyCaseListItem";
 import type { PatientListItem } from "../types/PatientListItem";
 
@@ -45,6 +46,28 @@ export function buildPatientListItem(
     ownerId: `owner-${id}`,
     ownerName: `Owner ${id}`,
     inCare: false,
+    ...overrides
+  };
+}
+
+// The demo team member, as GET /api/auth/me returns them.
+export function buildTeamMember(overrides: Partial<SignedInUser> = {}): SignedInUser {
+  return {
+    name: "Jordan Lee",
+    experience: "teamMember",
+    displayName: "Dr. Jordan Lee",
+    initials: "JL",
+    ...overrides
+  };
+}
+
+// The demo pet parent, as GET /api/auth/me returns them.
+export function buildPetParent(overrides: Partial<SignedInUser> = {}): SignedInUser {
+  return {
+    name: "Morgan Hale",
+    experience: "petParent",
+    displayName: "Morgan Hale",
+    initials: "MH",
     ...overrides
   };
 }

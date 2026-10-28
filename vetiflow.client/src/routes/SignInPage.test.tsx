@@ -7,9 +7,10 @@ import { readAccessToken } from "../services/session";
 import { apiUrl, server } from "../test/server";
 import type { SignedInUser } from "../types/Auth";
 import { SignInPage } from "./SignInPage";
+import { buildTeamMember, buildPetParent } from "../test/builders";
 
-const teamMember: SignedInUser = { name: "Jordan Lee", experience: "teamMember" };
-const petParent: SignedInUser = { name: "Morgan Hale", experience: "petParent" };
+const teamMember: SignedInUser = buildTeamMember();
+const petParent: SignedInUser = buildPetParent();
 
 afterEach(() => {
   sessionStorage.clear();

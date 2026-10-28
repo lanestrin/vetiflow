@@ -7,6 +7,7 @@ import { apiUrl, server } from "../../test/server";
 import type { Experience, SignedInUser } from "../../types/Auth";
 import type { SignInRouteState } from "./experienceHome";
 import { RequireExperience } from "./RequireExperience";
+import { buildTeamMember, buildPetParent } from "../../test/builders";
 
 afterEach(() => {
   sessionStorage.clear();
@@ -71,7 +72,7 @@ describe("RequireExperience", () => {
   });
 
   it("shows the page to the matching experience", async () => {
-    serveMe({ name: "Jordan Lee", experience: "teamMember" });
+    serveMe(buildTeamMember());
 
     renderGuarded("/guarded", "teamMember");
 
@@ -79,8 +80,8 @@ describe("RequireExperience", () => {
   });
 
   it.each([
-    [{ name: "Morgan Hale", experience: "petParent" }, "teamMember", "Pet parent home"],
-    [{ name: "Jordan Lee", experience: "teamMember" }, "petParent", "Board home"]
+    [buildPetParent(), "teamMember", "Pet parent home"],
+    [buildTeamMember(), "petParent", "Board home"]
   ] as const)("sends %o to their own home", async (user, required, home) => {
     serveMe(user);
 

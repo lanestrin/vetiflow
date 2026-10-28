@@ -24,7 +24,7 @@ function RecordsWithLocation() {
   const location = useLocation();
   return (
     <>
-      <RecordsPage user={{ name: "Jordan Lee", experience: "teamMember" }} />
+      <RecordsPage />
       <p data-testid="location">{location.search}</p>
     </>
   );
@@ -71,8 +71,6 @@ describe("RecordsPage", () => {
 
     expect(screen.getByRole("heading", { level: 1, name: "Patient records" })).toBeInTheDocument();
     expect(document.title).toBe("Patient records · VetiFlow");
-    expect(screen.getByRole("link", { name: "Back to board" })).toHaveAttribute("href", "/er");
-    expect(screen.getByRole("button", { name: "Sign out" })).toBeInTheDocument();
     expect(screen.getByText("Search by the pet's name or the owner's name.")).toBeInTheDocument();
     expect(screen.getByRole("status")).toBeEmptyDOMElement();
     expect(searches).toEqual([]);

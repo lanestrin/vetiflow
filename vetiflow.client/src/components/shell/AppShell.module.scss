@@ -1,0 +1,362 @@
+// The ER Command Center frame, measured from
+// blueprint/reference/vetiflow-er-dashboard.html (.rail, .topbar, .profile).
+$fast: var(--motion-fast) var(--ease-out);
+
+@mixin rail-focus {
+	&:focus-visible {
+		outline: 3px solid var(--color-shell-rail-marker);
+		outline-offset: 2px;
+	}
+}
+
+@mixin bar-focus {
+	&:focus-visible {
+		outline: 3px solid var(--color-focus);
+		outline-offset: 2px;
+	}
+}
+
+.app {
+	display: flex;
+	min-height: calc(100vh - var(--demo-bar-height));
+	background: var(--color-shell-paper);
+	color: var(--color-shell-ink);
+}
+
+// Rail
+.rail {
+	display: flex;
+	flex-direction: column;
+	flex-shrink: 0;
+	align-items: center;
+	gap: 26px;
+	width: 76px;
+	padding: 20px 0;
+	background: var(--color-shell-navy);
+	color: var(--color-shell-rail-text);
+}
+
+.brandmark {
+	display: grid;
+	place-items: center;
+	width: 38px;
+	height: 38px;
+	border-radius: 13px;
+	background: var(--color-shell-brand);
+	box-shadow: 0 7px 16px #0c141b55;
+	color: var(--color-text-inverse);
+	font-size: 20px;
+	font-weight: 800;
+}
+
+.railNav {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.railBottom {
+	margin-top: auto;
+}
+
+.navIcon {
+	position: relative;
+	display: grid;
+	place-items: center;
+	width: 44px;
+	height: 44px;
+	border-radius: 13px;
+	color: var(--color-shell-rail-text);
+	transition:
+		background-color $fast,
+		color $fast;
+
+	svg {
+		width: 19px;
+		height: 19px;
+		fill: none;
+		stroke: currentColor;
+		stroke-width: 1.8;
+		stroke-linecap: round;
+		stroke-linejoin: round;
+	}
+
+	&:hover,
+	&[aria-current="page"] {
+		background: var(--color-shell-rail-hover);
+		color: var(--color-text-inverse);
+	}
+
+	// The active page's marker bar at the rail's edge.
+	&[aria-current="page"]::before {
+		position: absolute;
+		left: -16px;
+		width: 3px;
+		height: 22px;
+		border-radius: 4px;
+		background: var(--color-shell-rail-marker);
+		content: "";
+	}
+
+	@include rail-focus;
+
+	@media (prefers-reduced-motion: reduce) {
+		transition: none;
+	}
+}
+
+// Main column
+.main {
+	display: flex;
+	flex: 1;
+	flex-direction: column;
+	min-width: 0;
+}
+
+.topbar {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 18px;
+	height: 74px;
+	padding: 0 32px;
+	border-bottom: 1px solid var(--color-shell-line);
+	background: var(--color-surface);
+}
+
+.crumb {
+	margin: 0;
+	overflow: hidden;
+	color: var(--color-shell-muted);
+	font-size: 13px;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+
+	b {
+		color: var(--color-shell-ink);
+		font-weight: 700;
+	}
+}
+
+// Decorative, hidden from screen readers: the prototype's light slash.
+.crumbSeparator {
+	color: #b5c0c1;
+}
+
+.topRight {
+	display: flex;
+	flex-shrink: 0;
+	align-items: center;
+	gap: 18px;
+}
+
+.search {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	width: 218px;
+	padding: 9px 12px;
+	border: 1px solid var(--color-shell-line);
+	border-radius: 10px;
+	background: var(--color-shell-field);
+	color: var(--color-shell-placeholder);
+	transition: border-color $fast;
+
+	svg {
+		flex-shrink: 0;
+		fill: none;
+		stroke: currentColor;
+		stroke-width: 2;
+	}
+
+	&:focus-within {
+		border-color: var(--color-care-teal);
+		outline: 2px solid #bde5dd;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		transition: none;
+	}
+}
+
+.searchInput {
+	width: 100%;
+	min-width: 0;
+	padding: 0;
+	border: 0;
+	outline: 0;
+	background: transparent;
+	color: var(--color-shell-ink);
+	font: inherit;
+	font-size: 14px;
+
+	&::placeholder {
+		color: var(--color-shell-placeholder);
+		opacity: 1;
+	}
+}
+
+// At phone width the field gives way to an icon link to Patients.
+.searchLink {
+	display: none;
+	place-items: center;
+	width: 34px;
+	height: 34px;
+	border: 1px solid var(--color-shell-line);
+	border-radius: 10px;
+	background: var(--color-shell-field);
+	color: var(--color-shell-placeholder);
+
+	svg {
+		fill: none;
+		stroke: currentColor;
+		stroke-width: 2;
+	}
+
+	@include bar-focus;
+}
+
+.topIcon {
+	display: grid;
+	place-items: center;
+	padding: 0;
+	border: 0;
+	background: none;
+	color: #74858b;
+	cursor: pointer;
+
+	svg {
+		fill: none;
+		stroke: currentColor;
+		stroke-width: 1.8;
+	}
+
+	&:hover {
+		color: var(--color-shell-ink);
+	}
+
+	@include bar-focus;
+}
+
+// Profile
+.profile {
+	position: relative;
+}
+
+.profileButton {
+	display: flex;
+	align-items: center;
+	gap: 9px;
+	padding: 0;
+	border: 0;
+	border-radius: 999px;
+	background: none;
+	color: var(--color-shell-ink);
+	font: inherit;
+	font-size: 13px;
+	font-weight: 600;
+	cursor: pointer;
+
+	@include bar-focus;
+}
+
+.avatar {
+	display: grid;
+	place-items: center;
+	width: 34px;
+	height: 34px;
+	border-radius: 50%;
+	background: var(--color-shell-avatar);
+	color: var(--color-shell-avatar-text);
+	font-size: 12px;
+	font-weight: 700;
+}
+
+.profileMenu {
+	position: absolute;
+	top: calc(100% + 10px);
+	right: 0;
+	z-index: 20;
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-2);
+	min-width: 12rem;
+	padding: var(--space-3);
+	border: 1px solid var(--color-shell-line);
+	border-radius: 12px;
+	background: var(--color-surface);
+	box-shadow: 0 10px 32px rgb(26 55 63 / 12%);
+
+	&[hidden] {
+		display: none;
+	}
+}
+
+.profileMenuName {
+	margin: 0;
+	color: var(--color-shell-ink);
+	font-size: 13px;
+	font-weight: 700;
+}
+
+.demoNote {
+	color: var(--color-shell-muted);
+	font-weight: 400;
+}
+
+.signOut {
+	min-height: 2.75rem;
+	border: 1px solid var(--color-care-teal);
+	border-radius: 10px;
+	background: var(--color-surface);
+	color: var(--color-care-teal);
+	font: inherit;
+	font-size: 13px;
+	font-weight: 700;
+	cursor: pointer;
+
+	&:hover {
+		background: var(--color-care-mint);
+	}
+
+	@include bar-focus;
+}
+
+@media (max-width: 650px) {
+	.rail {
+		width: 56px;
+	}
+
+	.navIcon {
+		width: 40px;
+		height: 40px;
+
+		&[aria-current="page"]::before {
+			left: -8px;
+		}
+	}
+
+	.topbar {
+		height: 62px;
+		padding: 0 14px;
+	}
+
+	.topRight {
+		gap: 12px;
+	}
+
+	.search {
+		display: none;
+	}
+
+	.searchLink {
+		display: grid;
+	}
+
+	.profileName {
+		display: none;
+	}
+}

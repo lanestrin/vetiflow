@@ -122,7 +122,7 @@ replaces it. Demo data only.
 **App shell** (prototype: left rail, top bar)
 
 - [x] **2.10a** `feature/app-shell-api`: `GET /api/auth/me` adds what the profile needs: the staff member's role and display name ("Dr. Jordan Reed" for a veterinarian) and initials. Done (history/features/2.10a-app-shell-api.md).
-- [ ] **2.10b** `feature/app-shell`: the rail (brand mark, Overview, ER board, Patients, Team, Reports, Settings) and top bar (breadcrumb, search box, bell, profile) around every staff page; Patients opens the records page (`/records`) inside the shell, the other destinations show a calm "coming soon" page until their items; sign out from the profile; the toast used across the Command Center; the 650 px rail and top bar.
+- [x] **2.10b** `feature/app-shell`: the rail (brand mark, Overview, ER board, Patients, Team, Reports, Settings) and top bar (breadcrumb, search box, bell, profile) around every staff page; Patients opens the records page (`/records`) inside the shell, the other destinations show a calm "coming soon" page until their items; sign out from the profile; the toast used across the Command Center; the 650 px rail and top bar. Done (history/features/2.10b-app-shell.md).
 
 **Case numbers**
 
@@ -218,6 +218,10 @@ replaces it. Demo data only.
 **Patients page** (prototype: "Patients" in the rail)
 
 - [ ] **4.6c** `feature/records-forms`: new and edit forms for patients and owners on the Patients page, in the prototype's form style, including choosing or clearing the owner.
+
+**Typography** (prototype: DM Sans text, Manrope headings)
+
+- [ ] **2.20** `feature/command-center-fonts`: load the prototype's fonts for the staff pages (DM Sans for text, Manrope for headings and numbers), with a choice of font package or host and a fallback that keeps the layout. (Found in 2.10b: the shell matches the prototype except for its fonts.)
 
 ## M3: Sign-in and roles
 
