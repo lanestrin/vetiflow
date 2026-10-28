@@ -52,9 +52,14 @@ public class CasesController : ControllerBase
 					PatientName = emergencyCase.Patient.Name,
 					Species = emergencyCase.Patient.Species,
 					Breed = emergencyCase.Patient.Breed,
+					PatientDateOfBirth = emergencyCase.Patient.DateOfBirth,
+					OwnerName = emergencyCase.Patient.Owner == null
+						? null
+						: emergencyCase.Patient.Owner.FirstName + " " + emergencyCase.Patient.Owner.LastName,
 					WeightKg = emergencyCase.WeightKg,
 					PresentingComplaint = emergencyCase.PresentingComplaint,
 					Stage = emergencyCase.Stage,
+					StageEnteredAt = emergencyCase.StageEnteredAt,
 					Status = emergencyCase.Status,
 					Acuity = emergencyCase.Acuity,
 					ArrivalTime = emergencyCase.ArrivalTime,
@@ -75,11 +80,29 @@ public class CasesController : ControllerBase
 						},
 					Room = emergencyCase.Room == null
 						? null
-						: new CaseReferenceDto
+						: new CaseRoomDto
 						{
 							Id = emergencyCase.Room.Id,
-							Name = emergencyCase.Room.Name
+							Name = emergencyCase.Room.Name,
+							Type = emergencyCase.Room.Type
 						},
+					Clinician = emergencyCase.AssignedDoctor != null
+						? new CaseClinicianDto
+						{
+							Id = emergencyCase.AssignedDoctor.Id,
+							ShortName = emergencyCase.AssignedDoctor.LastName,
+							Initials = emergencyCase.AssignedDoctor.FirstName.Substring(0, 1).ToUpper()
+								+ emergencyCase.AssignedDoctor.LastName.Substring(0, 1).ToUpper()
+						}
+						: emergencyCase.AssignedTechnician != null
+							? new CaseClinicianDto
+							{
+								Id = emergencyCase.AssignedTechnician.Id,
+								ShortName = emergencyCase.AssignedTechnician.LastName,
+								Initials = emergencyCase.AssignedTechnician.FirstName.Substring(0, 1).ToUpper()
+									+ emergencyCase.AssignedTechnician.LastName.Substring(0, 1).ToUpper()
+							}
+							: null,
 					Blockers = emergencyCase.Tasks
 						.Where(task => task.Type == CaseTaskType.Blocker && task.Status == CaseTaskStatus.Open)
 						.OrderBy(task => task.CreatedAt)
@@ -92,6 +115,12 @@ public class CasesController : ControllerBase
 					LastUpdated = emergencyCase.LastUpdated
 				})
 				.ToListAsync();
+
+		// A plain rule, applied after the query rather than translated to SQL.
+		foreach (var item in cases)
+		{
+			item.WaitChip = WaitChipRule.For(item.Acuity, item.Status, item.Stage);
+		}
 
 		return Ok(cases);
 	}
@@ -262,8 +291,7 @@ public class CasesController : ControllerBase
 			return NotFound();
 		}
 
-		emergencyCase.Stage = request.Stage;
-		emergencyCase.LastUpdated = DateTimeOffset.UtcNow;
+		emergencyCase.MoveToStage(request.Stage);
 
 		await _dbContext.SaveChangesAsync();
 

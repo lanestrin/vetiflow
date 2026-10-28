@@ -243,6 +243,27 @@ public class DbSeederTests(VetiFlowApiFactory factory)
 		Assert.Equal(otherOwner.Id, await OwnerOfAsync(dbContext, ownedBuddy.Id));
 	}
 
+	// The cards show age and minutes in stage (build plan 2.11a), so every
+	// demo patient has a date of birth and every case entered its stage after
+	// it arrived.
+	[Fact]
+	public async Task SeedAsync_GivesCardsAgesAndStageTimes()
+	{
+		await using var dbContext = await SeededDatabaseAsync();
+
+		var cases = await dbContext.EmergencyCases
+			.AsNoTracking()
+			.Include(emergencyCase => emergencyCase.Patient)
+			.ToListAsync(_cancellationToken);
+		Assert.NotEmpty(cases);
+		Assert.All(cases, emergencyCase =>
+		{
+			Assert.NotNull(emergencyCase.Patient.DateOfBirth);
+			Assert.InRange(emergencyCase.StageEnteredAt, emergencyCase.ArrivalTime, DateTimeOffset.UtcNow);
+		});
+		Assert.Contains(cases, emergencyCase => emergencyCase.StageEnteredAt > emergencyCase.ArrivalTime);
+	}
+
 	// A demo database seeded weeks ago showed waits of about 1,190 hours
 	// (blueprint/history/fixes/2026-10-28-demo-case-times.md).
 	[Fact]
@@ -297,6 +318,7 @@ public class DbSeederTests(VetiFlowApiFactory factory)
 	{
 		await dbContext.EmergencyCases.ExecuteUpdateAsync(setters => setters
 			.SetProperty(emergencyCase => emergencyCase.ArrivalTime, emergencyCase => emergencyCase.ArrivalTime + by)
+			.SetProperty(emergencyCase => emergencyCase.StageEnteredAt, emergencyCase => emergencyCase.StageEnteredAt + by)
 			.SetProperty(emergencyCase => emergencyCase.LastUpdated, emergencyCase => emergencyCase.LastUpdated + by)
 			.SetProperty(emergencyCase => emergencyCase.LastOwnerUpdateAt, emergencyCase => emergencyCase.LastOwnerUpdateAt + by)
 			.SetProperty(emergencyCase => emergencyCase.DischargedAt, emergencyCase => emergencyCase.DischargedAt + by), _cancellationToken);
@@ -320,6 +342,7 @@ public class DbSeederTests(VetiFlowApiFactory factory)
 		foreach (var emergencyCase in await dbContext.EmergencyCases.AsNoTracking().ToListAsync(_cancellationToken))
 		{
 			times[$"case.arrival:{emergencyCase.Id}"] = emergencyCase.ArrivalTime;
+			times[$"case.stage:{emergencyCase.Id}"] = emergencyCase.StageEnteredAt;
 			times[$"case.updated:{emergencyCase.Id}"] = emergencyCase.LastUpdated;
 			if (emergencyCase.LastOwnerUpdateAt is { } ownerUpdate) times[$"case.owner:{emergencyCase.Id}"] = ownerUpdate;
 			if (emergencyCase.DischargedAt is { } discharged) times[$"case.discharged:{emergencyCase.Id}"] = discharged;

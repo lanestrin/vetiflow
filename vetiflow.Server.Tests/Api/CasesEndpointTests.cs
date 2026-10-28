@@ -186,7 +186,7 @@ public class CasesEndpointTests(VetiFlowApiFactory factory)
 	}
 
 	// The board is shown to every staff screen; owner contact details never
-	// belong in it.
+	// belong in it. The owner's name does, as on the prototype's cards (2.11a).
 	[Fact]
 	public async Task GetCases_DoesNotExposeOwnerDetails()
 	{
@@ -204,7 +204,6 @@ public class CasesEndpointTests(VetiFlowApiFactory factory)
 		Assert.False(item.TryGetProperty("owner", out _), "The board list must not include the owner.");
 		Assert.DoesNotContain(owner.Phone!, json);
 		Assert.DoesNotContain(owner.Email!, json);
-		Assert.DoesNotContain(owner.LastName, json);
 	}
 
 	[Fact]
@@ -225,6 +224,7 @@ public class CasesEndpointTests(VetiFlowApiFactory factory)
 	{
 		var emergencyCase = TestData.Case(TestData.Patient());
 		emergencyCase.LastUpdated = DateTimeOffset.UtcNow.AddHours(-1);
+		emergencyCase.StageEnteredAt = DateTimeOffset.UtcNow.AddHours(-1);
 		await SaveAsync(emergencyCase);
 		using var client = await factory.CreateSignedInClientAsync(DemoAccounts.TeamEmail);
 
@@ -238,6 +238,7 @@ public class CasesEndpointTests(VetiFlowApiFactory factory)
 		var saved = await dbContext.EmergencyCases.SingleAsync(c => c.Id == emergencyCase.Id, _cancellationToken);
 		Assert.Equal(CaseStage.Treatment, saved.Stage);
 		Assert.True(saved.LastUpdated > emergencyCase.LastUpdated);
+		Assert.True(saved.StageEnteredAt > emergencyCase.StageEnteredAt);
 	}
 
 	[Fact]
@@ -492,6 +493,74 @@ public class CasesEndpointTests(VetiFlowApiFactory factory)
 		Assert.Equal($"ER-{emergencyCase.CaseNumber}", item.GetProperty("caseNumber").GetString());
 	}
 
+	// Everything a patient flow card shows (build plan 2.11a).
+	[Fact]
+	public async Task GetCases_ReturnsCardFields()
+	{
+		var owner = TestData.Owner();
+		var patient = TestData.Patient();
+		patient.Owner = owner;
+		patient.DateOfBirth = new DateOnly(2018, 4, 2);
+		var room = TestData.Room();
+		room.Type = RoomType.Oxygen;
+		var doctor = TestData.StaffMember(StaffRole.Veterinarian);
+		doctor.FirstName = "jordan";
+		var emergencyCase = TestData.Case(patient, room);
+		emergencyCase.AssignedDoctor = doctor;
+		emergencyCase.AssignedTechnician = TestData.StaffMember(StaffRole.Technician);
+		emergencyCase.RecordTriage(new TriageAssessment { Acuity = AcuityLevel.Critical });
+		// A whole-second time, so the value read back from Postgres compares equal.
+		emergencyCase.StageEnteredAt = new DateTimeOffset(2026, 10, 28, 10, 53, 0, TimeSpan.Zero);
+		await SaveAsync(emergencyCase);
+		using var client = await factory.CreateSignedInClientAsync(DemoAccounts.TeamEmail);
+
+		var item = await GetBoardItemAsync(client, emergencyCase.Id);
+
+		Assert.Equal("2018-04-02", item.GetProperty("patientDateOfBirth").GetString());
+		Assert.Equal($"Owner {owner.LastName}", item.GetProperty("ownerName").GetString());
+		Assert.Equal(room.Name, item.GetProperty("room").GetProperty("name").GetString());
+		Assert.Equal("oxygen", item.GetProperty("room").GetProperty("type").GetString());
+		Assert.Equal(emergencyCase.StageEnteredAt, item.GetProperty("stageEnteredAt").GetDateTimeOffset());
+		Assert.Equal("stat", item.GetProperty("waitChip").GetString());
+		var clinician = item.GetProperty("clinician");
+		Assert.Equal(doctor.Id, clinician.GetProperty("id").GetGuid());
+		Assert.Equal(doctor.LastName, clinician.GetProperty("shortName").GetString());
+		Assert.Equal($"J{char.ToUpperInvariant(doctor.LastName[0])}", clinician.GetProperty("initials").GetString());
+		// Staff see the owner's name, never their contact details.
+		Assert.False(item.TryGetProperty("ownerPhone", out _));
+		Assert.DoesNotContain(owner.Email!, item.GetRawText());
+	}
+
+	[Fact]
+	public async Task GetCases_ClinicianFallsBackToTechnician()
+	{
+		var technician = TestData.StaffMember(StaffRole.Technician);
+		var emergencyCase = TestData.Case(TestData.Patient());
+		emergencyCase.AssignedTechnician = technician;
+		await SaveAsync(emergencyCase);
+		using var client = await factory.CreateSignedInClientAsync(DemoAccounts.TeamEmail);
+
+		var item = await GetBoardItemAsync(client, emergencyCase.Id);
+
+		Assert.Equal(technician.Id, item.GetProperty("clinician").GetProperty("id").GetGuid());
+		Assert.Equal("new", item.GetProperty("waitChip").GetString());
+	}
+
+	[Fact]
+	public async Task GetCases_NoOwnerOrClinician_ReturnsNulls()
+	{
+		var emergencyCase = TestData.Case(TestData.Patient());
+		await SaveAsync(emergencyCase);
+		using var client = await factory.CreateSignedInClientAsync(DemoAccounts.TeamEmail);
+
+		var item = await GetBoardItemAsync(client, emergencyCase.Id);
+
+		Assert.Equal(JsonValueKind.Null, item.GetProperty("patientDateOfBirth").ValueKind);
+		Assert.Equal(JsonValueKind.Null, item.GetProperty("ownerName").ValueKind);
+		Assert.Equal(JsonValueKind.Null, item.GetProperty("room").ValueKind);
+		Assert.Equal(JsonValueKind.Null, item.GetProperty("clinician").ValueKind);
+	}
+
 	[Fact]
 	public async Task GetCase_ReturnsCaseNumber()
 	{
@@ -536,6 +605,13 @@ public class CasesEndpointTests(VetiFlowApiFactory factory)
 		var response = await client.GetAsync($"/api/cases/{emergencyCase.Id}", _cancellationToken);
 
 		AssertProblemStatus(response, HttpStatusCode.Forbidden);
+	}
+
+	// This test's case from the board list; other tests add cases in parallel.
+	private async Task<JsonElement> GetBoardItemAsync(HttpClient client, Guid caseId)
+	{
+		var cases = await client.GetFromJsonAsync<JsonElement[]>("/api/cases", _cancellationToken);
+		return cases!.Single(item => item.GetProperty("id").GetGuid() == caseId);
 	}
 
 	private async Task<JsonElement> GetCaseAsync(HttpClient client, Guid caseId)

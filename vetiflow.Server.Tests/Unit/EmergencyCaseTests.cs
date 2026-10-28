@@ -61,4 +61,34 @@ public class EmergencyCaseTests
 
 		Assert.InRange(emergencyCase.LastUpdated, before, DateTimeOffset.UtcNow);
 	}
+
+	// Stage time (build plan 2.11a): the card counts minutes in the stage from it.
+	[Fact]
+	public void MoveToStage_NewStage_SetsStageEnteredAt()
+	{
+		var emergencyCase = NewCase();
+		emergencyCase.StageEnteredAt = DateTimeOffset.UtcNow.AddHours(-1);
+		emergencyCase.LastUpdated = DateTimeOffset.UtcNow.AddHours(-1);
+		var before = DateTimeOffset.UtcNow;
+
+		emergencyCase.MoveToStage(CaseStage.Treatment);
+
+		Assert.Equal(CaseStage.Treatment, emergencyCase.Stage);
+		Assert.InRange(emergencyCase.StageEnteredAt, before, DateTimeOffset.UtcNow);
+		Assert.InRange(emergencyCase.LastUpdated, before, DateTimeOffset.UtcNow);
+	}
+
+	[Fact]
+	public void MoveToStage_SameStage_KeepsStageEnteredAt()
+	{
+		var emergencyCase = NewCase();
+		var enteredAt = DateTimeOffset.UtcNow.AddHours(-1);
+		emergencyCase.StageEnteredAt = enteredAt;
+		emergencyCase.LastUpdated = enteredAt;
+
+		emergencyCase.MoveToStage(emergencyCase.Stage);
+
+		Assert.Equal(enteredAt, emergencyCase.StageEnteredAt);
+		Assert.Equal(enteredAt, emergencyCase.LastUpdated);
+	}
 }

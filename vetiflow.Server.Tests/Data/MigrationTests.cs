@@ -24,6 +24,8 @@ public class MigrationTests(VetiFlowApiFactory factory)
 
 	private const string ThreeAcuityLevels = "20261028152018_ThreeAcuityLevels";
 
+	private const string AddCaseNumbers = "20261028161946_AddCaseNumbers";
+
 	private readonly CancellationToken _cancellationToken = TestContext.Current.CancellationToken;
 
 	// Fails when the model changed without a migration being added.
@@ -259,7 +261,7 @@ public class MigrationTests(VetiFlowApiFactory factory)
 		var oldest = await InsertCaseArrivedAtAsync(dbContext, now.AddMinutes(-90));
 		var middle = await InsertCaseArrivedAtAsync(dbContext, now.AddMinutes(-30));
 
-		await migrator.MigrateAsync(cancellationToken: _cancellationToken);
+		await migrator.MigrateAsync(AddCaseNumbers, _cancellationToken);
 
 		Assert.Equal(2401, await ReadCaseNumberAsync(dbContext, oldest));
 		Assert.Equal(2402, await ReadCaseNumberAsync(dbContext, middle));
@@ -268,8 +270,28 @@ public class MigrationTests(VetiFlowApiFactory factory)
 		Assert.Equal(2404, await ReadCaseNumberAsync(dbContext, next));
 	}
 
-	// A case in the shape before AddCaseNumbers (and after it: the number is
-	// left to the database).
+	// Stage time (build plan 2.11a): no stage history is stored, so existing
+	// cases take their arrival time.
+	[Fact]
+	public async Task AddStageEnteredAt_BackfillsArrivalTime()
+	{
+		await using var dbContext = await CreateEmptyDatabaseAsync();
+		var migrator = dbContext.GetService<IMigrator>();
+		await migrator.MigrateAsync(AddCaseNumbers, _cancellationToken);
+		// A whole-second time, so the value read back from Postgres compares equal.
+		var arrivalTime = new DateTimeOffset(2026, 10, 28, 9, 15, 0, TimeSpan.Zero);
+		var caseId = await InsertCaseArrivedAtAsync(dbContext, arrivalTime);
+
+		await migrator.MigrateAsync(cancellationToken: _cancellationToken);
+
+		var stageEnteredAt = await dbContext.Database
+			.SqlQuery<DateTimeOffset>($"""SELECT "StageEnteredAt" AS "Value" FROM "EmergencyCases" WHERE "Id" = {caseId}""")
+			.SingleAsync(_cancellationToken);
+		Assert.Equal(arrivalTime, stageEnteredAt);
+	}
+
+	// A case in the shape before AddCaseNumbers (and just after it: the number
+	// is left to the database).
 	private async Task<Guid> InsertCaseArrivedAtAsync(VetiFlowDbContext dbContext, DateTimeOffset arrivalTime)
 	{
 		var patientId = Guid.NewGuid();
