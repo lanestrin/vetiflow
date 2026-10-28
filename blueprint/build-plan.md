@@ -61,10 +61,29 @@ Decided (later items must keep these):
   between stage lanes.
 - **Prototype data:** decided 2026-10-28, every field the prototype shows gets
   real data, built as back-end and front-end item pairs.
-- **Wait chip:** decided 2026-10-28, as in the prototype, checked in this
-  order: Critical acuity shows "STAT"; status "ready for next step" shows
-  "Ready"; stage Recheck shows "Recheck"; a case not yet triaged shows "New";
-  otherwise the minutes since arrival ("18 min").
+- **Wait chip:** decided 2026-10-28, revised the same day for the revised
+  prototype. First match wins: a case still in stage Incoming (awaiting
+  triage) shows "New"; Critical acuity shows "STAT"; status "ready for next
+  step" shows "Ready"; stage Recheck shows "Recheck"; otherwise the minutes
+  since arrival ("18 min").
+- **New intakes are provisional:** decided 2026-10-28. The intake's priority
+  sets the acuity and lane, but the case waits in stage Incoming ("Awaiting
+  triage", a "<priority> · provisional" tag, unassigned) until a clinician
+  presses **Complete triage** (4.2).
+- **Due items are tasks:** decided 2026-10-28. The next reassessment and the
+  next client update are task types with a due time and an assignee, like any
+  other task. The panel rows show the next open one of each, My work queue lists
+  my open tasks, and "Open actions" counts them. No separate case columns.
+- **On the floor = My status:** decided 2026-10-28. Each clinician sets My
+  status (Busy, Available, At limit, Unavailable), stored on the staff record.
+  Anyone not Unavailable counts as on the floor. Feeds the heading's shift chip,
+  Workload & team (2.22) and the Team page (4.5).
+- **Pain score is its own record:** decided 2026-10-28. A 0 to 10 score with
+  optional notes, when and who, recorded from the panel with the clinic's own
+  scale. Not a vital and not a tag.
+- **Stat cards filter the board:** decided 2026-10-28. Patients in care shows
+  all cases, Awaiting triage and Critical patients filter the board, and Avg.
+  door to doctor opens its details.
 - **Owners never see the staff board.** Owners get a private page for their own
   pet only, with calm wording and no acuity. Staff and client labels live in
   the client.
@@ -84,9 +103,8 @@ Open (the item named in brackets needs it before its spec):
   Store an estimated date of birth from it, or store the age as given.
 - **Allergies and medications** (before 4.1a): kept on the patient (carry over
   to the next visit) or on the case.
-- **Shift and clinicians on floor** (before 2.15a): how "Day shift" is defined
-  (fixed hours or clinic setting), and who counts as on the floor (staff who
-  clock in, or staff assigned to an active case).
+- **Shift** (before 2.15a): how "Day shift" is defined (fixed hours or a clinic
+  setting). Who is on the floor is decided (My status).
 - **Door to doctor** (before 2.16a): which moment counts as "seen by a doctor"
   (doctor assigned, or a "Doctor assessment" event), and what "last shift" is.
 - **Vital alert ranges** (before 4.8a): the heart rate, respiratory rate,
@@ -132,49 +150,53 @@ replaces it. Demo data only.
 **Patient flow board** (prototype: "Patient flow")
 
 - [x] **2.11a** `feature/patient-flow-api`: the board list adds what each card shows: case number, patient age, owner name, location (room and area), the stage and minutes in it, the wait chip value, and the assigned clinician's short name and initials. Done (history/features/2.11a-patient-flow-api.md).
-- [ ] **2.11b** `feature/patient-flow-board`: replace the stage lanes with the prototype's acuity lanes (Critical, Urgent, Stable, with counts), the new cards (name, species · breed · age, wait chip, owner · complaint, tags, stage · minutes, assigned clinician), the selected card, "Updated just now · N active cases", the footer count, live updates through the hub, and the 650 px lane tabs.
-- [ ] **2.14** `feature/board-search-filter`: the top bar's "Search patients…" filters the board's cards as you type (and offers the Patients search for patients not on the board), **Filter** (clinician, species, case status) and **Priority** sort. No new back end: it works on the loaded cases and the 4.6a search.
+- [ ] **2.11b** `feature/patient-flow-board`: replace the stage lanes with the prototype's acuity lanes (Critical, Urgent, Stable, with counts), the new cards (name, species · breed · age, wait chip, owner · complaint, tags, stage · minutes, assigned clinician), incoming cards' "<priority> · provisional" tag, "Awaiting triage" and "Unassigned", the selected card, "Updated just now · N active cases", the footer count, live updates through the hub, and the 650 px lane tabs.
 
-**Stats row** (prototype: four stat cards)
+**New patient intake** (prototype: intake dialog; provisional priority)
 
-- [ ] **2.12a** `feature/board-summary-api`: `GET /api/board/summary`: patients in care and how many arrived since the shift began, awaiting triage and the oldest wait, critical patients and whether all have a care team. Door to doctor follows in 2.16a.
-- [ ] **2.12b** `feature/board-stats`: the four stat cards as in the prototype, refreshed with the board; door to doctor shows "—" until 2.16b.
+- [ ] **4.1a** `feature/case-intake-api`: create a case for a new or existing patient from the intake fields (name, species, breed, age, pet parent and phone, chief complaint, initial priority through `RecordTriage`, triage notes, allergies, medications, treatment authorization, referring clinic), with the new columns and migration; a second active case for the same patient returns `409` naming the active case; writes `Arrived`; arrival time is set by the server.
+- [ ] **4.1b** `feature/case-intake-form`: the "New patient intake" dialog exactly as in the prototype (two-column form, priority radios, focus on open, Escape and backdrop close, focus returned), field errors, "Add to triage queue" adds the card to its lane, and a toast.
+
+**Triage** (prototype: **Complete triage**, acuity badge, lanes)
+
+- [ ] **4.2a** `feature/triage-api`: complete triage on an incoming case (confirm or change the provisional priority, move it out of Incoming) and re-triage later, always through `RecordTriage` (clinicians only once roles exist), with `Triaged` on the timeline.
+- [ ] **4.2b** `feature/triage`: **Complete triage** in the panel for incoming cases, re-triage from the panel's **•••** menu; the card's chip, tag and lane update on every open board.
+
+**Stats row** (prototype: four clickable stat cards)
+
+- [ ] **2.12a** `feature/board-summary-api`: `GET /api/board/summary`: patients in care and how many arrived since the shift began, awaiting triage (cases in Incoming) and the oldest wait, critical patients and whether all have a care team. Door to doctor follows in 2.16a.
+- [ ] **2.12b** `feature/board-stats`: the four stat cards as in the prototype, refreshed with the board, as filters: Patients in care shows all cases, Awaiting triage and Critical patients filter the board (pressed state, footer text); door to doctor shows "—" until 2.16b.
+- [ ] **2.14** `feature/board-search-filter`: the top bar's "Search patients…" filters the board's cards as you type (and offers the Patients search for patients not on the board), the **Incoming** toggle with its count, **Filter** (clinician, species, case status) and **Priority** sort. No new back end: it works on the loaded cases and the 4.6a search.
+
+**My status** (prototype: "My status" in My patients, clinicians on floor)
+
+- [ ] **2.21a** `feature/staff-status-api`: each clinician's status (Busy, Available, At limit, Unavailable) on the staff record, with a migration; set my own status; list clinicians on the floor (not Unavailable) with their status and active case count.
+- [ ] **2.21b** `feature/staff-status`: the My status selector, saved with a toast ("Availability set to Busy").
 
 **Page heading** (prototype: hospital name, title, shift, New intake)
 
-- [ ] **2.15a** `feature/shift-api`: the clinic's name (from clinic settings, a setting until 9.3) and the current shift with clinicians on the floor, per the decision.
-- [ ] **2.15b** `feature/board-heading`: the eyebrow, "ER Command Center" title and subtitle, the live shift chip and the **New intake** button (opens 4.1b's form; disabled with a note until then).
+- [ ] **2.15a** `feature/shift-api`: the clinic's name (from clinic settings, a setting until 9.3) and the current shift per the decision, with the number of clinicians on the floor from My status (2.21a).
+- [ ] **2.15b** `feature/board-heading`: the eyebrow, "ER Command Center" title and subtitle, the live shift chip and the **New intake** button opening the intake dialog (4.1b).
 
 **Patient overview panel** (prototype: right-hand panel)
 
 - [ ] **3.2a** `feature/patient-overview-api`: the case detail (3.1) adds case number, check-in time, patient age, location, and the fields later items fill (next reassessment, client update due); no new writes.
 - [ ] **3.2b** `feature/patient-overview-panel`: the panel beside the board for the selected card: header with case number and check-in time, the patient hero (species avatar, name, species · breed · age · weight, acuity badge), the pet parent bar, the vitals tiles, location, care timeline (pending items marked) and next actions; it stacks under the board at 1050 px; the **•••**, Call, Message, Add task, Handoff and Update status controls are shown and wired by the items below.
 
-**New patient intake** (prototype: intake dialog)
+**Next actions and due items** (prototype: task list, "Next reassessment", "Client update")
 
-- [ ] **4.1a** `feature/case-intake-api`: create a case for a new or existing patient from the intake fields (name, species, breed, age, pet parent and phone, chief complaint, initial priority through `RecordTriage`, triage notes, allergies, medications, treatment authorization, referring clinic), with the new columns and migration; a second active case for the same patient returns `409` naming the active case; writes `Arrived`; arrival time is set by the server.
-- [ ] **4.1b** `feature/case-intake-form`: the "New patient intake" dialog exactly as in the prototype (two-column form, priority radios, focus on open, Escape and backdrop close, focus returned), field errors, "Add to triage queue" adds the card to its lane, and a toast.
-- [ ] **4.7** `feature/duplicate-patients`: warn on likely duplicates (same name, species and owner) in the intake dialog; merge only if the decision says so.
+- [ ] **4.4a** `feature/case-tasks-api`: create, complete and reopen tasks and blockers on a case, with who did it and when; task types include Reassessment and Client update with a due time and an assignee (replaces 4.10a); the case detail and board list return the next open one of each.
+- [ ] **4.4b** `feature/next-actions`: the checklist with done ticks and assignee, **＋ Add task**, open blockers still shown on the card, and the panel's "Next reassessment" and "Client update" rows ("Due in 8 min", "Due 11:15 AM", overdue in words and colour) with setting them (replaces 4.10b).
 
-**Vitals** (prototype: four vitals tiles)
+**Vitals and pain** (prototype: four vitals tiles, pain score meter)
 
-- [ ] **4.8a** `feature/vitals-api`: add SpO₂ to `VitalsRecord` (migration), record vitals through `RecordVitals` (never changes acuity), and return which readings are outside the decided ranges.
-- [ ] **4.8b** `feature/vitals-tiles`: the heart rate, resp rate, temperature (°C, converted from the stored °F) and SpO₂ tiles with the red alert style, "Not recorded" when missing, and recording a new set from the panel.
-
-**Next actions** (prototype: task list with checkboxes)
-
-- [ ] **4.4a** `feature/case-tasks-api`: create, complete and reopen tasks and blockers on a case, with who did it and when.
-- [ ] **4.4b** `feature/next-actions`: the checklist with done ticks and assignee, **＋ Add task**, and open blockers still shown on the card.
+- [ ] **4.8a** `feature/vitals-api`: add SpO₂ to `VitalsRecord` (migration), record vitals through `RecordVitals` (never changes acuity), and return which readings are outside the decided ranges; a pain score record (0 to 10, optional notes, when and who; migration) with the latest on the case detail and board list.
+- [ ] **4.8b** `feature/vitals-tiles`: the heart rate, resp rate, temperature (°C, converted from the stored °F) and SpO₂ tiles with the red alert style, "Not recorded" when missing, recording a new set from the panel; the pain score meter and the **Record score** dialog.
 
 **Update status** (prototype: "Update status" button)
 
 - [ ] **4.9a** `feature/case-status-api`: change stage, status and next action in one request, enforcing the stage transition rules, writing `StageChanged` and `StatusChanged`, and broadcasting `caseUpdated` (replaces the bare stage endpoint's rules gap, old 2.1) [10, 11].
 - [ ] **4.9b** `feature/update-status`: the **Update status** dialog from the panel, the card moving or updating on every open board, and the toast "Status updated · team notified".
-
-**Reassessment and client updates** (prototype: "Next reassessment", "Client update")
-
-- [ ] **4.10a** `feature/case-schedule-api`: next reassessment time and next client update time on a case (columns, migration, set and clear), with `CaseEvent`s.
-- [ ] **4.10b** `feature/case-schedule`: the two rows in the panel ("Due in 8 min", "Due 11:15 AM", overdue shown in words and colour) and setting them.
 
 **Clinical tags** (prototype: tags on cards)
 
@@ -185,11 +207,6 @@ replaces it. Demo data only.
 
 - [ ] **4.3a** `feature/assignment-api`: assign the doctor, technician and room; a room already holding an active case returns `409` naming that case.
 - [ ] **4.3b** `feature/assignment`: assign from the panel's **•••** menu; the card's clinician and the panel's location update live.
-
-**Re-triage** (prototype: acuity badge, lanes)
-
-- [ ] **4.2a** `feature/triage-api`: record a new triage assessment and set acuity through `RecordTriage` (clinicians only once roles exist), with `Triaged` on the timeline.
-- [ ] **4.2b** `feature/re-triage`: re-triage from the panel's **•••** menu; the card moves lanes on every open board.
 
 **Pet parent contact** (prototype: pet parent bar, Call and Message)
 
@@ -206,10 +223,19 @@ replaces it. Demo data only.
 - [ ] **6.2a** `feature/discharge-api`: discharge with an outcome, set `DischargedAt`, free the room, write `Discharged`; the case leaves the board.
 - [ ] **6.2b** `feature/discharge`: discharge from **Update status** (or **•••**), with the outcome and a toast; the card leaves every open board.
 
-**Door to doctor** (prototype: fourth stat card)
+**Door to doctor** (prototype: fourth stat card and its details)
 
 - [ ] **2.16a** `feature/door-to-doctor-api`: record the moment a doctor first sees a case (per the decision) and add the shift average and the change from the last shift to the summary.
-- [ ] **2.16b** `feature/door-to-doctor`: the stat card's value and "↓ 4 min vs. last shift".
+- [ ] **2.16b** `feature/door-to-doctor`: the stat card's value and "↓ 4 min vs. last shift", the "Door to first doctor" details dialog (current and previous shift) and **Show waiting patients**, which filters the board to cases still waiting for their first doctor.
+
+**My patients** (prototype: "ER board | My patients" switch, clinician workspace)
+
+- [ ] **2.22a** `feature/my-patients-api`: my workspace for the signed-in clinician: my active cases with acuity, location, latest alerting vital, pain score, next reassessment and next action; my open tasks with due times (My work queue); my counts (active by acuity, needs attention, open actions); and Workload & team from My status.
+- [ ] **2.22b** `feature/my-patients`: the **ER board | My patients** switch, "Clinician workspace" heading, my stat cards, "Assigned to me" cards with **Open case** (opens the board with that patient selected), My work queue, Workload & team, and the 650 px layout.
+
+**Duplicates** (prototype: intake dialog)
+
+- [ ] **4.7** `feature/duplicate-patients`: warn on likely duplicates (same name, species and owner) in the intake dialog; merge only if the decision says so.
 
 **Notifications** (prototype: bell with a dot)
 
@@ -240,7 +266,7 @@ real clinic data.
 
 The rail's other destinations, in the prototype's style.
 
-- [ ] **4.5** `feature/team-view`: the Team page: who is on shift and each clinician's active cases, derived from case data.
+- [ ] **4.5** `feature/team-view`: the Team page: who is on the floor (My status, 2.21) and each clinician's active cases, derived from case data.
 - [ ] **2.18** `feature/overview`: the Overview page (contents to be designed; needs a design in `blueprint/reference/` first).
 - [ ] **2.19** `feature/reports`: the Reports page (contents to be designed; needs a design first).
 - [ ] **2.8** `feature/timer-escalation`: wait times turn amber and red past per-acuity thresholds from clinic settings [24].
@@ -312,3 +338,4 @@ After M7. Every workflow keeps working without AI.
 - **2.7** `feature/keyboard-stage-menu`: dropped 2026-10-28; Update status (4.9b) is the way to change a stage, by mouse or keyboard.
 - **3.3** `feature/card-details`: covered by the prototype's cards (2.11b) and tags (3.5).
 - **7.1** `test/integration-tests`: delivered by 1.2; new items add their own API and database tests.
+- **4.10a** `feature/case-schedule-api` and **4.10b** `feature/case-schedule`: merged into 4.4a and 4.4b (decided 2026-10-28, due items are tasks).
