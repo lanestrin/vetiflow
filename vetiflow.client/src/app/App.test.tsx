@@ -42,9 +42,10 @@ function signInAs(user: SignedInUser) {
 const boardHeading = { level: 1, name: "VetiFlow ER Board" } as const;
 const signInHeading = { level: 1, name: "Welcome back" } as const;
 const petParentHeading = { level: 1, name: "Welcome back, Morgan Hale" } as const;
+const recordsHeading = { level: 1, name: "Patient records" } as const;
 
 describe("App", () => {
-  it.each(["/", "/er", "/pet-parent"])("sends a signed-out visitor at %s to sign in", async (path) => {
+  it.each(["/", "/er", "/pet-parent", "/records"])("sends a signed-out visitor at %s to sign in", async (path) => {
     renderAt(path);
 
     expect(await screen.findByRole("heading", signInHeading)).toBeInTheDocument();
@@ -73,6 +74,23 @@ describe("App", () => {
 
     expect(await screen.findByRole("heading", petParentHeading)).toBeInTheDocument();
     expect(screen.queryByRole("heading", boardHeading)).not.toBeInTheDocument();
+  });
+
+  it("opens patient records for a hospital team member", async () => {
+    signInAs(teamMember);
+
+    renderAt("/records");
+
+    expect(await screen.findByRole("heading", recordsHeading)).toBeInTheDocument();
+  });
+
+  it("keeps a pet parent out of patient records", async () => {
+    signInAs(petParent);
+
+    renderAt("/records");
+
+    expect(await screen.findByRole("heading", petParentHeading)).toBeInTheDocument();
+    expect(screen.queryByRole("heading", recordsHeading)).not.toBeInTheDocument();
   });
 
   it("skips the sign-in page for someone already signed in", async () => {

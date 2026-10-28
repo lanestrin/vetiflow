@@ -1,4 +1,5 @@
 import type { EmergencyCaseListItem } from "../types/EmergencyCaseListItem";
+import type { PatientListItem } from "../types/PatientListItem";
 
 let nextId = 1;
 
@@ -26,6 +27,24 @@ export function buildCase(
     room: null,
     blockers: [],
     lastUpdated: new Date().toISOString(),
+    ...overrides
+  };
+}
+
+// A patient search result with an owner, not in care.
+export function buildPatientListItem(
+  overrides: Partial<PatientListItem> = {}
+): PatientListItem {
+  const id = nextId++;
+
+  return {
+    id: `patient-${id}`,
+    name: `Patient ${id}`,
+    species: "Dog",
+    breed: "Beagle",
+    ownerId: `owner-${id}`,
+    ownerName: `Owner ${id}`,
+    inCare: false,
     ...overrides
   };
 }

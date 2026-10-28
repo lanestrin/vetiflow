@@ -1,0 +1,70 @@
+.list {
+	display: grid;
+	gap: var(--space-3);
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+// Name and details on the left, the in-care tag on the right.
+.patient {
+	display: grid;
+	grid-template-columns: 1fr auto;
+	gap: var(--space-1) var(--space-3);
+	align-items: start;
+	padding: var(--space-4);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-lg);
+	background: var(--color-surface);
+}
+
+.name {
+	grid-column: 1;
+	margin: 0;
+	color: var(--color-navy-950);
+	font-size: 1.125rem;
+	overflow-wrap: anywhere;
+}
+
+.detail {
+	grid-column: 1;
+	margin: 0;
+	color: var(--color-text-secondary);
+	font-size: 0.9375rem;
+	overflow-wrap: anywhere;
+}
+
+.inCare,
+.notInCare {
+	grid-column: 2;
+	grid-row: 1;
+	padding: var(--space-1) var(--space-3);
+	border-radius: 999px;
+	font-size: 0.875rem;
+	font-weight: 700;
+	white-space: nowrap;
+}
+
+.inCare {
+	background: var(--color-care-mint);
+	color: var(--color-care-teal);
+}
+
+.notInCare {
+	border: 1px solid var(--color-border-strong);
+	color: var(--color-text-secondary);
+}
+
+// Narrow screens: the tag moves under the details instead of squeezing them.
+@media (max-width: 22rem) {
+	.patient {
+		grid-template-columns: 1fr;
+	}
+
+	.inCare,
+	.notInCare {
+		grid-column: 1;
+		grid-row: auto;
+		justify-self: start;
+	}
+}
