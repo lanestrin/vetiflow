@@ -1,4 +1,5 @@
 import type { SignedInUser } from "../types/Auth";
+import type { CaseDetail } from "../types/CaseDetail";
 import type { EmergencyCaseListItem } from "../types/EmergencyCaseListItem";
 import type { PatientListItem } from "../types/PatientListItem";
 
@@ -34,6 +35,53 @@ export function buildCase(
     waitChip: "minutes",
     blockers: [],
     lastUpdated: new Date().toISOString(),
+    ...overrides
+  };
+}
+
+// A case as the detail endpoint returns it: no owner, vitals, tasks or events
+// unless the test adds them.
+export function buildCaseDetail(overrides: Partial<CaseDetail> = {}): CaseDetail {
+  const id = nextId++;
+
+  return {
+    id: `case-${id}`,
+    caseNumber: `ER-${2400 + id}`,
+    patient: {
+      id: `patient-${id}`,
+      name: `Patient ${id}`,
+      species: "Dog",
+      breed: "Beagle",
+      sex: null,
+      dateOfBirth: null,
+      dateOfBirthIsEstimated: false,
+      allergies: null,
+      currentMedications: null
+    },
+    owner: null,
+    presentingComplaint: "Vomiting",
+    weightKg: 12.4,
+    stage: "treatment",
+    stageEnteredAt: new Date().toISOString(),
+    status: "waiting",
+    acuity: "stable",
+    arrivalTime: new Date().toISOString(),
+    lastUpdated: new Date().toISOString(),
+    dischargedAt: null,
+    nextAction: null,
+    assignedDoctor: null,
+    assignedTechnician: null,
+    room: null,
+    allergiesAtIntake: null,
+    medicationsAtIntake: null,
+    treatmentAuthorization: "notDiscussed",
+    referringClinic: null,
+    ownerUpdateStatus: "notYetUpdated",
+    lastOwnerUpdateAt: null,
+    triageAssessments: [],
+    vitals: [],
+    tasks: [],
+    timeline: [],
     ...overrides
   };
 }

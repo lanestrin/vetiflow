@@ -20,6 +20,23 @@
 	font-weight: 700;
 }
 
+// The prototype's .layout: board and patient overview side by side, the
+// overview under the board from 1050 px.
+.layout {
+	display: grid;
+	grid-template-columns: minmax(530px, 1.45fr) minmax(350px, 0.85fr);
+	gap: 16px;
+	align-items: start;
+
+	@media (max-width: 1050px) {
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	@media (max-width: 650px) {
+		gap: 12px;
+	}
+}
+
 // The prototype's .btn "＋ New intake" (2.15b places it in the full heading).
 .intakeButton {
 	padding: 10px 15px;

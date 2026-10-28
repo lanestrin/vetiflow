@@ -5,7 +5,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite
 import type { SignInRouteState } from "../components/auth/experienceHome";
 import { createCaseHubConnection } from "../services/caseHub";
 import { readAccessToken, saveAccessToken } from "../services/session";
-import { buildCase } from "../test/builders";
+import { buildCase, buildCaseDetail } from "../test/builders";
 import { createFakeCaseHub } from "../test/fakeCaseHub";
 import { apiUrl, server } from "../test/server";
 import type { EmergencyCaseListItem } from "../types/EmergencyCaseListItem";
@@ -145,6 +145,53 @@ describe("ErBoardPage", () => {
 
     expect(buddy).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("button", { name: "Max" })).toHaveAttribute("aria-pressed", "false");
+  });
+
+  // Patient overview panel (build plan 3.2b).
+  it("shows the selected card's case in the patient overview", async () => {
+    const buddy = buildCase({ id: "case-buddy", patientName: "Buddy" });
+    serveCases([buddy]);
+    server.use(http.get(apiUrl("/api/cases/case-buddy"), () =>
+      HttpResponse.json(buildCaseDetail({ id: "case-buddy", caseNumber: "ER-2481" }))));
+    renderBoard();
+    const overview = await screen.findByRole("complementary", { name: "Patient overview" });
+    expect(within(overview).getByText("Select a patient on the board to see their overview.")).toBeInTheDocument();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Buddy" }));
+
+    expect(await within(overview).findByText(/Case ER-2481/)).toBeInTheDocument();
+  });
+
+  it("loads the shown case again when the server reports a case update", async () => {
+    const buddy = buildCase({ id: "case-buddy", patientName: "Buddy" });
+    serveCases([buddy]);
+    let detailRequests = 0;
+    server.use(http.get(apiUrl("/api/cases/case-buddy"), () => {
+      detailRequests += 1;
+      return HttpResponse.json(buildCaseDetail({ id: "case-buddy", weightKg: detailRequests === 1 ? 12 : 13 }));
+    }));
+    renderBoard();
+    fireEvent.click(await screen.findByRole("button", { name: "Buddy" }));
+    const overview = screen.getByRole("complementary", { name: "Patient overview" });
+    await within(overview).findByText(/12 kg/);
+
+    hub.emit("caseUpdated", buddy.id);
+
+    expect(await within(overview).findByText(/13 kg/)).toBeInTheDocument();
+  });
+
+  it("empties the patient overview when the selected case leaves the board", async () => {
+    const buddy = buildCase({ id: "case-buddy", patientName: "Buddy" });
+    serveCases([buddy]);
+    renderBoard();
+    fireEvent.click(await screen.findByRole("button", { name: "Buddy" }));
+    const overview = screen.getByRole("complementary", { name: "Patient overview" });
+    await within(overview).findByText(/Case ER-/);
+
+    serveCases([]);
+    hub.emit("caseUpdated", buddy.id);
+
+    expect(await within(overview).findByText("Select a patient on the board to see their overview.")).toBeInTheDocument();
   });
 
   it("shows an error when the cases cannot be loaded", async () => {

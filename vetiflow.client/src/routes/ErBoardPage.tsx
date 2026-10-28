@@ -4,6 +4,7 @@ import type { SignInRouteState } from "../components/auth/experienceHome";
 import { PatientFlowBoard } from "../components/board/PatientFlowBoard";
 import { ErBoardStatusBar } from "../components/clinical/ErBoardStatusBar";
 import { IntakeDialog } from "../components/intake/IntakeDialog";
+import { PatientOverviewPanel } from "../components/overview/PatientOverviewPanel";
 import { useToast } from "../components/shell/toastContext";
 import type { CaseIntakeResult } from "../types/CaseIntake";
 import type { EmergencyCaseListItem } from "../types/EmergencyCaseListItem";
@@ -43,6 +44,9 @@ export function ErBoardPage() {
         }
 
         setCases(emergencyCases);
+        // A case that left the board (discharged) is no longer selected.
+        setSelectedCaseId((selected) =>
+          emergencyCases.some((emergencyCase) => emergencyCase.id === selected) ? selected : null);
         setUpdatedAt(new Date());
         setError(null);
       } catch (loadError) {
@@ -130,12 +134,16 @@ export function ErBoardPage() {
         </button>
       </header>
 
-      <PatientFlowBoard
-        cases={cases}
-        updatedAt={updatedAt}
-        selectedCaseId={selectedCaseId}
-        onSelect={setSelectedCaseId}
-      />
+      <div className={styles.layout}>
+        <PatientFlowBoard
+          cases={cases}
+          updatedAt={updatedAt}
+          selectedCaseId={selectedCaseId}
+          onSelect={setSelectedCaseId}
+        />
+
+        <PatientOverviewPanel caseId={selectedCaseId} refreshedAt={updatedAt} />
+      </div>
 
       <IntakeDialog
         isOpen={isIntakeOpen}
