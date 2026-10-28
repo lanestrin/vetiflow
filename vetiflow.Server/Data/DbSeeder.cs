@@ -56,6 +56,7 @@ public static class DbSeeder
 
 		await dbContext.EmergencyCases.ExecuteUpdateAsync(setters => setters
 				.SetProperty(emergencyCase => emergencyCase.ArrivalTime, emergencyCase => emergencyCase.ArrivalTime + by)
+				.SetProperty(emergencyCase => emergencyCase.StageEnteredAt, emergencyCase => emergencyCase.StageEnteredAt + by)
 				.SetProperty(emergencyCase => emergencyCase.LastUpdated, emergencyCase => emergencyCase.LastUpdated + by)
 				.SetProperty(emergencyCase => emergencyCase.LastOwnerUpdateAt, emergencyCase => emergencyCase.LastOwnerUpdateAt + by)
 				.SetProperty(emergencyCase => emergencyCase.DischargedAt, emergencyCase => emergencyCase.DischargedAt + by));
@@ -161,6 +162,7 @@ public static class DbSeeder
 	private static async Task SeedCasesAsync(VetiFlowDbContext dbContext)
 	{
 		var now = DateTimeOffset.UtcNow;
+		var today = DateOnly.FromDateTime(now.UtcDateTime);
 
 		var drLee = new StaffMember
 		{
@@ -229,6 +231,7 @@ public static class DbSeeder
 			Species = "Dog",
 			Breed = "Golden Retriever",
 			Sex = PatientSex.MaleIntact,
+			DateOfBirth = today.AddYears(-8).AddMonths(-3),
 			Owner = buddyOwner
 		};
 
@@ -238,6 +241,7 @@ public static class DbSeeder
 			Species = "Cat",
 			Breed = "Domestic Shorthair",
 			Sex = PatientSex.FemaleSpayed,
+			DateOfBirth = today.AddYears(-11).AddMonths(-7),
 			Owner = lunaOwner
 		};
 
@@ -247,6 +251,7 @@ public static class DbSeeder
 			Species = "Dog",
 			Breed = "German Shepherd",
 			Sex = PatientSex.MaleNeutered,
+			DateOfBirth = today.AddYears(-3).AddMonths(-1),
 			Owner = maxOwner
 		};
 
@@ -257,6 +262,7 @@ public static class DbSeeder
 					"Non-productive retching, restlessness, and abdominal distension.",
 			WeightKg = 31.4m,
 			Stage = CaseStage.Triage,
+			StageEnteredAt = now.AddMinutes(-12),
 			Status = CaseStatus.Blocked,
 			ArrivalTime = now.AddMinutes(-18),
 			AssignedDoctor = drLee,
@@ -316,6 +322,7 @@ public static class DbSeeder
 					"Repeated vomiting since this morning with decreased appetite.",
 			WeightKg = 4.8m,
 			Stage = CaseStage.Diagnostics,
+			StageEnteredAt = now.AddMinutes(-24),
 			Status = CaseStatus.Waiting,
 			ArrivalTime = now.AddMinutes(-42),
 			AssignedDoctor = drShah,
@@ -363,6 +370,7 @@ public static class DbSeeder
 					"Right hind limb lameness after jumping from a vehicle.",
 			WeightKg = 36.2m,
 			Stage = CaseStage.Treatment,
+			StageEnteredAt = now.AddMinutes(-40),
 			Status = CaseStatus.Assigned,
 			ArrivalTime = now.AddMinutes(-67),
 			AssignedDoctor = drLee,

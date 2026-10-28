@@ -57,6 +57,11 @@ public class EmergencyCase
 
 	public CaseStage Stage { get; set; } = CaseStage.Incoming;
 
+	// When the case entered its current stage; the board counts minutes in the
+	// stage from it (build plan 2.11a). Change the stage through MoveToStage
+	// so the two stay in step.
+	public DateTimeOffset StageEnteredAt { get; set; } = DateTimeOffset.UtcNow;
+
 	public CaseStatus Status { get; set; } = CaseStatus.Unassigned;
 
 	// Current acuity, the single source of truth for the board.
@@ -93,6 +98,20 @@ public class EmergencyCase
 	public List<CaseTask> Tasks { get; } = [];
 
 	public List<CaseEvent> Events { get; } = [];
+
+	// Moving to the stage it is already in changes nothing, so the minutes in
+	// the stage keep counting.
+	public void MoveToStage(CaseStage stage)
+	{
+		if (stage == Stage)
+		{
+			return;
+		}
+
+		Stage = stage;
+		StageEnteredAt = DateTimeOffset.UtcNow;
+		LastUpdated = StageEnteredAt;
+	}
 
 	public void RecordTriage(TriageAssessment assessment)
 	{

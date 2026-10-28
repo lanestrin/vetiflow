@@ -61,6 +61,10 @@ Decided (later items must keep these):
   between stage lanes.
 - **Prototype data:** decided 2026-10-28, every field the prototype shows gets
   real data, built as back-end and front-end item pairs.
+- **Wait chip:** decided 2026-10-28, as in the prototype, checked in this
+  order: Critical acuity shows "STAT"; status "ready for next step" shows
+  "Ready"; stage Recheck shows "Recheck"; a case not yet triaged shows "New";
+  otherwise the minutes since arrival ("18 min").
 - **Owners never see the staff board.** Owners get a private page for their own
   pet only, with calm wording and no acuity. Staff and client labels live in
   the client.
@@ -76,9 +80,6 @@ Decided (later items must keep these):
 
 Open (the item named in brackets needs it before its spec):
 
-- **Wait chip** (before 2.11a): the prototype shows "STAT", minutes, "Ready" or
-  "Recheck" on each card. Which status or stage shows which, and when minutes
-  count from arrival.
 - **Age at intake** (before 4.1a): the intake form takes an age ("8 years").
   Store an estimated date of birth from it, or store the age as given.
 - **Allergies and medications** (before 4.1a): kept on the patient (carry over
@@ -130,7 +131,7 @@ replaces it. Demo data only.
 
 **Patient flow board** (prototype: "Patient flow")
 
-- [ ] **2.11a** `feature/patient-flow-api`: the board list adds what each card shows: case number, patient age, owner name, location (room and area), the stage and minutes in it, the wait chip value, and the assigned clinician's short name and initials.
+- [x] **2.11a** `feature/patient-flow-api`: the board list adds what each card shows: case number, patient age, owner name, location (room and area), the stage and minutes in it, the wait chip value, and the assigned clinician's short name and initials. Done (history/features/2.11a-patient-flow-api.md).
 - [ ] **2.11b** `feature/patient-flow-board`: replace the stage lanes with the prototype's acuity lanes (Critical, Urgent, Stable, with counts), the new cards (name, species · breed · age, wait chip, owner · complaint, tags, stage · minutes, assigned clinician), the selected card, "Updated just now · N active cases", the footer count, live updates through the hub, and the 650 px lane tabs.
 - [ ] **2.14** `feature/board-search-filter`: the top bar's "Search patients…" filters the board's cards as you type (and offers the Patients search for patients not on the board), **Filter** (clinician, species, case status) and **Priority** sort. No new back end: it works on the loaded cases and the 4.6a search.
 
