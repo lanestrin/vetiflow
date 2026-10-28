@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using vetiflow.Server.Contracts.Cases;
+using vetiflow.Server.Contracts.Owners;
 using vetiflow.Server.Data;
 using vetiflow.Server.Hosting;
 using vetiflow.Server.Hubs;
@@ -93,6 +94,158 @@ public class CasesController : ControllerBase
 				.ToListAsync();
 
 		return Ok(cases);
+	}
+
+	// One case with everything the detail drawer shows (build plan 3.1).
+	// Discharged cases are returned too, so a case can be looked up after it
+	// leaves the board. Each collection is its own query (split), so one case
+	// with many vitals, tasks and events doesn't multiply rows.
+	[HttpGet("{id:guid}")]
+	public async Task<ActionResult<CaseDetailDto>> GetCase(Guid id, CancellationToken cancellationToken)
+	{
+		var detail = await _dbContext.EmergencyCases
+				.AsNoTracking()
+				.AsSplitQuery()
+				.Where(emergencyCase => emergencyCase.Id == id)
+				.Select(emergencyCase => new CaseDetailDto
+				{
+					Id = emergencyCase.Id,
+					Patient = new CasePatientDto
+					{
+						Id = emergencyCase.Patient.Id,
+						Name = emergencyCase.Patient.Name,
+						Species = emergencyCase.Patient.Species,
+						Breed = emergencyCase.Patient.Breed,
+						Sex = emergencyCase.Patient.Sex,
+						DateOfBirth = emergencyCase.Patient.DateOfBirth
+					},
+					Owner = emergencyCase.Patient.Owner == null
+						? null
+						: new OwnerDto
+						{
+							Id = emergencyCase.Patient.Owner.Id,
+							FirstName = emergencyCase.Patient.Owner.FirstName,
+							LastName = emergencyCase.Patient.Owner.LastName,
+							Phone = emergencyCase.Patient.Owner.Phone,
+							Email = emergencyCase.Patient.Owner.Email
+						},
+					PresentingComplaint = emergencyCase.PresentingComplaint,
+					WeightKg = emergencyCase.WeightKg,
+					Stage = emergencyCase.Stage,
+					Status = emergencyCase.Status,
+					Acuity = emergencyCase.Acuity,
+					ArrivalTime = emergencyCase.ArrivalTime,
+					LastUpdated = emergencyCase.LastUpdated,
+					DischargedAt = emergencyCase.DischargedAt,
+					NextAction = emergencyCase.NextAction,
+					AssignedDoctor = emergencyCase.AssignedDoctor == null
+						? null
+						: new CaseReferenceDto
+						{
+							Id = emergencyCase.AssignedDoctor.Id,
+							Name = emergencyCase.AssignedDoctor.FirstName + " " + emergencyCase.AssignedDoctor.LastName
+						},
+					AssignedTechnician = emergencyCase.AssignedTechnician == null
+						? null
+						: new CaseReferenceDto
+						{
+							Id = emergencyCase.AssignedTechnician.Id,
+							Name = emergencyCase.AssignedTechnician.FirstName + " " + emergencyCase.AssignedTechnician.LastName
+						},
+					Room = emergencyCase.Room == null
+						? null
+						: new CaseReferenceDto
+						{
+							Id = emergencyCase.Room.Id,
+							Name = emergencyCase.Room.Name
+						},
+					OwnerUpdateStatus = emergencyCase.OwnerUpdateStatus,
+					LastOwnerUpdateAt = emergencyCase.LastOwnerUpdateAt,
+					TriageAssessments = emergencyCase.TriageAssessments
+						.OrderByDescending(triage => triage.AssessedAt)
+						.Select(triage => new TriageAssessmentDto
+						{
+							Id = triage.Id,
+							Acuity = triage.Acuity,
+							RawIntakeNotes = triage.RawIntakeNotes,
+							AssessedAt = triage.AssessedAt,
+							AssessedBy = triage.AssessedByStaff == null
+								? null
+								: new CaseReferenceDto
+								{
+									Id = triage.AssessedByStaff.Id,
+									Name = triage.AssessedByStaff.FirstName + " " + triage.AssessedByStaff.LastName
+								}
+						})
+						.ToList(),
+					Vitals = emergencyCase.VitalsRecords
+						.OrderByDescending(vitals => vitals.RecordedAt)
+						.Select(vitals => new VitalsRecordDto
+						{
+							Id = vitals.Id,
+							HeartRate = vitals.HeartRate,
+							RespiratoryRate = vitals.RespiratoryRate,
+							TemperatureF = vitals.TemperatureF,
+							MucousMembraneColor = vitals.MucousMembraneColor,
+							CapillaryRefillTime = vitals.CapillaryRefillTime,
+							Mentation = vitals.Mentation,
+							RecordedAt = vitals.RecordedAt,
+							RecordedBy = vitals.RecordedByStaff == null
+								? null
+								: new CaseReferenceDto
+								{
+									Id = vitals.RecordedByStaff.Id,
+									Name = vitals.RecordedByStaff.FirstName + " " + vitals.RecordedByStaff.LastName
+								}
+						})
+						.ToList(),
+					Tasks = emergencyCase.Tasks
+						.OrderBy(task => task.Status == CaseTaskStatus.Open ? 0 : 1)
+						.ThenBy(task => task.CreatedAt)
+						.Select(task => new CaseTaskDto
+						{
+							Id = task.Id,
+							Type = task.Type,
+							Description = task.Description,
+							Status = task.Status,
+							DueAt = task.DueAt,
+							AssignedTo = task.AssignedToStaff == null
+								? null
+								: new CaseReferenceDto
+								{
+									Id = task.AssignedToStaff.Id,
+									Name = task.AssignedToStaff.FirstName + " " + task.AssignedToStaff.LastName
+								},
+							CreatedAt = task.CreatedAt,
+							ResolvedAt = task.ResolvedAt
+						})
+						.ToList(),
+					Timeline = emergencyCase.Events
+						.OrderBy(caseEvent => caseEvent.CreatedAt)
+						.Select(caseEvent => new CaseEventDto
+						{
+							Id = caseEvent.Id,
+							Type = caseEvent.Type,
+							Description = caseEvent.Description,
+							CreatedAt = caseEvent.CreatedAt,
+							CreatedBy = caseEvent.CreatedByStaff == null
+								? null
+								: new CaseReferenceDto
+								{
+									Id = caseEvent.CreatedByStaff.Id,
+									Name = caseEvent.CreatedByStaff.FirstName + " " + caseEvent.CreatedByStaff.LastName
+								}
+						})
+						.ToList()
+				})
+				.SingleOrDefaultAsync(cancellationToken);
+
+		if (detail is null)
+		{
+			return NotFound();
+		}
+
+		return detail;
 	}
 
 	[HttpPatch("{id:guid}/stage")]
