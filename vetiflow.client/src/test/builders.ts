@@ -19,7 +19,7 @@ export function buildCase(
     presentingComplaint: "Vomiting",
     stage: "incoming",
     status: "waiting",
-    acuity: "high",
+    acuity: "stable",
     arrivalTime: new Date().toISOString(),
     nextAction: null,
     assignedDoctor: null,

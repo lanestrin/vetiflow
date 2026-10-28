@@ -118,7 +118,7 @@ describe("ErBoardPage", () => {
     serveCases([
       buildCase({ patientName: "Rex", stage: "treatment", acuity: null }),
       buildCase({ patientName: "Bella", stage: "treatment", acuity: "critical" }),
-      buildCase({ patientName: "Coco", stage: "treatment", acuity: "low" })
+      buildCase({ patientName: "Coco", stage: "treatment", acuity: "stable" })
     ]);
 
     renderBoard();
