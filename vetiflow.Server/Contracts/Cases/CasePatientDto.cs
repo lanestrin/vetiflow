@@ -16,4 +16,12 @@ public class CasePatientDto
 	public PatientSex? Sex { get; set; }
 
 	public DateOnly? DateOfBirth { get; set; }
+
+	// True when worked out from an age given at intake ("8 years").
+	public bool DateOfBirthIsEstimated { get; set; }
+
+	// Carried from visit to visit; clinical, never logged.
+	public string? Allergies { get; set; }
+
+	public string? CurrentMedications { get; set; }
 }

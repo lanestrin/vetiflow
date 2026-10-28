@@ -24,6 +24,8 @@ public class CaseDetailDto
 
 	public CaseStage Stage { get; set; }
 
+	public DateTimeOffset StageEnteredAt { get; set; }
+
 	public CaseStatus Status { get; set; }
 
 	public AcuityLevel? Acuity { get; set; }
@@ -40,7 +42,17 @@ public class CaseDetailDto
 
 	public CaseReferenceDto? AssignedTechnician { get; set; }
 
-	public CaseReferenceDto? Room { get; set; }
+	public CaseRoomDto? Room { get; set; }
+
+	// What was confirmed at this visit's intake, to check against the patient's
+	// Allergies and CurrentMedications next time.
+	public string? AllergiesAtIntake { get; set; }
+
+	public string? MedicationsAtIntake { get; set; }
+
+	public TreatmentAuthorization TreatmentAuthorization { get; set; }
+
+	public string? ReferringClinic { get; set; }
 
 	public OwnerUpdateStatus OwnerUpdateStatus { get; set; }
 

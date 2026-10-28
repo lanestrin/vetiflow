@@ -563,6 +563,45 @@ public class CasesEndpointTests(VetiFlowApiFactory factory)
 		Assert.Equal(JsonValueKind.Null, item.GetProperty("clinician").ValueKind);
 	}
 
+	// The patient overview panel's data (build plan 3.2a), including what intake
+	// recorded so staff can check medicines and doses on the next visit.
+	[Fact]
+	public async Task GetCase_ReturnsOverviewFields()
+	{
+		var patient = TestData.Patient();
+		patient.DateOfBirth = new DateOnly(2018, 3, 1);
+		patient.DateOfBirthIsEstimated = true;
+		patient.Allergies = "Penicillin";
+		patient.CurrentMedications = "Carprofen 75 mg twice daily";
+		var room = TestData.Room();
+		room.Type = RoomType.Oxygen;
+		var emergencyCase = TestData.Case(patient, room);
+		// Whole seconds, so the value survives Postgres's microsecond precision.
+		emergencyCase.StageEnteredAt = DateTimeOffset.FromUnixTimeSeconds(1_800_000_000);
+		emergencyCase.AllergiesAtIntake = "Penicillin";
+		emergencyCase.MedicationsAtIntake = "Carprofen, last dose 7 AM";
+		emergencyCase.TreatmentAuthorization = TreatmentAuthorization.Authorized;
+		emergencyCase.ReferringClinic = "Lakeside Animal Clinic";
+		await SaveAsync(emergencyCase);
+		using var client = await factory.CreateSignedInClientAsync(DemoAccounts.TeamEmail);
+
+		var detail = await GetCaseAsync(client, emergencyCase.Id);
+
+		Assert.Equal(emergencyCase.StageEnteredAt, detail.GetProperty("stageEnteredAt").GetDateTimeOffset());
+		Assert.Equal("Penicillin", detail.GetProperty("allergiesAtIntake").GetString());
+		Assert.Equal("Carprofen, last dose 7 AM", detail.GetProperty("medicationsAtIntake").GetString());
+		Assert.Equal("authorized", detail.GetProperty("treatmentAuthorization").GetString());
+		Assert.Equal("Lakeside Animal Clinic", detail.GetProperty("referringClinic").GetString());
+		var roomJson = detail.GetProperty("room");
+		AssertReference(roomJson, room.Id, room.Name);
+		Assert.Equal("oxygen", roomJson.GetProperty("type").GetString());
+		var patientJson = detail.GetProperty("patient");
+		Assert.Equal("2018-03-01", patientJson.GetProperty("dateOfBirth").GetString());
+		Assert.True(patientJson.GetProperty("dateOfBirthIsEstimated").GetBoolean());
+		Assert.Equal("Penicillin", patientJson.GetProperty("allergies").GetString());
+		Assert.Equal("Carprofen 75 mg twice daily", patientJson.GetProperty("currentMedications").GetString());
+	}
+
 	[Fact]
 	public async Task GetCase_ReturnsCaseNumber()
 	{
