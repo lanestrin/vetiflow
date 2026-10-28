@@ -22,6 +22,9 @@ namespace vetiflow.Server.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.HasSequence<int>("CaseNumbers")
+                .StartsAt(2401L);
+
             modelBuilder.Entity("vetiflow.Server.Models.Account", b =>
                 {
                     b.Property<Guid>("Id")
@@ -224,6 +227,11 @@ namespace vetiflow.Server.Migrations
                     b.Property<Guid?>("AssignedTechnicianId")
                         .HasColumnType("uuid");
 
+                    b.Property<int>("CaseNumber")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValueSql("nextval('\"CaseNumbers\"')");
+
                     b.Property<DateTimeOffset?>("DischargedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -266,6 +274,9 @@ namespace vetiflow.Server.Migrations
                     b.HasIndex("AssignedDoctorId");
 
                     b.HasIndex("AssignedTechnicianId");
+
+                    b.HasIndex("CaseNumber")
+                        .IsUnique();
 
                     b.HasIndex("PatientId")
                         .IsUnique()

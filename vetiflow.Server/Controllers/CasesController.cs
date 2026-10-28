@@ -47,6 +47,7 @@ public class CasesController : ControllerBase
 				.Select(emergencyCase => new EmergencyCaseListItemDto
 				{
 					Id = emergencyCase.Id,
+					CaseNumber = "ER-" + emergencyCase.CaseNumber,
 					PatientId = emergencyCase.PatientId,
 					PatientName = emergencyCase.Patient.Name,
 					Species = emergencyCase.Patient.Species,
@@ -109,6 +110,7 @@ public class CasesController : ControllerBase
 				.Select(emergencyCase => new CaseDetailDto
 				{
 					Id = emergencyCase.Id,
+					CaseNumber = "ER-" + emergencyCase.CaseNumber,
 					Patient = new CasePatientDto
 					{
 						Id = emergencyCase.Patient.Id,

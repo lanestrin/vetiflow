@@ -476,6 +476,34 @@ public class CasesEndpointTests(VetiFlowApiFactory factory)
 		Assert.NotEqual(JsonValueKind.Null, detail.GetProperty("dischargedAt").ValueKind);
 	}
 
+	// Case numbers (build plan 3.4a): the database assigns them; the API
+	// shows them as "ER-<number>".
+	[Fact]
+	public async Task GetCases_ReturnsCaseNumber()
+	{
+		var emergencyCase = TestData.Case(TestData.Patient());
+		await SaveAsync(emergencyCase);
+		using var client = await factory.CreateSignedInClientAsync(DemoAccounts.TeamEmail);
+
+		var cases = await client.GetFromJsonAsync<JsonElement[]>("/api/cases", _cancellationToken);
+
+		var item = cases!.Single(item => item.GetProperty("id").GetGuid() == emergencyCase.Id);
+		Assert.True(emergencyCase.CaseNumber > 0);
+		Assert.Equal($"ER-{emergencyCase.CaseNumber}", item.GetProperty("caseNumber").GetString());
+	}
+
+	[Fact]
+	public async Task GetCase_ReturnsCaseNumber()
+	{
+		var emergencyCase = TestData.Case(TestData.Patient());
+		await SaveAsync(emergencyCase);
+		using var client = await factory.CreateSignedInClientAsync(DemoAccounts.TeamEmail);
+
+		var detail = await GetCaseAsync(client, emergencyCase.Id);
+
+		Assert.Equal($"ER-{emergencyCase.CaseNumber}", detail.GetProperty("caseNumber").GetString());
+	}
+
 	[Fact]
 	public async Task GetCase_Unknown_ReturnsNotFound()
 	{

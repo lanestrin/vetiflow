@@ -178,6 +178,31 @@ public class DatabaseConstraintTests(VetiFlowApiFactory factory)
 			saved.TriageAssessments.Select(a => a.Acuity).Order());
 	}
 
+	// The database numbers each new case from a sequence (build plan 3.4a),
+	// and two cases can never share a number.
+	[Fact]
+	public async Task CaseNumber_IsAssignedOnInsertAndUnique()
+	{
+		var first = TestData.Case(TestData.Patient());
+		var second = TestData.Case(TestData.Patient());
+		await SaveAsync(first);
+		await SaveAsync(second);
+
+		Assert.True(first.CaseNumber > 0);
+		Assert.True(second.CaseNumber > first.CaseNumber);
+
+		await using var dbContext = factory.CreateDbContext();
+		// A number set by hand is sent as is, so the index must catch it.
+		var duplicate = TestData.Case(TestData.Patient());
+		duplicate.CaseNumber = first.CaseNumber;
+		dbContext.EmergencyCases.Add(duplicate);
+
+		await AssertViolatesAsync(
+			dbContext,
+			PostgresErrorCodes.UniqueViolation,
+			"IX_EmergencyCases_CaseNumber");
+	}
+
 	private async Task SaveAsync(EmergencyCase emergencyCase)
 	{
 		await using var dbContext = factory.CreateDbContext();

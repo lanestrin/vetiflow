@@ -10,6 +10,9 @@ public class CaseDetailDto
 {
 	public Guid Id { get; set; }
 
+	// "ER-2481".
+	public required string CaseNumber { get; set; }
+
 	public required CasePatientDto Patient { get; set; }
 
 	// Null for a stray, or when the owner isn't known yet.
