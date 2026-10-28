@@ -243,6 +243,122 @@ public class DbSeederTests(VetiFlowApiFactory factory)
 		Assert.Equal(otherOwner.Id, await OwnerOfAsync(dbContext, ownedBuddy.Id));
 	}
 
+	// A demo database seeded weeks ago showed waits of about 1,190 hours
+	// (blueprint/history/fixes/2026-10-28-demo-case-times.md).
+	[Fact]
+	public async Task SeedAsync_BringsStaleDemoTimesForward()
+	{
+		await using var dbContext = await SeededDatabaseAsync();
+		await MoveCaseTimesAsync(dbContext, TimeSpan.FromDays(-50));
+		var before = await CaseTimesAsync(dbContext);
+
+		await SeedTwiceAsync(dbContext);
+
+		var newestActiveArrival = await dbContext.EmergencyCases
+			.Where(emergencyCase => emergencyCase.DischargedAt == null)
+			.MaxAsync(emergencyCase => emergencyCase.ArrivalTime, _cancellationToken);
+		var age = DateTimeOffset.UtcNow - newestActiveArrival;
+		Assert.InRange(age, TimeSpan.FromMinutes(17), TimeSpan.FromMinutes(19));
+		AssertAllMovedBySameAmount(before, await CaseTimesAsync(dbContext));
+	}
+
+	[Fact]
+	public async Task SeedAsync_LeavesRecentCaseTimesAlone()
+	{
+		await using var dbContext = await SeededDatabaseAsync();
+		await MoveCaseTimesAsync(dbContext, TimeSpan.FromHours(-2));
+		var before = await CaseTimesAsync(dbContext);
+
+		await SeedTwiceAsync(dbContext);
+
+		Assert.Equal(before, await CaseTimesAsync(dbContext));
+	}
+
+	[Fact]
+	public async Task SeedAsync_MovesDischargedCaseTimesWithTheRest()
+	{
+		await using var dbContext = await SeededDatabaseAsync();
+		var max = await dbContext.EmergencyCases.SingleAsync(emergencyCase => emergencyCase.Patient.Name == "Max", _cancellationToken);
+		max.DischargedAt = max.ArrivalTime.AddMinutes(30);
+		await dbContext.SaveChangesAsync(_cancellationToken);
+		await MoveCaseTimesAsync(dbContext, TimeSpan.FromDays(-50));
+		var before = await CaseTimesAsync(dbContext);
+
+		await SeedTwiceAsync(dbContext);
+
+		var after = await CaseTimesAsync(dbContext);
+		Assert.Contains(after.Keys, key => key.StartsWith("case.discharged:"));
+		AssertAllMovedBySameAmount(before, after);
+		Assert.NotEqual(before.Values.First(), after.Values.First());
+	}
+
+	// Moves every case-related time, as weeks passing would.
+	private async Task MoveCaseTimesAsync(VetiFlowDbContext dbContext, TimeSpan by)
+	{
+		await dbContext.EmergencyCases.ExecuteUpdateAsync(setters => setters
+			.SetProperty(emergencyCase => emergencyCase.ArrivalTime, emergencyCase => emergencyCase.ArrivalTime + by)
+			.SetProperty(emergencyCase => emergencyCase.LastUpdated, emergencyCase => emergencyCase.LastUpdated + by)
+			.SetProperty(emergencyCase => emergencyCase.LastOwnerUpdateAt, emergencyCase => emergencyCase.LastOwnerUpdateAt + by)
+			.SetProperty(emergencyCase => emergencyCase.DischargedAt, emergencyCase => emergencyCase.DischargedAt + by), _cancellationToken);
+		await dbContext.CaseTasks.ExecuteUpdateAsync(setters => setters
+			.SetProperty(task => task.CreatedAt, task => task.CreatedAt + by)
+			.SetProperty(task => task.DueAt, task => task.DueAt + by), _cancellationToken);
+		await dbContext.VitalsRecords.ExecuteUpdateAsync(setters => setters
+			.SetProperty(vitals => vitals.RecordedAt, vitals => vitals.RecordedAt + by), _cancellationToken);
+		await dbContext.TriageAssessments.ExecuteUpdateAsync(setters => setters
+			.SetProperty(triage => triage.AssessedAt, triage => triage.AssessedAt + by), _cancellationToken);
+		await dbContext.CaseEvents.ExecuteUpdateAsync(setters => setters
+			.SetProperty(caseEvent => caseEvent.CreatedAt, caseEvent => caseEvent.CreatedAt + by), _cancellationToken);
+		dbContext.ChangeTracker.Clear();
+	}
+
+	// Every stored case-related time, keyed by what and which row.
+	private async Task<Dictionary<string, DateTimeOffset>> CaseTimesAsync(VetiFlowDbContext dbContext)
+	{
+		var times = new Dictionary<string, DateTimeOffset>();
+
+		foreach (var emergencyCase in await dbContext.EmergencyCases.AsNoTracking().ToListAsync(_cancellationToken))
+		{
+			times[$"case.arrival:{emergencyCase.Id}"] = emergencyCase.ArrivalTime;
+			times[$"case.updated:{emergencyCase.Id}"] = emergencyCase.LastUpdated;
+			if (emergencyCase.LastOwnerUpdateAt is { } ownerUpdate) times[$"case.owner:{emergencyCase.Id}"] = ownerUpdate;
+			if (emergencyCase.DischargedAt is { } discharged) times[$"case.discharged:{emergencyCase.Id}"] = discharged;
+		}
+
+		foreach (var task in await dbContext.CaseTasks.AsNoTracking().ToListAsync(_cancellationToken))
+		{
+			times[$"task.created:{task.Id}"] = task.CreatedAt;
+			if (task.DueAt is { } due) times[$"task.due:{task.Id}"] = due;
+		}
+
+		foreach (var vitals in await dbContext.VitalsRecords.AsNoTracking().ToListAsync(_cancellationToken))
+		{
+			times[$"vitals:{vitals.Id}"] = vitals.RecordedAt;
+		}
+
+		foreach (var triage in await dbContext.TriageAssessments.AsNoTracking().ToListAsync(_cancellationToken))
+		{
+			times[$"triage:{triage.Id}"] = triage.AssessedAt;
+		}
+
+		foreach (var caseEvent in await dbContext.CaseEvents.AsNoTracking().ToListAsync(_cancellationToken))
+		{
+			times[$"event:{caseEvent.Id}"] = caseEvent.CreatedAt;
+		}
+
+		return times;
+	}
+
+	private static void AssertAllMovedBySameAmount(
+		Dictionary<string, DateTimeOffset> before,
+		Dictionary<string, DateTimeOffset> after)
+	{
+		Assert.Equal(before.Keys.Order(), after.Keys.Order());
+		var shifts = before.Keys.Select(key => after[key] - before[key]).Distinct().ToList();
+		var shift = Assert.Single(shifts);
+		Assert.True(shift > TimeSpan.FromDays(49), $"Times should move forward by about 50 days, moved {shift}.");
+	}
+
 	private async Task<VetiFlowDbContext> MigratedDatabaseAsync()
 	{
 		var dbContext = VetiFlowApiFactory.CreateDbContext(await factory.Postgres.CreateDatabaseAsync());
