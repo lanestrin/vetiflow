@@ -6,8 +6,7 @@ describe("AcuityBadge", () => {
   it.each([
     ["critical", "Critical"],
     ["urgent", "Urgent"],
-    ["high", "High"],
-    ["low", "Low"]
+    ["stable", "Stable"]
   ] as const)("labels %s acuity as %s", (acuity, label) => {
     render(<AcuityBadge acuity={acuity} />);
 

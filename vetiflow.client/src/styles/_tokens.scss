@@ -20,10 +20,16 @@
 	--color-border: #d9e0e8;
 	--color-border-strong: #b7c1ce;
 	// Workflow
-	--color-critical: #c62828;
-	--color-urgent: #c76b00;
-	--color-active: #2563eb;
 	--color-success: #15803d;
+	// Acuity, from blueprint/reference/vetiflow-er-dashboard.html. The text
+	// shades are the prototype's hues darkened just enough for AA on their
+	// backgrounds, on the lane background and on white.
+	--color-acuity-critical: #b9493e;
+	--color-acuity-critical-bg: #fff0ed;
+	--color-acuity-urgent: #99641c;
+	--color-acuity-urgent-bg: #fff5e4;
+	--color-acuity-stable: #067970;
+	--color-acuity-stable-bg: #dff4ef;
 	// Focus
 	--color-focus: #2563eb;
 	--color-focus-on-light: var(--color-care-teal);
