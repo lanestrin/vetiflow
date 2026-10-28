@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import type { SignInRouteState } from "../components/auth/experienceHome";
 import { SessionBar } from "../components/auth/SessionBar";
 import { WorkflowLane } from "../components/clinical/WorkflowLane";
@@ -129,6 +129,8 @@ export function ErBoardPage({ user }: ErBoardPageProps) {
         <h1 className={styles.title}>VetiFlow ER Board</h1>
 
         <ErBoardStatusBar cases={cases} />
+
+        <Link className={styles.recordsLink} to="/records">Patient records</Link>
 
         <SessionBar user={user} />
       </header>

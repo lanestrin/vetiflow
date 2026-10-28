@@ -20,6 +20,20 @@
 	font-weight: 700;
 }
 
+.recordsLink {
+	display: inline-flex;
+	align-items: center;
+	min-height: 2.75rem;
+	color: var(--color-care-teal);
+	font-size: 0.875rem;
+	font-weight: 700;
+
+	&:focus-visible {
+		outline: 3px solid var(--color-focus);
+		outline-offset: 2px;
+	}
+}
+
 .board {
 	display: flex;
 	align-items: flex-start;

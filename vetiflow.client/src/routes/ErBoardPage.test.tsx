@@ -62,6 +62,12 @@ describe("ErBoardPage", () => {
     expect(screen.getByRole("button", { name: "Sign out" })).toBeInTheDocument();
   });
 
+  it("links to patient records", async () => {
+    renderBoard();
+
+    expect(await screen.findByRole("link", { name: "Patient records" })).toHaveAttribute("href", "/records");
+  });
+
   it("sends the person to sign in when the session has ended", async () => {
     saveAccessToken("expired");
     server.use(http.get(apiUrl("/api/cases"), () => new HttpResponse(null, { status: 401 })));
