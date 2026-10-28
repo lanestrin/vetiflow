@@ -509,6 +509,8 @@ public class CasesEndpointTests(VetiFlowApiFactory factory)
 		emergencyCase.AssignedDoctor = doctor;
 		emergencyCase.AssignedTechnician = TestData.StaffMember(StaffRole.Technician);
 		emergencyCase.RecordTriage(new TriageAssessment { Acuity = AcuityLevel.Critical });
+		// Past triage, so a Critical case shows STAT rather than New.
+		emergencyCase.Stage = CaseStage.Treatment;
 		// A whole-second time, so the value read back from Postgres compares equal.
 		emergencyCase.StageEnteredAt = new DateTimeOffset(2026, 10, 28, 10, 53, 0, TimeSpan.Zero);
 		await SaveAsync(emergencyCase);
