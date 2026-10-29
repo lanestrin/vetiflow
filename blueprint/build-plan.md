@@ -76,6 +76,12 @@ Decided (later items must keep these):
   next client update are task types with a due time and an assignee, like any
   other task. The panel rows show the next open one of each, My work queue lists
   my open tasks, and "Open actions" counts them. No separate case columns.
+- **Shift:** decided 2026-10-28 (for 2.12a). Fixed shifts on the clinic's
+  own clock (America/Chicago): Day 08:00 to 20:00, Night 20:00 to 08:00, from the `Clinic`
+  setting (`TimeZone`, `DayShiftStarts`, `NightShiftStarts`) until Settings
+  (9.3) owns them. 2.15a and 2.16a's "last shift" use the same setting.
+- **Care team:** decided 2026-10-28 (for 2.12a). A case has a care team when
+  a doctor or a technician is assigned, as on the card.
 - **On the floor = My status:** decided 2026-10-28. Each clinician sets My
   status (Busy, Available, At limit, Unavailable), stored on the staff record.
   Anyone not Unavailable counts as on the floor. Feeds the heading's shift chip,
@@ -109,8 +115,6 @@ Decided (later items must keep these):
 
 Open (the item named in brackets needs it before its spec):
 
-- **Shift** (before 2.15a): how "Day shift" is defined (fixed hours or a clinic
-  setting). Who is on the floor is decided (My status).
 - **Door to doctor** (before 2.16a): which moment counts as "seen by a doctor"
   (doctor assigned, or a "Doctor assessment" event), and what "last shift" is.
 - **Vital alert ranges** (before 4.8a): the heart rate, respiratory rate,
@@ -170,7 +174,7 @@ replaces it. Demo data only.
 
 **Stats row** (prototype: four clickable stat cards)
 
-- [ ] **2.12a** `feature/board-summary-api`: `GET /api/board/summary`: patients in care and how many arrived since the shift began, awaiting triage (cases in Incoming) and the oldest wait, critical patients and whether all have a care team. Door to doctor follows in 2.16a.
+- [x] **2.12a** `feature/board-summary-api`: `GET /api/board/summary`: patients in care and how many arrived since the shift began, awaiting triage (cases in Incoming) and the oldest wait, critical patients and whether all have a care team. Door to doctor follows in 2.16a. Done (history/features/2.12a-board-summary-api.md).
 - [ ] **2.12b** `feature/board-stats`: the four stat cards as in the prototype, refreshed with the board, as filters: Patients in care shows all cases, Awaiting triage and Critical patients filter the board (pressed state, footer text); door to doctor shows "—" until 2.16b.
 - [ ] **2.14** `feature/board-search-filter`: the top bar's "Search patients…" filters the board's cards as you type (and offers the Patients search for patients not on the board), the **Incoming** toggle with its count, **Filter** (clinician, species, case status) and **Priority** sort. No new back end: it works on the loaded cases and the 4.6a search.
 
@@ -181,7 +185,7 @@ replaces it. Demo data only.
 
 **Page heading** (prototype: hospital name, title, shift, New intake)
 
-- [ ] **2.15a** `feature/shift-api`: the clinic's name (from clinic settings, a setting until 9.3) and the current shift per the decision, with the number of clinicians on the floor from My status (2.21a).
+- [ ] **2.15a** `feature/shift-api`: the clinic's name (from clinic settings, a setting until 9.3) and the current shift from the `Clinic` setting (2.12a), with the number of clinicians on the floor from My status (2.21a).
 - [ ] **2.15b** `feature/board-heading`: the eyebrow, "ER Command Center" title and subtitle, the live shift chip and the **New intake** button opening the intake dialog (4.1b).
 
 **Patient overview panel** (prototype: right-hand panel)
