@@ -3,7 +3,14 @@ import { Link } from "react-router-dom";
 import type { AcuityLevel, EmergencyCaseListItem } from "../../types/EmergencyCaseListItem";
 import type { BoardFilter } from "./BoardStats";
 import { BoardFilterMenu } from "./BoardFilterMenu";
-import { matchesMenuFilters, matchesSearch, minutesSince, noMenuFilters, type BoardMenuFilters } from "./boardFormat";
+import {
+  matchesMenuFilters,
+  matchesSearch,
+  minutesSince,
+  noMenuFilters,
+  sortByLongestInStage,
+  type BoardMenuFilters
+} from "./boardFormat";
 import { PatientCard } from "./PatientCard";
 import { useNow } from "./useNow";
 import styles from "./PatientFlowBoard.module.scss";
@@ -59,7 +66,8 @@ function footLabel(filter: BoardFilter, shownCount: number, totalCount: number):
 }
 
 // The prototype's "Patient flow" (build plan 2.11b): one lane per acuity,
-// cards in the API's order. Cases with no acuity (old data only) get their own
+// cards in the API's order, or longest in stage first while Priority is
+// pressed (2.14d). Cases with no acuity (old data only) get their own
 // lane so none are hidden. At phone width, tabs show one lane at a time.
 // The stat cards' filter keeps only incoming cards (lanes stacked, as in the
 // prototype) or only the Critical lane.
@@ -77,12 +85,15 @@ export function PatientFlowBoard({
   const [shownLane, setShownLane] = useState<LaneKey>("critical");
   // The Filter menu's choices (2.14c), kept while the page is open.
   const [menuFilters, setMenuFilters] = useState<BoardMenuFilters>(noMenuFilters);
+  // The Priority button (2.14d): the API's priority order unless pressed.
+  const [isLongestInStageFirst, setIsLongestInStageFirst] = useState(false);
 
   const filteredCases = filter === "awaitingTriage"
     ? cases.filter((emergencyCase) => emergencyCase.stage === "incoming")
     : cases;
-  const shownCases = filteredCases.filter((emergencyCase) =>
+  const matchingCases = filteredCases.filter((emergencyCase) =>
     matchesMenuFilters(emergencyCase, menuFilters) && matchesSearch(emergencyCase, search));
+  const shownCases = isLongestInStageFirst ? sortByLongestInStage(matchingCases) : matchingCases;
   const searchText = search.trim();
   const incomingCount = cases.filter((emergencyCase) => emergencyCase.stage === "incoming").length;
   const isIncomingShown = filter === "awaitingTriage";
@@ -147,6 +158,17 @@ export function PatientFlowBoard({
             <span className={styles.toolLabel}>Incoming</span> <b>{incomingCount}</b>
           </button>
           <BoardFilterMenu cases={cases} filters={menuFilters} onChange={setMenuFilters} />
+          {/* The prototype's #sort. */}
+          <button
+            type="button"
+            className={styles.toolButton}
+            aria-pressed={isLongestInStageFirst}
+            aria-label="Priority, longest in stage first"
+            onClick={() => setIsLongestInStageFirst(!isLongestInStageFirst)}
+          >
+            <span aria-hidden="true">↕ </span>
+            <span className={styles.toolLabel}>Priority</span>
+          </button>
         </div>
       </header>
 

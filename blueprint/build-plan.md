@@ -176,11 +176,11 @@ replaces it. Demo data only.
 
 - [x] **2.12a** `feature/board-summary-api`: `GET /api/board/summary`: patients in care and how many arrived since the shift began, awaiting triage (cases in Incoming) and the oldest wait, critical patients and whether all have a care team. Door to doctor follows in 2.16a. Done (history/features/2.12a-board-summary-api.md).
 - [x] **2.12b** `feature/board-stats`: the four stat cards as in the prototype, refreshed with the board, as filters: Patients in care shows all cases, Awaiting triage and Critical patients filter the board (pressed state, footer text); door to doctor shows "—" until 2.16b. Done (history/features/2.12b-board-stats.md).
-- [ ] **2.14** split into 2.14a-d (2026-10-29): the top bar search, the **Incoming** toggle, **Filter** and **Priority** on the board, one PR each. No new back end.
+- [x] **2.14** split into 2.14a-d (2026-10-29): the top bar search, the **Incoming** toggle, **Filter** and **Priority** on the board, one PR each. No new back end. Done (2.14a-d).
   - [x] **2.14a** `feature/board-search`: the top bar's "Search patients…" filters the board's cards as you type, with a "Search all patients" link to the Patients search (4.6a) for patients not on the board; Enter still opens Patients. Done (history/features/2.14a-board-search.md).
   - [x] **2.14b** `feature/board-incoming-toggle`: the **Incoming** toggle with its count, sharing the Awaiting triage card's filter (2.12b); pressing it again shows all patients. Done (history/features/2.14b-board-incoming-toggle.md).
   - [x] **2.14c** `feature/board-filter-menu`: **Filter** by clinician, species and case status. The prototype only shows the button, so the spec proposes a small menu in its visual language for an OK first. Done (history/features/2.14c-board-filter-menu.md).
-  - [ ] **2.14d** `feature/board-priority-sort`: **Priority** toggles each lane between priority order (the default) and longest wait first, pressed while longest wait is on.
+  - [x] **2.14d** `feature/board-priority-sort`: **Priority** toggles each lane between priority order (the default) and longest in current stage first (decided 2026-10-29: within a lane the API order already is longest since arrival), pressed while longest in stage is on. Done (history/features/2.14d-board-priority-sort.md).
 
 **My status** (prototype: "My status" in My patients, clinicians on floor)
 

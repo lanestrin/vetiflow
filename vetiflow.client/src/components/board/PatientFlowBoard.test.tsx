@@ -316,4 +316,74 @@ describe("PatientFlowBoard", () => {
       expect(screen.getByRole("button", { name: "Filter" })).toHaveAttribute("aria-pressed", "false");
     });
   });
+
+  // The Priority button (build plan 2.14d).
+  describe("Priority button", () => {
+    const cases = () => [
+      buildCase({ patientName: "Biscuit", acuity: "urgent", stageEnteredAt: "2026-10-28T11:55:00Z", species: "Dog" }),
+      buildCase({ patientName: "Mochi", acuity: "urgent", stageEnteredAt: "2026-10-28T11:40:00Z", species: "Cat" }),
+      buildCase({ patientName: "Pip", acuity: "stable", stageEnteredAt: "2026-10-28T11:30:00Z", species: "Cat" })
+    ];
+
+    function showBoard(search?: string) {
+      render(
+        <MemoryRouter>
+          <PatientFlowBoard cases={cases()} updatedAt={new Date()} selectedCaseId={null} onSelect={vi.fn()} search={search} />
+        </MemoryRouter>
+      );
+    }
+
+    function priorityButton() {
+      return screen.getByRole("button", { name: "Priority, longest in stage first" });
+    }
+
+    function urgentNames() {
+      return within(lane("Urgent")).getAllByRole("article").map((card) => within(card).getByRole("heading").textContent);
+    }
+
+    it("keeps the API order and is not pressed by default", () => {
+      showBoard();
+
+      expect(urgentNames()).toEqual(["Biscuit", "Mochi"]);
+      expect(priorityButton()).toHaveAttribute("aria-pressed", "false");
+    });
+
+    it("puts the case longest in its stage first when pressed", () => {
+      showBoard();
+
+      fireEvent.click(priorityButton());
+
+      expect(urgentNames()).toEqual(["Mochi", "Biscuit"]);
+      expect(priorityButton()).toHaveAttribute("aria-pressed", "true");
+    });
+
+    it("restores the API order when pressed again", () => {
+      showBoard();
+
+      fireEvent.click(priorityButton());
+      fireEvent.click(priorityButton());
+
+      expect(urgentNames()).toEqual(["Biscuit", "Mochi"]);
+    });
+
+    it("keeps the order with a Filter menu choice, with the counts unchanged", () => {
+      showBoard();
+      fireEvent.click(priorityButton());
+      fireEvent.click(screen.getByRole("button", { name: /^Filter/ }));
+
+      fireEvent.change(screen.getByRole("combobox", { name: "Species" }), { target: { value: "Cat" } });
+
+      expect(urgentNames()).toEqual(["Mochi"]);
+      expect(screen.getByText("Showing 2 of 3 active cases")).toBeInTheDocument();
+    });
+
+    it("keeps the order with a search", () => {
+      showBoard("i");
+
+      fireEvent.click(priorityButton());
+
+      expect(urgentNames()).toEqual(["Mochi", "Biscuit"]);
+      expect(within(lane("Urgent")).getByText("2")).toBeInTheDocument();
+    });
+  });
 });

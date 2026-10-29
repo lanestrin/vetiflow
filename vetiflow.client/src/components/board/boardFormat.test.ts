@@ -7,6 +7,7 @@ import {
   matchesSearch,
   minutesSince,
   noMenuFilters,
+  sortByLongestInStage,
   stageLabel,
   waitChipLabel
 } from "./boardFormat";
@@ -152,5 +153,32 @@ describe("matchesMenuFilters", () => {
   it("needs every filter in use to match", () => {
     expect(matchesMenuFilters(reedsCat, { clinicianId: "staff-reed", species: "Cat", status: "waiting" })).toBe(true);
     expect(matchesMenuFilters(reedsCat, { clinicianId: "staff-reed", species: "Cat", status: "blocked" })).toBe(false);
+  });
+});
+
+describe("sortByLongestInStage", () => {
+  const recent = buildCase({ id: "recent", stageEnteredAt: "2026-10-28T11:55:00Z" });
+  const longest = buildCase({ id: "longest", stageEnteredAt: "2026-10-28T11:20:00Z" });
+  const tiedFirst = buildCase({ id: "tied-first", stageEnteredAt: "2026-10-28T11:40:00Z" });
+  const tiedSecond = buildCase({ id: "tied-second", stageEnteredAt: "2026-10-28T11:40:00Z" });
+
+  it("puts the case longest in its stage first", () => {
+    const sorted = sortByLongestInStage([recent, longest]);
+
+    expect(sorted.map((emergencyCase) => emergencyCase.id)).toEqual(["longest", "recent"]);
+  });
+
+  it("keeps the given order for equal stage times", () => {
+    const sorted = sortByLongestInStage([recent, tiedFirst, tiedSecond]);
+
+    expect(sorted.map((emergencyCase) => emergencyCase.id)).toEqual(["tied-first", "tied-second", "recent"]);
+  });
+
+  it("leaves the given cases unchanged", () => {
+    const cases = [recent, longest];
+
+    sortByLongestInStage(cases);
+
+    expect(cases).toEqual([recent, longest]);
   });
 });
