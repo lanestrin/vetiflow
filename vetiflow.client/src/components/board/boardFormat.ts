@@ -1,4 +1,4 @@
-import type { CaseStage, WaitChip } from "../../types/EmergencyCaseListItem";
+import type { CaseStage, EmergencyCaseListItem, WaitChip } from "../../types/EmergencyCaseListItem";
 
 // Staff wording for the patient flow cards (build plan 2.11b). The API sends
 // enum values; the words live here.
@@ -53,4 +53,24 @@ const stageLabels: Record<CaseStage, string> = {
 
 export function stageLabel(stage: CaseStage): string {
   return stageLabels[stage];
+}
+
+// The top bar's search on the board (build plan 2.14a): the text, trimmed and
+// in any case, anywhere in the fields a card shows. Empty matches every card.
+export function matchesSearch(emergencyCase: EmergencyCaseListItem, search: string): boolean {
+  const text = search.trim().toLowerCase();
+  if (text === "") {
+    return true;
+  }
+
+  const fields = [
+    emergencyCase.patientName,
+    emergencyCase.caseNumber,
+    emergencyCase.ownerName,
+    emergencyCase.species,
+    emergencyCase.breed,
+    emergencyCase.presentingComplaint
+  ];
+
+  return fields.some((field) => field?.toLowerCase().includes(text) ?? false);
 }

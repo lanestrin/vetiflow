@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { ageLabel, minutesSince, stageLabel, waitChipLabel } from "./boardFormat";
+import { buildCase } from "../../test/builders";
+import { ageLabel, matchesSearch, minutesSince, stageLabel, waitChipLabel } from "./boardFormat";
 
 const now = new Date("2026-10-28T12:00:00Z");
 
@@ -51,5 +52,38 @@ describe("stageLabel", () => {
     ["discharge", "Discharge"]
   ] as const)("labels %s as %s", (stage, label) => {
     expect(stageLabel(stage)).toBe(label);
+  });
+});
+
+describe("matchesSearch", () => {
+  const milo = buildCase({
+    patientName: "Milo",
+    caseNumber: "ER-2481",
+    ownerName: "Avery Chen",
+    species: "Dog",
+    breed: "Golden Retriever",
+    presentingComplaint: "Hit by vehicle"
+  });
+
+  it.each(["Milo", "ER-2481", "Avery", "dog", "retriever", "vehicle"])("matches on \"%s\"", (search) => {
+    expect(matchesSearch(milo, search)).toBe(true);
+  });
+
+  it("ignores case and surrounding spaces", () => {
+    expect(matchesSearch(milo, "  gOLDEN  ")).toBe(true);
+  });
+
+  it("matches every case when the search is empty", () => {
+    expect(matchesSearch(milo, "")).toBe(true);
+    expect(matchesSearch(milo, "   ")).toBe(true);
+  });
+
+  it("skips a missing owner name", () => {
+    expect(matchesSearch(buildCase({ patientName: "Rex", ownerName: null }), "rex")).toBe(true);
+    expect(matchesSearch(buildCase({ patientName: "Rex", ownerName: null }), "chen")).toBe(false);
+  });
+
+  it("does not match text found in no field", () => {
+    expect(matchesSearch(milo, "cat")).toBe(false);
   });
 });

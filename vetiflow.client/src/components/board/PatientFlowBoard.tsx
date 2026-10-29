@@ -1,7 +1,8 @@
 import { useId, useState, type CSSProperties } from "react";
+import { Link } from "react-router-dom";
 import type { AcuityLevel, EmergencyCaseListItem } from "../../types/EmergencyCaseListItem";
 import type { BoardFilter } from "./BoardStats";
-import { minutesSince } from "./boardFormat";
+import { matchesSearch, minutesSince } from "./boardFormat";
 import { PatientCard } from "./PatientCard";
 import { useNow } from "./useNow";
 import styles from "./PatientFlowBoard.module.scss";
@@ -22,6 +23,8 @@ interface PatientFlowBoardProps {
   onSelect: (caseId: string) => void;
   // From the stat cards (2.12b); every case when not given.
   filter?: BoardFilter;
+  // The top bar's search (2.14a), applied after the filter.
+  search?: string;
 }
 
 const acuityLanes: { key: AcuityLevel; title: string }[] = [
@@ -57,14 +60,23 @@ function footLabel(filter: BoardFilter, shownCount: number, totalCount: number):
 // lane so none are hidden. At phone width, tabs show one lane at a time.
 // The stat cards' filter keeps only incoming cards (lanes stacked, as in the
 // prototype) or only the Critical lane.
-export function PatientFlowBoard({ cases, updatedAt, selectedCaseId, onSelect, filter = "all" }: PatientFlowBoardProps) {
+export function PatientFlowBoard({
+  cases,
+  updatedAt,
+  selectedCaseId,
+  onSelect,
+  filter = "all",
+  search = ""
+}: PatientFlowBoardProps) {
   const titleId = useId();
   const now = useNow();
   const [shownLane, setShownLane] = useState<LaneKey>("critical");
 
-  const shownCases = filter === "awaitingTriage"
+  const filteredCases = filter === "awaitingTriage"
     ? cases.filter((emergencyCase) => emergencyCase.stage === "incoming")
     : cases;
+  const shownCases = filteredCases.filter((emergencyCase) => matchesSearch(emergencyCase, search));
+  const searchText = search.trim();
   const shownAcuityLanes = filter === "critical"
     ? acuityLanes.filter((lane) => lane.key === "critical")
     : acuityLanes;
@@ -143,7 +155,17 @@ export function PatientFlowBoard({ cases, updatedAt, selectedCaseId, onSelect, f
       </div>
 
       <p className={styles.foot}>
-        {footLabel(filter, shownCount, cases.length)}
+        {searchText === "" ? (
+          footLabel(filter, shownCount, cases.length)
+        ) : (
+          // Patients finds a pet who isn't on the board (4.6a).
+          <>
+            Showing {shownCount} matching “{searchText}” ·{" "}
+            <Link className={styles.footLink} to={`/records?search=${encodeURIComponent(searchText)}`}>
+              Search all patients
+            </Link>
+          </>
+        )}
       </p>
     </section>
   );

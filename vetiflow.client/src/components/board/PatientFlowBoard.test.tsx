@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 import { buildCase } from "../../test/builders";
 import type { EmergencyCaseListItem } from "../../types/EmergencyCaseListItem";
@@ -128,6 +129,69 @@ describe("PatientFlowBoard", () => {
       );
 
       expect(lane("Critical")).toHaveAttribute("data-shown", "true");
+    });
+  });
+
+  // The top bar's search (build plan 2.14a).
+  describe("with a search", () => {
+    const cases = () => [
+      buildCase({ patientName: "Milo", acuity: "critical", ownerName: "Avery Chen" }),
+      buildCase({ patientName: "Mia", acuity: "urgent", ownerName: "Jo Mills" }),
+      buildCase({ patientName: "Pip", acuity: "stable", ownerName: "Avery Chen" })
+    ];
+
+    function searchBoard(search: string, filter?: BoardFilter) {
+      render(
+        <MemoryRouter>
+          <PatientFlowBoard
+            cases={cases()}
+            updatedAt={new Date()}
+            selectedCaseId={null}
+            onSelect={vi.fn()}
+            filter={filter}
+            search={search}
+          />
+        </MemoryRouter>
+      );
+    }
+
+    it("shows only the matching cards, with lane counts for them", () => {
+      searchBoard("mil");
+
+      expect(within(lane("Critical")).getByRole("heading", { name: "Milo" })).toBeInTheDocument();
+      expect(within(lane("Urgent")).getByRole("heading", { name: "Mia" })).toBeInTheDocument();
+      expect(within(lane("Stable")).getByText("0")).toBeInTheDocument();
+      expect(within(lane("Stable")).getByText("No patients")).toBeInTheDocument();
+    });
+
+    it("says how many match and links to the Patients search", () => {
+      searchBoard("  Avery ");
+
+      expect(screen.getByText(/Showing 2 matching “Avery”/)).toBeInTheDocument();
+      expect(screen.getByRole("link", { name: "Search all patients" })).toHaveAttribute("href", "/records?search=Avery");
+    });
+
+    it("still offers the Patients search when nothing on the board matches", () => {
+      searchBoard("Rex");
+
+      expect(screen.queryAllByRole("article")).toHaveLength(0);
+      expect(screen.getByText(/Showing 0 matching “Rex”/)).toBeInTheDocument();
+      expect(screen.getByRole("link", { name: "Search all patients" })).toHaveAttribute("href", "/records?search=Rex");
+    });
+
+    it("applies after the stat card filter", () => {
+      searchBoard("Avery", "critical");
+
+      expect(screen.getAllByRole("article")).toHaveLength(1);
+      expect(screen.getByRole("heading", { name: "Milo" })).toBeInTheDocument();
+    });
+
+    it("shows every card and the usual foot for an empty search", () => {
+      searchBoard("   ");
+
+      expect(screen.getAllByRole("article")).toHaveLength(3);
+      expect(screen.getByText("Showing 3 of 3 active cases")).toBeInTheDocument();
+      expect(screen.queryByRole("link", { name: "Search all patients" })).not.toBeInTheDocument();
     });
   });
 });

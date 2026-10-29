@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { readAccessToken, saveAccessToken } from "../../services/session";
 import { buildTeamMember } from "../../test/builders";
 import { AppShell } from "./AppShell";
+import { useShellSearch } from "./shellSearchContext";
 
 afterEach(() => {
   sessionStorage.clear();
@@ -13,6 +14,11 @@ afterEach(() => {
 function Where() {
   const location = useLocation();
   return <p data-testid="where">{location.pathname + location.search}</p>;
+}
+
+// Shows the search the shell shares with the page below it.
+function SearchReader() {
+  return <p data-testid="shared-search">{useShellSearch()}</p>;
 }
 
 function renderShell(path = "/er") {
@@ -25,6 +31,7 @@ function renderShell(path = "/er") {
           element={
             <AppShell user={buildTeamMember({ displayName: "Dr. Jordan Reed", initials: "JR" })}>
               <Where />
+              <SearchReader />
             </AppShell>
           }
         />
@@ -136,5 +143,22 @@ describe("AppShell", () => {
 
     expect(readAccessToken()).toBeNull();
     expect(screen.getByText("Sign-in page")).toBeInTheDocument();
+  });
+
+  it("shares the typed search with the page below it", () => {
+    renderShell();
+
+    fireEvent.change(screen.getByRole("searchbox", { name: "Search patients" }), { target: { value: "Buddy" } });
+
+    expect(screen.getByTestId("shared-search")).toHaveTextContent("Buddy");
+  });
+
+  it("clears the shared search when Enter opens Patients", () => {
+    renderShell();
+    fireEvent.change(screen.getByRole("searchbox", { name: "Search patients" }), { target: { value: "Buddy" } });
+
+    fireEvent.submit(screen.getByRole("search", { name: "Quick search" }));
+
+    expect(screen.getByTestId("shared-search")).toBeEmptyDOMElement();
   });
 });
