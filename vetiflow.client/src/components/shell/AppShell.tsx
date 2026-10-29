@@ -2,6 +2,7 @@ import { useState, type FormEvent, type ReactNode } from "react";
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import type { SignedInUser } from "../../types/Auth";
 import { ProfileMenu } from "./ProfileMenu";
+import { ShellSearchContext } from "./shellSearchContext";
 import {
   BellIcon,
   BoardIcon,
@@ -45,6 +46,8 @@ interface AppShellProps {
 // The ER Command Center's frame around every staff page (build plan 2.10b):
 // the navy rail and the top bar with breadcrumb, search, bell and profile.
 export function AppShell({ user, children }: AppShellProps) {
+  const [search, setSearch] = useState("");
+
   return (
     <ToastProvider>
       <div className={styles.app}>
@@ -62,8 +65,8 @@ export function AppShell({ user, children }: AppShellProps) {
           </div>
         </nav>
         <div className={styles.main}>
-          <TopBar user={user} />
-          {children}
+          <TopBar user={user} search={search} onSearchChange={setSearch} />
+          <ShellSearchContext value={search}>{children}</ShellSearchContext>
         </div>
       </div>
     </ToastProvider>
@@ -78,19 +81,24 @@ function RailLink({ page }: { page: ShellPage }) {
   );
 }
 
-function TopBar({ user }: { user: SignedInUser }) {
+interface TopBarProps {
+  user: SignedInUser;
+  search: string;
+  onSearchChange: (search: string) => void;
+}
+
+function TopBar({ user, search, onSearchChange }: TopBarProps) {
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const showToast = useToast();
-  const [search, setSearch] = useState("");
   const crumb = shellPages.find((page) => page.path === pathname)?.crumb;
 
-  // Patients runs the search (4.6a); filtering the board as you type is 2.14.
+  // Patients runs the search (4.6a); the board also filters as you type (2.14a).
   function openPatientSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const text = search.trim();
     navigate(text === "" ? "/records" : `/records?search=${encodeURIComponent(text)}`);
-    setSearch("");
+    onSearchChange("");
   }
 
   return (
@@ -107,7 +115,7 @@ function TopBar({ user }: { user: SignedInUser }) {
             aria-label="Search patients"
             placeholder="Search patients…"
             value={search}
-            onChange={(event) => setSearch(event.target.value)}
+            onChange={(event) => onSearchChange(event.target.value)}
           />
         </form>
         <Link className={styles.searchLink} to="/records" aria-label="Search patients">

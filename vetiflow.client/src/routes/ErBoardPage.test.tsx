@@ -5,11 +5,12 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite
 import type { SignInRouteState } from "../components/auth/experienceHome";
 import { createCaseHubConnection } from "../services/caseHub";
 import { readAccessToken, saveAccessToken } from "../services/session";
-import { buildBoardSummary, buildCase, buildCaseDetail } from "../test/builders";
+import { buildBoardSummary, buildCase, buildCaseDetail, buildTeamMember } from "../test/builders";
 import { createFakeCaseHub } from "../test/fakeCaseHub";
 import { apiUrl, server } from "../test/server";
 import type { BoardSummary } from "../types/BoardSummary";
 import type { EmergencyCaseListItem } from "../types/EmergencyCaseListItem";
+import { AppShell } from "../components/shell/AppShell";
 import { ToastProvider } from "../components/shell/Toast";
 import { ErBoardPage } from "./ErBoardPage";
 
@@ -396,5 +397,31 @@ describe("ErBoardPage", () => {
 
       expect(await screen.findByText("Sign-in page (session ended)")).toBeInTheDocument();
     });
+  });
+
+  // The top bar's search (build plan 2.14a), with the board inside the shell.
+  it("filters the board as text is typed in the top bar", async () => {
+    serveCases([
+      buildCase({ patientName: "Milo", acuity: "critical" }),
+      buildCase({ patientName: "Pip", acuity: "stable" })
+    ]);
+    render(
+      <MemoryRouter initialEntries={["/er"]}>
+        <Routes>
+          <Route path="/er" element={<AppShell user={buildTeamMember()}><ErBoardPage /></AppShell>} />
+        </Routes>
+      </MemoryRouter>
+    );
+    await screen.findByRole("heading", { name: "Milo" });
+
+    fireEvent.change(screen.getByRole("searchbox", { name: "Search patients" }), { target: { value: "pip" } });
+
+    expect(screen.getByRole("heading", { name: "Pip" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Milo" })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Search all patients" })).toHaveAttribute("href", "/records?search=pip");
+
+    fireEvent.change(screen.getByRole("searchbox", { name: "Search patients" }), { target: { value: "" } });
+
+    expect(screen.getByRole("heading", { name: "Milo" })).toBeInTheDocument();
   });
 });

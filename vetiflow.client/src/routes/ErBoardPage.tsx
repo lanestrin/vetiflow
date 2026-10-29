@@ -6,6 +6,7 @@ import { PatientFlowBoard } from "../components/board/PatientFlowBoard";
 import { useNow } from "../components/board/useNow";
 import { IntakeDialog } from "../components/intake/IntakeDialog";
 import { PatientOverviewPanel } from "../components/overview/PatientOverviewPanel";
+import { useShellSearch } from "../components/shell/shellSearchContext";
 import { useToast } from "../components/shell/toastContext";
 import type { BoardSummary } from "../types/BoardSummary";
 import type { CaseIntakeResult } from "../types/CaseIntake";
@@ -47,6 +48,7 @@ export function ErBoardPage() {
   const [isIntakeOpen, setIsIntakeOpen] = useState(false);
   const showToast = useToast();
   const now = useNow();
+  const search = useShellSearch();
   // Reloads the board now, without waiting for the hub's notice.
   const reloadCases = useRef<() => Promise<void>>(async () => {});
 
@@ -179,6 +181,7 @@ export function ErBoardPage() {
           selectedCaseId={selectedCaseId}
           onSelect={setSelectedCaseId}
           filter={filter}
+          search={search}
         />
 
         <PatientOverviewPanel caseId={selectedCaseId} refreshedAt={updatedAt} onTriaged={showTriaged} />

@@ -144,6 +144,16 @@
 	font-size: 10px;
 }
 
+.footLink {
+	color: var(--color-acuity-stable);
+	font-weight: 700;
+
+	&:focus-visible {
+		outline: 3px solid var(--color-focus);
+		outline-offset: 2px;
+	}
+}
+
 @media (max-width: 650px) {
 	.top {
 		padding: 14px;
