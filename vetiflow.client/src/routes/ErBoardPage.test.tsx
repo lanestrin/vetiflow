@@ -49,7 +49,7 @@ function serveSummary(summary: BoardSummary) {
 }
 
 function statCard(name: RegExp) {
-  return screen.getByRole("button", { name });
+  return within(screen.getByRole("region", { name: "Board summary" })).getByRole("button", { name });
 }
 
 async function findLane(name: string) {
@@ -365,6 +365,44 @@ describe("ErBoardPage", () => {
       expect(screen.getByRole("status")).toHaveTextContent("No patients awaiting triage");
       expect(statCard(/patients in care/i)).toHaveAttribute("aria-pressed", "true");
       expect(screen.getAllByRole("article")).toHaveLength(3);
+    });
+
+    // The Incoming toggle shares the card's filter (build plan 2.14b).
+    it("presses the Incoming toggle and the Awaiting triage card together", async () => {
+      serveCases(boardCases());
+      serveSummary(buildBoardSummary({ patientsInCare: 3, awaitingTriage: 1 }));
+      renderBoard();
+      await screen.findByRole("heading", { name: "Milo" });
+      const toggle = screen.getByRole("button", { name: "Incoming, 1 awaiting triage" });
+
+      fireEvent.click(toggle);
+
+      expect(toggle).toHaveAttribute("aria-pressed", "true");
+      expect(statCard(/awaiting triage/i)).toHaveAttribute("aria-pressed", "true");
+      expect(screen.getAllByRole("article")).toHaveLength(1);
+
+      fireEvent.click(toggle);
+
+      expect(toggle).toHaveAttribute("aria-pressed", "false");
+      expect(statCard(/patients in care/i)).toHaveAttribute("aria-pressed", "true");
+      expect(screen.getAllByRole("article")).toHaveLength(3);
+
+      fireEvent.click(statCard(/awaiting triage/i));
+
+      expect(toggle).toHaveAttribute("aria-pressed", "true");
+    });
+
+    it("keeps the board as it is when the Incoming toggle finds an empty queue", async () => {
+      serveCases([buildCase({ patientName: "Milo", acuity: "critical", stage: "treatment" })]);
+      serveSummary(buildBoardSummary({ patientsInCare: 1, awaitingTriage: 0 }));
+      renderBoard();
+      await screen.findByRole("heading", { name: "Milo" });
+
+      fireEvent.click(screen.getByRole("button", { name: "Incoming, 0 awaiting triage" }));
+
+      expect(screen.getByRole("status")).toHaveTextContent("No patients awaiting triage");
+      expect(screen.getByRole("button", { name: "Incoming, 0 awaiting triage" })).toHaveAttribute("aria-pressed", "false");
+      expect(screen.getAllByRole("article")).toHaveLength(1);
     });
 
     it("loads the summary again when the server reports a case update", async () => {

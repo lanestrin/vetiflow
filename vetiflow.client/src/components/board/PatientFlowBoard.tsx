@@ -25,6 +25,8 @@ interface PatientFlowBoardProps {
   filter?: BoardFilter;
   // The top bar's search (2.14a), applied after the filter.
   search?: string;
+  // The Incoming toggle asks for a filter (2.14b); the page decides.
+  onFilter?: (filter: BoardFilter) => void;
 }
 
 const acuityLanes: { key: AcuityLevel; title: string }[] = [
@@ -66,7 +68,8 @@ export function PatientFlowBoard({
   selectedCaseId,
   onSelect,
   filter = "all",
-  search = ""
+  search = "",
+  onFilter
 }: PatientFlowBoardProps) {
   const titleId = useId();
   const now = useNow();
@@ -77,6 +80,8 @@ export function PatientFlowBoard({
     : cases;
   const shownCases = filteredCases.filter((emergencyCase) => matchesSearch(emergencyCase, search));
   const searchText = search.trim();
+  const incomingCount = cases.filter((emergencyCase) => emergencyCase.stage === "incoming").length;
+  const isIncomingShown = filter === "awaitingTriage";
   const shownAcuityLanes = filter === "critical"
     ? acuityLanes.filter((lane) => lane.key === "critical")
     : acuityLanes;
@@ -116,13 +121,28 @@ export function PatientFlowBoard({
   return (
     <section className={styles.board} aria-labelledby={titleId}>
       <header className={styles.top}>
-        <h2 id={titleId} className={styles.title}>Patient flow</h2>
-        <p className={styles.tiny}>
-          <span className={styles.live} aria-hidden="true" />
-          {updatedLabel(updatedAt, now)}
-          <span className={styles.dot} aria-hidden="true">·</span>
-          {casesLabel(cases.length)}
-        </p>
+        <div>
+          <h2 id={titleId} className={styles.title}>Patient flow</h2>
+          <p className={styles.tiny}>
+            <span className={styles.live} aria-hidden="true" />
+            {updatedLabel(updatedAt, now)}
+            <span className={styles.dot} aria-hidden="true">·</span>
+            {casesLabel(cases.length)}
+          </p>
+        </div>
+        <div className={styles.tools}>
+          {/* The prototype's #triageToggle: the Awaiting triage filter, on and off. */}
+          <button
+            type="button"
+            className={styles.toolButton}
+            aria-pressed={isIncomingShown}
+            aria-label={`Incoming, ${incomingCount} awaiting triage`}
+            onClick={() => onFilter?.(isIncomingShown ? "all" : "awaitingTriage")}
+          >
+            <span aria-hidden="true">⇣ </span>
+            <span className={styles.toolLabel}>Incoming</span> <b>{incomingCount}</b>
+          </button>
+        </div>
       </header>
 
       {!isStacked && (

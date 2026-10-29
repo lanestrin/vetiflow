@@ -182,6 +182,7 @@ export function ErBoardPage() {
           onSelect={setSelectedCaseId}
           filter={filter}
           search={search}
+          onFilter={chooseFilter}
         />
 
         <PatientOverviewPanel caseId={selectedCaseId} refreshedAt={updatedAt} onTriaged={showTriaged} />

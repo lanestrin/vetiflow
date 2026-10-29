@@ -194,4 +194,57 @@ describe("PatientFlowBoard", () => {
       expect(screen.queryByRole("link", { name: "Search all patients" })).not.toBeInTheDocument();
     });
   });
+
+  // The Incoming toggle (build plan 2.14b).
+  describe("Incoming toggle", () => {
+    const cases = () => [
+      buildCase({ acuity: "urgent", stage: "incoming" }),
+      buildCase({ acuity: "stable", stage: "incoming" }),
+      buildCase({ acuity: "critical", stage: "treatment" })
+    ];
+
+    function showToggle(filter: BoardFilter, onFilter = vi.fn()) {
+      render(
+        <PatientFlowBoard
+          cases={cases()}
+          updatedAt={new Date()}
+          selectedCaseId={null}
+          onSelect={vi.fn()}
+          filter={filter}
+          onFilter={onFilter}
+        />
+      );
+      return onFilter;
+    }
+
+    function toggle() {
+      return screen.getByRole("button", { name: /^Incoming/ });
+    }
+
+    it("counts the incoming cases", () => {
+      showToggle("all");
+
+      expect(toggle()).toHaveAccessibleName("Incoming, 2 awaiting triage");
+      expect(toggle()).toHaveTextContent("⇣ Incoming 2");
+    });
+
+    it("is pressed only while the board shows the triage queue", () => {
+      showToggle("awaitingTriage");
+
+      expect(toggle()).toHaveAttribute("aria-pressed", "true");
+    });
+
+    it.each<[BoardFilter, BoardFilter]>([
+      ["all", "awaitingTriage"],
+      ["critical", "awaitingTriage"],
+      ["awaitingTriage", "all"]
+    ])("from %s asks for %s", (from, asked) => {
+      const onFilter = showToggle(from);
+      expect(toggle()).toHaveAttribute("aria-pressed", String(from === "awaitingTriage"));
+
+      fireEvent.click(toggle());
+
+      expect(onFilter).toHaveBeenCalledWith(asked);
+    });
+  });
 });
