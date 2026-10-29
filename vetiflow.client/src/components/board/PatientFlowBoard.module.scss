@@ -11,6 +11,7 @@
 
 .top {
 	display: flex;
+	flex-wrap: wrap;
 	align-items: center;
 	justify-content: space-between;
 	gap: 12px;
@@ -55,9 +56,12 @@
 	font-weight: 700;
 }
 
+// One line, so the board tools wrap below it on a narrow phone rather than
+// squeezing it.
 .tiny {
 	display: flex;
 	align-items: center;
+	white-space: nowrap;
 	margin: 4px 0 0;
 	color: var(--color-shell-muted);
 	font-size: 11px;

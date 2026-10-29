@@ -247,4 +247,73 @@ describe("PatientFlowBoard", () => {
       expect(onFilter).toHaveBeenCalledWith(asked);
     });
   });
+
+  // The Filter menu (build plan 2.14c).
+  describe("with the Filter menu", () => {
+    const reed = { id: "staff-reed", shortName: "Reed", initials: "JR" };
+    const cases = () => [
+      buildCase({ patientName: "Milo", acuity: "critical", clinician: reed, species: "Dog" }),
+      buildCase({ patientName: "Mia", acuity: "urgent", clinician: null, species: "Cat" }),
+      buildCase({ patientName: "Pip", acuity: "stable", clinician: reed, species: "Cat" })
+    ];
+
+    function showBoard(filter?: BoardFilter, search?: string) {
+      render(
+        <MemoryRouter>
+          <PatientFlowBoard
+            cases={cases()}
+            updatedAt={new Date()}
+            selectedCaseId={null}
+            onSelect={vi.fn()}
+            filter={filter}
+            search={search}
+          />
+        </MemoryRouter>
+      );
+      fireEvent.click(screen.getByRole("button", { name: /^Filter/ }));
+    }
+
+    function choose(name: string, value: string) {
+      fireEvent.change(screen.getByRole("combobox", { name }), { target: { value } });
+    }
+
+    it("leaves only the chosen clinician's cards, with lane counts and the foot to match", () => {
+      showBoard();
+
+      choose("Clinician", "staff-reed");
+
+      expect(screen.getAllByRole("article")).toHaveLength(2);
+      expect(within(lane("Urgent")).getByText("0")).toBeInTheDocument();
+      expect(screen.getByText("Showing 2 of 3 active cases")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Filter, 1 in use" })).toHaveAttribute("aria-pressed", "true");
+    });
+
+    it("applies with the critical filter", () => {
+      showBoard("critical");
+
+      choose("Species", "Cat");
+
+      expect(screen.queryAllByRole("article")).toHaveLength(0);
+    });
+
+    it("applies with a search", () => {
+      showBoard(undefined, "pip");
+
+      choose("Species", "Cat");
+
+      expect(screen.getAllByRole("article")).toHaveLength(1);
+      expect(screen.getByRole("heading", { name: "Pip" })).toBeInTheDocument();
+    });
+
+    it("restores every card with Clear filters", () => {
+      showBoard();
+      choose("Clinician", "unassigned");
+      expect(screen.getAllByRole("article")).toHaveLength(1);
+
+      fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
+
+      expect(screen.getAllByRole("article")).toHaveLength(3);
+      expect(screen.getByRole("button", { name: "Filter" })).toHaveAttribute("aria-pressed", "false");
+    });
+  });
 });
