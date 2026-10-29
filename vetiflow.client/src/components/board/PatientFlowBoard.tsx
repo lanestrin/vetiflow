@@ -2,7 +2,8 @@ import { useId, useState, type CSSProperties } from "react";
 import { Link } from "react-router-dom";
 import type { AcuityLevel, EmergencyCaseListItem } from "../../types/EmergencyCaseListItem";
 import type { BoardFilter } from "./BoardStats";
-import { matchesSearch, minutesSince } from "./boardFormat";
+import { BoardFilterMenu } from "./BoardFilterMenu";
+import { matchesMenuFilters, matchesSearch, minutesSince, noMenuFilters, type BoardMenuFilters } from "./boardFormat";
 import { PatientCard } from "./PatientCard";
 import { useNow } from "./useNow";
 import styles from "./PatientFlowBoard.module.scss";
@@ -74,11 +75,14 @@ export function PatientFlowBoard({
   const titleId = useId();
   const now = useNow();
   const [shownLane, setShownLane] = useState<LaneKey>("critical");
+  // The Filter menu's choices (2.14c), kept while the page is open.
+  const [menuFilters, setMenuFilters] = useState<BoardMenuFilters>(noMenuFilters);
 
   const filteredCases = filter === "awaitingTriage"
     ? cases.filter((emergencyCase) => emergencyCase.stage === "incoming")
     : cases;
-  const shownCases = filteredCases.filter((emergencyCase) => matchesSearch(emergencyCase, search));
+  const shownCases = filteredCases.filter((emergencyCase) =>
+    matchesMenuFilters(emergencyCase, menuFilters) && matchesSearch(emergencyCase, search));
   const searchText = search.trim();
   const incomingCount = cases.filter((emergencyCase) => emergencyCase.stage === "incoming").length;
   const isIncomingShown = filter === "awaitingTriage";
@@ -142,6 +146,7 @@ export function PatientFlowBoard({
             <span aria-hidden="true">⇣ </span>
             <span className={styles.toolLabel}>Incoming</span> <b>{incomingCount}</b>
           </button>
+          <BoardFilterMenu cases={cases} filters={menuFilters} onChange={setMenuFilters} />
         </div>
       </header>
 

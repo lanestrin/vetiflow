@@ -1,6 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { buildCase } from "../../test/builders";
-import { ageLabel, matchesSearch, minutesSince, stageLabel, waitChipLabel } from "./boardFormat";
+import {
+  ageLabel,
+  caseStatusLabel,
+  matchesMenuFilters,
+  matchesSearch,
+  minutesSince,
+  noMenuFilters,
+  stageLabel,
+  waitChipLabel
+} from "./boardFormat";
 
 const now = new Date("2026-10-28T12:00:00Z");
 
@@ -85,5 +94,63 @@ describe("matchesSearch", () => {
 
   it("does not match text found in no field", () => {
     expect(matchesSearch(milo, "cat")).toBe(false);
+  });
+});
+
+describe("caseStatusLabel", () => {
+  it.each([
+    ["unassigned", "Unassigned"],
+    ["assigned", "Assigned"],
+    ["waiting", "Waiting"],
+    ["inProgress", "In progress"],
+    ["blocked", "Blocked"],
+    ["readyForNextStep", "Ready for next step"],
+    ["completed", "Completed"]
+  ] as const)("labels %s as %s", (status, label) => {
+    expect(caseStatusLabel(status)).toBe(label);
+  });
+});
+
+describe("matchesMenuFilters", () => {
+  const reed = { id: "staff-reed", shortName: "Reed", initials: "JR" };
+  const reedsCat = buildCase({ clinician: reed, species: "Cat", status: "waiting" });
+  const unassignedDog = buildCase({ clinician: null, species: "Dog", status: "unassigned" });
+
+  it("matches every case with no filters in use", () => {
+    expect(matchesMenuFilters(reedsCat, noMenuFilters)).toBe(true);
+    expect(matchesMenuFilters(unassignedDog, noMenuFilters)).toBe(true);
+  });
+
+  it("filters by clinician", () => {
+    const filters = { ...noMenuFilters, clinicianId: "staff-reed" };
+
+    expect(matchesMenuFilters(reedsCat, filters)).toBe(true);
+    expect(matchesMenuFilters(unassignedDog, filters)).toBe(false);
+  });
+
+  it("filters to cases with no clinician", () => {
+    const filters = { ...noMenuFilters, clinicianId: "unassigned" };
+
+    expect(matchesMenuFilters(unassignedDog, filters)).toBe(true);
+    expect(matchesMenuFilters(reedsCat, filters)).toBe(false);
+  });
+
+  it("filters by species", () => {
+    const filters = { ...noMenuFilters, species: "Dog" };
+
+    expect(matchesMenuFilters(unassignedDog, filters)).toBe(true);
+    expect(matchesMenuFilters(reedsCat, filters)).toBe(false);
+  });
+
+  it("filters by case status", () => {
+    const filters = { ...noMenuFilters, status: "waiting" as const };
+
+    expect(matchesMenuFilters(reedsCat, filters)).toBe(true);
+    expect(matchesMenuFilters(unassignedDog, filters)).toBe(false);
+  });
+
+  it("needs every filter in use to match", () => {
+    expect(matchesMenuFilters(reedsCat, { clinicianId: "staff-reed", species: "Cat", status: "waiting" })).toBe(true);
+    expect(matchesMenuFilters(reedsCat, { clinicianId: "staff-reed", species: "Cat", status: "blocked" })).toBe(false);
   });
 });

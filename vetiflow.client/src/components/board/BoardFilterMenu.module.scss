@@ -1,0 +1,70 @@
+// The Filter menu (build plan 2.14c): a panel under the button in the
+// profile menu's style, holding three labelled selects.
+
+.filter {
+	position: relative;
+}
+
+.menu {
+	position: absolute;
+	top: calc(100% + 8px);
+	right: 0;
+	z-index: 20;
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	width: 220px;
+	padding: 12px;
+	border: 1px solid var(--color-shell-line);
+	border-radius: 10px;
+	background: var(--color-surface);
+	box-shadow: 0 10px 32px rgb(26 55 63 / 12%);
+
+	&[hidden] {
+		display: none;
+	}
+}
+
+.field {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.label {
+	color: var(--color-shell-muted);
+	font-size: 11px;
+	font-weight: 600;
+}
+
+.select {
+	padding: 6px 8px;
+	border: 1px solid var(--color-shell-line);
+	border-radius: 8px;
+	background: var(--color-surface);
+	color: var(--color-shell-ink);
+	font: inherit;
+	font-size: 12px;
+
+	&:focus-visible {
+		outline: 3px solid var(--color-focus);
+		outline-offset: 1px;
+	}
+}
+
+.clear {
+	align-self: flex-end;
+	padding: 2px 0;
+	border: 0;
+	background: none;
+	color: var(--color-acuity-stable);
+	font: inherit;
+	font-size: 12px;
+	font-weight: 700;
+	cursor: pointer;
+
+	&:focus-visible {
+		outline: 3px solid var(--color-focus);
+		outline-offset: 2px;
+	}
+}

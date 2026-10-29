@@ -1,4 +1,4 @@
-import type { CaseStage, EmergencyCaseListItem, WaitChip } from "../../types/EmergencyCaseListItem";
+import type { CaseStage, CaseStatus, EmergencyCaseListItem, WaitChip } from "../../types/EmergencyCaseListItem";
 
 // Staff wording for the patient flow cards (build plan 2.11b). The API sends
 // enum values; the words live here.
@@ -73,4 +73,46 @@ export function matchesSearch(emergencyCase: EmergencyCaseListItem, search: stri
   ];
 
   return fields.some((field) => field?.toLowerCase().includes(text) ?? false);
+}
+
+const statusLabels: Record<CaseStatus, string> = {
+  unassigned: "Unassigned",
+  assigned: "Assigned",
+  waiting: "Waiting",
+  inProgress: "In progress",
+  blocked: "Blocked",
+  readyForNextStep: "Ready for next step",
+  completed: "Completed"
+};
+
+export function caseStatusLabel(status: CaseStatus): string {
+  return statusLabels[status];
+}
+
+// The board's Filter menu (build plan 2.14c). Null means any; "unassigned"
+// means a card with no clinician.
+export interface BoardMenuFilters {
+  clinicianId: string | null;
+  species: string | null;
+  status: CaseStatus | null;
+}
+
+export const noMenuFilters: BoardMenuFilters = { clinicianId: null, species: null, status: null };
+
+export const unassignedClinician = "unassigned";
+
+// A card shows when it matches every filter in use.
+export function matchesMenuFilters(emergencyCase: EmergencyCaseListItem, filters: BoardMenuFilters): boolean {
+  if (filters.clinicianId !== null) {
+    const clinicianId = emergencyCase.clinician?.id ?? unassignedClinician;
+    if (clinicianId !== filters.clinicianId) {
+      return false;
+    }
+  }
+
+  if (filters.species !== null && emergencyCase.species !== filters.species) {
+    return false;
+  }
+
+  return filters.status === null || emergencyCase.status === filters.status;
 }
