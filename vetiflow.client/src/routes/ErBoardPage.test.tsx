@@ -82,8 +82,19 @@ describe("ErBoardPage", () => {
 
     expect(screen.getByText("Loading emergency cases...")).toBeInTheDocument();
     expect(
-      await screen.findByRole("heading", { name: "VetiFlow ER Board" })
+      await screen.findByRole("heading", { name: "ER Command Center" })
     ).toBeInTheDocument();
+  });
+
+  // The heading (build plan 2.15b), from the board summary.
+  it("shows the clinic and the live shift chip in the heading", async () => {
+    serveSummary(buildBoardSummary({ clinicName: "Northside Veterinary Emergency", cliniciansOnFloor: 4 }));
+
+    renderBoard();
+
+    expect(await screen.findByText("Day shift · 4 clinicians on floor")).toBeInTheDocument();
+    expect(screen.getByText("Northside Veterinary Emergency")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "ER Command Center" })).toBeInTheDocument();
   });
 
   it("names the browser tab while loading and once loaded", async () => {
@@ -91,7 +102,7 @@ describe("ErBoardPage", () => {
     renderBoard();
 
     expect(document.title).toBe("ER Board · VetiFlow");
-    await screen.findByRole("heading", { level: 1, name: "VetiFlow ER Board" });
+    await screen.findByRole("heading", { level: 1, name: "ER Command Center" });
     expect(document.title).toBe("ER Board · VetiFlow");
   });
 

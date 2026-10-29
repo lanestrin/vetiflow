@@ -130,6 +130,8 @@ export function buildPetParent(overrides: Partial<SignedInUser> = {}): SignedInU
 // A quiet board: nothing awaiting triage and no critical patients.
 export function buildBoardSummary(overrides: Partial<BoardSummary> = {}): BoardSummary {
   return {
+    clinicName: "Northside Veterinary Emergency",
+    cliniciansOnFloor: 0,
     patientsInCare: 0,
     shift: { name: "day", startedAt: new Date().toISOString() },
     arrivedThisShift: 0,

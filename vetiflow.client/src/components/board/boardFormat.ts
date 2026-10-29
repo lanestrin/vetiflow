@@ -1,3 +1,4 @@
+import type { BoardSummary } from "../../types/BoardSummary";
 import type { CaseStage, CaseStatus, EmergencyCaseListItem, WaitChip } from "../../types/EmergencyCaseListItem";
 
 // Staff wording for the patient flow cards (build plan 2.11b). The API sends
@@ -122,4 +123,13 @@ export function matchesMenuFilters(emergencyCase: EmergencyCaseListItem, filters
 export function sortByLongestInStage(cases: EmergencyCaseListItem[]): EmergencyCaseListItem[] {
   return cases.toSorted((first, second) =>
     new Date(first.stageEnteredAt).getTime() - new Date(second.stageEnteredAt).getTime());
+}
+
+// The heading's shift chip (build plan 2.15b): "Day shift · 4 clinicians on floor".
+export function shiftChipLabel(summary: BoardSummary): string {
+  const shift = summary.shift.name === "day" ? "Day shift" : "Night shift";
+  const clinicians = summary.cliniciansOnFloor === 1
+    ? "1 clinician on floor"
+    : `${summary.cliniciansOnFloor} clinicians on floor`;
+  return `${shift} · ${clinicians}`;
 }
