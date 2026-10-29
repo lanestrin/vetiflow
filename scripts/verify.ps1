@@ -1,29 +1,38 @@
 <#
 .SYNOPSIS
-  Runs every automated check VetiFlow has, in order, and stops at the first failure.
+  Runs the automated checks the branch's changes need, in order, and stops at the
+  first failure.
 
 .DESCRIPTION
   This is the one Verify command. You, Claude and CI run the same script, so
   "it passed" means the same thing everywhere.
+
+  With no option it works out the scope from the files changed since the branch
+  left main (see scripts/verify-scope.ps1): workflow tests always run, the server
+  steps for server or full, the client steps for client or full. -Full runs
+  everything; -ServerOnly and -ClientOnly (used by CI) run one side.
 
   Each step's full output goes to .verify/logs/<step>.log. The console shows one
   line per step and the summary, plus the end of the log when a step fails.
   Every run writes .verify/evidence.json (result, mode, steps, file fingerprint);
   see scripts/verify-evidence.ps1.
 
-  -ReuseIfCurrent skips the run when the last one was a full PASS and no file has
-  changed since (workflow bookkeeping aside); otherwise it says why and runs in full.
+  -ReuseIfCurrent skips the run when the last one was a PASS that covers the scope
+  needed now and no file has changed since (workflow bookkeeping aside);
+  otherwise it says why and runs that scope.
 
   Server tests need Docker running (Testcontainers) or VETIFLOW_TEST_POSTGRES
   pointing at an existing Postgres server.
 
 .EXAMPLE
   pwsh -File scripts/verify.ps1
+  pwsh -File scripts/verify.ps1 -Full
   pwsh -File scripts/verify.ps1 -ServerOnly
   pwsh -File scripts/verify.ps1 -ClientOnly
   pwsh -File scripts/verify.ps1 -ReuseIfCurrent
 #>
 param(
+	[switch]$Full,
 	[switch]$ServerOnly,
 	[switch]$ClientOnly,
 	[switch]$ReuseIfCurrent
@@ -32,33 +41,46 @@ param(
 $ErrorActionPreference = 'Stop'
 $repoRoot = Split-Path -Parent $PSScriptRoot
 . (Join-Path $PSScriptRoot 'verify-evidence.ps1')
+. (Join-Path $PSScriptRoot 'verify-scope.ps1')
 
 $evidencePath = Join-Path $repoRoot '.verify/evidence.json'
 $logFolder = Join-Path $repoRoot '.verify/logs'
 $steps = [System.Collections.Generic.List[object]]::new()
 
-if ($ServerOnly -and $ClientOnly) {
-	Write-Host 'Use -ServerOnly or -ClientOnly, not both.'
+if (@($Full, $ServerOnly, $ClientOnly | Where-Object { $_ }).Count -gt 1) {
+	Write-Host 'Use only one of -Full, -ServerOnly and -ClientOnly.'
 	exit 1
 }
-$mode = if ($ServerOnly) { 'server' } elseif ($ClientOnly) { 'client' } else { 'full' }
+if ($ReuseIfCurrent -and ($ServerOnly -or $ClientOnly)) {
+	Write-Host '-ReuseIfCurrent cannot be combined with -ServerOnly or -ClientOnly.'
+	exit 1
+}
+$groups = @()
+if ($ServerOnly) { $mode = 'server'; $scopeReason = '-ServerOnly' }
+elseif ($ClientOnly) { $mode = 'client'; $scopeReason = '-ClientOnly' }
+elseif ($Full) { $mode = 'full'; $scopeReason = '-Full' }
+else {
+	$scope = Get-VerifyScope -RepoRoot $repoRoot
+	$mode = $scope.Scope
+	$scopeReason = $scope.Reason
+	$groups = $scope.Groups
+}
+$runsServer = $mode -in 'full', 'server'
+$runsClient = $mode -in 'full', 'client'
 
 if ($ReuseIfCurrent) {
-	if ($mode -ne 'full') {
-		Write-Host '-ReuseIfCurrent reuses or runs a full Verify; it cannot be combined with -ServerOnly or -ClientOnly.'
-		exit 1
-	}
-	$check = Test-VerifyEvidence -Path $evidencePath -Fingerprint (Get-VerifyFingerprint -RepoRoot $repoRoot)
+	$check = Test-VerifyEvidence -Path $evidencePath -Fingerprint (Get-VerifyFingerprint -RepoRoot $repoRoot) -Scope $mode
 	if ($check.Reusable) {
 		$evidence = $check.Evidence
-		Write-Host "Reusing Verify PASS from $($evidence.finishedAt) ($($evidence.branch) @ $("$($evidence.head)".Substring(0, 7)))"
+		Write-Host "Reusing Verify PASS from $($evidence.finishedAt) ($($evidence.branch) @ $("$($evidence.head)".Substring(0, 7)), scope $($evidence.mode))"
 		Write-Host ''
 		Write-Host 'Verify summary (reused)'
 		foreach ($step in $evidence.steps) { Write-Host "  $($step.result)  $($step.name)" }
 		exit 0
 	}
-	Write-Host "Not reusing the last Verify: $($check.Reason). Running it in full."
+	Write-Host "Not reusing the last Verify: $($check.Reason). Running scope $mode."
 }
+Write-Host "Scope: $mode ($scopeReason)"
 
 # An interrupted run must leave no evidence behind. The fingerprint is taken
 # before any step, so a file edited during the run makes the evidence stale.
@@ -68,10 +90,13 @@ if (Test-Path $logFolder) { Remove-Item (Join-Path $logFolder '*.log') -Force }
 else { New-Item -ItemType Directory $logFolder | Out-Null }
 
 function Complete-Verify([string]$Result) {
-	Write-VerifyEvidence -Path $evidencePath -RepoRoot $repoRoot -Result $Result -Mode $mode -Steps $steps -Fingerprint $fingerprint
+	Write-VerifyEvidence -Path $evidencePath -RepoRoot $repoRoot -Result $Result -Mode $mode -Steps $steps -Fingerprint $fingerprint -Groups $groups
 	Write-Host ''
-	Write-Host 'Verify summary'
+	Write-Host "Verify summary (scope $mode)"
 	foreach ($step in $steps) { Write-Host "  $($step.result)  $($step.name)$($step.note)" }
+	# Left out by the scope, so not a SKIP: nothing they check has changed.
+	if (-not $runsServer) { Write-Host '  Not needed: server steps (no server files changed)' }
+	if (-not $runsClient) { Write-Host '  Not needed: client steps (no client files changed)' }
 }
 
 function Stop-Verify([string]$Name, [string]$Note) {
@@ -111,7 +136,7 @@ try {
 		}
 	}
 
-	if (-not $ClientOnly) {
+	if ($runsServer) {
 		# Testcontainers needs Docker unless the tests use an existing Postgres server.
 		# Checking first gives one clear line instead of a failure in every database test.
 		# The exit code is the only signal: Docker may warn on stderr while running.
@@ -143,7 +168,7 @@ try {
 		Invoke-Step 'Server tests' { dotnet test --project vetiflow.Server.Tests --no-build }
 	}
 
-	if (-not $ServerOnly) {
+	if ($runsClient) {
 		Push-Location vetiflow.client
 		try {
 			# npm writes node_modules/.package-lock.json on install. If package-lock.json

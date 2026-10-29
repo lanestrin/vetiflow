@@ -8,9 +8,17 @@
 
   The fingerprint covers every file git does not ignore, tracked or not, except
   the workflow bookkeeping that no Verify step reads and that /complete rewrites
-  after its Verify. A run is reused only when it was a full PASS with every step
-  passing and the fingerprint still matches.
+  after its Verify. A run is reused only when it was a PASS with every step
+  passing, its mode covers the scope needed now, and the fingerprint still matches.
 #>
+
+# The scopes each mode's run proved (see scripts/verify-scope.ps1).
+$script:scopesCoveredByMode = @{
+	full     = @('full', 'server', 'client', 'workflow')
+	server   = @('server', 'workflow')
+	client   = @('client', 'workflow')
+	workflow = @('workflow')
+}
 
 $script:fingerprintExcludedFiles = @(
 	'blueprint/build-plan.md',
@@ -83,14 +91,16 @@ function Remove-VerifyEvidence([string]$Path) {
 	if (Test-Path -LiteralPath $Path) { Remove-Item -LiteralPath $Path -Force }
 }
 
-# $Steps: one @{ name; result } per step, in run order.
-function Write-VerifyEvidence([string]$Path, [string]$RepoRoot, [string]$Result, [string]$Mode, [object[]]$Steps, [string]$Fingerprint) {
+# $Steps: one @{ name; result } per step, in run order. $Groups: the changed-file
+# groups the scope came from (empty when a mode was asked for).
+function Write-VerifyEvidence([string]$Path, [string]$RepoRoot, [string]$Result, [string]$Mode, [object[]]$Steps, [string]$Fingerprint, [string[]]$Groups = @()) {
 	$ErrorActionPreference = 'Continue'
 	$branch = git -C $RepoRoot rev-parse --abbrev-ref HEAD
 	$head = git -C $RepoRoot rev-parse HEAD
 	$evidence = [ordered]@{
 		result      = $Result
 		mode        = $Mode
+		groups      = @($Groups)
 		steps       = @($Steps)
 		fingerprint = $Fingerprint
 		branch      = "$branch"
@@ -104,7 +114,8 @@ function Write-VerifyEvidence([string]$Path, [string]$RepoRoot, [string]$Result,
 	[System.IO.File]::WriteAllText($Path, $json, (New-Object System.Text.UTF8Encoding $false))
 }
 
-function Test-VerifyEvidence([string]$Path, [string]$Fingerprint) {
+# $Scope: what this run needs (workflow, server, client or full).
+function Test-VerifyEvidence([string]$Path, [string]$Fingerprint, [string]$Scope) {
 	function New-Decision([bool]$Reusable, [string]$Reason, $Evidence) {
 		[pscustomobject]@{ Reusable = $Reusable; Reason = $Reason; Evidence = $Evidence }
 	}
@@ -119,9 +130,11 @@ function Test-VerifyEvidence([string]$Path, [string]$Fingerprint) {
 	if (-not $evidence) { return New-Decision $false 'evidence unreadable' $null }
 
 	if ($evidence.result -ne 'PASS') { return New-Decision $false 'last run failed' $evidence }
-	if ($evidence.mode -eq 'server') { return New-Decision $false 'last run was server-only' $evidence }
-	if ($evidence.mode -eq 'client') { return New-Decision $false 'last run was client-only' $evidence }
-	if ($evidence.mode -ne 'full') { return New-Decision $false 'last run was not full' $evidence }
+	$covered = $script:scopesCoveredByMode["$($evidence.mode)"]
+	if (-not $covered) { return New-Decision $false 'last run had an unknown scope' $evidence }
+	if ($covered -notcontains $Scope) {
+		return New-Decision $false "last run was scope $($evidence.mode), this needs $Scope" $evidence
+	}
 	$steps = @($evidence.steps | Where-Object { $_ })
 	if ($steps.Count -eq 0 -or ($steps | Where-Object { $_.result -ne 'PASS' })) {
 		return New-Decision $false 'a step did not pass' $evidence

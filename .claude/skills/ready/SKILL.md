@@ -71,9 +71,9 @@ order:
    (or the broader suite it lists), tick the step, mark the finding `fixed`.
 
 Then run `scripts/verify.ps1 -ReuseIfCurrent` (see "Reusing a run" in
-`/verify`): it reuses a valid full PASS, for example when there was nothing to
-repair, and runs Verify in full when the evidence is missing or stale. Report
-whether it ran or was reused, and set `Status` to `verified` when it passes. A `fixed` finding stays a `/complete`
+`/verify`): it reuses a valid PASS that covers the scope the changes need, for
+example when there was nothing to repair, and runs that scope when the evidence
+is missing or stale. Report the scope and whether it ran or was reused, and set `Status` to `verified` when it passes. A `fixed` finding stays a `/complete`
 blocker until the person runs `/audit focused` and it closes.
 
 ## 3. Prove it
@@ -86,7 +86,7 @@ repair.
 
 ```
 Built: steps 1-4 (repair: F-03)
-Checks: affected tests passed; Verify ran, PASS
+Checks: affected tests passed; Verify ran (scope client), PASS
 Check: not needed (no running-app behaviour)
 Findings: none open (or: F-03 P1 fixed, needs /audit focused)
 Audit: not needed - workflow docs only (or: recommended - <reason>; optional, /audit)
@@ -95,7 +95,8 @@ Status: Implementation complete; verification passed; ready to archive and prepa
 Next: /complete
 ```
 
-Say whether Verify ran or was reused; never present a reuse as a fresh run.
+Say Verify's scope and whether it ran or was reused; never present a reuse as
+a fresh run.
 The handoff follows "Ending a turn" in `blueprint/context/ai-interaction.md`:
 
 - a `fixed` P0/P1 waiting: `Status: Implementation complete; verification

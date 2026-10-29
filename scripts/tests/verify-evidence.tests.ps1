@@ -91,40 +91,63 @@ if (Test-Path $evidenceScript) {
 		Remove-VerifyEvidence -Path $evidencePath
 		Assert-True (-not (Test-Path $evidencePath)) 'Remove-VerifyEvidence deletes the file'
 		Remove-VerifyEvidence -Path $evidencePath
-		$check = Test-VerifyEvidence -Path $evidencePath -Fingerprint $fingerprint
+		$check = Test-VerifyEvidence -Path $evidencePath -Fingerprint $fingerprint -Scope full
 		Assert-True ((-not $check.Reusable) -and $check.Reason -eq 'no evidence') 'missing evidence is not reused'
 
 		Set-FixtureFile '.verify/evidence.json' '{ not json'
-		$check = Test-VerifyEvidence -Path $evidencePath -Fingerprint $fingerprint
+		$check = Test-VerifyEvidence -Path $evidencePath -Fingerprint $fingerprint -Scope full
 		Assert-True ((-not $check.Reusable) -and $check.Reason -eq 'evidence unreadable') 'unreadable evidence is not reused'
 
 		Write-VerifyEvidence -Path $evidencePath -RepoRoot $fixtureRepo -Result 'PASS' -Mode 'full' -Steps $passingSteps -Fingerprint $fingerprint
-		$check = Test-VerifyEvidence -Path $evidencePath -Fingerprint $fingerprint
+		$check = Test-VerifyEvidence -Path $evidencePath -Fingerprint $fingerprint -Scope full
 		Assert-True $check.Reusable 'a full PASS with a matching fingerprint is reused'
 		Assert-True ($check.Evidence.branch -eq (git -C $fixtureRepo rev-parse --abbrev-ref HEAD)) 'evidence records the branch'
 		Assert-True ($check.Evidence.head -eq (git -C $fixtureRepo rev-parse HEAD)) 'evidence records the commit'
 		Assert-True (@($check.Evidence.steps).Count -eq 2) 'evidence records every step'
 		Assert-True ([bool]$check.Evidence.finishedAt) 'evidence records when the run finished'
 
-		$check = Test-VerifyEvidence -Path $evidencePath -Fingerprint ('0' * 64)
+		$check = Test-VerifyEvidence -Path $evidencePath -Fingerprint ('0' * 64) -Scope full
 		Assert-True ((-not $check.Reusable) -and $check.Reason -eq 'files changed since') 'a different fingerprint is not reused'
 
 		$oneStep = @([ordered]@{ name = 'Workflow tests'; result = 'PASS' })
 		Write-VerifyEvidence -Path $evidencePath -RepoRoot $fixtureRepo -Result 'PASS' -Mode 'full' -Steps $oneStep -Fingerprint $fingerprint
-		Assert-True (Test-VerifyEvidence -Path $evidencePath -Fingerprint $fingerprint).Reusable 'a single-step PASS is reused'
+		Assert-True (Test-VerifyEvidence -Path $evidencePath -Fingerprint $fingerprint -Scope full).Reusable 'a single-step PASS is reused'
 
 		$rejected = @(
 			@{ Name = 'a failed run'; Result = 'FAIL'; Mode = 'full'; Steps = @([ordered]@{ name = 'Client lint'; result = 'FAIL' }); Reason = 'last run failed' },
-			@{ Name = 'a server-only run'; Result = 'PASS'; Mode = 'server'; Steps = $passingSteps; Reason = 'last run was server-only' },
-			@{ Name = 'a client-only run'; Result = 'PASS'; Mode = 'client'; Steps = $passingSteps; Reason = 'last run was client-only' },
+			@{ Name = 'a server run when full is needed'; Result = 'PASS'; Mode = 'server'; Steps = $passingSteps; Reason = 'last run was scope server, this needs full' },
+			@{ Name = 'a client run when full is needed'; Result = 'PASS'; Mode = 'client'; Steps = $passingSteps; Reason = 'last run was scope client, this needs full' },
+			@{ Name = 'a run with an unknown mode'; Result = 'PASS'; Mode = 'partial'; Steps = $passingSteps; Reason = 'last run had an unknown scope' },
 			@{ Name = 'a skipped step'; Result = 'PASS'; Mode = 'full'; Steps = @($passingSteps + [ordered]@{ name = 'Client tests'; result = 'SKIP' }); Reason = 'a step did not pass' },
 			@{ Name = 'a run with no steps'; Result = 'PASS'; Mode = 'full'; Steps = @(); Reason = 'a step did not pass' }
 		)
 		foreach ($case in $rejected) {
 			Write-VerifyEvidence -Path $evidencePath -RepoRoot $fixtureRepo -Result $case.Result -Mode $case.Mode -Steps $case.Steps -Fingerprint $fingerprint
-			$check = Test-VerifyEvidence -Path $evidencePath -Fingerprint $fingerprint
+			$check = Test-VerifyEvidence -Path $evidencePath -Fingerprint $fingerprint -Scope full
 			Assert-True ((-not $check.Reusable) -and $check.Reason -eq $case.Reason) "$($case.Name) is not reused ('$($case.Reason)')"
 		}
+
+		# A PASS is reused only for the scopes its mode covers.
+		$coverage = @(
+			@{ Mode = 'full'; Reused = @('full', 'server', 'client', 'workflow'); NotReused = @() },
+			@{ Mode = 'server'; Reused = @('server', 'workflow'); NotReused = @('client', 'full') },
+			@{ Mode = 'client'; Reused = @('client', 'workflow'); NotReused = @('server', 'full') },
+			@{ Mode = 'workflow'; Reused = @('workflow'); NotReused = @('server', 'client', 'full') }
+		)
+		foreach ($case in $coverage) {
+			Write-VerifyEvidence -Path $evidencePath -RepoRoot $fixtureRepo -Result 'PASS' -Mode $case.Mode -Steps $passingSteps -Fingerprint $fingerprint
+			foreach ($scope in $case.Reused) {
+				Assert-True (Test-VerifyEvidence -Path $evidencePath -Fingerprint $fingerprint -Scope $scope).Reusable "a $($case.Mode) PASS is reused when $scope is needed"
+			}
+			foreach ($scope in $case.NotReused) {
+				Assert-True (-not (Test-VerifyEvidence -Path $evidencePath -Fingerprint $fingerprint -Scope $scope).Reusable) "a $($case.Mode) PASS is not reused when $scope is needed"
+			}
+			Assert-True (-not (Test-VerifyEvidence -Path $evidencePath -Fingerprint ('0' * 64) -Scope 'workflow').Reusable) "a $($case.Mode) PASS with changed files is not reused"
+		}
+
+		Write-VerifyEvidence -Path $evidencePath -RepoRoot $fixtureRepo -Result 'PASS' -Mode 'client' -Steps $passingSteps -Fingerprint $fingerprint -Groups @('client', 'workflow')
+		$check = Test-VerifyEvidence -Path $evidencePath -Fingerprint $fingerprint -Scope 'client'
+		Assert-True ((@($check.Evidence.groups) -join ',') -eq 'client,workflow') 'evidence records the changed-file groups'
 
 		# --- Running a step -----------------------------------------------------
 

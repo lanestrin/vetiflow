@@ -1,9 +1,9 @@
 ---
 name: verify
-description: Run scripts/verify.ps1 (workflow tests, server build and tests, client lint, build and tests) and report the real results. Use for /verify, before saying a change is done, and before /complete.
+description: Run scripts/verify.ps1 (workflow tests, then the server and client checks the branch's changes need) and report the real results. Use for /verify, before saying a change is done, and before /complete.
 ---
 
-# verify - run every automated check
+# verify - run the automated checks the changes need
 
 Run from the repo root and report the actual output. Never say a check passed
 without running it.
@@ -17,17 +17,41 @@ pwsh -File scripts/verify.ps1
 If `pwsh` is not installed, use
 `powershell -ExecutionPolicy Bypass -File scripts/verify.ps1`.
 
-Options: `-ServerOnly` when only `vetiflow.Server*` changed, `-ClientOnly` when
-only `vetiflow.client/` changed. `/verify` and `/implement` always run it fresh
-with no option. `/audit`, `/complete` and `/approve` use `-ReuseIfCurrent` (see
-"Reusing a run").
+With no option, Verify picks its scope from the files changed since the branch
+left `main` (see "Scope"). `/verify` and `/implement` run it fresh with no option.
+`/ready`, `/audit`, `/complete` and `/approve` use `-ReuseIfCurrent` (see
+"Reusing a run"). `-Full` runs every step whatever changed: use it only when the
+person asks. `-ServerOnly` and `-ClientOnly` are CI's two jobs; they run one side
+whatever changed.
+
+## Scope
+
+`scripts/verify-scope.ps1` compares the branch with its merge base with
+`origin/main` (or `main`): committed, staged, unstaged and untracked files,
+deletions included. Each path is one group:
+
+| Group | Paths |
+| --- | --- |
+| client | `vetiflow.client/**` |
+| server | `vetiflow.Server/**`, `vetiflow.Server.Tests/**` |
+| workflow | `.claude/**`, `blueprint/**`, `.github/**`, `scripts/**`, root `*.md` |
+| full | `scripts/verify.ps1`, `verify-evidence.ps1`, `verify-scope.ps1`, and any path not listed above |
+
+The scope is `workflow` (workflow tests only, also when nothing changed),
+`server`, `client`, or `full` (both sides, any full path, or no `main` to
+compare with). Verify prints it first, for example
+`Scope: client (7 changed files since origin/main, app changes only under vetiflow.client/)`.
+Steps the scope leaves out are listed under the summary as `Not needed`, never
+as SKIP. CI runs both sides on every PR whatever the local scope was.
 
 ## What it runs
+
+Steps 2-4 run for scope `server` or `full`, step 5 for `client` or `full`.
 
 1. Workflow tests: every `scripts/tests/*.tests.ps1` (the secret guardrails:
    the hook, `db-target.ps1`, `.claude/settings.json` and `.dockerignore`;
    Verify's own evidence and reuse rule; and the skill guards that keep
-   `/ready`, `/complete` and `/approve` person-only). Runs in every mode.
+   `/ready`, `/complete` and `/approve` person-only). Runs in every scope.
 2. Docker check: unless `VETIFLOW_TEST_POSTGRES` is set, stops with
    `FAIL  Docker` when `docker info` exits non-zero.
 3. Server build (through the test project). If it fails while `vetiflow.Server`
@@ -46,16 +70,20 @@ with no option. `/audit`, `/complete` and `/approve` use `-ReuseIfCurrent` (see
 - Each step's full output is in `.verify/logs/<step>.log` (git-ignored, replaced
   on every run). Read it when the tail does not show the cause.
 - Every run deletes `.verify/evidence.json` when it starts and writes it when it
-  ends: result, mode (`full`, `server` or `client`), each step's result, the
-  branch and commit, and a fingerprint of the files when the run started. It
+  ends: result, mode (the scope: `workflow`, `server`, `client` or `full`), the
+  changed-file groups, each step's result, the branch and commit, and a
+  fingerprint of the files when the run started. It
   holds no environment values. Never edit it by hand.
 
 ## Reusing a run
 
 `scripts/verify.ps1 -ReuseIfCurrent` is the only way to reuse a result. It
 prints `Reusing Verify PASS from ...` and the stored step lines only when the
-last run was a full PASS, every step passed, and the fingerprint still matches.
-Otherwise it prints `Not reusing the last Verify: <reason>` and runs in full.
+last run was a PASS, every step passed, its mode covers the scope needed now,
+and the fingerprint still matches. `full` covers every scope, `server` covers
+`server` and `workflow`, `client` covers `client` and `workflow`, `workflow`
+covers only `workflow`. With `-Full`, only a full PASS is reused. Otherwise it
+prints `Not reusing the last Verify: <reason>` and runs the scope needed now.
 
 The fingerprint covers every file git does not ignore, tracked or untracked,
 except `blueprint/context/current-feature.md`, `blueprint/context/findings.md`,
@@ -66,9 +94,10 @@ never reused. Report a reuse as a reuse, never as a new run.
 
 ## After it runs
 
-1. Report one line per step from the summary: PASS, FAIL (with the first real
-   error message from the tail or log) or SKIP (and why). A SKIP is not a pass.
-   Say whether the result was reused.
+1. Report the scope and why, then one line per step from the summary: PASS,
+   FAIL (with the first real error message from the tail or log) or SKIP (and
+   why). A SKIP is not a pass; a `Not needed` line is not a SKIP. Say whether
+   the result was reused.
 2. Check the diff: `git status` and `git diff --stat`. Confirm only files in the
    current spec's scope changed and that none of the files in "Unexpected files"
    below are included.
@@ -76,7 +105,7 @@ never reused. Report a reuse as a reuse, never as a new run.
    it as "When something fails or stops" in `blueprint/context/ai-interaction.md`
    says, with the recommended option from the tables below as `Next`.
 4. When run on its own, end with the handoff ("Ending a turn"): for example
-   `Status: Verification passed (ran fresh).` and the loop's next command.
+   `Status: Verification passed (ran fresh, scope client).` and the loop's next command.
 
 Never skip, disable or delete a test to make Verify pass.
 
