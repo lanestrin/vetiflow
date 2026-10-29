@@ -1,14 +1,18 @@
 import { describe, expect, it } from "vitest";
-import type { CaseEventType, CaseTask } from "../../types/CaseDetail";
+import { buildCaseTask } from "../../test/builders";
+import type { CaseEventType } from "../../types/CaseDetail";
 import {
   checkInLabel,
+  dueLabel,
   eventDetail,
   eventLabel,
+  isOverdue,
   locationLabel,
   longAgeLabel,
   speciesKind,
   taskMeta,
   temperatureLabel,
+  timeLabel,
   weightLabel
 } from "./overviewFormat";
 
@@ -101,21 +105,47 @@ describe("eventDetail", () => {
 });
 
 describe("taskMeta", () => {
-  const task: CaseTask = {
-    id: "t1",
-    type: "task",
-    description: "Place IV catheter",
-    status: "open",
-    dueAt: null,
-    assignedTo: null,
-    createdAt: now.toISOString(),
-    resolvedAt: null
-  };
+  const task = buildCaseTask({ id: "t1", description: "Place IV catheter", createdAt: now.toISOString() });
 
-  it("names the assignee, or says the task is pending or done", () => {
+  it("names the assignee, or says the task is pending", () => {
     expect(taskMeta({ ...task, assignedTo: { id: "s1", name: "Jordan Reed" } })).toBe("Jordan Reed");
     expect(taskMeta(task)).toBe("Pending");
-    expect(taskMeta({ ...task, status: "done" })).toBe("Done");
+  });
+
+  it("names who completed a done task, or says it is done", () => {
+    const done = { ...task, status: "done" as const, assignedTo: { id: "s1", name: "Jordan Reed" } };
+
+    expect(taskMeta({ ...done, resolvedBy: { id: "s2", name: "Sam Cruz" } })).toBe("Sam Cruz");
+    expect(taskMeta({ ...done, assignedTo: null })).toBe("Done");
+  });
+});
+
+describe("dueLabel", () => {
+  const due = (minutesFromNow: number) => new Date(now.getTime() + minutesFromNow * 60_000).toISOString();
+
+  it.each([
+    [-12, "Overdue by 12 min"],
+    [-65, "Overdue by 1 h 5 min"],
+    [0, "Due now"],
+    [8, "Due in 8 min"],
+    [59, "Due in 59 min"]
+  ])("shows a due time %i minutes away as %s", (minutesFromNow, label) => {
+    expect(dueLabel(due(minutesFromNow), now)).toBe(label);
+  });
+
+  it("shows the clock time from an hour away, with the day when it is not today", () => {
+    expect(dueLabel(due(90), now)).toBe(`Due ${timeLabel(due(90), now)}`);
+    expect(dueLabel(due(60 * 30), now)).toMatch(/^Due \d{1,2} \w{3}, /);
+  });
+
+  it("says nothing is scheduled without a due time", () => {
+    expect(dueLabel(null, now)).toBe("Not scheduled");
+  });
+
+  it("marks only a past due time as overdue", () => {
+    expect(isOverdue(due(-1), now)).toBe(true);
+    expect(isOverdue(due(5), now)).toBe(false);
+    expect(isOverdue(null, now)).toBe(false);
   });
 });
 

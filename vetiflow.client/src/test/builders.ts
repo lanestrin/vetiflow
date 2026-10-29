@@ -1,6 +1,6 @@
 import type { SignedInUser } from "../types/Auth";
 import type { BoardSummary } from "../types/BoardSummary";
-import type { CaseDetail } from "../types/CaseDetail";
+import type { CaseDetail, CaseTask } from "../types/CaseDetail";
 import type { EmergencyCaseListItem } from "../types/EmergencyCaseListItem";
 import type { PatientListItem } from "../types/PatientListItem";
 
@@ -82,7 +82,25 @@ export function buildCaseDetail(overrides: Partial<CaseDetail> = {}): CaseDetail
     triageAssessments: [],
     vitals: [],
     tasks: [],
+    nextReassessment: null,
+    nextClientUpdate: null,
     timeline: [],
+    ...overrides
+  };
+}
+
+export function buildCaseTask(overrides: Partial<CaseTask> = {}): CaseTask {
+  return {
+    id: crypto.randomUUID(),
+    type: "task",
+    description: "A task",
+    status: "open",
+    dueAt: null,
+    assignedTo: null,
+    createdAt: new Date().toISOString(),
+    createdBy: null,
+    resolvedAt: null,
+    resolvedBy: null,
     ...overrides
   };
 }

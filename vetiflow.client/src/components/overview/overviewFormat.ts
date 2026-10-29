@@ -92,13 +92,45 @@ export function eventDetail(caseEvent: CaseEvent): string {
     : caseEvent.description;
 }
 
-// Who the task is with; "Pending" for an open task nobody has yet.
+// Who completed a done task, else who it is with; "Pending" for an open task
+// nobody has yet (4.4b).
 export function taskMeta(task: CaseTask): string {
-  if (task.assignedTo) {
-    return task.assignedTo.name;
+  if (task.status === "done") {
+    return task.resolvedBy?.name ?? "Done";
   }
 
-  return task.status === "done" ? "Done" : "Pending";
+  return task.assignedTo?.name ?? "Pending";
+}
+
+const minute = 60_000;
+
+// "12 min", or "1 h 5 min" from an hour.
+function minutesLabel(minutes: number): string {
+  return minutes < 60 ? `${minutes} min` : `${Math.floor(minutes / 60)} h ${minutes % 60} min`;
+}
+
+// The due rows (build plan 4.4b): "Overdue by 12 min", "Due now", "Due in 8
+// min" within the hour, then "Due 11:15 AM". "Not scheduled" with nothing due.
+export function dueLabel(dueAt: string | null, now: Date): string {
+  if (dueAt === null) {
+    return "Not scheduled";
+  }
+
+  const untilDue = new Date(dueAt).getTime() - now.getTime();
+  if (untilDue < 0) {
+    return `Overdue by ${minutesLabel(Math.max(1, Math.floor(-untilDue / minute)))}`;
+  }
+
+  const minutes = Math.floor(untilDue / minute);
+  if (minutes === 0) {
+    return "Due now";
+  }
+
+  return minutes < 60 ? `Due in ${minutes} min` : `Due ${timeLabel(dueAt, now)}`;
+}
+
+export function isOverdue(dueAt: string | null, now: Date): boolean {
+  return dueAt !== null && new Date(dueAt).getTime() < now.getTime();
 }
 
 export type SpeciesKind = "dog" | "cat" | "other";

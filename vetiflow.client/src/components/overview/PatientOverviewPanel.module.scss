@@ -214,6 +214,40 @@
 	&[data-done="true"] .rowLabel {
 		color: var(--color-shell-muted);
 	}
+
+	.locationSection & + & {
+		margin-top: 6px;
+	}
+
+}
+
+// A checklist row's tick and description, one label for the checkbox (4.4b).
+.taskLabel {
+	display: flex;
+	flex: 1;
+	align-items: center;
+	gap: 8px;
+	min-width: 0;
+	cursor: pointer;
+}
+
+// The native checkbox stays for keyboards and screen readers; .check draws it.
+.checkInput {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
+
+	&:focus-visible + .check {
+		outline: 3px solid var(--color-focus);
+		outline-offset: 2px;
+	}
+
+	&:disabled + .check {
+		opacity: 0.6;
+	}
 }
 
 .rowLabel {
@@ -225,6 +259,12 @@
 	color: var(--color-shell-muted);
 	font-size: 9px;
 	text-align: right;
+
+	// The prototype's .alert: overdue reads in red as well as in words.
+	&[data-overdue="true"] {
+		color: var(--color-acuity-critical);
+		font-weight: 700;
+	}
 }
 
 .section {

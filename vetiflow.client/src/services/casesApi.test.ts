@@ -4,7 +4,7 @@ import { buildCase, buildCaseDetail } from "../test/builders";
 import { apiUrl, server } from "../test/server";
 import type { CaseIntakeRequest } from "../types/CaseIntake";
 import { AccessDeniedError, CaseGoneError, FormRejectedError, SessionEndedError } from "./apiErrors";
-import { createIntake, getCase, getEmergencyCases, triageCase, updateCaseStage } from "./casesApi";
+import { completeTask, createIntake, getCase, getEmergencyCases, reopenTask, triageCase, updateCaseStage } from "./casesApi";
 import { saveAccessToken } from "./session";
 
 afterEach(() => {
@@ -270,5 +270,37 @@ describe("triageCase", () => {
     server.use(http.post(apiUrl("/api/cases/case-42/triage"), () => new HttpResponse(null, { status: 500 })));
 
     await expect(triageCase("case-42", { priority: "urgent", notes: null })).rejects.toThrow("Failed to save triage.");
+  });
+});
+
+describe("completeTask and reopenTask", () => {
+  it.each([
+    ["complete", completeTask],
+    ["reopen", reopenTask]
+  ] as const)("posts %s for the task with the session's token", async (action, call) => {
+    saveAccessToken("token-1");
+    let seen: { method: string; authorization: string | null } | null = null;
+    server.use(
+      http.post(apiUrl(`/api/cases/case-42/tasks/task-7/${action}`), ({ request }) => {
+        seen = { method: request.method, authorization: request.headers.get("Authorization") };
+        return new HttpResponse(null, { status: 204 });
+      })
+    );
+
+    await call("case-42", "task-7");
+
+    expect(seen).toEqual({ method: "POST", authorization: "Bearer token-1" });
+  });
+
+  it("throws SessionEndedError on 401", async () => {
+    server.use(http.post(apiUrl("/api/cases/case-42/tasks/task-7/complete"), () => new HttpResponse(null, { status: 401 })));
+
+    await expect(completeTask("case-42", "task-7")).rejects.toBeInstanceOf(SessionEndedError);
+  });
+
+  it.each([404, 409, 500])("throws when the API answers %i", async (status) => {
+    server.use(http.post(apiUrl("/api/cases/case-42/tasks/task-7/reopen"), () => new HttpResponse(null, { status })));
+
+    await expect(reopenTask("case-42", "task-7")).rejects.toThrow("Failed to update the task.");
   });
 });

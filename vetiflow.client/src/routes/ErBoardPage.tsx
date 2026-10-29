@@ -180,7 +180,12 @@ export function ErBoardPage() {
           onFilter={chooseFilter}
         />
 
-        <PatientOverviewPanel caseId={selectedCaseId} refreshedAt={updatedAt} onTriaged={showTriaged} />
+        <PatientOverviewPanel
+          caseId={selectedCaseId}
+          refreshedAt={updatedAt}
+          onTriaged={showTriaged}
+          onTaskSaved={() => void reloadCases.current()}
+        />
       </div>
 
       <IntakeDialog
