@@ -126,6 +126,21 @@ public class DbSeederTests(VetiFlowApiFactory factory)
 		});
 	}
 
+	// The prototype's mix, so a fresh demo has clinicians on the floor (2.21a).
+	[Fact]
+	public async Task SeedAsync_GivesDemoCliniciansAStatus()
+	{
+		await using var dbContext = await SeededDatabaseAsync();
+
+		var statuses = await dbContext.StaffMembers
+			.ToDictionaryAsync(staff => staff.LastName, staff => staff.Status, _cancellationToken);
+
+		Assert.Equal(StaffStatus.Busy, statuses["Lee"]);
+		Assert.Equal(StaffStatus.Available, statuses["Shah"]);
+		Assert.Equal(StaffStatus.Available, statuses["Ortiz"]);
+		Assert.Equal(StaffStatus.Busy, statuses["Kim"]);
+	}
+
 	// Databases seeded before accounts existed (any local one) get the accounts
 	// on the next boot, once.
 	[Fact]

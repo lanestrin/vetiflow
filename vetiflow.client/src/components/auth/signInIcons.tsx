@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-// Line icons from the landing design (blueprint/reference/landing-page). Every
+// Line icons from the landing design (build plan S.20a). Every
 // one is decorative: the text beside it carries the meaning.
 function LineIcon({ children }: { children: ReactNode }) {
   return (

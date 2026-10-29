@@ -160,6 +160,43 @@ public class DatabaseConstraintTests(VetiFlowApiFactory factory)
 	}
 
 	[Fact]
+	public async Task StaffMember_Status_StoredAsText()
+	{
+		var staffMember = TestData.StaffMember(StaffRole.Technician);
+		staffMember.Status = StaffStatus.AtLimit;
+		await using (var saveContext = factory.CreateDbContext())
+		{
+			saveContext.StaffMembers.Add(staffMember);
+			await saveContext.SaveChangesAsync(_cancellationToken);
+		}
+
+		await using var dbContext = factory.CreateDbContext();
+		var stored = await dbContext.Database
+			.SqlQuery<string>($"""SELECT "Status" AS "Value" FROM "StaffMembers" WHERE "Id" = {staffMember.Id}""")
+			.SingleAsync(_cancellationToken);
+
+		Assert.Equal("AtLimit", stored);
+	}
+
+	// What staff rows that existed before the column get (2.21a).
+	[Fact]
+	public async Task StaffMember_Status_DefaultsToUnavailable()
+	{
+		var id = Guid.NewGuid();
+		await using var dbContext = factory.CreateDbContext();
+		await dbContext.Database.ExecuteSqlAsync(
+			$"""
+			INSERT INTO "StaffMembers" ("Id", "FirstName", "LastName", "Role", "IsActive")
+			VALUES ({id}, 'Staff', {id.ToString()}, 'Veterinarian', TRUE)
+			""",
+			_cancellationToken);
+
+		var stored = await dbContext.StaffMembers.SingleAsync(staff => staff.Id == id, _cancellationToken);
+
+		Assert.Equal(StaffStatus.Unavailable, stored.Status);
+	}
+
+	[Fact]
 	public async Task RecordTriage_PersistsAssessmentsAndCurrentAcuity()
 	{
 		var emergencyCase = TestData.Case(TestData.Patient());

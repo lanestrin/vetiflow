@@ -168,28 +168,32 @@ public static class DbSeeder
 		{
 			FirstName = "Jordan",
 			LastName = "Lee",
-			Role = StaffRole.Veterinarian
+			Role = StaffRole.Veterinarian,
+			Status = StaffStatus.Busy
 		};
 
 		var drShah = new StaffMember
 		{
 			FirstName = "Priya",
 			LastName = "Shah",
-			Role = StaffRole.Veterinarian
+			Role = StaffRole.Veterinarian,
+			Status = StaffStatus.Available
 		};
 
 		var techOrtiz = new StaffMember
 		{
 			FirstName = "Sam",
 			LastName = "Ortiz",
-			Role = StaffRole.Technician
+			Role = StaffRole.Technician,
+			Status = StaffStatus.Available
 		};
 
 		var techKim = new StaffMember
 		{
 			FirstName = "Alex",
 			LastName = "Kim",
-			Role = StaffRole.Technician
+			Role = StaffRole.Technician,
+			Status = StaffStatus.Busy
 		};
 
 		var treatmentBay1 = new Room { Name = "Treatment Bay 1", Type = RoomType.Treatment };

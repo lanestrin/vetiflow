@@ -20,8 +20,8 @@ const methods: { method: SignInMethod; label: string; icon: ReactNode }[] = [
   { method: "phone", label: "Phone", icon: <PhoneIcon /> }
 ];
 
-// The demo sign-in page (build plan S.18a), laid out as the landing design in
-// blueprint/reference/landing-page (S.20a).
+// The demo sign-in page (build plan S.18a), laid out as the S.20a landing
+// design.
 const sessionEndedMessage = "Your session ended. Sign in again.";
 
 export function SignInPage() {

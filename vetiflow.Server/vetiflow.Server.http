@@ -9,3 +9,32 @@ GET {{vetiflow.Server_HostAddress}}/api/cases
 Accept: application/json
 
 ###
+
+# My status and the clinicians on floor (build plan 2.21a). Sign in as the demo
+# team member, then put the accessToken from the response in @token.
+POST {{vetiflow.Server_HostAddress}}/api/auth/email
+Content-Type: application/json
+
+{ "email": "team@vetiflow.demo", "password": "welcome1" }
+
+###
+
+@token = paste-the-access-token
+
+GET {{vetiflow.Server_HostAddress}}/api/staff/me/status
+Authorization: Bearer {{token}}
+
+###
+
+PUT {{vetiflow.Server_HostAddress}}/api/staff/me/status
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "status": "atLimit" }
+
+###
+
+GET {{vetiflow.Server_HostAddress}}/api/staff/on-floor
+Authorization: Bearer {{token}}
+
+###

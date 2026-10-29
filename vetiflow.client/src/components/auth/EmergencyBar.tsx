@@ -4,7 +4,7 @@ import { MapPinIcon, PhoneIcon } from "./signInIcons";
 import styles from "./EmergencyBar.module.scss";
 
 // "Need emergency care?" across the foot of the sign-in page (build plan
-// S.20b), from blueprint/reference/landing-page/desktop-preview.png. There is
+// S.20b), from the landing design's desktop preview. There is
 // no real hospital yet, so both actions are buttons that open a demo notice;
 // nothing here dials a number or links to a map.
 export function EmergencyBar() {
