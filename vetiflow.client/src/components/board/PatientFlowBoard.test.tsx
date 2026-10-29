@@ -2,11 +2,12 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { buildCase } from "../../test/builders";
 import type { EmergencyCaseListItem } from "../../types/EmergencyCaseListItem";
+import type { BoardFilter } from "./BoardStats";
 import { PatientFlowBoard } from "./PatientFlowBoard";
 
-function renderBoard(cases: EmergencyCaseListItem[], updatedAt = new Date()) {
-  render(
-    <PatientFlowBoard cases={cases} updatedAt={updatedAt} selectedCaseId={null} onSelect={vi.fn()} />
+function renderBoard(cases: EmergencyCaseListItem[], updatedAt = new Date(), filter?: BoardFilter) {
+  return render(
+    <PatientFlowBoard cases={cases} updatedAt={updatedAt} selectedCaseId={null} onSelect={vi.fn()} filter={filter} />
   );
 }
 
@@ -78,5 +79,55 @@ describe("PatientFlowBoard", () => {
 
     expect(lane("Stable")).toHaveAttribute("data-shown", "true");
     expect(lane("Critical")).toHaveAttribute("data-shown", "false");
+  });
+
+  describe("with a stat card filter", () => {
+    const cases = () => [
+      buildCase({ patientName: "Toby", acuity: "urgent", stage: "incoming" }),
+      buildCase({ patientName: "Nori", acuity: "critical", stage: "incoming" }),
+      buildCase({ patientName: "Milo", acuity: "critical", stage: "treatment" }),
+      buildCase({ patientName: "Pip", acuity: "stable", stage: "recheck" })
+    ];
+
+    it("shows every card for all", () => {
+      renderBoard(cases(), new Date(), "all");
+
+      expect(screen.getAllByRole("article")).toHaveLength(4);
+      expect(screen.getByText("Showing 4 of 4 active cases")).toBeInTheDocument();
+    });
+
+    it("shows only incoming cards, in every lane, for awaiting triage", () => {
+      renderBoard(cases(), new Date(), "awaitingTriage");
+
+      expect(within(lane("Urgent")).getByRole("heading", { name: "Toby" })).toBeInTheDocument();
+      expect(within(lane("Critical")).getByRole("heading", { name: "Nori" })).toBeInTheDocument();
+      expect(screen.queryByRole("heading", { name: "Milo" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("heading", { name: "Pip" })).not.toBeInTheDocument();
+      expect(screen.getByText("Showing 2 awaiting triage cases · initial priority is provisional")).toBeInTheDocument();
+      // Stacked at phone width: no lane hides behind a tab.
+      expect(screen.queryByRole("group", { name: "Show lane" })).not.toBeInTheDocument();
+      expect(lane("Stable")).toHaveAttribute("data-shown", "true");
+    });
+
+    it("shows only the Critical lane for critical", () => {
+      renderBoard(cases(), new Date(), "critical");
+
+      expect(screen.getAllByRole("region").map((region) => region.getAttribute("data-lane")).filter(Boolean))
+        .toEqual(["critical"]);
+      expect(within(lane("Critical")).getAllByRole("article")).toHaveLength(2);
+      expect(screen.getByText("Showing 2 critical patients · other acuity lanes hidden")).toBeInTheDocument();
+    });
+
+    it("switches the phone tab to Critical when the critical filter is chosen", () => {
+      const { rerender } = renderBoard(cases(), new Date(), "all");
+      const tabs = screen.getByRole("group", { name: "Show lane" });
+      fireEvent.click(within(tabs).getByRole("button", { name: "Stable" }));
+
+      rerender(
+        <PatientFlowBoard cases={cases()} updatedAt={new Date()} selectedCaseId={null} onSelect={vi.fn()} filter="critical" />
+      );
+
+      expect(lane("Critical")).toHaveAttribute("data-shown", "true");
+    });
   });
 });

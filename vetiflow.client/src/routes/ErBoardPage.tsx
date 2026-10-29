@@ -1,15 +1,18 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import type { SignInRouteState } from "../components/auth/experienceHome";
+import { BoardStats, type BoardFilter } from "../components/board/BoardStats";
 import { PatientFlowBoard } from "../components/board/PatientFlowBoard";
-import { ErBoardStatusBar } from "../components/clinical/ErBoardStatusBar";
+import { useNow } from "../components/board/useNow";
 import { IntakeDialog } from "../components/intake/IntakeDialog";
 import { PatientOverviewPanel } from "../components/overview/PatientOverviewPanel";
 import { useToast } from "../components/shell/toastContext";
+import type { BoardSummary } from "../types/BoardSummary";
 import type { CaseIntakeResult } from "../types/CaseIntake";
 import type { EmergencyCaseListItem } from "../types/EmergencyCaseListItem";
 
 import { AccessDeniedError, SessionEndedError } from "../services/apiErrors";
+import { getBoardSummary } from "../services/boardApi";
 import { getEmergencyCases } from "../services/casesApi";
 import { clearAccessToken } from "../services/session";
 import { createCaseHubConnection } from "../services/caseHub";
@@ -18,15 +21,32 @@ import styles from "./ErBoardPage.module.scss";
 // React 19 moves <title> into the document head, so each page names its own tab.
 const pageTitle = <title>ER Board · VetiFlow</title>;
 
+// The stat cards' numbers, or null when only they failed: the board still
+// shows. A refused session still ends the board, as for the cases.
+async function loadSummary(): Promise<BoardSummary | null> {
+  try {
+    return await getBoardSummary();
+  } catch (summaryError) {
+    if (summaryError instanceof SessionEndedError || summaryError instanceof AccessDeniedError) {
+      throw summaryError;
+    }
+
+    return null;
+  }
+}
+
 export function ErBoardPage() {
   const navigate = useNavigate();
   const [cases, setCases] = useState<EmergencyCaseListItem[]>([]);
+  const [summary, setSummary] = useState<BoardSummary | null>(null);
+  const [filter, setFilter] = useState<BoardFilter>("all");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [updatedAt, setUpdatedAt] = useState(() => new Date());
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
   const [isIntakeOpen, setIsIntakeOpen] = useState(false);
   const showToast = useToast();
+  const now = useNow();
   // Reloads the board now, without waiting for the hub's notice.
   const reloadCases = useRef<() => Promise<void>>(async () => {});
 
@@ -37,13 +57,14 @@ export function ErBoardPage() {
 
     async function loadCases() {
       try {
-        const emergencyCases = await getEmergencyCases();
+        const [emergencyCases, boardSummary] = await Promise.all([getEmergencyCases(), loadSummary()]);
 
         if (!isActive) {
           return;
         }
 
         setCases(emergencyCases);
+        setSummary(boardSummary);
         // A case that left the board (discharged) is no longer selected.
         setSelectedCaseId((selected) =>
           emergencyCases.some((emergencyCase) => emergencyCase.id === selected) ? selected : null);
@@ -103,6 +124,17 @@ export function ErBoardPage() {
     void reloadCases.current();
   }
 
+  // The stat cards filter the board (2.12b). An empty triage queue keeps the
+  // board as it is, as in the prototype.
+  function chooseFilter(chosen: BoardFilter) {
+    if (chosen === "awaitingTriage" && summary?.awaitingTriage === 0) {
+      showToast("No patients awaiting triage");
+      return;
+    }
+
+    setFilter(chosen);
+  }
+
   // Triage saved from the panel (4.2b): reload now rather than wait for the hub.
   function showTriaged(message: string) {
     showToast(message);
@@ -133,12 +165,12 @@ export function ErBoardPage() {
       <header className={styles.header}>
         <h1 className={styles.title}>VetiFlow ER Board</h1>
 
-        <ErBoardStatusBar cases={cases} />
-
         <button type="button" className={styles.intakeButton} onClick={() => setIsIntakeOpen(true)}>
           <span aria-hidden="true">＋ </span>New intake
         </button>
       </header>
+
+      <BoardStats summary={summary} filter={filter} now={now} onFilter={chooseFilter} />
 
       <div className={styles.layout}>
         <PatientFlowBoard
@@ -146,6 +178,7 @@ export function ErBoardPage() {
           updatedAt={updatedAt}
           selectedCaseId={selectedCaseId}
           onSelect={setSelectedCaseId}
+          filter={filter}
         />
 
         <PatientOverviewPanel caseId={selectedCaseId} refreshedAt={updatedAt} onTriaged={showTriaged} />
