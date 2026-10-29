@@ -112,6 +112,16 @@ public class CasesController : ControllerBase
 							Description = task.Description
 						})
 						.ToList(),
+					NextReassessment = emergencyCase.Tasks.AsQueryable()
+						.Where(task => task.Type == CaseTaskType.Reassessment && task.Status == CaseTaskStatus.Open)
+						.OrderBy(task => task.DueAt)
+						.Select(CaseDueItemDto.FromTask)
+						.FirstOrDefault(),
+					NextClientUpdate = emergencyCase.Tasks.AsQueryable()
+						.Where(task => task.Type == CaseTaskType.ClientUpdate && task.Status == CaseTaskStatus.Open)
+						.OrderBy(task => task.DueAt)
+						.Select(CaseDueItemDto.FromTask)
+						.FirstOrDefault(),
 					LastUpdated = emergencyCase.LastUpdated
 				})
 				.ToListAsync();
@@ -256,9 +266,33 @@ public class CasesController : ControllerBase
 									Name = task.AssignedToStaff.FirstName + " " + task.AssignedToStaff.LastName
 								},
 							CreatedAt = task.CreatedAt,
-							ResolvedAt = task.ResolvedAt
+							CreatedBy = task.CreatedByStaff == null
+								? null
+								: new CaseReferenceDto
+								{
+									Id = task.CreatedByStaff.Id,
+									Name = task.CreatedByStaff.FirstName + " " + task.CreatedByStaff.LastName
+								},
+							ResolvedAt = task.ResolvedAt,
+							ResolvedBy = task.ResolvedByStaff == null
+								? null
+								: new CaseReferenceDto
+								{
+									Id = task.ResolvedByStaff.Id,
+									Name = task.ResolvedByStaff.FirstName + " " + task.ResolvedByStaff.LastName
+								}
 						})
 						.ToList(),
+					NextReassessment = emergencyCase.Tasks.AsQueryable()
+						.Where(task => task.Type == CaseTaskType.Reassessment && task.Status == CaseTaskStatus.Open)
+						.OrderBy(task => task.DueAt)
+						.Select(CaseDueItemDto.FromTask)
+						.FirstOrDefault(),
+					NextClientUpdate = emergencyCase.Tasks.AsQueryable()
+						.Where(task => task.Type == CaseTaskType.ClientUpdate && task.Status == CaseTaskStatus.Open)
+						.OrderBy(task => task.DueAt)
+						.Select(CaseDueItemDto.FromTask)
+						.FirstOrDefault(),
 					Timeline = emergencyCase.Events
 						.OrderBy(caseEvent => caseEvent.CreatedAt)
 						.Select(caseEvent => new CaseEventDto

@@ -19,5 +19,9 @@ public class CaseTaskDto
 
 	public DateTimeOffset CreatedAt { get; set; }
 
+	public CaseReferenceDto? CreatedBy { get; set; }
+
 	public DateTimeOffset? ResolvedAt { get; set; }
+
+	public CaseReferenceDto? ResolvedBy { get; set; }
 }

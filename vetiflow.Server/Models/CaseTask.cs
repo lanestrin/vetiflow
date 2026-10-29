@@ -1,9 +1,13 @@
 ﻿namespace vetiflow.Server.Models;
 
+// Reassessment and ClientUpdate are due items with a due time (decided
+// 2026-10-28: due items are tasks, build plan 4.4a).
 public enum CaseTaskType
 {
 	Task,
-	Blocker
+	Blocker,
+	Reassessment,
+	ClientUpdate
 }
 
 public enum CaseTaskStatus

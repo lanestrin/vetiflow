@@ -199,7 +199,7 @@ replaces it. Demo data only.
 
 **Next actions and due items** (prototype: task list, "Next reassessment", "Client update")
 
-- [ ] **4.4a** `feature/case-tasks-api`: create, complete and reopen tasks and blockers on a case, with who did it and when; task types include Reassessment and Client update with a due time and an assignee (replaces 4.10a); the case detail and board list return the next open one of each.
+- [x] **4.4a** `feature/case-tasks-api`: create, complete and reopen tasks and blockers on a case, with who did it and when; task types include Reassessment and Client update with a due time and an assignee (replaces 4.10a); the case detail and board list return the next open one of each. Done (history/features/4.4a-case-tasks-api.md).
 - [ ] **4.4b** `feature/next-actions`: the checklist with done ticks and assignee, **＋ Add task**, open blockers still shown on the card, and the panel's "Next reassessment" and "Client update" rows ("Due in 8 min", "Due 11:15 AM", overdue in words and colour) with setting them (replaces 4.10b).
 
 **Vitals and pain** (prototype: four vitals tiles, pain score meter)
