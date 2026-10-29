@@ -3,6 +3,8 @@ import { buildCaseTask } from "../../test/builders";
 import type { CaseEventType } from "../../types/CaseDetail";
 import {
   checkInLabel,
+  defaultDueTime,
+  dueAtFromTime,
   dueLabel,
   eventDetail,
   eventLabel,
@@ -157,5 +159,35 @@ describe("speciesKind", () => {
     ["Rabbit", "other"]
   ] as const)("treats %s as %s", (species, kind) => {
     expect(speciesKind(species)).toBe(kind);
+  });
+});
+
+describe("defaultDueTime", () => {
+  it.each([
+    [new Date(2026, 9, 28, 12, 0), "12:30"],
+    [new Date(2026, 9, 28, 12, 1), "12:35"],
+    [new Date(2026, 9, 28, 9, 34, 30), "10:05"],
+    [new Date(2026, 9, 28, 23, 40), "00:10"]
+  ])("gives half an hour from %s, rounded up to 5 minutes, as %s", (from, time) => {
+    expect(defaultDueTime(from)).toBe(time);
+  });
+});
+
+describe("dueAtFromTime", () => {
+  it("gives a later time today", () => {
+    expect(dueAtFromTime("12:45", now)).toBe(new Date(2026, 9, 28, 12, 45).toISOString());
+  });
+
+  it("keeps the current minute today", () => {
+    expect(dueAtFromTime("12:00", new Date(2026, 9, 28, 12, 0, 40))).toBe(new Date(2026, 9, 28, 12, 0).toISOString());
+  });
+
+  it("gives tomorrow for a time that has passed", () => {
+    expect(dueAtFromTime("11:15", now)).toBe(new Date(2026, 9, 29, 11, 15).toISOString());
+    expect(dueAtFromTime("00:20", new Date(2026, 9, 28, 23, 50))).toBe(new Date(2026, 9, 29, 0, 20).toISOString());
+  });
+
+  it.each(["", "7:30", "noon"])("gives null for %j", (time) => {
+    expect(dueAtFromTime(time, now)).toBeNull();
   });
 });

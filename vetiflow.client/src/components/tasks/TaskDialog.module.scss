@@ -1,0 +1,219 @@
+// The Add task and due item dialogs (4.4c), in the prototype's small modal
+// (blueprint/reference/vetiflow-er-dashboard.html's .modal.score-modal), the
+// look the triage dialog (4.2b) already has. The prototype has only the
+// ＋ Add task link, no form behind it.
+$fast: var(--motion-fast) var(--ease-out);
+
+.dialog {
+	width: min(460px, 100% - 40px);
+	max-width: none;
+	max-height: 90vh;
+	padding: 0;
+	overflow: auto;
+	border: 0;
+	border-radius: 16px;
+	background: var(--color-surface);
+	box-shadow: 0 24px 70px #132b3740;
+	color: var(--color-shell-ink);
+
+	&::backdrop {
+		background: rgb(13 31 39 / 48%);
+	}
+}
+
+.head {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	padding: 20px 22px 16px;
+	border-bottom: 1px solid var(--color-shell-line);
+}
+
+.eyebrow {
+	margin: 0 0 7px;
+	color: var(--color-shell-teal-strong);
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: 1.2px;
+	text-transform: uppercase;
+}
+
+.title {
+	margin: 0;
+	font-size: 19px;
+	font-weight: 800;
+}
+
+.tiny {
+	margin: 4px 0 0;
+	color: var(--color-shell-muted);
+	font-size: 11px;
+}
+
+.close {
+	padding: 0 4px;
+	border: 0;
+	border-radius: 6px;
+	background: none;
+	color: #708187;
+	font-size: 22px;
+	line-height: 1;
+	cursor: pointer;
+
+	&:focus-visible {
+		outline: 3px solid var(--color-focus);
+		outline-offset: 2px;
+	}
+}
+
+.body {
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+	padding: 18px 22px;
+}
+
+.formError {
+	margin: 0;
+	padding: 10px 12px;
+	border-radius: 8px;
+	background: var(--color-acuity-critical-bg);
+	color: var(--color-acuity-critical);
+	font-size: 12px;
+	font-weight: 600;
+}
+
+.label {
+	padding: 0;
+	color: #52656c;
+	font-size: 11px;
+	font-weight: 700;
+}
+
+.kind {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	margin: 0;
+	padding: 0;
+	border: 0;
+}
+
+.options {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+
+	label {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		padding: 8px 10px;
+		border: 1px solid var(--color-shell-line);
+		border-radius: 8px;
+		font-size: 12px;
+		cursor: pointer;
+	}
+
+	input {
+		accent-color: var(--color-care-teal);
+	}
+}
+
+.field {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+
+	input,
+	select {
+		min-width: 0;
+		padding: 10px 11px;
+		border: 1px solid var(--color-intake-edge);
+		border-radius: 8px;
+		background: var(--color-surface);
+		color: var(--color-shell-ink);
+		font: inherit;
+		font-size: 14px;
+		transition: border-color $fast;
+
+		&:focus {
+			border-color: var(--color-shell-teal-strong);
+			outline: 2px solid #bde5dd;
+		}
+
+		&[aria-invalid="true"] {
+			border-color: var(--color-field-error);
+			box-shadow: inset 0 0 0 1px var(--color-field-error);
+		}
+
+		@media (prefers-reduced-motion: reduce) {
+			transition: none;
+		}
+	}
+}
+
+// The due time and its "Due in 30 min" preview side by side.
+.timeLine {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 10px;
+}
+
+.hint {
+	margin: 0;
+	color: var(--color-shell-muted);
+	font-size: 12px;
+}
+
+.foot {
+	display: flex;
+	justify-content: flex-end;
+	gap: 8px;
+	padding: 14px 22px 20px;
+	border-top: 1px solid var(--color-shell-line);
+}
+
+%button {
+	min-height: 2.5rem;
+	padding: 10px 15px;
+	border-radius: 10px;
+	font: inherit;
+	font-size: 14px;
+	font-weight: 700;
+	cursor: pointer;
+
+	&:focus-visible {
+		outline: 3px solid var(--color-focus);
+		outline-offset: 2px;
+	}
+
+	&:disabled {
+		cursor: progress;
+		opacity: 0.7;
+	}
+}
+
+.primary {
+	@extend %button;
+
+	border: 0;
+	background: var(--color-care-teal);
+	box-shadow: 0 5px 12px #078b8120;
+	color: var(--color-text-inverse);
+}
+
+.secondary {
+	@extend %button;
+
+	border: 1px solid var(--color-shell-line);
+	background: var(--color-surface);
+	color: var(--color-shell-ink);
+}
+
+@media (max-width: 520px) {
+	.dialog {
+		width: calc(100% - 24px);
+	}
+}

@@ -1,4 +1,4 @@
-import type { StaffStatus } from "../types/StaffStatus";
+import type { OnFloorClinician, StaffStatus } from "../types/StaffStatus";
 import { authorizationHeader, throwIfRefused } from "./apiRequest";
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "";
@@ -34,4 +34,19 @@ export async function setMyStatus(status: StaffStatus): Promise<void> {
   if (!response.ok) {
     throw new Error("Failed to save my status.");
   }
+}
+
+// The clinicians on the floor, the Add task form's assignees (build plan 4.4c).
+export async function getCliniciansOnFloor(): Promise<OnFloorClinician[]> {
+  const response = await fetch(`${apiBaseUrl}/api/staff/on-floor`, {
+    headers: authorizationHeader()
+  });
+
+  throwIfRefused(response);
+
+  if (!response.ok) {
+    throw new Error("Failed to load the clinicians on the floor.");
+  }
+
+  return response.json();
 }

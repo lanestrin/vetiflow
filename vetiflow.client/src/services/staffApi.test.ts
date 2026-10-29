@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { apiUrl, server } from "../test/server";
 import { AccessDeniedError, SessionEndedError } from "./apiErrors";
 import { saveAccessToken } from "./session";
-import { getMyStatus, setMyStatus } from "./staffApi";
+import { getCliniciansOnFloor, getMyStatus, setMyStatus } from "./staffApi";
 
 const route = apiUrl("/api/staff/me/status");
 
@@ -81,5 +81,43 @@ describe("setMyStatus", () => {
     server.use(http.put(route, () => new HttpResponse(null, { status: 500 })));
 
     await expect(setMyStatus("busy")).rejects.toThrow("Failed to save my status.");
+  });
+});
+
+describe("getCliniciansOnFloor", () => {
+  const onFloorRoute = apiUrl("/api/staff/on-floor");
+
+  it("returns the clinicians from the API with the session's token", async () => {
+    saveAccessToken("token-1");
+    const clinicians = [{
+      id: "staff-1",
+      displayName: "Dr. Jordan Lee",
+      initials: "JL",
+      role: "veterinarian",
+      status: "busy",
+      activeCaseCount: 2
+    }];
+    let seen: string | null = null;
+    server.use(
+      http.get(onFloorRoute, ({ request }) => {
+        seen = request.headers.get("Authorization");
+        return HttpResponse.json(clinicians);
+      })
+    );
+
+    await expect(getCliniciansOnFloor()).resolves.toEqual(clinicians);
+    expect(seen).toBe("Bearer token-1");
+  });
+
+  it("throws SessionEndedError on 401", async () => {
+    server.use(http.get(onFloorRoute, () => new HttpResponse(null, { status: 401 })));
+
+    await expect(getCliniciansOnFloor()).rejects.toBeInstanceOf(SessionEndedError);
+  });
+
+  it("throws when the API responds with an error", async () => {
+    server.use(http.get(onFloorRoute, () => new HttpResponse(null, { status: 500 })));
+
+    await expect(getCliniciansOnFloor()).rejects.toThrow("Failed to load the clinicians on the floor.");
   });
 });

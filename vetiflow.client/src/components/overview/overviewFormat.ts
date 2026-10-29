@@ -133,6 +133,38 @@ export function isOverdue(dueAt: string | null, now: Date): boolean {
   return dueAt !== null && new Date(dueAt).getTime() < now.getTime();
 }
 
+function twoDigits(value: number): string {
+  return String(value).padStart(2, "0");
+}
+
+// The due time form's first value (4.4c): "HH:MM" for half an hour from now,
+// rounded up to 5 minutes.
+export function defaultDueTime(now: Date): string {
+  const fiveMinutes = 5 * minute;
+  const due = new Date(Math.ceil((now.getTime() + 30 * minute) / fiveMinutes) * fiveMinutes);
+  return `${twoDigits(due.getHours())}:${twoDigits(due.getMinutes())}`;
+}
+
+// The ISO time for an "HH:MM" from the due time form (4.4c): today, or
+// tomorrow once that minute has passed, so 12:20 AM can be set at 11:50 PM.
+// Null for anything that is not a time.
+export function dueAtFromTime(time: string, now: Date): string | null {
+  const match = /^(\d{2}):(\d{2})$/.exec(time);
+  if (!match) {
+    return null;
+  }
+
+  const due = new Date(now);
+  due.setHours(Number(match[1]), Number(match[2]), 0, 0);
+  const thisMinute = new Date(now);
+  thisMinute.setSeconds(0, 0);
+  if (due < thisMinute) {
+    due.setDate(due.getDate() + 1);
+  }
+
+  return due.toISOString();
+}
+
 export type SpeciesKind = "dog" | "cat" | "other";
 
 export function speciesKind(species: string): SpeciesKind {

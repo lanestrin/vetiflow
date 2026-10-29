@@ -4,7 +4,7 @@ import { buildCase, buildCaseDetail } from "../test/builders";
 import { apiUrl, server } from "../test/server";
 import type { CaseIntakeRequest } from "../types/CaseIntake";
 import { AccessDeniedError, CaseGoneError, FormRejectedError, SessionEndedError } from "./apiErrors";
-import { completeTask, createIntake, getCase, getEmergencyCases, reopenTask, triageCase, updateCaseStage } from "./casesApi";
+import { completeTask, createIntake, createTask, getCase, getEmergencyCases, reopenTask, triageCase, updateCaseStage } from "./casesApi";
 import { saveAccessToken } from "./session";
 
 afterEach(() => {
@@ -302,5 +302,67 @@ describe("completeTask and reopenTask", () => {
     server.use(http.post(apiUrl("/api/cases/case-42/tasks/task-7/reopen"), () => new HttpResponse(null, { status })));
 
     await expect(reopenTask("case-42", "task-7")).rejects.toThrow("Failed to update the task.");
+  });
+});
+
+describe("createTask", () => {
+  const route = apiUrl("/api/cases/case-42/tasks");
+  const request = { type: "blocker", description: "Awaiting owner consent", assignedToStaffId: "staff-3" } as const;
+
+  it("posts the task with the token", async () => {
+    saveAccessToken("token-1");
+    let sent: { body: unknown; authorization: string | null; contentType: string | null } | null = null;
+    server.use(
+      http.post(route, async ({ request: posted }) => {
+        sent = {
+          body: await posted.json(),
+          authorization: posted.headers.get("Authorization"),
+          contentType: posted.headers.get("Content-Type")
+        };
+        return HttpResponse.json({ id: "task-9" }, { status: 201 });
+      })
+    );
+
+    await createTask("case-42", request);
+    expect(sent).toEqual({ body: request, authorization: "Bearer token-1", contentType: "application/json" });
+  });
+
+  it("brings back the first message for each refused field", async () => {
+    server.use(
+      http.post(route, () =>
+        HttpResponse.json({ status: 400, errors: { Description: ["Too long.", "Other."] } }, { status: 400 }))
+    );
+
+    const error = await createTask("case-42", request).catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(FormRejectedError);
+    expect((error as FormRejectedError).fieldErrors).toEqual({ Description: "Too long." });
+  });
+
+  it.each([
+    [404, "notFound"],
+    [409, "discharged"]
+  ] as const)("turns %i into CaseGoneError (%s)", async (status, reason) => {
+    server.use(http.post(route, () => new HttpResponse(null, { status })));
+
+    const error = await createTask("case-42", request).catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(CaseGoneError);
+    expect((error as CaseGoneError).reason).toBe(reason);
+  });
+
+  it.each([
+    [401, SessionEndedError],
+    [403, AccessDeniedError]
+  ])("turns %i into its error", async (status, errorType) => {
+    server.use(http.post(route, () => new HttpResponse(null, { status })));
+
+    await expect(createTask("case-42", request)).rejects.toBeInstanceOf(errorType);
+  });
+
+  it("fails plainly on a server error", async () => {
+    server.use(http.post(route, () => new HttpResponse(null, { status: 500 })));
+
+    await expect(createTask("case-42", request)).rejects.toThrow("Failed to add the task.");
   });
 });
