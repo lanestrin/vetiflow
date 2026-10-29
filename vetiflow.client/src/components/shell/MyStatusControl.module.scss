@@ -1,0 +1,39 @@
+// The prototype's .availability (blueprint/reference/vetiflow-er-dashboard.html),
+// with a visible focus outline where the prototype has outline: 0.
+.availability {
+	display: flex;
+	align-items: center;
+	gap: 9px;
+	padding: 8px 10px;
+	border: 1px solid var(--color-shell-line);
+	border-radius: 10px;
+	background: var(--color-surface);
+	color: var(--color-shell-muted);
+	font-size: 11px;
+}
+
+.select {
+	border: 0;
+	border-radius: 4px;
+	background: transparent;
+	color: var(--color-care-teal);
+	font: inherit;
+	font-size: 11px;
+	font-weight: 700;
+	cursor: pointer;
+
+	&:focus-visible {
+		outline: 3px solid var(--color-focus);
+		outline-offset: 2px;
+	}
+
+	&:disabled {
+		cursor: progress;
+	}
+}
+
+.unavailable {
+	margin: 0;
+	color: var(--color-shell-muted);
+	font-size: 11px;
+}

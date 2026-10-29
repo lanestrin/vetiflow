@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { clearAccessToken } from "../../services/session";
 import type { SignedInUser } from "../../types/Auth";
 import styles from "./AppShell.module.scss";
+import { MyStatusControl } from "./MyStatusControl";
 
 interface ProfileMenuProps {
   user: SignedInUser;
@@ -68,6 +69,8 @@ export function ProfileMenu({ user }: ProfileMenuProps) {
         <p className={styles.profileMenuName}>
           {user.displayName} <span className={styles.demoNote}>(demo)</span>
         </p>
+        {/* Reloaded each time the menu opens (2.21b). */}
+        {isOpen && <MyStatusControl />}
         <button type="button" className={styles.signOut} onClick={signOut}>
           Sign out
         </button>
