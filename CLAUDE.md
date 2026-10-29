@@ -36,7 +36,7 @@ These always apply, with or without a skill.
 
 ## Workflow
 
-The loop (full description in `blueprint/context/ai-interaction.md`): `/feature` or `/fix` -> "OK and build" (runs `/ready`: build, repair in-scope failures, Verify, `/check` when needed, readiness report) -> `/complete` -> `/approve` -> the person squash-merges the PR. `/implement` builds step by step instead, if wanted. `/audit` runs only when the person types it; the spec's Audit line only recommends one for application changes and never blocks `/complete`. `/clear` is optional context management, never a required step. `/verify` runs inside `/ready`, `/implement` and `/complete`. When unsure what to type next, `/status`. Every task and command ends with a `Status:` line and one `Next:` action ("Ending a turn" in `ai-interaction.md`).
+The loop (full description in `blueprint/context/ai-interaction.md`): `/feature` or `/fix` -> "OK and build" (runs `/ready`: build, repair in-scope failures, Verify, `/check` when needed, readiness report) -> `/complete` -> `/approve` -> the person squash-merges the PR -> `/done` (the person types it: it checks the merge on GitHub, switches to an up-to-date `main`, deletes the local branch and the landing drafts). `/implement` builds step by step instead, if wanted. `/audit` runs only when the person types it; the spec's Audit line only recommends one for application changes and never blocks `/complete`. `/clear` is optional context management, never a required step. `/verify` runs inside `/ready`, `/implement` and `/complete`. When unsure what to type next, `/status`. Every task and command ends with a `Status:` line and one `Next:` action ("Ending a turn" in `ai-interaction.md`).
 
 | Need | Command |
 | --- | --- |
@@ -49,6 +49,7 @@ The loop (full description in `blueprint/context/ai-interaction.md`): `/feature`
 | Review the branch for problems (only when you want one) | `/audit`, or `/audit focused` to re-check repairs |
 | Finish and archive the work | `/complete` |
 | Commit, push and open the PR | `/approve`, or `/approve "<message>"` |
+| After you merge the PR: back to an up-to-date `main` | `/done` |
 | A bug or small unplanned change | `/fix "<what is wrong>"` |
 | Cause of a failure is unclear | `/debug` |
 | Add tests to existing code | `/add-tests <class, method or endpoint>` |
