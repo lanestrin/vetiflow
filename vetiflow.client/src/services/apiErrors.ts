@@ -25,3 +25,15 @@ export class FormRejectedError extends Error {
     this.fieldErrors = fieldErrors;
   }
 }
+
+// The case a write was for is gone from the board: no case has that id (404)
+// or it has been discharged (409).
+export class CaseGoneError extends Error {
+  readonly reason: "notFound" | "discharged";
+
+  constructor(reason: "notFound" | "discharged") {
+    super(reason === "notFound" ? "The case was not found." : "The case has been discharged.");
+    this.name = "CaseGoneError";
+    this.reason = reason;
+  }
+}

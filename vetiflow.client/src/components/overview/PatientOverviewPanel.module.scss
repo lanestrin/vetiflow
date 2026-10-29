@@ -36,7 +36,6 @@
 }
 
 // Shown before their items wire them; disabled controls look quieter.
-.toolButton,
 .linkButton,
 .button,
 .retry {
@@ -52,16 +51,6 @@
 		outline: 3px solid var(--color-focus);
 		outline-offset: 2px;
 	}
-}
-
-.toolButton {
-	padding: 7px 9px;
-	border: 1px solid var(--color-shell-line);
-	border-radius: 8px;
-	background: var(--color-surface);
-	color: #64767c;
-	font-size: 11px;
-	font-weight: 600;
 }
 
 .linkButton {
@@ -94,8 +83,10 @@
 	font-weight: 700;
 }
 
+// Wraps on narrow phones so the badge drops under the name, never clipped.
 .hero {
 	display: flex;
+	flex-wrap: wrap;
 	align-items: center;
 	gap: 12px;
 	padding: 17px 19px 13px;
@@ -116,8 +107,14 @@
 	}
 }
 
+.identity {
+	flex: 1 1 8rem;
+	min-width: 0;
+}
+
 .name {
 	margin: 0;
+	outline: 0;
 	font-size: 18px;
 	font-weight: 800;
 	letter-spacing: -0.3px;
@@ -350,14 +347,16 @@
 	}
 }
 
+// Three buttons share a row while they fit, then wrap rather than clip.
 .actions {
 	display: flex;
+	flex-wrap: wrap;
 	gap: 8px;
 	padding: 12px 19px 17px;
 }
 
 .button {
-	flex: 1;
+	flex: 1 1 7rem;
 	padding: 10px 15px;
 	border: 0;
 	border-radius: 10px;
@@ -366,6 +365,12 @@
 	color: var(--color-text-inverse);
 	font-size: 14px;
 	font-weight: 700;
+}
+
+// The prototype's amber .triage-action, darkened for AA with white text.
+.triage {
+	background: var(--color-triage-action);
+	box-shadow: none;
 }
 
 .secondary {

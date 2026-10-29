@@ -4,7 +4,8 @@ import type {
 } from "../types/EmergencyCaseListItem";
 import type { CaseDetail } from "../types/CaseDetail";
 import type { CaseIntakeRequest, CaseIntakeResult } from "../types/CaseIntake";
-import { FormRejectedError } from "./apiErrors";
+import type { TriageRequest } from "../types/Triage";
+import { CaseGoneError, FormRejectedError } from "./apiErrors";
 import { authorizationHeader, throwIfRefused } from "./apiRequest";
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "";
@@ -89,6 +90,37 @@ export async function createIntake(request: CaseIntakeRequest): Promise<CaseInta
   }
 
   return response.json();
+}
+
+// Completes triage on an incoming case or re-triages a later one (build plan
+// 4.2b). The board and panel reload afterwards; other boards hear caseUpdated.
+export async function triageCase(caseId: string, request: TriageRequest): Promise<void> {
+  const response = await fetch(`${apiBaseUrl}/api/cases/${caseId}/triage`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...authorizationHeader()
+    },
+    body: JSON.stringify(request)
+  });
+
+  throwIfRefused(response);
+
+  if (response.status === 400) {
+    throw new FormRejectedError(await readFieldErrors(response));
+  }
+
+  if (response.status === 404) {
+    throw new CaseGoneError("notFound");
+  }
+
+  if (response.status === 409) {
+    throw new CaseGoneError("discharged");
+  }
+
+  if (!response.ok) {
+    throw new Error("Failed to save triage.");
+  }
 }
 
 async function readFieldErrors(response: Response): Promise<Record<string, string>> {

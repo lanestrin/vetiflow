@@ -1,12 +1,11 @@
-import { useEffect, useId, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import type { SignInRouteState } from "../auth/experienceHome";
+import { useEffect, useId, useRef, useState, type RefObject } from "react";
+import { useLeaveWhenRefused } from "../auth/useLeaveWhenRefused";
 import { AcuityBadge } from "../clinical/AcuityBadge";
 import { useNow } from "../board/useNow";
-import { AccessDeniedError, SessionEndedError } from "../../services/apiErrors";
+import { TriageDialog } from "../triage/TriageDialog";
 import { getCase } from "../../services/casesApi";
-import { clearAccessToken } from "../../services/session";
 import type { CaseDetail } from "../../types/CaseDetail";
+import { MoreActionsMenu } from "./MoreActionsMenu";
 import {
   checkInLabel,
   eventDetail,
@@ -30,6 +29,8 @@ interface PatientOverviewPanelProps {
   caseId: string | null;
   // When the board last loaded; a change loads the shown case again.
   refreshedAt: Date;
+  // After triage is saved, with the toast to show; the board reloads.
+  onTriaged: (message: string) => void;
 }
 
 const avatars = { dog: "🐕", cat: "🐈", other: "🐾" };
@@ -37,11 +38,20 @@ const avatars = { dog: "🐕", cat: "🐈", other: "🐾" };
 const notRecorded = "Not recorded";
 
 // The prototype's "Patient overview" (build plan 3.2b) for the card selected
-// on the board. The buttons that later items wire are shown disabled.
-export function PatientOverviewPanel({ caseId, refreshedAt }: PatientOverviewPanelProps) {
+// on the board. Complete triage and Re-triage open the triage dialog (4.2b);
+// the buttons that later items wire are shown disabled.
+export function PatientOverviewPanel({ caseId, refreshedAt, onTriaged }: PatientOverviewPanelProps) {
   const titleId = useId();
-  const navigate = useNavigate();
+  const leaveWhenRefused = useLeaveWhenRefused();
+  const nameRef = useRef<HTMLHeadingElement>(null);
   const [attempt, setAttempt] = useState(0);
+  const [isTriaging, setIsTriaging] = useState(false);
+  // A dialog for one case never carries over to the next selection.
+  const [triageCaseId, setTriageCaseId] = useState(caseId);
+  if (triageCaseId !== caseId) {
+    setTriageCaseId(caseId);
+    setIsTriaging(false);
+  }
   // Keyed by case and attempt, so a board reload keeps the shown case on
   // screen while a new case or a retry shows "Loading case…".
   const [loaded, setLoaded] = useState<{ key: string; result: LoadResult } | null>(null);
@@ -61,16 +71,7 @@ export function PatientOverviewPanel({ caseId, refreshedAt }: PatientOverviewPan
           setLoaded({ key, result: detail ? { kind: "shown", detail } : { kind: "notFound" } });
         }
       } catch (loadError) {
-        if (!isActive) {
-          return;
-        }
-
-        if (loadError instanceof SessionEndedError) {
-          clearAccessToken();
-          navigate("/sign-in", { replace: true, state: { sessionEnded: true } satisfies SignInRouteState });
-        } else if (loadError instanceof AccessDeniedError) {
-          navigate("/pet-parent", { replace: true });
-        } else {
+        if (isActive && !leaveWhenRefused(loadError)) {
           setLoaded({ key, result: { kind: "failed" } });
         }
       }
@@ -81,7 +82,7 @@ export function PatientOverviewPanel({ caseId, refreshedAt }: PatientOverviewPan
     return () => {
       isActive = false;
     };
-  }, [caseId, key, refreshedAt, navigate]);
+  }, [caseId, key, refreshedAt, leaveWhenRefused]);
 
   const result = caseId !== null && loaded?.key === key ? loaded.result : null;
   const detail = result?.kind === "shown" ? result.detail : null;
@@ -94,9 +95,9 @@ export function PatientOverviewPanel({ caseId, refreshedAt }: PatientOverviewPan
           {detail && <CaseLine detail={detail} />}
         </div>
         {detail && (
-          <button type="button" className={styles.toolButton} aria-label="More actions" disabled>
-            •••
-          </button>
+          <MoreActionsMenu
+            actions={detail.stage === "incoming" ? [] : [{ label: "Re-triage", onSelect: () => setIsTriaging(true) }]}
+          />
         )}
       </header>
 
@@ -113,7 +114,22 @@ export function PatientOverviewPanel({ caseId, refreshedAt }: PatientOverviewPan
           </button>
         </div>
       )}
-      {detail && <Overview detail={detail} />}
+      {detail && <Overview detail={detail} nameRef={nameRef} onCompleteTriage={() => setIsTriaging(true)} />}
+      {detail && isTriaging && (
+        <TriageDialog
+          detail={detail}
+          onClose={() => setIsTriaging(false)}
+          onSaved={(message) => {
+            // Closed here as well as by the dialog's close event, which the
+            // browser may deliver after the board has moved on.
+            setIsTriaging(false);
+            // Complete triage disappears once the case reloads, so focus
+            // moves to the patient instead of the page.
+            nameRef.current?.focus();
+            onTriaged(message);
+          }}
+        />
+      )}
     </aside>
   );
 }
@@ -130,7 +146,13 @@ function CaseLine({ detail }: { detail: CaseDetail }) {
   );
 }
 
-function Overview({ detail }: { detail: CaseDetail }) {
+interface OverviewProps {
+  detail: CaseDetail;
+  nameRef: RefObject<HTMLHeadingElement | null>;
+  onCompleteTriage: () => void;
+}
+
+function Overview({ detail, nameRef, onCompleteTriage }: OverviewProps) {
   const now = useNow();
   const { patient, owner } = detail;
   const kind = speciesKind(patient.species);
@@ -152,8 +174,8 @@ function Overview({ detail }: { detail: CaseDetail }) {
     <>
       <div className={styles.hero}>
         <span className={styles.avatar} data-species={kind} aria-hidden="true">{avatars[kind]}</span>
-        <div>
-          <h3 className={styles.name}>{patient.name}</h3>
+        <div className={styles.identity}>
+          <h3 ref={nameRef} className={styles.name} tabIndex={-1}>{patient.name}</h3>
           <p className={styles.meta}>{meta}</p>
         </div>
         <span className={styles.badge}>
@@ -251,6 +273,11 @@ function Overview({ detail }: { detail: CaseDetail }) {
       </section>
 
       <div className={styles.actions}>
+        {detail.stage === "incoming" && (
+          <button type="button" className={`${styles.button} ${styles.triage}`} onClick={onCompleteTriage}>
+            <span aria-hidden="true">✓ </span>Complete triage
+          </button>
+        )}
         <button type="button" className={`${styles.button} ${styles.secondary}`} disabled>
           <span aria-hidden="true">⇄ </span>Handoff
         </button>
