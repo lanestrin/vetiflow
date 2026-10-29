@@ -6,6 +6,13 @@ namespace vetiflow.Server.Contracts.Board;
 // times only: no names, owners or notes. Door to doctor follows in 2.16a.
 public class BoardSummaryDto
 {
+	// The heading's eyebrow (2.15a), from the Clinic:Name setting.
+	public required string ClinicName { get; set; }
+
+	// The shift chip's "4 clinicians on floor" (2.15a): active veterinarians
+	// and technicians not Unavailable, as GET /api/staff/on-floor lists them.
+	public int CliniciansOnFloor { get; set; }
+
 	// Active (not discharged) cases.
 	public int PatientsInCare { get; set; }
 

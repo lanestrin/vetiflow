@@ -8,8 +8,9 @@ using vetiflow.Server.Models;
 
 namespace vetiflow.Server.Controllers;
 
-// Board-wide numbers for the stat cards (build plan 2.12a). Team members only,
-// like the board itself: signed out gets 401, a pet parent 403.
+// Board-wide numbers for the stat cards (build plan 2.12a) and the page
+// heading (2.15a). Team members only, like the board itself: signed out gets
+// 401, a pet parent 403.
 [ApiController]
 [Route("api/board")]
 [Authorize(Policy = AuthNames.TeamMemberPolicy)]
@@ -17,11 +18,13 @@ public class BoardController : ControllerBase
 {
 	private readonly VetiFlowDbContext _dbContext;
 	private readonly ClinicShifts _clinicShifts;
+	private readonly ClinicProfile _clinicProfile;
 
-	public BoardController(VetiFlowDbContext dbContext, ClinicShifts clinicShifts)
+	public BoardController(VetiFlowDbContext dbContext, ClinicShifts clinicShifts, ClinicProfile clinicProfile)
 	{
 		_dbContext = dbContext;
 		_clinicShifts = clinicShifts;
+		_clinicProfile = clinicProfile;
 	}
 
 	[HttpGet("summary")]
@@ -34,6 +37,8 @@ public class BoardController : ControllerBase
 
 		return new BoardSummaryDto
 		{
+			ClinicName = _clinicProfile.Name,
+			CliniciansOnFloor = await _dbContext.StaffMembers.OnFloor().CountAsync(cancellationToken),
 			PatientsInCare = await activeCases.CountAsync(cancellationToken),
 			Shift = new ShiftDto { Name = shift.Name, StartedAt = shift.StartedAt },
 			ArrivedThisShift = await activeCases
