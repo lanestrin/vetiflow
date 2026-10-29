@@ -116,3 +116,10 @@ export function matchesMenuFilters(emergencyCase: EmergencyCaseListItem, filters
 
   return filters.status === null || emergencyCase.status === filters.status;
 }
+
+// The board's Priority button (build plan 2.14d): longest in the current stage
+// first. The sort is stable, so ties keep the API's priority order.
+export function sortByLongestInStage(cases: EmergencyCaseListItem[]): EmergencyCaseListItem[] {
+  return cases.toSorted((first, second) =>
+    new Date(first.stageEnteredAt).getTime() - new Date(second.stageEnteredAt).getTime());
+}
