@@ -3,8 +3,8 @@ import { afterEach, describe, expect, it } from "vitest";
 import { buildCase, buildCaseDetail } from "../test/builders";
 import { apiUrl, server } from "../test/server";
 import type { CaseIntakeRequest } from "../types/CaseIntake";
-import { AccessDeniedError, FormRejectedError, SessionEndedError } from "./apiErrors";
-import { createIntake, getCase, getEmergencyCases, updateCaseStage } from "./casesApi";
+import { AccessDeniedError, CaseGoneError, FormRejectedError, SessionEndedError } from "./apiErrors";
+import { createIntake, getCase, getEmergencyCases, triageCase, updateCaseStage } from "./casesApi";
 import { saveAccessToken } from "./session";
 
 afterEach(() => {
@@ -206,5 +206,69 @@ describe("createIntake", () => {
     server.use(http.post(apiUrl("/api/cases/intake"), () => new HttpResponse(null, { status: 500 })));
 
     await expect(createIntake(intake)).rejects.toThrow("Failed to add the patient.");
+  });
+});
+
+describe("triageCase", () => {
+  it("posts the priority and notes with the token", async () => {
+    saveAccessToken("token-1");
+    let sent: { body: unknown; authorization: string | null; contentType: string | null } | null = null;
+    server.use(
+      http.post(apiUrl("/api/cases/case-42/triage"), async ({ request }) => {
+        sent = {
+          body: await request.json(),
+          authorization: request.headers.get("Authorization"),
+          contentType: request.headers.get("Content-Type")
+        };
+        return new HttpResponse(null, { status: 204 });
+      })
+    );
+
+    await triageCase("case-42", { priority: "critical", notes: "Laboured breathing" });
+
+    expect(sent).toEqual({
+      body: { priority: "critical", notes: "Laboured breathing" },
+      authorization: "Bearer token-1",
+      contentType: "application/json"
+    });
+  });
+
+  it("brings back the first message for each refused field", async () => {
+    server.use(
+      http.post(apiUrl("/api/cases/case-42/triage"), () =>
+        HttpResponse.json({ status: 400, errors: { Notes: ["Too long."] } }, { status: 400 }))
+    );
+
+    const error = await triageCase("case-42", { priority: "urgent", notes: null }).catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(FormRejectedError);
+    expect((error as FormRejectedError).fieldErrors).toEqual({ Notes: "Too long." });
+  });
+
+  it.each([
+    [404, "notFound"],
+    [409, "discharged"]
+  ] as const)("turns %i into CaseGoneError (%s)", async (status, reason) => {
+    server.use(http.post(apiUrl("/api/cases/case-42/triage"), () => new HttpResponse(null, { status })));
+
+    const error = await triageCase("case-42", { priority: "urgent", notes: null }).catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(CaseGoneError);
+    expect((error as CaseGoneError).reason).toBe(reason);
+  });
+
+  it.each([
+    [401, SessionEndedError],
+    [403, AccessDeniedError]
+  ])("turns %i into its error", async (status, errorType) => {
+    server.use(http.post(apiUrl("/api/cases/case-42/triage"), () => new HttpResponse(null, { status })));
+
+    await expect(triageCase("case-42", { priority: "urgent", notes: null })).rejects.toBeInstanceOf(errorType);
+  });
+
+  it("fails plainly on a server error", async () => {
+    server.use(http.post(apiUrl("/api/cases/case-42/triage"), () => new HttpResponse(null, { status: 500 })));
+
+    await expect(triageCase("case-42", { priority: "urgent", notes: null })).rejects.toThrow("Failed to save triage.");
   });
 });

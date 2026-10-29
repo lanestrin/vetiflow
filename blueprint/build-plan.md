@@ -166,7 +166,7 @@ replaces it. Demo data only.
 **Triage** (prototype: **Complete triage**, acuity badge, lanes)
 
 - [x] **4.2a** `feature/triage-api`: complete triage on an incoming case (confirm or change the provisional priority, move it out of Incoming) and re-triage later, always through `RecordTriage` (clinicians only once roles exist), with `Triaged` on the timeline. Done (history/features/4.2a-triage-api.md).
-- [ ] **4.2b** `feature/triage`: **Complete triage** in the panel for incoming cases, re-triage from the panel's **•••** menu; the card's chip, tag and lane update on every open board.
+- [x] **4.2b** `feature/triage`: **Complete triage** in the panel for incoming cases, re-triage from the panel's **•••** menu; the card's chip, tag and lane update on every open board. Done (history/features/4.2b-triage.md).
 
 **Stats row** (prototype: four clickable stat cards)
 

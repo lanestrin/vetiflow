@@ -1,12 +1,23 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { readAccessToken, saveAccessToken } from "../../services/session";
 import { buildCaseDetail } from "../../test/builders";
 import { apiUrl, server } from "../../test/server";
 import type { CaseDetail, CaseTask } from "../../types/CaseDetail";
 import { PatientOverviewPanel } from "./PatientOverviewPanel";
+
+// jsdom has no modal dialogs; these behave like the browser's for the test.
+beforeAll(() => {
+  HTMLDialogElement.prototype.showModal ??= function (this: HTMLDialogElement) {
+    this.setAttribute("open", "");
+  };
+  HTMLDialogElement.prototype.close ??= function (this: HTMLDialogElement) {
+    this.removeAttribute("open");
+    this.dispatchEvent(new Event("close"));
+  };
+});
 
 afterEach(() => {
   sessionStorage.clear();
@@ -76,11 +87,11 @@ function serveCase(detail: CaseDetail) {
   return () => requests;
 }
 
-function renderPanel(caseId: string | null, refreshedAt = new Date(2026, 0, 1)) {
+function renderPanel(caseId: string | null, refreshedAt = new Date(2026, 0, 1), onTriaged = vi.fn()) {
   const panel = (id: string | null, refreshed: Date) => (
     <MemoryRouter initialEntries={["/er"]}>
       <Routes>
-        <Route path="/er" element={<PatientOverviewPanel caseId={id} refreshedAt={refreshed} />} />
+        <Route path="/er" element={<PatientOverviewPanel caseId={id} refreshedAt={refreshed} onTriaged={onTriaged} />} />
         <Route path="/sign-in" element={<p>Sign-in page</p>} />
         <Route path="/pet-parent" element={<p>Pet parent home</p>} />
       </Routes>
@@ -177,7 +188,7 @@ describe("PatientOverviewPanel", () => {
     renderPanel("case-milo");
 
     await screen.findByRole("heading", { name: "Milo" });
-    for (const name of ["More actions", "Call", "Message", "＋ Add task", "Handoff", "Update status"]) {
+    for (const name of ["Call", "Message", "＋ Add task", "Handoff", "Update status"]) {
       expect(screen.getByRole("button", { name })).toBeDisabled();
     }
   });
@@ -188,6 +199,84 @@ describe("PatientOverviewPanel", () => {
     renderPanel("case-milo");
 
     expect(await screen.findByText("Urgent · provisional")).toBeInTheDocument();
+  });
+
+  // Triage (build plan 4.2b).
+  it("offers Complete triage only for an incoming case, with ••• disabled", async () => {
+    serveCase(buildMilo({ stage: "incoming", acuity: "urgent" }));
+
+    renderPanel("case-milo");
+
+    fireEvent.click(await screen.findByRole("button", { name: "Complete triage" }));
+    expect(screen.getByRole("dialog", { name: "Complete triage" })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "Urgent" })).toBeChecked();
+    expect(screen.getByRole("button", { name: "More actions" })).toBeDisabled();
+  });
+
+  it("offers Re-triage from ••• once a case is past Incoming", async () => {
+    serveCase(buildMilo());
+
+    renderPanel("case-milo");
+
+    const more = await screen.findByRole("button", { name: "More actions" });
+    expect(screen.queryByRole("button", { name: "Complete triage" })).not.toBeInTheDocument();
+    expect(more).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(more);
+    expect(more).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("button", { name: "Re-triage" })).toHaveFocus();
+    fireEvent.click(screen.getByRole("button", { name: "Re-triage" }));
+
+    expect(screen.getByRole("dialog", { name: "Re-triage" })).toBeInTheDocument();
+    expect(more).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("closes the ••• menu on Escape, back on the button, and on a click outside", async () => {
+    serveCase(buildMilo());
+    renderPanel("case-milo");
+    const more = await screen.findByRole("button", { name: "More actions" });
+
+    fireEvent.click(more);
+    fireEvent.keyDown(screen.getByRole("button", { name: "Re-triage" }), { key: "Escape" });
+
+    expect(screen.queryByRole("button", { name: "Re-triage" })).not.toBeInTheDocument();
+    expect(more).toHaveFocus();
+    fireEvent.click(more);
+    fireEvent.pointerDown(document.body);
+    expect(screen.queryByRole("button", { name: "Re-triage" })).not.toBeInTheDocument();
+  });
+
+  it("reports a saved triage and moves focus to the patient", async () => {
+    serveCase(buildMilo({ stage: "incoming", acuity: "urgent" }));
+    server.use(http.post(apiUrl("/api/cases/case-milo/triage"), () => new HttpResponse(null, { status: 204 })));
+    const onTriaged = vi.fn();
+    renderPanel("case-milo", new Date(2026, 0, 1), onTriaged);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Complete triage" }));
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Complete triage" }));
+
+    await vi.waitFor(() => expect(onTriaged).toHaveBeenCalledWith("Milo triage completed"));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Milo" })).toHaveFocus();
+  });
+
+  // Seen in the running app: the dialog stayed mounted after saving and
+  // reopened when another case was selected.
+  it("closes the triage dialog after saving even without a close event", async () => {
+    vi.spyOn(HTMLDialogElement.prototype, "close").mockImplementation(function (this: HTMLDialogElement) {
+      this.removeAttribute("open");
+    });
+    serveCase(buildMilo({ stage: "incoming", acuity: "urgent" }));
+    server.use(http.post(apiUrl("/api/cases/case-milo/triage"), () => new HttpResponse(null, { status: 204 })));
+    const onTriaged = vi.fn();
+    const { rerender } = renderPanel("case-milo", new Date(2026, 0, 1), onTriaged);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Complete triage" }));
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Complete triage" }));
+    await vi.waitFor(() => expect(onTriaged).toHaveBeenCalled());
+    rerender("case-other", new Date(2026, 0, 2));
+    await screen.findByText(/Case ER-/);
+
+    expect(screen.queryByRole("dialog", { hidden: true })).not.toBeInTheDocument();
   });
 
   it("says when the patient has no pet parent or room", async () => {

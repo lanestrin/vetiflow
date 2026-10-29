@@ -103,6 +103,12 @@ export function ErBoardPage() {
     void reloadCases.current();
   }
 
+  // Triage saved from the panel (4.2b): reload now rather than wait for the hub.
+  function showTriaged(message: string) {
+    showToast(message);
+    void reloadCases.current();
+  }
+
   if (isLoading) {
     return (
       <main>
@@ -142,7 +148,7 @@ export function ErBoardPage() {
           onSelect={setSelectedCaseId}
         />
 
-        <PatientOverviewPanel caseId={selectedCaseId} refreshedAt={updatedAt} />
+        <PatientOverviewPanel caseId={selectedCaseId} refreshedAt={updatedAt} onTriaged={showTriaged} />
       </div>
 
       <IntakeDialog

@@ -194,6 +194,37 @@ describe("ErBoardPage", () => {
     expect(await within(overview).findByText("Select a patient on the board to see their overview.")).toBeInTheDocument();
   });
 
+  // Triage from the panel (build plan 4.2b).
+  it("completes triage on an incoming card and updates the board and panel", async () => {
+    const toby = buildCase({ id: "case-toby", patientName: "Toby", stage: "incoming", acuity: "urgent", waitChip: "new" });
+    const tobyDetail = buildCaseDetail({ id: "case-toby", stage: "incoming", acuity: "urgent" });
+    serveCases([toby]);
+    let triaged = false;
+    server.use(
+      http.get(apiUrl("/api/cases/case-toby"), () =>
+        HttpResponse.json(triaged ? { ...tobyDetail, stage: "triage" } : tobyDetail)),
+      http.post(apiUrl("/api/cases/case-toby/triage"), () => {
+        triaged = true;
+        serveCases([{ ...toby, stage: "triage", waitChip: "minutes" }]);
+        return new HttpResponse(null, { status: 204 });
+      })
+    );
+    renderBoard();
+    const lane = await findLane("Urgent");
+    expect(within(lane).getByText("Urgent · provisional")).toBeInTheDocument();
+    fireEvent.click(within(lane).getByRole("button", { name: "Toby" }));
+
+    fireEvent.click(await screen.findByRole("button", { name: "Complete triage" }));
+    fireEvent.click(within(screen.getByRole("dialog", { name: "Complete triage" })).getByRole("button", { name: "Complete triage" }));
+
+    expect(await screen.findByRole("status")).toHaveTextContent(/triage completed/);
+    await vi.waitFor(() => expect(within(lane).queryByText("Urgent · provisional")).not.toBeInTheDocument());
+    expect(within(lane).queryByText("New")).not.toBeInTheDocument();
+    await vi.waitFor(() =>
+      expect(screen.queryByRole("button", { name: "Complete triage" })).not.toBeInTheDocument());
+    expect(screen.getByRole("button", { name: "More actions" })).toBeEnabled();
+  });
+
   it("shows an error when the cases cannot be loaded", async () => {
     server.use(
       http.get(apiUrl("/api/cases"), () => new HttpResponse(null, { status: 500 }))

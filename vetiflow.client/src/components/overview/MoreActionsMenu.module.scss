@@ -1,0 +1,72 @@
+// The prototype's .toolbtn "•••", with a short list under it in the board's
+// card style.
+
+.container {
+	position: relative;
+}
+
+.toggle {
+	padding: 7px 9px;
+	border: 1px solid var(--color-shell-line);
+	border-radius: 8px;
+	background: var(--color-surface);
+	color: #64767c;
+	font: inherit;
+	font-size: 11px;
+	font-weight: 600;
+	cursor: pointer;
+
+	&[aria-expanded="true"] {
+		border-color: var(--color-shell-navy);
+		background: var(--color-shell-navy);
+		color: var(--color-text-inverse);
+	}
+
+	&:disabled {
+		cursor: not-allowed;
+		opacity: 0.6;
+	}
+
+	&:focus-visible {
+		outline: 3px solid var(--color-focus);
+		outline-offset: 2px;
+	}
+}
+
+.list {
+	position: absolute;
+	top: calc(100% + 6px);
+	right: 0;
+	z-index: 1;
+	min-width: 10rem;
+	margin: 0;
+	padding: 6px;
+	border: 1px solid var(--color-shell-line);
+	border-radius: 10px;
+	background: var(--color-surface);
+	box-shadow: 0 10px 32px rgb(26 55 63 / 14%);
+	list-style: none;
+}
+
+.item {
+	width: 100%;
+	padding: 8px 10px;
+	border: 0;
+	border-radius: 7px;
+	background: none;
+	color: var(--color-shell-ink);
+	font: inherit;
+	font-size: 12px;
+	font-weight: 600;
+	text-align: left;
+	cursor: pointer;
+
+	&:hover {
+		background: var(--color-shell-field);
+	}
+
+	&:focus-visible {
+		outline: 3px solid var(--color-focus);
+		outline-offset: -3px;
+	}
+}
