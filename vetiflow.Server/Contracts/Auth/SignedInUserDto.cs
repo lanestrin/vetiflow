@@ -24,15 +24,14 @@ public class SignedInUserDto
 		var (firstName, lastName) = account.Kind == AccountKind.TeamMember
 			? (account.StaffMember!.FirstName, account.StaffMember.LastName)
 			: (account.Owner!.FirstName, account.Owner.LastName);
-		var name = $"{firstName} {lastName}";
 		var role = account.StaffMember?.Role;
 
 		return new SignedInUserDto
 		{
-			Name = name,
+			Name = $"{firstName} {lastName}",
 			Experience = account.Kind,
-			DisplayName = role == StaffRole.Veterinarian ? $"Dr. {name}" : name,
-			Initials = $"{char.ToUpperInvariant(firstName[0])}{char.ToUpperInvariant(lastName[0])}",
+			DisplayName = StaffNames.DisplayName(firstName, lastName, role),
+			Initials = StaffNames.Initials(firstName, lastName),
 			Role = role
 		};
 	}

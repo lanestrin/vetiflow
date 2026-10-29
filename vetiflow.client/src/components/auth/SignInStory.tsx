@@ -3,8 +3,8 @@ import logoUrl from "../../assets/sign-in/logo.svg";
 import { CareUpdatesIcon, MessageIcon, PeopleIcon } from "./signInIcons";
 import styles from "./SignInStory.module.scss";
 
-// The story side of the sign-in landing page (build plan S.20a), from
-// blueprint/reference/landing-page. Three pieces, so the page can place the
+// The story side of the sign-in landing page (build plan S.20a). Three
+// pieces, so the page can place the
 // sign-in card between them on narrow screens.
 
 export function SignInBrand() {

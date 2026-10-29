@@ -14,6 +14,5 @@ Build against the picture, not a description of it.
   **ER board | My patients** switch and clinician workspace, provisional
   intakes with **Complete triage**, the pain score meter and **Record score**,
   clickable stat cards, the **Incoming** filter and the door-to-doctor details.
-- `landing-page/`: the sign-in landing design (S.20).
 - `vetiflow-login-mock.html`: the original sign-in mock (S.18).
 - `vetiflow_icon.svg`: the app icon.

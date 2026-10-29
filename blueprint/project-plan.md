@@ -299,7 +299,7 @@ account record.
 ### Screens and states
 
 One `/sign-in` page, laid out as the stakeholders' landing design
-(`blueprint/reference/landing-page`, S.20a): on screens 85rem and wider the
+(S.20a; its reference files were removed on 2026-10-29): on screens 85rem and wider the
 story ("Care moves fast.") and benefits on the left, the dog-and-cat art in
 the middle and the sign-in card on the right; narrower screens stack the
 brand, the art as a hero band, the story, the card and the benefits.

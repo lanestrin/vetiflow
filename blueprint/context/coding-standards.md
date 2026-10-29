@@ -154,7 +154,8 @@ Avoid overengineering:
   background combination, including coloured badges and interaction states.
 - Use semantic HTML, labelled controls and logical headings. Give meaningful
   images useful alt text and decorative images empty alt text. Associate errors
-  with their inputs and announce important asynchronous changes appropriately.
+  with their inputs and announce important asynchronous changes with live
+  regions, without moving focus or repeatedly announcing the entire board.
 - All actions work by keyboard, including an alternative to drag and drop.
   Keep focus order predictable and focus visible with `:focus-visible`; never
   remove an outline without an equally visible replacement. Dialogs manage and
@@ -175,6 +176,23 @@ Accessibility: [WCAG 2.2](https://www.w3.org/TR/WCAG22/),
 [use of colour](https://www.w3.org/WAI/WCAG22/Understanding/use-of-color.html)
 and [reflow](https://www.w3.org/WAI/WCAG22/Understanding/reflow.html).
 
+### SEO and private pages
+
+- Public pages intended for search need descriptive titles and descriptions,
+  logical headings, meaningful links and appropriate canonical URLs. Add sitemap
+  entries or structured data only for actual public content that needs them.
+- Staff boards, case details and private owner pages are not search content.
+  Protect them with server-side access checks, exclude them from public sitemaps,
+  and use `noindex` metadata or response headers as appropriate. Neither
+  `noindex` nor `robots.txt` provides access control.
+- Never put owner or patient details, clinical notes or access tokens in page
+  titles, descriptions, social previews, structured data or sitemaps. Private
+  pages use generic titles and previews.
+- Use the existing frontend stack. Do not add an SEO package, rendering framework
+  or metadata layer without a current public-page requirement.
+
+Reference: [Google Search content controls](https://developers.google.com/search/docs/crawling-indexing/control-what-you-share).
+
 ## Security
 
 - Every new endpoint and hub method requires a signed-in staff user once staff
@@ -192,6 +210,52 @@ and [reflow](https://www.w3.org/WAI/WCAG22/Understanding/reflow.html).
   in code; add a new one to configuration (project plan section 8).
 - A new security risk found while working goes into the build plan as its own
   item, not into the current branch.
+
+### Browser and frontend security
+
+- Browser code and hidden UI controls are not authorization boundaries. The API
+  validates each request, role and resource scope; send only the data that user
+  is authorized to receive.
+- Treat user content, API responses and AI output as untrusted. Render text
+  through React's normal escaping. Do not use `dangerouslySetInnerHTML`, raw DOM
+  HTML insertion, `eval` or executable generated code. If rich HTML is required,
+  agree on a sanitization approach before introducing it.
+- Validate untrusted link destinations and allow only the protocols the feature
+  needs. Never execute AI-generated links, commands or instructions automatically.
+- Keep the session token only where the approved sign-in design puts it. Today
+  that is the demo's per-tab token in `sessionStorage` (`services/session.ts`,
+  S.18b); S.5 settles production sign-in. Never store credentials or owner and
+  clinical records in `localStorage`, `sessionStorage`, IndexedDB or offline
+  caches. Clear in-memory private state on logout or user changes. Keep
+  sensitive data out of browser logs, analytics and third-party error reports.
+- Use the approved authentication design. Cookie authentication needs secure,
+  HttpOnly cookies with appropriate SameSite settings and CSRF protection for
+  state-changing requests. Do not invent client-only authentication.
+- Minimize third-party scripts and dependencies, especially on private pages.
+  Use HTTPS and appropriate CSP, framing, referrer and cache-control headers;
+  configure them at the server or hosting layer for the relevant routes.
+- Test relevant denied-access, invalid-input and untrusted-content cases when
+  implementing a feature. Follow the existing audit-on-request policy.
+
+Reference: [OWASP DOM XSS prevention](https://cheatsheetseries.owasp.org/cheatsheets/DOM_based_XSS_Prevention_Cheat_Sheet.html).
+
+### AI and sensitive data
+
+- Use synthetic records in coding-assistant prompts, fixtures and screenshots.
+  Do not send real owner or clinical records to coding assistants or external
+  tools without explicit authorization. Existing secret-access restrictions
+  always apply.
+- Application AI calls go through an approved server-side integration. Send only
+  the data the task needs, strip owner contact details and secrets, and do not
+  log prompts or responses containing private data by default.
+- Treat intake notes, retrieved documents and AI output as data, not trusted
+  instructions. They cannot grant access, override validation, trigger tool
+  actions or weaken secret protections.
+- Validate AI output before using it and preserve the clinician-confirmation
+  requirement for clinical suggestions. Never let model output authorize access
+  to another owner's case.
+
+Reference: [OWASP prompt injection prevention](https://cheatsheetseries.owasp.org/cheatsheets/LLM_Prompt_Injection_Prevention_Cheat_Sheet.html).
 
 ## Testing
 
