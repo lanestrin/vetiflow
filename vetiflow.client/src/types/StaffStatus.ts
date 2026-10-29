@@ -14,3 +14,14 @@ const staffStatusLabels: Record<StaffStatus, string> = {
 export function staffStatusLabel(status: StaffStatus): string {
   return staffStatusLabels[status];
 }
+
+// A clinician on the floor, as GET /api/staff/on-floor returns them (2.21a).
+export interface OnFloorClinician {
+  id: string;
+  // "Dr. Jordan Lee" for a veterinarian, otherwise the name.
+  displayName: string;
+  initials: string;
+  role: string;
+  status: StaffStatus;
+  activeCaseCount: number;
+}

@@ -201,7 +201,7 @@ replaces it. Demo data only.
 
 - [x] **4.4a** `feature/case-tasks-api`: create, complete and reopen tasks and blockers on a case, with who did it and when; task types include Reassessment and Client update with a due time and an assignee (replaces 4.10a); the case detail and board list return the next open one of each. Done (history/features/4.4a-case-tasks-api.md).
 - [x] **4.4b** `feature/next-actions`: the checklist's done ticks (complete and reopen, with the assignee or who completed it) and the panel's "Next reassessment" and "Client update" rows ("Due in 8 min", "Due 11:15 AM", overdue in words and colour, "Not scheduled"). Open blockers already show on the card and in the timeline (2.11b, 3.2b). Split from the original 4.4b on 2026-10-29 (replaces 4.10b with 4.4c). Done (history/features/4.4b-next-actions.md).
-- [ ] **4.4c** `feature/add-task`: **＋ Add task** (description, task or blocker, optional assignee) and setting each due row (a time and a note, creating a Reassessment or Client update). The prototype only shows the link, so the spec proposes the form in its visual language for an OK first.
+- [x] **4.4c** `feature/add-task`: **＋ Add task** (description, task or blocker, optional assignee) and setting each due row (a time and a note, creating a Reassessment or Client update). The prototype only shows the link, so the spec proposes the form in its visual language for an OK first. Done (history/features/4.4c-add-task.md).
 
 **Vitals and pain** (prototype: four vitals tiles, pain score meter)
 

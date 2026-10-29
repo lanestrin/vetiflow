@@ -2,7 +2,7 @@ import type {
   CaseStage,
   EmergencyCaseListItem
 } from "../types/EmergencyCaseListItem";
-import type { CaseDetail } from "../types/CaseDetail";
+import type { CaseDetail, CaseTaskRequest } from "../types/CaseDetail";
 import type { CaseIntakeRequest, CaseIntakeResult } from "../types/CaseIntake";
 import type { TriageRequest } from "../types/Triage";
 import { CaseGoneError, FormRejectedError } from "./apiErrors";
@@ -164,5 +164,37 @@ async function postTaskAction(caseId: string, taskId: string, action: "complete"
 
   if (!response.ok) {
     throw new Error("Failed to update the task.");
+  }
+}
+
+// Adds a task, blocker or due item to a case (build plan 4.4c). A 400 brings
+// the first message for each refused field; 404 and 409 mean the case is gone.
+// The panel reloads the case afterwards, so the created task is not returned.
+export async function createTask(caseId: string, request: CaseTaskRequest): Promise<void> {
+  const response = await fetch(`${apiBaseUrl}/api/cases/${caseId}/tasks`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...authorizationHeader()
+    },
+    body: JSON.stringify(request)
+  });
+
+  throwIfRefused(response);
+
+  if (response.status === 400) {
+    throw new FormRejectedError(await readFieldErrors(response));
+  }
+
+  if (response.status === 404) {
+    throw new CaseGoneError("notFound");
+  }
+
+  if (response.status === 409) {
+    throw new CaseGoneError("discharged");
+  }
+
+  if (!response.ok) {
+    throw new Error("Failed to add the task.");
   }
 }

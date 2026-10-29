@@ -2,6 +2,8 @@ import { useEffect, useId, useRef, useState, type RefObject } from "react";
 import { useLeaveWhenRefused } from "../auth/useLeaveWhenRefused";
 import { AcuityBadge } from "../clinical/AcuityBadge";
 import { useNow } from "../board/useNow";
+import { AddTaskDialog } from "../tasks/AddTaskDialog";
+import { DueItemDialog, type DueItemType } from "../tasks/DueItemDialog";
 import { TriageDialog } from "../triage/TriageDialog";
 import { completeTask, getCase, reopenTask } from "../../services/casesApi";
 import type { CaseDetail, CaseDueItem, CaseTask } from "../../types/CaseDetail";
@@ -34,10 +36,13 @@ interface PatientOverviewPanelProps {
   refreshedAt: Date;
   // After triage is saved, with the toast to show; the board reloads.
   onTriaged: (message: string) => void;
-  // After a task is ticked or unticked, saved or not: the board and this
-  // panel reload, so the checklist shows the saved state (4.4b).
+  // After a task is ticked, unticked or added, or a due row set or done,
+  // saved or not: the board and this panel reload, so they show the saved
+  // state (4.4b, 4.4c).
   onTaskSaved: () => void;
 }
+
+type TaskDialogKind = "addTask" | DueItemType;
 
 const avatars = { dog: "🐕", cat: "🐈", other: "🐾" };
 
@@ -51,12 +56,15 @@ export function PatientOverviewPanel({ caseId, refreshedAt, onTriaged, onTaskSav
   const leaveWhenRefused = useLeaveWhenRefused();
   const nameRef = useRef<HTMLHeadingElement>(null);
   const [attempt, setAttempt] = useState(0);
+  const showToast = useToast();
   const [isTriaging, setIsTriaging] = useState(false);
+  const [taskDialog, setTaskDialog] = useState<TaskDialogKind | null>(null);
   // A dialog for one case never carries over to the next selection.
-  const [triageCaseId, setTriageCaseId] = useState(caseId);
-  if (triageCaseId !== caseId) {
-    setTriageCaseId(caseId);
+  const [dialogCaseId, setDialogCaseId] = useState(caseId);
+  if (dialogCaseId !== caseId) {
+    setDialogCaseId(caseId);
     setIsTriaging(false);
+    setTaskDialog(null);
   }
   // Keyed by case and attempt, so a board reload keeps the shown case on
   // screen while a new case or a retry shows "Loading case…".
@@ -125,6 +133,8 @@ export function PatientOverviewPanel({ caseId, refreshedAt, onTriaged, onTaskSav
           detail={detail}
           nameRef={nameRef}
           onCompleteTriage={() => setIsTriaging(true)}
+          onAddTask={() => setTaskDialog("addTask")}
+          onSetDue={setTaskDialog}
           onTaskSaved={onTaskSaved}
         />
       )}
@@ -140,6 +150,19 @@ export function PatientOverviewPanel({ caseId, refreshedAt, onTriaged, onTaskSav
             // moves to the patient instead of the page.
             nameRef.current?.focus();
             onTriaged(message);
+          }}
+        />
+      )}
+      {detail && taskDialog !== null && (
+        <TaskDialog
+          kind={taskDialog}
+          detail={detail}
+          onClose={() => setTaskDialog(null)}
+          onSaved={(message) => {
+            // Closed here too, in case the close event comes late (as triage).
+            setTaskDialog(null);
+            showToast(message);
+            onTaskSaved();
           }}
         />
       )}
@@ -159,14 +182,29 @@ function CaseLine({ detail }: { detail: CaseDetail }) {
   );
 }
 
+interface TaskDialogProps {
+  kind: TaskDialogKind;
+  detail: CaseDetail;
+  onClose: () => void;
+  onSaved: (message: string) => void;
+}
+
+function TaskDialog({ kind, detail, onClose, onSaved }: TaskDialogProps) {
+  return kind === "addTask"
+    ? <AddTaskDialog detail={detail} onClose={onClose} onSaved={onSaved} />
+    : <DueItemDialog detail={detail} type={kind} onClose={onClose} onSaved={onSaved} />;
+}
+
 interface OverviewProps {
   detail: CaseDetail;
   nameRef: RefObject<HTMLHeadingElement | null>;
   onCompleteTriage: () => void;
+  onAddTask: () => void;
+  onSetDue: (type: DueItemType) => void;
   onTaskSaved: () => void;
 }
 
-function Overview({ detail, nameRef, onCompleteTriage, onTaskSaved }: OverviewProps) {
+function Overview({ detail, nameRef, onCompleteTriage, onAddTask, onSetDue, onTaskSaved }: OverviewProps) {
   const now = useNow();
   const { patient, owner } = detail;
   const kind = speciesKind(patient.species);
@@ -229,8 +267,24 @@ function Overview({ detail, nameRef, onCompleteTriage, onTaskSaved }: OverviewPr
           <span className={styles.rowLabel}>Location</span>
           <span className={styles.rowMeta}>{locationLabel(detail.room)}</span>
         </p>
-        <DueRow icon="⏱" label="Next reassessment" item={detail.nextReassessment} now={now} />
-        <DueRow icon="☎" label="Client update" item={detail.nextClientUpdate} now={now} />
+        <DueRow
+          icon="⏱"
+          label="Next reassessment"
+          caseId={detail.id}
+          item={detail.nextReassessment}
+          now={now}
+          onSet={() => onSetDue("reassessment")}
+          onTaskSaved={onTaskSaved}
+        />
+        <DueRow
+          icon="☎"
+          label="Client update"
+          caseId={detail.id}
+          item={detail.nextClientUpdate}
+          now={now}
+          onSet={() => onSetDue("clientUpdate")}
+          onTaskSaved={onTaskSaved}
+        />
       </div>
 
       <section className={styles.section} aria-labelledby={`${detail.id}-timeline`}>
@@ -266,7 +320,7 @@ function Overview({ detail, nameRef, onCompleteTriage, onTaskSaved }: OverviewPr
       <section className={styles.section} aria-labelledby={`${detail.id}-actions`}>
         <div className={styles.sectionTop}>
           <h3 id={`${detail.id}-actions`} className={styles.sectionTitle}>Next actions</h3>
-          <button type="button" className={styles.linkButton} disabled>＋ Add task</button>
+          <button type="button" className={styles.linkButton} onClick={onAddTask}>＋ Add task</button>
         </div>
         {tasks.length === 0 ? (
           <p className={styles.empty}>No tasks yet.</p>
@@ -293,20 +347,61 @@ function Overview({ detail, nameRef, onCompleteTriage, onTaskSaved }: OverviewPr
 interface DueRowProps {
   icon: string;
   label: string;
+  caseId: string;
   item: CaseDueItem | null;
   now: Date;
+  onSet: () => void;
+  onTaskSaved: () => void;
 }
 
 // The prototype's "Next reassessment" and "Client update" rows (4.4b). An
-// overdue time says so in words as well as colour.
-function DueRow({ icon, label, item, now }: DueRowProps) {
+// overdue time says so in words as well as colour. Set opens the due item
+// dialog; once one is scheduled, Done completes it and the next one due
+// takes its place (4.4c). One button for both, so focus stays on it when
+// Done turns back into Set. While saving it is aria-disabled, not disabled:
+// the browser takes focus away from a disabled button.
+function DueRow({ icon, label, caseId, item, now, onSet, onTaskSaved }: DueRowProps) {
+  const leaveWhenRefused = useLeaveWhenRefused();
+  const showToast = useToast();
+  const [isSaving, setIsSaving] = useState(false);
   const dueAt = item?.dueAt ?? null;
+  const name = label.toLowerCase();
+
+  async function complete(itemId: string) {
+    if (isSaving) {
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      await completeTask(caseId, itemId);
+    } catch (saveError) {
+      if (leaveWhenRefused(saveError)) {
+        return;
+      }
+
+      showToast("Couldn't update the task. Try again.");
+    } finally {
+      setIsSaving(false);
+    }
+
+    onTaskSaved();
+  }
 
   return (
     <p className={styles.row}>
       <span aria-hidden="true">{icon}</span>
       <span className={styles.rowLabel}>{label}</span>
       <span className={styles.rowMeta} data-overdue={isOverdue(dueAt, now)}>{dueLabel(dueAt, now)}</span>
+      <button
+        type="button"
+        className={`${styles.linkButton} ${styles.rowAction}`}
+        aria-label={item ? `Mark ${name} done` : `Set ${name}`}
+        aria-disabled={isSaving || undefined}
+        onClick={() => (item ? void complete(item.id) : onSet())}
+      >
+        {item ? "Done" : "Set"}
+      </button>
     </p>
   );
 }

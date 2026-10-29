@@ -194,7 +194,7 @@ describe("PatientOverviewPanel", () => {
     renderPanel("case-milo");
 
     await screen.findByRole("heading", { name: "Milo" });
-    for (const name of ["Call", "Message", "＋ Add task", "Handoff", "Update status"]) {
+    for (const name of ["Call", "Message", "Handoff", "Update status"]) {
       expect(screen.getByRole("button", { name })).toBeDisabled();
     }
   });
@@ -378,6 +378,112 @@ describe("PatientOverviewPanel", () => {
       renderPanel("case-milo");
 
       expect(await screen.findByText("Overdue by 12 min")).toHaveAttribute("data-overdue", "true");
+    });
+
+    it("offers Set with nothing scheduled and Done once something is", async () => {
+      serveCase(buildMilo({
+        nextReassessment: { id: "r1", description: "Recheck pain", dueAt: new Date().toISOString(), assignedTo: null },
+        nextClientUpdate: null
+      }));
+
+      renderPanel("case-milo");
+
+      expect(await screen.findByRole("button", { name: "Mark next reassessment done" })).toHaveTextContent("Done");
+      expect(screen.getByRole("button", { name: "Set client update" })).toHaveTextContent("Set");
+    });
+
+    it("completes the scheduled item on Done and asks for a reload", async () => {
+      serveCase(buildMilo({
+        nextClientUpdate: { id: "c1", description: "Call owner", dueAt: new Date().toISOString(), assignedTo: null }
+      }));
+      const posted: string[] = [];
+      server.use(
+        http.post(apiUrl("/api/cases/case-milo/tasks/:taskId/complete"), ({ params }) => {
+          posted.push(String(params.taskId));
+          return new HttpResponse(null, { status: 204 });
+        })
+      );
+      const onTaskSaved = vi.fn();
+      renderPanel("case-milo", new Date(2026, 0, 1), vi.fn(), onTaskSaved);
+
+      const done = await screen.findByRole("button", { name: "Mark client update done" });
+
+      fireEvent.click(done);
+      // Seen in the running app: a disabled button lost focus while saving.
+      expect(done).toBeEnabled();
+      expect(done).toHaveAttribute("aria-disabled", "true");
+      fireEvent.click(done);
+
+      await vi.waitFor(() => expect(onTaskSaved).toHaveBeenCalledOnce());
+      expect(posted).toEqual(["c1"]);
+    });
+
+    it("says so when Done fails", async () => {
+      serveCase(buildMilo({
+        nextClientUpdate: { id: "c1", description: "Call owner", dueAt: new Date().toISOString(), assignedTo: null }
+      }));
+      server.use(
+        http.post(apiUrl("/api/cases/case-milo/tasks/c1/complete"), () => new HttpResponse(null, { status: 500 }))
+      );
+      renderPanel("case-milo");
+
+      fireEvent.click(await screen.findByRole("button", { name: "Mark client update done" }));
+
+      expect(await screen.findByText("Couldn't update the task. Try again.")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Mark client update done" })).toBeEnabled();
+    });
+
+    it("sets a reassessment through its dialog, then reports it", async () => {
+      serveCase(buildMilo({ nextReassessment: null }));
+      server.use(http.post(apiUrl("/api/cases/case-milo/tasks"), () => HttpResponse.json({ id: "r2" }, { status: 201 })));
+      const onTaskSaved = vi.fn();
+      renderPanel("case-milo", new Date(2026, 0, 1), vi.fn(), onTaskSaved);
+
+      fireEvent.click(await screen.findByRole("button", { name: "Set next reassessment" }));
+      const dialog = screen.getByRole("dialog", { name: "Set reassessment" });
+      fireEvent.click(within(dialog).getByRole("button", { name: "Set reassessment" }));
+
+      expect(await screen.findByText(/^Reassessment due /)).toBeInTheDocument();
+      expect(onTaskSaved).toHaveBeenCalledOnce();
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
+  });
+
+  // Adding tasks and blockers (build plan 4.4c).
+  describe("add task", () => {
+    it("adds a task through the dialog, then reports it", async () => {
+      serveCase(buildMilo());
+      const sent: unknown[] = [];
+      server.use(
+        http.post(apiUrl("/api/cases/case-milo/tasks"), async ({ request }) => {
+          sent.push(await request.json());
+          return HttpResponse.json({ id: "t9" }, { status: 201 });
+        })
+      );
+      const onTaskSaved = vi.fn();
+      renderPanel("case-milo", new Date(2026, 0, 1), vi.fn(), onTaskSaved);
+
+      fireEvent.click(await screen.findByRole("button", { name: "＋ Add task" }));
+      const dialog = screen.getByRole("dialog", { name: "Add task" });
+      fireEvent.change(within(dialog).getByLabelText("Task *"), { target: { value: "Recheck glucose" } });
+      fireEvent.click(within(dialog).getByRole("button", { name: "Add task" }));
+
+      expect(await screen.findByText("Task added")).toBeInTheDocument();
+      expect(onTaskSaved).toHaveBeenCalledOnce();
+      expect(sent).toEqual([{ type: "task", description: "Recheck glucose" }]);
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
+
+    it("closes an open dialog when another case is selected", async () => {
+      serveCase(buildMilo());
+      const { rerender } = renderPanel("case-milo");
+
+      fireEvent.click(await screen.findByRole("button", { name: "＋ Add task" }));
+      expect(screen.getByRole("dialog", { name: "Add task" })).toBeInTheDocument();
+      rerender("case-other", new Date(2026, 0, 2));
+      await screen.findByText(/Case ER-/);
+
+      expect(screen.queryByRole("dialog", { hidden: true })).not.toBeInTheDocument();
     });
   });
 

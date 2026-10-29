@@ -142,3 +142,12 @@ export interface CaseEvent {
   createdAt: string;
   createdBy: CaseReference | null;
 }
+
+// A new task, blocker or due item, as POST /api/cases/{id}/tasks takes it
+// (4.4a). A reassessment or client update needs dueAt.
+export interface CaseTaskRequest {
+  type: CaseTaskType;
+  description: string;
+  dueAt?: string;
+  assignedToStaffId?: string;
+}
