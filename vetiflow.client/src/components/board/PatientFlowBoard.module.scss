@@ -10,8 +10,42 @@
 }
 
 .top {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
 	padding: 18px 20px 14px;
 	border-bottom: 1px solid var(--color-shell-line);
+}
+
+// The prototype's .boardtools and .toolbtn.
+.tools {
+	display: flex;
+	gap: 7px;
+}
+
+.toolButton {
+	padding: 7px 9px;
+	border: 1px solid var(--color-shell-line);
+	border-radius: 8px;
+	background: var(--color-surface);
+	color: #64767c;
+	font: inherit;
+	font-size: 11px;
+	font-weight: 600;
+	white-space: nowrap;
+	cursor: pointer;
+
+	&[aria-pressed="true"] {
+		border-color: var(--color-shell-navy);
+		background: var(--color-shell-navy);
+		color: var(--color-text-inverse);
+	}
+
+	&:focus-visible {
+		outline: 3px solid var(--color-focus);
+		outline-offset: 2px;
+	}
 }
 
 .title {
@@ -157,6 +191,17 @@
 @media (max-width: 650px) {
 	.top {
 		padding: 14px;
+	}
+
+	// "⇣ 3" as in the prototype. Hidden from sight only; the button's name
+	// still says Incoming.
+	.toolLabel {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip-path: inset(50%);
+		white-space: nowrap;
 	}
 
 	.tabs {
