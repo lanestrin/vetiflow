@@ -51,6 +51,23 @@ public class StartupTests(VetiFlowApiFactory factory)
 		Assert.Equal(0, await dbContext.EmergencyCases.CountAsync(_cancellationToken));
 	}
 
+	// The board summary needs the clinic's clock (2.12a); without it the app
+	// must not start and quietly count shifts in UTC.
+	[Fact]
+	public async Task Startup_WithoutClinicTimeZone_Fails()
+	{
+		var connectionString = await factory.Postgres.CreateDatabaseAsync();
+		using var host = TestHosts.Create(
+			connectionString,
+			migrateOnStartup: true,
+			settings: new Dictionary<string, string> { ["Clinic:TimeZone"] = "" });
+
+		var exception = Record.Exception(() => host.Server);
+
+		Assert.NotNull(exception);
+		Assert.Contains("Clinic:TimeZone", exception.ToString());
+	}
+
 	// A database outage must show on /api/health, not stop the app from starting.
 	[Fact]
 	public async Task Startup_WithDatabaseUnreachable_StartsAndReportsUnhealthy()

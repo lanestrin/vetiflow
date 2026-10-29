@@ -17,7 +17,8 @@ public static class TestHosts
 		string environment = "Testing",
 		bool? migrateOnStartup = null,
 		bool? seedDemoData = null,
-		string? migrationConnectionString = null) =>
+		string? migrationConnectionString = null,
+		IReadOnlyDictionary<string, string>? settings = null) =>
 		new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
 		{
 			builder.UseEnvironment(environment);
@@ -37,6 +38,11 @@ public static class TestHosts
 			if (seedDemoData is not null)
 			{
 				builder.UseSetting("Database:SeedDemoData", seedDemoData.ToString());
+			}
+
+			foreach (var (key, value) in settings ?? new Dictionary<string, string>())
+			{
+				builder.UseSetting(key, value);
 			}
 		});
 }

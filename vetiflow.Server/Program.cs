@@ -58,6 +58,10 @@ builder.Services.AddAuthorization(options =>
 
 builder.Services.AddSignalR();
 
+// The clinic's fixed shifts for the board summary (2.12a). Read now, so a
+// missing or malformed Clinic setting stops startup.
+builder.Services.AddSingleton(ClinicShifts.FromConfiguration(builder.Configuration));
+
 var allowedOrigins = CorsOrigins.Read(builder.Configuration);
 
 builder.Services.AddCors(options =>
