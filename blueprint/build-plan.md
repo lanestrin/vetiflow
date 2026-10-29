@@ -175,7 +175,7 @@ replaces it. Demo data only.
 **Stats row** (prototype: four clickable stat cards)
 
 - [x] **2.12a** `feature/board-summary-api`: `GET /api/board/summary`: patients in care and how many arrived since the shift began, awaiting triage (cases in Incoming) and the oldest wait, critical patients and whether all have a care team. Door to doctor follows in 2.16a. Done (history/features/2.12a-board-summary-api.md).
-- [ ] **2.12b** `feature/board-stats`: the four stat cards as in the prototype, refreshed with the board, as filters: Patients in care shows all cases, Awaiting triage and Critical patients filter the board (pressed state, footer text); door to doctor shows "—" until 2.16b.
+- [x] **2.12b** `feature/board-stats`: the four stat cards as in the prototype, refreshed with the board, as filters: Patients in care shows all cases, Awaiting triage and Critical patients filter the board (pressed state, footer text); door to doctor shows "—" until 2.16b. Done (history/features/2.12b-board-stats.md).
 - [ ] **2.14** `feature/board-search-filter`: the top bar's "Search patients…" filters the board's cards as you type (and offers the Patients search for patients not on the board), the **Incoming** toggle with its count, **Filter** (clinician, species, case status) and **Priority** sort. No new back end: it works on the loaded cases and the 4.6a search.
 
 **My status** (prototype: "My status" in My patients, clinicians on floor)

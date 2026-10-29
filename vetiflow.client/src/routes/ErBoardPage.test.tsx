@@ -1,13 +1,14 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { SignInRouteState } from "../components/auth/experienceHome";
 import { createCaseHubConnection } from "../services/caseHub";
 import { readAccessToken, saveAccessToken } from "../services/session";
-import { buildCase, buildCaseDetail } from "../test/builders";
+import { buildBoardSummary, buildCase, buildCaseDetail } from "../test/builders";
 import { createFakeCaseHub } from "../test/fakeCaseHub";
 import { apiUrl, server } from "../test/server";
+import type { BoardSummary } from "../types/BoardSummary";
 import type { EmergencyCaseListItem } from "../types/EmergencyCaseListItem";
 import { ToastProvider } from "../components/shell/Toast";
 import { ErBoardPage } from "./ErBoardPage";
@@ -40,6 +41,14 @@ afterEach(() => {
 
 function serveCases(cases: EmergencyCaseListItem[]) {
   server.use(http.get(apiUrl("/api/cases"), () => HttpResponse.json(cases)));
+}
+
+function serveSummary(summary: BoardSummary) {
+  server.use(http.get(apiUrl("/api/board/summary"), () => HttpResponse.json(summary)));
+}
+
+function statCard(name: RegExp) {
+  return screen.getByRole("button", { name });
 }
 
 async function findLane(name: string) {
@@ -299,5 +308,93 @@ describe("ErBoardPage", () => {
     expect(card).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("status")).toHaveTextContent("Toby added to triage queue");
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  // The stat cards (build plan 2.12b).
+  describe("stat cards", () => {
+    const boardCases = () => [
+      buildCase({ patientName: "Toby", acuity: "urgent", stage: "incoming" }),
+      buildCase({ patientName: "Milo", acuity: "critical", stage: "treatment" }),
+      buildCase({ patientName: "Pip", acuity: "stable", stage: "recheck" })
+    ];
+
+    it("fills the cards from the summary, with Patients in care pressed", async () => {
+      serveCases(boardCases());
+      serveSummary(buildBoardSummary({ patientsInCare: 3, awaitingTriage: 1, criticalPatients: 1 }));
+      renderBoard();
+
+      await screen.findByRole("heading", { name: "Milo" });
+      expect(statCard(/patients in care/i)).toHaveTextContent("3");
+      expect(statCard(/patients in care/i)).toHaveAttribute("aria-pressed", "true");
+      expect(statCard(/awaiting triage/i)).toHaveTextContent("1");
+      expect(statCard(/critical patients/i)).toHaveTextContent("1");
+    });
+
+    it("filters the board to the triage queue, then to critical, then back to all", async () => {
+      serveCases(boardCases());
+      serveSummary(buildBoardSummary({ patientsInCare: 3, awaitingTriage: 1, criticalPatients: 1 }));
+      renderBoard();
+      await screen.findByRole("heading", { name: "Milo" });
+
+      fireEvent.click(statCard(/awaiting triage/i));
+
+      expect(statCard(/awaiting triage/i)).toHaveAttribute("aria-pressed", "true");
+      expect(screen.getByRole("heading", { name: "Toby" })).toBeInTheDocument();
+      expect(screen.queryByRole("heading", { name: "Milo" })).not.toBeInTheDocument();
+
+      fireEvent.click(statCard(/critical patients/i));
+
+      expect(screen.getByRole("heading", { name: "Milo" })).toBeInTheDocument();
+      expect(screen.queryByRole("heading", { name: "Toby" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("region", { name: "Stable" })).not.toBeInTheDocument();
+
+      fireEvent.click(statCard(/patients in care/i));
+
+      expect(screen.getAllByRole("article")).toHaveLength(3);
+    });
+
+    it("keeps the board as it is when nobody awaits triage", async () => {
+      serveCases(boardCases());
+      serveSummary(buildBoardSummary({ patientsInCare: 3, awaitingTriage: 0 }));
+      renderBoard();
+      await screen.findByRole("heading", { name: "Milo" });
+
+      fireEvent.click(statCard(/awaiting triage/i));
+
+      expect(screen.getByRole("status")).toHaveTextContent("No patients awaiting triage");
+      expect(statCard(/patients in care/i)).toHaveAttribute("aria-pressed", "true");
+      expect(screen.getAllByRole("article")).toHaveLength(3);
+    });
+
+    it("loads the summary again when the server reports a case update", async () => {
+      serveCases(boardCases());
+      serveSummary(buildBoardSummary({ patientsInCare: 3 }));
+      renderBoard();
+      await screen.findByRole("heading", { name: "Milo" });
+
+      serveSummary(buildBoardSummary({ patientsInCare: 4 }));
+      hub.emit("caseUpdated", "case-new");
+
+      await waitFor(() => expect(statCard(/patients in care/i)).toHaveTextContent("4"));
+    });
+
+    it("keeps the board up with dashes when only the summary fails", async () => {
+      serveCases(boardCases());
+      server.use(http.get(apiUrl("/api/board/summary"), () => new HttpResponse(null, { status: 500 })));
+      renderBoard();
+
+      expect(await screen.findByRole("heading", { name: "Milo" })).toBeInTheDocument();
+      expect(statCard(/patients in care/i)).toHaveTextContent("—");
+      expect(statCard(/patients in care/i)).toHaveTextContent("Not available");
+    });
+
+    it("sends the person to sign in when the summary reports the session ended", async () => {
+      saveAccessToken("expired");
+      server.use(http.get(apiUrl("/api/board/summary"), () => new HttpResponse(null, { status: 401 })));
+
+      renderBoard();
+
+      expect(await screen.findByText("Sign-in page (session ended)")).toBeInTheDocument();
+    });
   });
 });

@@ -1,4 +1,5 @@
 import type { SignedInUser } from "../types/Auth";
+import type { BoardSummary } from "../types/BoardSummary";
 import type { CaseDetail } from "../types/CaseDetail";
 import type { EmergencyCaseListItem } from "../types/EmergencyCaseListItem";
 import type { PatientListItem } from "../types/PatientListItem";
@@ -122,6 +123,20 @@ export function buildPetParent(overrides: Partial<SignedInUser> = {}): SignedInU
     experience: "petParent",
     displayName: "Morgan Hale",
     initials: "MH",
+    ...overrides
+  };
+}
+
+// A quiet board: nothing awaiting triage and no critical patients.
+export function buildBoardSummary(overrides: Partial<BoardSummary> = {}): BoardSummary {
+  return {
+    patientsInCare: 0,
+    shift: { name: "day", startedAt: new Date().toISOString() },
+    arrivedThisShift: 0,
+    awaitingTriage: 0,
+    oldestAwaitingTriageArrivedAt: null,
+    criticalPatients: 0,
+    criticalWithoutCareTeam: 0,
     ...overrides
   };
 }
