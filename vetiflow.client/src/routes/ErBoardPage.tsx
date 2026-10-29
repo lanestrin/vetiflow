@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import type { SignInRouteState } from "../components/auth/experienceHome";
+import { BoardHeading } from "../components/board/BoardHeading";
 import { BoardStats, type BoardFilter } from "../components/board/BoardStats";
 import { PatientFlowBoard } from "../components/board/PatientFlowBoard";
 import { useNow } from "../components/board/useNow";
@@ -164,13 +165,7 @@ export function ErBoardPage() {
   return (
     <main className={styles.page}>
       {pageTitle}
-      <header className={styles.header}>
-        <h1 className={styles.title}>VetiFlow ER Board</h1>
-
-        <button type="button" className={styles.intakeButton} onClick={() => setIsIntakeOpen(true)}>
-          <span aria-hidden="true">＋ </span>New intake
-        </button>
-      </header>
+      <BoardHeading summary={summary} onIntake={() => setIsIntakeOpen(true)} />
 
       <BoardStats summary={summary} filter={filter} now={now} onFilter={chooseFilter} />
 

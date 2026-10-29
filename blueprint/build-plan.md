@@ -190,7 +190,7 @@ replaces it. Demo data only.
 **Page heading** (prototype: hospital name, title, shift, New intake)
 
 - [x] **2.15a** `feature/shift-api`: the clinic's name (from clinic settings, a setting until 9.3) and the current shift from the `Clinic` setting (2.12a), with the number of clinicians on the floor from My status (2.21a). On `GET /api/board/summary` (`clinicName`, `cliniciansOnFloor`). Done (history/features/2.15a-shift-api.md).
-- [ ] **2.15b** `feature/board-heading`: the eyebrow, "ER Command Center" title and subtitle, the live shift chip and the **New intake** button opening the intake dialog (4.1b).
+- [x] **2.15b** `feature/board-heading`: the eyebrow, "ER Command Center" title and subtitle, the live shift chip and the **New intake** button opening the intake dialog (4.1b). Done (history/features/2.15b-board-heading.md).
 
 **Patient overview panel** (prototype: right-hand panel)
 

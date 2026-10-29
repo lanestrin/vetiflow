@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildCase } from "../../test/builders";
+import { buildBoardSummary, buildCase } from "../../test/builders";
 import {
   ageLabel,
   caseStatusLabel,
@@ -7,6 +7,7 @@ import {
   matchesSearch,
   minutesSince,
   noMenuFilters,
+  shiftChipLabel,
   sortByLongestInStage,
   stageLabel,
   waitChipLabel
@@ -180,5 +181,17 @@ describe("sortByLongestInStage", () => {
     sortByLongestInStage(cases);
 
     expect(cases).toEqual([recent, longest]);
+  });
+});
+
+describe("shiftChipLabel", () => {
+  it.each([
+    ["day", 4, "Day shift · 4 clinicians on floor"],
+    ["night", 1, "Night shift · 1 clinician on floor"],
+    ["day", 0, "Day shift · 0 clinicians on floor"]
+  ] as const)("shows the %s shift with %i on the floor", (name, cliniciansOnFloor, label) => {
+    const summary = buildBoardSummary({ shift: { name, startedAt: now.toISOString() }, cliniciansOnFloor });
+
+    expect(shiftChipLabel(summary)).toBe(label);
   });
 });
