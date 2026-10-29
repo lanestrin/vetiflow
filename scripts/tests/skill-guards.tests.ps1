@@ -1,7 +1,8 @@
 <#
 .SYNOPSIS
   Regression checks that Claude cannot start the skills that finish, land or
-  loop over work on its own: only the person runs /ready, /complete and /approve.
+  loop over work on its own: only the person runs /ready, /complete, /approve
+  and /done.
 
 .DESCRIPTION
   Plain PowerShell, no test framework. Reads skill frontmatter only; the
@@ -30,7 +31,7 @@ function Test-PersonOnlySkill([string]$Path) {
 	$false
 }
 
-foreach ($skill in 'ready', 'complete', 'approve') {
+foreach ($skill in 'ready', 'complete', 'approve', 'done') {
 	$path = Join-Path $repoRoot ".claude/skills/$skill/SKILL.md"
 	Assert-True ((Test-Path $path) -and (Test-PersonOnlySkill $path)) "/$skill keeps disable-model-invocation: true"
 }

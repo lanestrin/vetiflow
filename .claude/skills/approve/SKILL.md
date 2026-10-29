@@ -108,7 +108,7 @@ other path in one sentence.
   | --- | --- |
   | CI is green and the review is done | Squash-merge the PR on GitHub. |
   | CI fails or review asks for changes | Ask Claude for the change on this branch (standards and tests still apply). Claude runs `/verify`, adds the new Verify lines and what changed to the history file's `## Result`, and rewrites `landing-commit.txt` as a follow-up message. Then `/approve` again; the push updates the PR. Do not reopen `current-feature.md`. |
-  | After the merge | `git switch main`, `git pull`, `git branch -d <branch>`, delete `blueprint/context/landing-commit.txt` and `landing-pr.md`, then `/feature` for the next item (or `/status`). `/clear` first is optional, to start with a fresh context. The history file is final from here. |
+  | After the merge | `/done`: it checks GitHub merged this branch's tip, switches to an up-to-date `main`, deletes the local branch and the landing drafts, and reports the merged commit's CI. Then `/feature` for the next item (or `/status`). `/clear` first is optional, to start with a fresh context. The history file is final from here. |
 
 - Then end ("Ending a turn" in `blueprint/context/ai-interaction.md`), naming
   only what happened:

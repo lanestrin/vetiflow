@@ -41,6 +41,7 @@ the others link to it.
 | `/audit` | review the change, only when you ask | finding severities |
 | `/complete` | archive and draft the commit and PR | completion gates |
 | `/approve` | commit, push and hand over the PR | the publish boundary |
+| `/done` | after your merge, return the checkout to an up-to-date `main` | when a local branch may be deleted |
 | `/status` | report where things are and the next command | - |
 | This file | the loop, the audit recommendation, failure reports | - |
 
@@ -67,7 +68,9 @@ the others link to it.
    over the PR.
 7. **Merge.** You squash-merge on GitHub once CI is green. Changes asked for in
    review are made on the same branch, then `/approve` again. After the merge,
-   start the next item from the updated `main`.
+   type `/done`: it confirms on GitHub that the branch was merged at its tip,
+   switches to an up-to-date `main`, deletes the local branch and the landing
+   drafts, and reports the merged commit's CI. Then start the next item.
 
 **`/ready` is the default path after you OK the spec.** It runs steps 2 and 4
 without asking you to type `/implement` per step, adds no review stage, and
@@ -193,6 +196,7 @@ Next: <one exact command, reply, or action>
 | `/ready` finishes | Implementation complete; verification passed; ready to archive and prepare publication. | `/complete` |
 | `/complete` | Results archived; commit and PR drafts prepared. | `/approve` |
 | `/approve` | Changes committed and pushed; PR opened (or updated). | Review CI and squash-merge the PR when checks pass. |
+| `/done` | Merged work cleaned up; main is current. | `/feature` |
 | A stop | Blocked - <specific reason>. | <the action or decision needed to continue> |
 
 Rules:
