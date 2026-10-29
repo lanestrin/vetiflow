@@ -48,16 +48,25 @@ other path in one sentence.
    result is reused unless other files changed since.
    **If it fails:** the options from `/verify`'s "Common failures" table, then
    `/approve`.
-4. **Files:** `git status --short --untracked-files=all`. Stop if any path is in
+4. **PR description:** read `blueprint/context/landing-pr.md` and check it
+   against "PR title and description" in `coding-standards.md`: a title on
+   the first line, each required section exactly once with real content,
+   and no unfilled prompts or empty headings. Check its verification claims
+   against step 3's actual evidence. If the draft is missing or incomplete,
+   AI writes or repairs it from the current diff, this branch's completed
+   history and the evidence. Do not ask the person to fill anything in.
+   **If it cannot be completed truthfully:** name the missing fact and ask
+   only for that fact or decision before committing or pushing. Do not invent
+   an answer or substitute a blank template.
+5. **Files:** `git status --short --untracked-files=all`. Stop if any path is in
    `/verify`'s "Unexpected files" table (also `appsettings.*.local.json`, user
    secrets and `node_modules/`), or clearly belongs to other work.
    `blueprint/context/landing-*` is git-ignored and never committed.
    **If it fails:** the options from that table, then `/approve`.
-5. **Nothing to commit?** If the tree is clean and the branch is already pushed
-   and up to date, say so and stop.
-   `Status: Nothing to commit; the branch is already pushed.`
-   `Next: Review CI and squash-merge the PR when checks pass` (or open it, if
-   none is open).
+6. **Nothing to commit?** If the tree is clean and the branch is already pushed
+   and up to date, skip the commit and push sections and continue to the PR
+   handover. A pushed branch can still need its PR opened or its description
+   completed. Do not create an empty commit.
 
 ## 2. Commit
 
@@ -94,14 +103,35 @@ other path in one sentence.
 
 - The commit hash and subject, and that the push succeeded.
 - **The PR:**
-  - If `gh` is installed and `gh auth status` succeeds and no PR is open for the
-    branch: `gh pr create --base main --title "<first line of landing-pr.md>"
-    --body-file <the rest of landing-pr.md in a scratchpad file>`. Give the PR URL.
-  - Otherwise give `https://github.com/<owner>/<repo>/pull/new/<branch>` (from
-    `git remote get-url origin`) and show the PR title and description from
-    `landing-pr.md` ready to paste.
-  - If a PR is already open (a follow-up commit after review), say the push
-    updated it.
+  - Take the title from the first line of `landing-pr.md` and the body from
+    the remaining text. Replace GitHub's default description with this body;
+    never append the draft to the template or leave empty sections.
+  - Use an available authenticated GitHub tool, or `gh` when installed and
+    `gh auth status` succeeds. Check for an existing PR for this exact branch
+    first so a retry never opens a duplicate.
+  - With `gh` and no existing PR:
+    `gh pr create --base main --head <branch> --title "<draft title>"
+    --body-file <draft body in a scratchpad file>`. For an existing PR, use
+    `gh pr edit <PR URL> --title "<draft title>" --body-file <draft body file>`.
+    Do not update other PRs or overwrite reviewer comments.
+  - Without a suitable tool, use available authorized browser access to fill
+    the complete title and body and create or update the PR. No manual
+    composition or copy/paste is assigned to the person.
+  - If browser access is also unavailable and this branch has no PR, generate
+    a GitHub compare link with `quick_pull=1`, `title` and `body` populated
+    from the draft. URL-encode each query value programmatically, preserving
+    Markdown and newlines. The person only reviews and clicks Create pull
+    request; clearly report that the PR is not created yet. Derive the
+    repository from `git remote get-url origin`.
+    Use GitHub's [documented compare-link parameters](https://docs.github.com/en/pull-requests/reference/using-query-parameters-to-create-a-pull-request).
+  - If the prefilled link is too long, an existing PR cannot be updated, or
+    GitHub access is blocked, keep the complete draft and report the specific
+    tool/sign-in action needed to finish. Never fall back to asking the person
+    to write, paste or fix the description.
+  - After creation or update, read back the PR title and body when access
+    permits and check they contain the generated content without empty or
+    duplicate sections. Report the actual PR URL and what was confirmed.
+    A prefilled form link alone never counts as an opened PR.
 - **What happens next**, as a short table:
 
   | When | You do |
@@ -115,5 +145,8 @@ other path in one sentence.
   - PR opened or updated: `Status: Changes committed and pushed; PR opened (or
     updated).` `Next: Review CI and squash-merge the PR when checks pass.`
   - No `gh`: `Status: Changes committed and pushed; PR not opened yet.`
-    `Next: Open the PR at <url> with the title and description shown above.`
+    Use this only when no alternative tool or browser created it.
+    `Next: Review the prefilled PR at <url> and click Create pull request.`
+  - If no new commit was needed, say the branch was already pushed and report
+    the PR result without implying that another commit was created.
   - Never say merged: Claude does not merge.

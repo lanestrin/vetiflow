@@ -253,7 +253,15 @@ Tests are a gate, not an extra. Both runners exist, so:
 ## Commit messages and PRs
 
 This is the one place these rules live. `/complete` drafts both from them, and
-`.github/pull_request_template.md` has the same PR sections.
+`.github/pull_request_template.md` points AI here rather than showing an empty
+form for the person to fill in.
+
+AI writes the entire commit message, PR title and PR description from the actual
+diff, matching spec/history and verification evidence. The person reviews,
+requests changes or approves publication; they do not compose or fill in these
+documents. Ask only for a decision or information that cannot be established
+from the project, never for routine PR wording. Never invent results or assume
+unknown deployment requirements are "none".
 
 ### Type
 
@@ -299,6 +307,15 @@ a new required setting) adds `!` after the type, `feat!: ...`, and a
   - **Reviewer notes:** what to look at closely, and any trade-off made.
   - **Deploy notes:** env vars, migrations to run, settings, or "none".
   - **History:** the `blueprint/history/` file for this work.
+- Generate each section exactly once and give it substantive content. For a
+  section with nothing applicable, write a truthful short statement such as
+  "No deploy steps" or "No additional reviewer notes". For a check not run,
+  say "Not run" and why. Unknown information is explicitly "Not verified";
+  it is never a passing result.
+- Replace the default GitHub description with the generated body. Do not append
+  it to a commit summary or another template, publish empty headings or leave
+  instructions for the person to fill in. AI checks the draft before publishing
+  and, when able to read the PR, confirms the posted title and body.
 
 ### Merging
 
