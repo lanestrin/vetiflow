@@ -3,13 +3,16 @@ import { useLeaveWhenRefused } from "../auth/useLeaveWhenRefused";
 import { AcuityBadge } from "../clinical/AcuityBadge";
 import { useNow } from "../board/useNow";
 import { TriageDialog } from "../triage/TriageDialog";
-import { getCase } from "../../services/casesApi";
-import type { CaseDetail } from "../../types/CaseDetail";
+import { completeTask, getCase, reopenTask } from "../../services/casesApi";
+import type { CaseDetail, CaseDueItem, CaseTask } from "../../types/CaseDetail";
+import { useToast } from "../shell/toastContext";
 import { MoreActionsMenu } from "./MoreActionsMenu";
 import {
   checkInLabel,
+  dueLabel,
   eventDetail,
   eventLabel,
+  isOverdue,
   locationLabel,
   longAgeLabel,
   speciesKind,
@@ -31,6 +34,9 @@ interface PatientOverviewPanelProps {
   refreshedAt: Date;
   // After triage is saved, with the toast to show; the board reloads.
   onTriaged: (message: string) => void;
+  // After a task is ticked or unticked, saved or not: the board and this
+  // panel reload, so the checklist shows the saved state (4.4b).
+  onTaskSaved: () => void;
 }
 
 const avatars = { dog: "🐕", cat: "🐈", other: "🐾" };
@@ -40,7 +46,7 @@ const notRecorded = "Not recorded";
 // The prototype's "Patient overview" (build plan 3.2b) for the card selected
 // on the board. Complete triage and Re-triage open the triage dialog (4.2b);
 // the buttons that later items wire are shown disabled.
-export function PatientOverviewPanel({ caseId, refreshedAt, onTriaged }: PatientOverviewPanelProps) {
+export function PatientOverviewPanel({ caseId, refreshedAt, onTriaged, onTaskSaved }: PatientOverviewPanelProps) {
   const titleId = useId();
   const leaveWhenRefused = useLeaveWhenRefused();
   const nameRef = useRef<HTMLHeadingElement>(null);
@@ -114,7 +120,14 @@ export function PatientOverviewPanel({ caseId, refreshedAt, onTriaged }: Patient
           </button>
         </div>
       )}
-      {detail && <Overview detail={detail} nameRef={nameRef} onCompleteTriage={() => setIsTriaging(true)} />}
+      {detail && (
+        <Overview
+          detail={detail}
+          nameRef={nameRef}
+          onCompleteTriage={() => setIsTriaging(true)}
+          onTaskSaved={onTaskSaved}
+        />
+      )}
       {detail && isTriaging && (
         <TriageDialog
           detail={detail}
@@ -150,9 +163,10 @@ interface OverviewProps {
   detail: CaseDetail;
   nameRef: RefObject<HTMLHeadingElement | null>;
   onCompleteTriage: () => void;
+  onTaskSaved: () => void;
 }
 
-function Overview({ detail, nameRef, onCompleteTriage }: OverviewProps) {
+function Overview({ detail, nameRef, onCompleteTriage, onTaskSaved }: OverviewProps) {
   const now = useNow();
   const { patient, owner } = detail;
   const kind = speciesKind(patient.species);
@@ -168,7 +182,7 @@ function Overview({ detail, nameRef, onCompleteTriage }: OverviewProps) {
     ["SpO₂", null]
   ];
   const blockers = detail.tasks.filter((task) => task.type === "blocker" && task.status === "open");
-  const tasks = detail.tasks.filter((task) => task.type === "task" && task.status !== "cancelled");
+  const tasks = checklistTasks(detail.tasks);
 
   return (
     <>
@@ -215,6 +229,8 @@ function Overview({ detail, nameRef, onCompleteTriage }: OverviewProps) {
           <span className={styles.rowLabel}>Location</span>
           <span className={styles.rowMeta}>{locationLabel(detail.room)}</span>
         </p>
+        <DueRow icon="⏱" label="Next reassessment" item={detail.nextReassessment} now={now} />
+        <DueRow icon="☎" label="Client update" item={detail.nextClientUpdate} now={now} />
       </div>
 
       <section className={styles.section} aria-labelledby={`${detail.id}-timeline`}>
@@ -255,20 +271,7 @@ function Overview({ detail, nameRef, onCompleteTriage }: OverviewProps) {
         {tasks.length === 0 ? (
           <p className={styles.empty}>No tasks yet.</p>
         ) : (
-          <ul className={styles.tasks}>
-            {tasks.map((task) => {
-              const isDone = task.status === "done";
-              return (
-                <li key={task.id} className={styles.row} data-done={isDone}>
-                  <span className={styles.check} role="img" aria-label={isDone ? "Done" : "Open"}>
-                    {isDone ? "✓" : ""}
-                  </span>
-                  <span className={styles.rowLabel}>{task.description}</span>
-                  <span className={styles.rowMeta}>{taskMeta(task)}</span>
-                </li>
-              );
-            })}
-          </ul>
+          <TaskChecklist caseId={detail.id} caseTasks={detail.tasks} onTaskSaved={onTaskSaved} />
         )}
       </section>
 
@@ -285,4 +288,102 @@ function Overview({ detail, nameRef, onCompleteTriage }: OverviewProps) {
       </div>
     </>
   );
+}
+
+interface DueRowProps {
+  icon: string;
+  label: string;
+  item: CaseDueItem | null;
+  now: Date;
+}
+
+// The prototype's "Next reassessment" and "Client update" rows (4.4b). An
+// overdue time says so in words as well as colour.
+function DueRow({ icon, label, item, now }: DueRowProps) {
+  const dueAt = item?.dueAt ?? null;
+
+  return (
+    <p className={styles.row}>
+      <span aria-hidden="true">{icon}</span>
+      <span className={styles.rowLabel}>{label}</span>
+      <span className={styles.rowMeta} data-overdue={isOverdue(dueAt, now)}>{dueLabel(dueAt, now)}</span>
+    </p>
+  );
+}
+
+interface TaskChecklistProps {
+  caseId: string;
+  // Every task on the case, as loaded; the checklist shows the plain tasks.
+  caseTasks: CaseTask[];
+  onTaskSaved: () => void;
+}
+
+// Ticking completes a task and unticking reopens it (4.4b). The tick changes
+// at once; a failure puts it back and the reload shows the saved state.
+function TaskChecklist({ caseId, caseTasks, onTaskSaved }: TaskChecklistProps) {
+  const leaveWhenRefused = useLeaveWhenRefused();
+  const showToast = useToast();
+  const [ticked, setTicked] = useState<Record<string, boolean>>({});
+  const [savingId, setSavingId] = useState<string | null>(null);
+  // A reload brings the saved state, so earlier ticks no longer apply.
+  const [followedTasks, setFollowedTasks] = useState(caseTasks);
+  if (caseTasks !== followedTasks) {
+    setFollowedTasks(caseTasks);
+    setTicked({});
+  }
+  const tasks = checklistTasks(caseTasks);
+
+  async function toggle(task: CaseTask, isDone: boolean) {
+    setTicked((current) => ({ ...current, [task.id]: isDone }));
+    setSavingId(task.id);
+
+    try {
+      await (isDone ? completeTask(caseId, task.id) : reopenTask(caseId, task.id));
+    } catch (saveError) {
+      if (leaveWhenRefused(saveError)) {
+        return;
+      }
+
+      setTicked((current) => {
+        const reverted = { ...current };
+        delete reverted[task.id];
+        return reverted;
+      });
+      showToast("Couldn't update the task. Try again.");
+    } finally {
+      setSavingId(null);
+    }
+
+    onTaskSaved();
+  }
+
+  return (
+    <ul className={styles.tasks}>
+      {tasks.map((task) => {
+        const isDone = ticked[task.id] ?? task.status === "done";
+        return (
+          <li key={task.id} className={styles.row} data-done={isDone}>
+            <label className={styles.taskLabel}>
+              <input
+                type="checkbox"
+                className={styles.checkInput}
+                checked={isDone}
+                disabled={savingId === task.id}
+                onChange={(event) => void toggle(task, event.target.checked)}
+              />
+              <span className={styles.check} aria-hidden="true">{isDone ? "✓" : ""}</span>
+              <span className={styles.rowLabel}>{task.description}</span>
+            </label>
+            <span className={styles.rowMeta}>{taskMeta(task)}</span>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+// The Next actions checklist: plain tasks that are not cancelled. Blockers
+// show in the timeline and due items in their own rows.
+function checklistTasks(caseTasks: CaseTask[]): CaseTask[] {
+  return caseTasks.filter((task) => task.type === "task" && task.status !== "cancelled");
 }

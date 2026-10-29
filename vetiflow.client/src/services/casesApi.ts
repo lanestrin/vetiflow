@@ -142,3 +142,27 @@ async function readFieldErrors(response: Response): Promise<Record<string, strin
 
   return fieldErrors;
 }
+
+// Tick a checklist task done, or untick it (build plan 4.4b). A 401 or 403 is
+// a refused session; any other failure is an error the panel shows and
+// recovers from by reloading.
+export function completeTask(caseId: string, taskId: string): Promise<void> {
+  return postTaskAction(caseId, taskId, "complete");
+}
+
+export function reopenTask(caseId: string, taskId: string): Promise<void> {
+  return postTaskAction(caseId, taskId, "reopen");
+}
+
+async function postTaskAction(caseId: string, taskId: string, action: "complete" | "reopen"): Promise<void> {
+  const response = await fetch(`${apiBaseUrl}/api/cases/${caseId}/tasks/${taskId}/${action}`, {
+    method: "POST",
+    headers: authorizationHeader()
+  });
+
+  throwIfRefused(response);
+
+  if (!response.ok) {
+    throw new Error("Failed to update the task.");
+  }
+}

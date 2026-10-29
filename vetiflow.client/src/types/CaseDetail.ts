@@ -24,7 +24,8 @@ export type CaseEventType =
   | "treatmentCompleted"
   | "discharged";
 
-export type CaseTaskType = "task" | "blocker";
+// Reassessment and clientUpdate are due items with a due time (4.4a).
+export type CaseTaskType = "task" | "blocker" | "reassessment" | "clientUpdate";
 
 export type CaseTaskStatus = "open" | "done" | "cancelled";
 
@@ -63,6 +64,9 @@ export interface CaseDetail {
   vitals: VitalsRecord[];
   // Open first, then oldest first.
   tasks: CaseTask[];
+  // The earliest due open reassessment and client update (4.4a).
+  nextReassessment: CaseDueItem | null;
+  nextClientUpdate: CaseDueItem | null;
   // Oldest first.
   timeline: CaseEvent[];
 }
@@ -117,7 +121,18 @@ export interface CaseTask {
   dueAt: string | null;
   assignedTo: CaseReference | null;
   createdAt: string;
+  createdBy: CaseReference | null;
   resolvedAt: string | null;
+  resolvedBy: CaseReference | null;
+}
+
+// The next due item of one type: the panel's "Next reassessment" and
+// "Client update" rows.
+export interface CaseDueItem {
+  id: string;
+  description: string;
+  dueAt: string | null;
+  assignedTo: CaseReference | null;
 }
 
 export interface CaseEvent {

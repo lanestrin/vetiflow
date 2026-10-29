@@ -3,9 +3,10 @@ import { http, HttpResponse } from "msw";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { readAccessToken, saveAccessToken } from "../../services/session";
-import { buildCaseDetail } from "../../test/builders";
+import { buildCaseDetail, buildCaseTask } from "../../test/builders";
 import { apiUrl, server } from "../../test/server";
 import type { CaseDetail, CaseTask } from "../../types/CaseDetail";
+import { ToastProvider } from "../shell/Toast";
 import { PatientOverviewPanel } from "./PatientOverviewPanel";
 
 // jsdom has no modal dialogs; these behave like the browser's for the test.
@@ -28,17 +29,7 @@ const at = (hour: number, minute: number) =>
   new Date(today.getFullYear(), today.getMonth(), today.getDate(), hour, minute).toISOString();
 
 function buildTask(overrides: Partial<CaseTask>): CaseTask {
-  return {
-    id: crypto.randomUUID(),
-    type: "task",
-    description: "A task",
-    status: "open",
-    dueAt: null,
-    assignedTo: null,
-    createdAt: at(10, 0),
-    resolvedAt: null,
-    ...overrides
-  };
+  return buildCaseTask({ createdAt: at(10, 0), ...overrides });
 }
 
 function buildMilo(overrides: Partial<CaseDetail> = {}): CaseDetail {
@@ -69,7 +60,12 @@ function buildMilo(overrides: Partial<CaseDetail> = {}): CaseDetail {
     tasks: [
       buildTask({ description: "Review radiographs" }),
       buildTask({ type: "blocker", description: "Thoracic radiographs", assignedTo: { id: "s2", name: "Sam Cruz" } }),
-      buildTask({ description: "Place IV catheter", status: "done", assignedTo: { id: "s1", name: "Jordan Reed" } }),
+      buildTask({
+        description: "Place IV catheter",
+        status: "done",
+        assignedTo: { id: "s1", name: "Jordan Reed" },
+        resolvedBy: { id: "s1", name: "Jordan Reed" }
+      }),
       buildTask({ description: "Cancelled task", status: "cancelled" })
     ],
     ...overrides
@@ -87,14 +83,24 @@ function serveCase(detail: CaseDetail) {
   return () => requests;
 }
 
-function renderPanel(caseId: string | null, refreshedAt = new Date(2026, 0, 1), onTriaged = vi.fn()) {
+function renderPanel(
+  caseId: string | null,
+  refreshedAt = new Date(2026, 0, 1),
+  onTriaged = vi.fn(),
+  onTaskSaved = vi.fn()
+) {
   const panel = (id: string | null, refreshed: Date) => (
     <MemoryRouter initialEntries={["/er"]}>
-      <Routes>
-        <Route path="/er" element={<PatientOverviewPanel caseId={id} refreshedAt={refreshed} onTriaged={onTriaged} />} />
-        <Route path="/sign-in" element={<p>Sign-in page</p>} />
-        <Route path="/pet-parent" element={<p>Pet parent home</p>} />
-      </Routes>
+      <ToastProvider>
+        <Routes>
+          <Route
+            path="/er"
+            element={<PatientOverviewPanel caseId={id} refreshedAt={refreshed} onTriaged={onTriaged} onTaskSaved={onTaskSaved} />}
+          />
+          <Route path="/sign-in" element={<p>Sign-in page</p>} />
+          <Route path="/pet-parent" element={<p>Pet parent home</p>} />
+        </Routes>
+      </ToastProvider>
     </MemoryRouter>
   );
   const view = render(panel(caseId, refreshedAt));
@@ -167,10 +173,10 @@ describe("PatientOverviewPanel", () => {
     const actions = within(await screen.findByRole("region", { name: "Next actions" }));
     const items = actions.getAllByRole("listitem");
     expect(items).toHaveLength(2);
-    expect(within(items[0]).getByRole("img", { name: "Open" })).toBeInTheDocument();
+    expect(within(items[0]).getByRole("checkbox", { name: "Review radiographs" })).not.toBeChecked();
     expect(items[0]).toHaveTextContent("Review radiographsPending");
-    expect(within(items[1]).getByRole("img", { name: "Done" })).toHaveTextContent("✓");
-    expect(items[1]).toHaveTextContent("Place IV catheterJordan Reed");
+    expect(within(items[1]).getByRole("checkbox", { name: "Place IV catheter" })).toBeChecked();
+    expect(items[1]).toHaveTextContent("✓Place IV catheterJordan Reed");
   });
 
   it("shows empty timeline and task messages", async () => {
@@ -344,5 +350,109 @@ describe("PatientOverviewPanel", () => {
     renderPanel("case-milo");
 
     expect(await screen.findByText("Pet parent home")).toBeInTheDocument();
+  });
+
+  // The due rows (build plan 4.4b).
+  describe("due rows", () => {
+    it("shows when the next reassessment and client update are due", async () => {
+      const inEight = new Date(Date.now() + 8.5 * 60_000).toISOString();
+      serveCase(buildMilo({
+        nextReassessment: { id: "r1", description: "Recheck pain", dueAt: inEight, assignedTo: null },
+        nextClientUpdate: null
+      }));
+
+      renderPanel("case-milo");
+
+      expect(await screen.findByText("Due in 8 min")).toHaveAttribute("data-overdue", "false");
+      expect(screen.getByText("Next reassessment")).toBeInTheDocument();
+      expect(screen.getByText("Client update")).toBeInTheDocument();
+      expect(screen.getByText("Not scheduled")).toHaveAttribute("data-overdue", "false");
+    });
+
+    it("marks an overdue item in words and for colour", async () => {
+      const twelveAgo = new Date(Date.now() - 12.5 * 60_000).toISOString();
+      serveCase(buildMilo({
+        nextClientUpdate: { id: "c1", description: "Call owner", dueAt: twelveAgo, assignedTo: null }
+      }));
+
+      renderPanel("case-milo");
+
+      expect(await screen.findByText("Overdue by 12 min")).toHaveAttribute("data-overdue", "true");
+    });
+  });
+
+  // Ticking tasks done and reopening them (build plan 4.4b).
+  describe("checklist ticks", () => {
+    function serveAction(action: "complete" | "reopen", status = 204) {
+      const posted: string[] = [];
+      server.use(
+        http.post(apiUrl(`/api/cases/case-milo/tasks/:taskId/${action}`), ({ params }) => {
+          posted.push(String(params.taskId));
+          return new HttpResponse(null, { status });
+        })
+      );
+      return posted;
+    }
+
+    async function checkbox(name: string) {
+      return within(await screen.findByRole("region", { name: "Next actions" })).getByRole("checkbox", { name });
+    }
+
+    it("completes an open task and asks for a reload", async () => {
+      const milo = buildMilo();
+      serveCase(milo);
+      const posted = serveAction("complete");
+      const onTaskSaved = vi.fn();
+      renderPanel("case-milo", new Date(2026, 0, 1), vi.fn(), onTaskSaved);
+      const box = await checkbox("Review radiographs");
+
+      fireEvent.click(box);
+
+      expect(box).toBeChecked();
+      await vi.waitFor(() => expect(onTaskSaved).toHaveBeenCalledOnce());
+      expect(posted).toEqual([milo.tasks[0].id]);
+    });
+
+    it("reopens a done task", async () => {
+      const milo = buildMilo();
+      serveCase(milo);
+      const posted = serveAction("reopen");
+      const onTaskSaved = vi.fn();
+      renderPanel("case-milo", new Date(2026, 0, 1), vi.fn(), onTaskSaved);
+      const box = await checkbox("Place IV catheter");
+
+      fireEvent.click(box);
+
+      expect(box).not.toBeChecked();
+      await vi.waitFor(() => expect(onTaskSaved).toHaveBeenCalledOnce());
+      expect(posted).toEqual([milo.tasks[2].id]);
+    });
+
+    it("puts the tick back and says so when the save fails", async () => {
+      serveCase(buildMilo());
+      serveAction("complete", 409);
+      const onTaskSaved = vi.fn();
+      renderPanel("case-milo", new Date(2026, 0, 1), vi.fn(), onTaskSaved);
+      const box = await checkbox("Review radiographs");
+
+      fireEvent.click(box);
+
+      expect(await screen.findByText("Couldn't update the task. Try again.")).toBeInTheDocument();
+      expect(box).not.toBeChecked();
+      expect(box).toBeEnabled();
+      expect(onTaskSaved).toHaveBeenCalledOnce();
+    });
+
+    it("sends the person to sign in when the session has ended", async () => {
+      saveAccessToken("expired");
+      serveCase(buildMilo());
+      serveAction("complete", 401);
+      renderPanel("case-milo");
+
+      fireEvent.click(await checkbox("Review radiographs"));
+
+      expect(await screen.findByText("Sign-in page")).toBeInTheDocument();
+      expect(readAccessToken()).toBeNull();
+    });
   });
 });
