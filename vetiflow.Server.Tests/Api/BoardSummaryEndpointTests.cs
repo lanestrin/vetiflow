@@ -132,6 +132,45 @@ public class BoardSummaryEndpointTests(VetiFlowApiFactory factory) : IAsyncLifet
 		Assert.Equal(1, summary.GetProperty("criticalWithoutCareTeam").GetInt32());
 	}
 
+	[Fact]
+	public async Task GetSummary_ReturnsClinicName()
+	{
+		var summary = await GetSummaryAsync();
+
+		Assert.Equal("Northside Veterinary Emergency", summary.GetProperty("clinicName").GetString());
+	}
+
+	// The same rule as GET /api/staff/on-floor (2.21a).
+	[Fact]
+	public async Task GetSummary_CountsCliniciansOnFloor()
+	{
+		await using var dbContext = VetiFlowApiFactory.CreateDbContext(_connectionString);
+		await dbContext.StaffMembers.ExecuteUpdateAsync(
+			setters => setters.SetProperty(staff => staff.Status, StaffStatus.Unavailable),
+			_cancellationToken);
+		var inactive = Staff(StaffRole.Veterinarian, StaffStatus.Available);
+		inactive.IsActive = false;
+		dbContext.StaffMembers.AddRange(
+			Staff(StaffRole.Veterinarian, StaffStatus.Available),
+			Staff(StaffRole.Technician, StaffStatus.Busy),
+			Staff(StaffRole.Technician, StaffStatus.AtLimit),
+			Staff(StaffRole.Veterinarian, StaffStatus.Unavailable),
+			Staff(StaffRole.Receptionist, StaffStatus.Available),
+			inactive);
+		await dbContext.SaveChangesAsync(_cancellationToken);
+
+		var summary = await GetSummaryAsync();
+
+		Assert.Equal(3, summary.GetProperty("cliniciansOnFloor").GetInt32());
+	}
+
+	private static StaffMember Staff(StaffRole role, StaffStatus status)
+	{
+		var staffMember = TestData.StaffMember(role);
+		staffMember.Status = status;
+		return staffMember;
+	}
+
 	private static EmergencyCase Critical()
 	{
 		var emergencyCase = TestData.Case(TestData.Patient());

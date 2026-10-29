@@ -18,8 +18,6 @@ namespace vetiflow.Server.Controllers;
 [Authorize(Policy = AuthNames.TeamMemberPolicy)]
 public class StaffController : ControllerBase
 {
-	private static readonly StaffRole[] ClinicianRoles = [StaffRole.Veterinarian, StaffRole.Technician];
-
 	private readonly VetiFlowDbContext _dbContext;
 
 	public StaffController(VetiFlowDbContext dbContext)
@@ -59,9 +57,7 @@ public class StaffController : ControllerBase
 	{
 		var clinicians = await _dbContext.StaffMembers
 				.AsNoTracking()
-				.Where(staff => staff.IsActive
-					&& ClinicianRoles.Contains(staff.Role)
-					&& staff.Status != StaffStatus.Unavailable)
+				.OnFloor()
 				.OrderBy(staff => staff.LastName)
 				.ThenBy(staff => staff.FirstName)
 				.Select(staff => new
@@ -99,7 +95,7 @@ public class StaffController : ControllerBase
 		return await _dbContext.Accounts
 				.Where(account => account.Id == accountId)
 				.Select(account => account.StaffMember)
-				.Where(staff => staff != null && ClinicianRoles.Contains(staff.Role))
+				.Where(staff => staff != null && StaffQueries.ClinicianRoles.Contains(staff.Role))
 				.FirstOrDefaultAsync(cancellationToken);
 	}
 

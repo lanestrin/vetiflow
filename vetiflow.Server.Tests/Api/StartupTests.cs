@@ -68,6 +68,22 @@ public class StartupTests(VetiFlowApiFactory factory)
 		Assert.Contains("Clinic:TimeZone", exception.ToString());
 	}
 
+	// The board heading names the clinic (2.15a), so a missing name stops startup.
+	[Fact]
+	public async Task Startup_WithoutClinicName_Fails()
+	{
+		var connectionString = await factory.Postgres.CreateDatabaseAsync();
+		using var host = TestHosts.Create(
+			connectionString,
+			migrateOnStartup: true,
+			settings: new Dictionary<string, string> { ["Clinic:Name"] = "" });
+
+		var exception = Record.Exception(() => host.Server);
+
+		Assert.NotNull(exception);
+		Assert.Contains("Clinic:Name", exception.ToString());
+	}
+
 	// A database outage must show on /api/health, not stop the app from starting.
 	[Fact]
 	public async Task Startup_WithDatabaseUnreachable_StartsAndReportsUnhealthy()
