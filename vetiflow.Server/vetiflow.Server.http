@@ -38,3 +38,26 @@ GET {{vetiflow.Server_HostAddress}}/api/staff/on-floor
 Authorization: Bearer {{token}}
 
 ###
+
+# Tasks, blockers and due items on a case (build plan 4.4a). Use a case id
+# from GET /api/cases and the task id the POST returns.
+@caseId = paste-a-case-id
+@taskId = paste-a-task-id
+
+POST {{vetiflow.Server_HostAddress}}/api/cases/{{caseId}}/tasks
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "type": "reassessment", "description": "Recheck pain score", "dueAt": "2026-10-29T20:00:00Z" }
+
+###
+
+POST {{vetiflow.Server_HostAddress}}/api/cases/{{caseId}}/tasks/{{taskId}}/complete
+Authorization: Bearer {{token}}
+
+###
+
+POST {{vetiflow.Server_HostAddress}}/api/cases/{{caseId}}/tasks/{{taskId}}/reopen
+Authorization: Bearer {{token}}
+
+###

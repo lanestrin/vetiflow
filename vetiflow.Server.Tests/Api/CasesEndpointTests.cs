@@ -443,6 +443,107 @@ public class CasesEndpointTests(VetiFlowApiFactory factory)
 		Assert.NotEqual(JsonValueKind.Null, tasks[2].GetProperty("resolvedAt").ValueKind);
 	}
 
+	// The panel's "Next reassessment" and "Client update" rows (4.4a).
+	[Fact]
+	public async Task GetCase_ReturnsNextOpenReassessmentAndClientUpdate()
+	{
+		var emergencyCase = DueItemsCase(out var nextReassessment, out var nextClientUpdate, out var assignee);
+		await SaveAsync(emergencyCase);
+		using var client = await factory.CreateSignedInClientAsync(DemoAccounts.TeamEmail);
+
+		var detail = await GetCaseAsync(client, emergencyCase.Id);
+
+		AssertDueItem(detail.GetProperty("nextReassessment"), nextReassessment, assignee);
+		Assert.Equal(nextClientUpdate.Id, detail.GetProperty("nextClientUpdate").GetProperty("id").GetGuid());
+		Assert.Equal(JsonValueKind.Null, detail.GetProperty("nextClientUpdate").GetProperty("assignedTo").ValueKind);
+	}
+
+	[Fact]
+	public async Task GetCase_NoDueItems_ReturnsNulls()
+	{
+		var emergencyCase = TestData.Case(TestData.Patient());
+		emergencyCase.Tasks.Add(TestData.Task());
+		await SaveAsync(emergencyCase);
+		using var client = await factory.CreateSignedInClientAsync(DemoAccounts.TeamEmail);
+
+		var detail = await GetCaseAsync(client, emergencyCase.Id);
+
+		Assert.Equal(JsonValueKind.Null, detail.GetProperty("nextReassessment").ValueKind);
+		Assert.Equal(JsonValueKind.Null, detail.GetProperty("nextClientUpdate").ValueKind);
+	}
+
+	[Fact]
+	public async Task GetCases_ReturnsNextDueItems()
+	{
+		var emergencyCase = DueItemsCase(out var nextReassessment, out var nextClientUpdate, out var assignee);
+		await SaveAsync(emergencyCase);
+		using var client = await factory.CreateSignedInClientAsync(DemoAccounts.TeamEmail);
+
+		var cases = await client.GetFromJsonAsync<JsonElement[]>("/api/cases", _cancellationToken);
+
+		var item = Assert.Single(cases!, item => item.GetProperty("id").GetGuid() == emergencyCase.Id);
+		AssertDueItem(item.GetProperty("nextReassessment"), nextReassessment, assignee);
+		Assert.Equal(nextClientUpdate.Id, item.GetProperty("nextClientUpdate").GetProperty("id").GetGuid());
+	}
+
+	[Fact]
+	public async Task GetCase_TaskShowsCreatorAndResolver()
+	{
+		var creator = TestData.StaffMember(StaffRole.Technician);
+		var resolver = TestData.StaffMember(StaffRole.Veterinarian);
+		var task = TestData.Task(status: CaseTaskStatus.Done);
+		task.CreatedByStaff = creator;
+		task.ResolvedByStaff = resolver;
+		task.ResolvedAt = DateTimeOffset.UtcNow;
+		var emergencyCase = TestData.Case(TestData.Patient());
+		emergencyCase.Tasks.Add(task);
+		await SaveAsync(emergencyCase);
+		using var client = await factory.CreateSignedInClientAsync(DemoAccounts.TeamEmail);
+
+		var detail = await GetCaseAsync(client, emergencyCase.Id);
+
+		var listed = Assert.Single(detail.GetProperty("tasks").EnumerateArray());
+		AssertReference(listed.GetProperty("createdBy"), creator.Id, $"{creator.FirstName} {creator.LastName}");
+		AssertReference(listed.GetProperty("resolvedBy"), resolver.Id, $"{resolver.FirstName} {resolver.LastName}");
+	}
+
+	// An earlier done reassessment, a later open one and a plain task due
+	// sooner, so only the earliest open item of each type wins.
+	private static EmergencyCase DueItemsCase(
+		out CaseTask nextReassessment,
+		out CaseTask nextClientUpdate,
+		out StaffMember assignee)
+	{
+		var now = DateTimeOffset.FromUnixTimeSeconds(DateTimeOffset.UtcNow.ToUnixTimeSeconds());
+		assignee = TestData.StaffMember(StaffRole.Technician);
+		var done = DueTask(CaseTaskType.Reassessment, now.AddMinutes(2));
+		done.Status = CaseTaskStatus.Done;
+		nextReassessment = DueTask(CaseTaskType.Reassessment, now.AddMinutes(8));
+		nextReassessment.AssignedToStaff = assignee;
+		var laterReassessment = DueTask(CaseTaskType.Reassessment, now.AddMinutes(30));
+		nextClientUpdate = DueTask(CaseTaskType.ClientUpdate, now.AddMinutes(45));
+		var plainTask = DueTask(CaseTaskType.Task, now.AddMinutes(1));
+
+		var emergencyCase = TestData.Case(TestData.Patient());
+		emergencyCase.Tasks.AddRange([laterReassessment, done, nextReassessment, nextClientUpdate, plainTask]);
+		return emergencyCase;
+	}
+
+	private static CaseTask DueTask(CaseTaskType type, DateTimeOffset dueAt)
+	{
+		var task = TestData.Task(type);
+		task.DueAt = dueAt;
+		return task;
+	}
+
+	private static void AssertDueItem(JsonElement item, CaseTask expected, StaffMember assignee)
+	{
+		Assert.Equal(expected.Id, item.GetProperty("id").GetGuid());
+		Assert.Equal(expected.Description, item.GetProperty("description").GetString());
+		Assert.Equal(expected.DueAt, item.GetProperty("dueAt").GetDateTimeOffset());
+		AssertReference(item.GetProperty("assignedTo"), assignee.Id, $"{assignee.FirstName} {assignee.LastName}");
+	}
+
 	[Fact]
 	public async Task GetCase_ListsTimelineOldestFirst()
 	{

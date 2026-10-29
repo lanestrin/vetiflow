@@ -67,6 +67,11 @@ public class CaseDetailDto
 	// Open first, then oldest first.
 	public required List<CaseTaskDto> Tasks { get; set; }
 
+	// The earliest due open Reassessment and ClientUpdate tasks (4.4a).
+	public CaseDueItemDto? NextReassessment { get; set; }
+
+	public CaseDueItemDto? NextClientUpdate { get; set; }
+
 	// Oldest first, so it reads as the case's story.
 	public required List<CaseEventDto> Timeline { get; set; }
 }
