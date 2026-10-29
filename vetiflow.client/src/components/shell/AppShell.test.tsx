@@ -113,6 +113,15 @@ describe("AppShell", () => {
     expect(screen.getByRole("button", { name: "Sign out" })).toBeVisible();
   });
 
+  // My status (build plan 2.21b), loaded when the menu opens.
+  it("shows My status in the opened profile menu", async () => {
+    renderShell();
+
+    fireEvent.click(screen.getByRole("button", { name: "Dr. Jordan Reed, account" }));
+
+    expect(await screen.findByRole("combobox", { name: "My status" })).toHaveValue("busy");
+  });
+
   it("closes the profile menu with Escape and returns focus to the profile", () => {
     renderShell();
     const profile = screen.getByRole("button", { name: "Dr. Jordan Reed, account" });

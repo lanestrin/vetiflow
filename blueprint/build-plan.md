@@ -185,7 +185,7 @@ replaces it. Demo data only.
 **My status** (prototype: "My status" in My patients, clinicians on floor)
 
 - [x] **2.21a** `feature/staff-status-api`: each clinician's status (Busy, Available, At limit, Unavailable) on the staff record, with a migration; set my own status; list clinicians on the floor (not Unavailable) with their status and active case count. Clinicians are veterinarians and technicians; everyone starts Unavailable (decided 2026-10-29). Done (history/features/2.21a-staff-status-api.md).
-- [ ] **2.21b** `feature/staff-status`: the My status selector, saved with a toast ("Availability set to Busy").
+- [x] **2.21b** `feature/staff-status`: the My status selector, saved with a toast ("Availability set to Busy"). In the top bar's profile menu until My patients exists (decided 2026-10-29); 2.22b adds it to that header. Done (history/features/2.21b-staff-status.md).
 
 **Page heading** (prototype: hospital name, title, shift, New intake)
 
@@ -245,7 +245,7 @@ replaces it. Demo data only.
 **My patients** (prototype: "ER board | My patients" switch, clinician workspace)
 
 - [ ] **2.22a** `feature/my-patients-api`: my workspace for the signed-in clinician: my active cases with acuity, location, latest alerting vital, pain score, next reassessment and next action; my open tasks with due times (My work queue); my counts (active by acuity, needs attention, open actions); and Workload & team from My status.
-- [ ] **2.22b** `feature/my-patients`: the **ER board | My patients** switch, "Clinician workspace" heading, my stat cards, "Assigned to me" cards with **Open case** (opens the board with that patient selected), My work queue, Workload & team, and the 650 px layout.
+- [ ] **2.22b** `feature/my-patients`: the **ER board | My patients** switch, "Clinician workspace" heading with the My status control (`MyStatusControl`, 2.21b), my stat cards, "Assigned to me" cards with **Open case** (opens the board with that patient selected), My work queue, Workload & team, and the 650 px layout.
 
 **Duplicates** (prototype: intake dialog)
 

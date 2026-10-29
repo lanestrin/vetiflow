@@ -12,5 +12,6 @@ export const server = setupServer(
   http.get(apiUrl("/api/board/summary"), () => HttpResponse.json(buildBoardSummary())),
   http.get(apiUrl("/api/cases/:id"), ({ params }) => HttpResponse.json(buildCaseDetail({ id: String(params.id) }))),
   http.get(apiUrl("/api/pet-parent/pets"), () => HttpResponse.json([])),
-  http.get(apiUrl("/api/patients"), () => HttpResponse.json([]))
+  http.get(apiUrl("/api/patients"), () => HttpResponse.json([])),
+  http.get(apiUrl("/api/staff/me/status"), () => HttpResponse.json({ status: "busy" }))
 );
