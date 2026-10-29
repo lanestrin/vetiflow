@@ -43,7 +43,8 @@ other path in one sentence.
    `verified`, `/ready` first. A stub with no history file for this branch:
    the work has no spec; `/fix "<what>"` to give it one.
 3. **Verify:** run `scripts/verify.ps1 -ReuseIfCurrent` (see "Reusing a run" in
-   `/verify`) and report whether it reused or ran. Any FAIL or SKIP stops here.
+   `/verify`) and report the scope and whether it reused or ran. Any FAIL or
+   SKIP stops here; a `Not needed` line is not a SKIP.
    `/complete`'s archive and drafts do not change the fingerprint, so its
    result is reused unless other files changed since.
    **If it fails:** the options from `/verify`'s "Common failures" table, then

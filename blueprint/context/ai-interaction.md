@@ -36,7 +36,7 @@ the others link to it.
 | Spec (`current-feature.md`) | the approved scope and its *Done when* criteria | - |
 | `/feature`, `/fix` | write the spec, then stop for your OK | - |
 | `/implement` | build approved steps, with tests | narrow and broader checks (section 3) |
-| `/verify` | run every check and record the evidence | reusing a run |
+| `/verify` | run the checks the changes need and record the evidence | scope, reusing a run |
 | `/ready` | coordinate `/implement`, repairs, Verify and `/check` | when to continue and when to stop |
 | `/audit` | review the change, only when you ask | finding severities |
 | `/complete` | archive and draft the commit and PR | completion gates |
@@ -80,9 +80,11 @@ stay yours.
 **`/clear` is optional.** It frees context, for example before a large next
 task. No step requires it.
 
-`/verify` runs inside steps 2 and 5, and you can run it any time. Later gates
-reuse its evidence instead of rerunning unchanged checks (see "Reusing a run"
-in `/verify`). CI runs its own checks on every PR and never reads local
+`/verify` runs inside steps 2 and 5, and you can run it any time. It runs only
+the checks the branch's changes need: workflow tests always, the server or
+client checks only when those files changed (see "Scope" in `/verify`). Later
+gates reuse its evidence instead of rerunning unchanged checks (see "Reusing a
+run" in `/verify`). CI runs its own checks on every PR and never reads local
 evidence.
 
 **Resuming after a lost chat or `/clear`.** Progress lives in files: the spec's

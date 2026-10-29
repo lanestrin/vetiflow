@@ -77,7 +77,8 @@ step's diff grows too big to review, split it in the spec first.
 
 ## 5. Verify
 
-Run `/verify` once. If it fails, fix only in-scope problems, rerun the narrow
+Run `/verify` once. It runs the scope the branch's changes need (see "Scope"
+in `/verify`). If it fails, fix only in-scope problems, rerun the narrow
 check, then rerun Verify. After 2 or 3 failed attempts on the same failure, or
 when the problem is outside this spec, stop as "When something fails or stops"
 says: what failed, which steps are ticked, and the options from `/verify`'s

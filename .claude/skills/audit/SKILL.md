@@ -35,7 +35,7 @@ the report.
 ## 2. Run available signals
 
 Run `scripts/verify.ps1 -ReuseIfCurrent` (see "Reusing a run" in `/verify`) and
-report whether it reused or ran. Any FAIL or SKIP is a finding.
+report the scope and whether it reused or ran. Any FAIL or SKIP is a finding.
 
 ## 3. Review with these lenses
 

@@ -43,7 +43,7 @@ The loop (full description in `blueprint/context/ai-interaction.md`): `/feature`
 | Start the next planned item | `/feature` or `/feature 2.3` |
 | Build the approved spec, repair and check until ready for `/complete` | `/ready` (or "OK and build" on the spec) |
 | Build it one step at a time | `/implement` |
-| Run every automated check | `/verify` |
+| Run the checks the changes need | `/verify` |
 | Run a few tests quickly | `/test <filter>` |
 | Prove it in the running app | `/check`, or `/check guide` for steps to try yourself |
 | Review the branch for problems (only when you want one) | `/audit`, or `/audit focused` to re-check repairs |
@@ -61,10 +61,12 @@ The loop (full description in `blueprint/context/ai-interaction.md`): `/feature`
 ## Commands
 
 ```bash
-# Verify everything (from the repo root)
+# Verify the checks the branch's changes need (from the repo root)
 pwsh -File scripts/verify.ps1
 # Windows PowerShell 5.1 instead of pwsh:
 powershell -ExecutionPolicy Bypass -File scripts/verify.ps1
+# Every check, whatever changed:
+pwsh -File scripts/verify.ps1 -Full
 
 # Server
 dotnet build vetiflow.Server.Tests/vetiflow.Server.Tests.csproj

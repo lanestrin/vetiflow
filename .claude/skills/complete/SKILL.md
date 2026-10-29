@@ -28,7 +28,8 @@ line; name any other path in one sentence.
    along), then `/complete`. If the work was built on `main`:
    `git switch -c <branch>` moves the uncommitted changes to the new branch.
 3. **Verify:** run `scripts/verify.ps1 -ReuseIfCurrent` (see "Reusing a run" in
-   `/verify`) and report whether it reused or ran. Any FAIL or SKIP stops here.
+   `/verify`) and report the scope and whether it reused or ran. Any FAIL or
+   SKIP stops here; a `Not needed` line is not a SKIP.
    **If it fails:** the options from `/verify`'s "Common failures" table, then
    `/complete`.
 4. **Findings:** `blueprint/context/findings.md` has no P0 or P1 finding that is
