@@ -73,14 +73,21 @@ files:
   them from the Verify output, the `/check` and `/audit` results, the Deploy
   notes and the history file just written.
 
+AI authors both drafts in full. Apply the content rules in
+"Commit messages and PRs", including truthful statements for checks not run or
+sections with nothing applicable. Do not leave prompts, empty sections or
+wording for the person to supply. Before handing over, read the generated PR
+draft and repair missing content, duplicate sections and unfilled placeholders.
+This is a document-completeness check, not an audit or another test run.
+
 ## 4. Hand over
 
 Tell the person:
 
 - The history file written and the build-plan line ticked.
-- The commit message in full and the PR title, so they can review them. Say in
-  one sentence that they can ask for changes to the drafts first, or land by
-  hand with `git commit -F blueprint/context/landing-commit.txt`.
+- The commit message in full and the PR title, with a link to the completed PR
+  draft so they can review it. They can request changes; AI makes those edits.
+  Do not ask them to write sections or copy text over a GitHub template.
 - Then end ("Ending a turn" in `blueprint/context/ai-interaction.md`):
   `Status: Results archived; commit and PR drafts prepared. Nothing committed
   yet.` `Next: /approve`
