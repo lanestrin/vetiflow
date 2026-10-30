@@ -105,6 +105,8 @@ public class EmergencyCase
 
 	public List<VitalsRecord> VitalsRecords { get; } = [];
 
+	public List<PainScore> PainScores { get; } = [];
+
 	public List<CaseTask> Tasks { get; } = [];
 
 	public List<CaseEvent> Events { get; } = [];
@@ -134,6 +136,13 @@ public class EmergencyCase
 	public void RecordVitals(VitalsRecord vitals)
 	{
 		VitalsRecords.Add(vitals);
+		LastUpdated = DateTimeOffset.UtcNow;
+	}
+
+	// Leaves Acuity alone, as vitals do.
+	public void RecordPainScore(PainScore painScore)
+	{
+		PainScores.Add(painScore);
 		LastUpdated = DateTimeOffset.UtcNow;
 	}
 }

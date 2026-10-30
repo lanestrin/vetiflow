@@ -64,6 +64,9 @@ public class CaseDetailDto
 	// Newest first.
 	public required List<VitalsRecordDto> Vitals { get; set; }
 
+	// The newest pain score (4.8a); null when none is recorded.
+	public PainScoreDto? LatestPainScore { get; set; }
+
 	// Open first, then oldest first.
 	public required List<CaseTaskDto> Tasks { get; set; }
 

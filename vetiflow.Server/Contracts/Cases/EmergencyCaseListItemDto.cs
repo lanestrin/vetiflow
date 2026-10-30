@@ -60,5 +60,8 @@ public class EmergencyCaseListItemDto
 
 	public CaseDueItemDto? NextClientUpdate { get; set; }
 
+	// The newest pain score (4.8a), without its notes; null when none.
+	public PainScoreSummaryDto? LatestPainScore { get; set; }
+
 	public DateTimeOffset LastUpdated { get; set; }
 }

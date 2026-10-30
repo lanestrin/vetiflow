@@ -53,6 +53,32 @@ public class DbSeederTests(VetiFlowApiFactory factory)
 	}
 
 	[Fact]
+	public async Task SeedAsync_PopulatesVitalsSpO2AndPainScores()
+	{
+		await using var dbContext = await SeededDatabaseAsync();
+
+		var vitals = await dbContext.VitalsRecords.AsNoTracking().ToListAsync(_cancellationToken);
+		var scores = await dbContext.PainScores.AsNoTracking()
+			.Include(score => score.RecordedByStaff)
+			.ToListAsync(_cancellationToken);
+
+		Assert.NotEmpty(vitals);
+		Assert.All(vitals, reading => Assert.InRange(reading.SpO2!.Value, 0, 100));
+		Assert.NotEmpty(scores);
+		Assert.All(scores, score =>
+		{
+			Assert.InRange(score.Score, 0, 10);
+			Assert.NotNull(score.RecordedByStaff);
+		});
+
+		dbContext.ChangeTracker.Clear();
+		await DbSeeder.SeedAsync(dbContext);
+
+		Assert.Equal(vitals.Count, await dbContext.VitalsRecords.CountAsync(_cancellationToken));
+		Assert.Equal(scores.Count, await dbContext.PainScores.CountAsync(_cancellationToken));
+	}
+
+	[Fact]
 	public async Task SeedAsync_LinksEachDemoPatientToAnOwner()
 	{
 		await using var dbContext = VetiFlowApiFactory.CreateDbContext(
@@ -342,6 +368,8 @@ public class DbSeederTests(VetiFlowApiFactory factory)
 			.SetProperty(task => task.DueAt, task => task.DueAt + by), _cancellationToken);
 		await dbContext.VitalsRecords.ExecuteUpdateAsync(setters => setters
 			.SetProperty(vitals => vitals.RecordedAt, vitals => vitals.RecordedAt + by), _cancellationToken);
+		await dbContext.PainScores.ExecuteUpdateAsync(setters => setters
+			.SetProperty(painScore => painScore.RecordedAt, painScore => painScore.RecordedAt + by), _cancellationToken);
 		await dbContext.TriageAssessments.ExecuteUpdateAsync(setters => setters
 			.SetProperty(triage => triage.AssessedAt, triage => triage.AssessedAt + by), _cancellationToken);
 		await dbContext.CaseEvents.ExecuteUpdateAsync(setters => setters
@@ -372,6 +400,11 @@ public class DbSeederTests(VetiFlowApiFactory factory)
 		foreach (var vitals in await dbContext.VitalsRecords.AsNoTracking().ToListAsync(_cancellationToken))
 		{
 			times[$"vitals:{vitals.Id}"] = vitals.RecordedAt;
+		}
+
+		foreach (var painScore in await dbContext.PainScores.AsNoTracking().ToListAsync(_cancellationToken))
+		{
+			times[$"pain:{painScore.Id}"] = painScore.RecordedAt;
 		}
 
 		foreach (var triage in await dbContext.TriageAssessments.AsNoTracking().ToListAsync(_cancellationToken))

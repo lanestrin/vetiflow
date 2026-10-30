@@ -51,6 +51,23 @@ public class EmergencyCaseTests
 	}
 
 	[Fact]
+	public void RecordPainScore_AddsScoreWithoutChangingAcuity()
+	{
+		var emergencyCase = NewCase();
+		emergencyCase.RecordTriage(new TriageAssessment { Acuity = AcuityLevel.Stable });
+		emergencyCase.LastUpdated = DateTimeOffset.UtcNow.AddHours(-1);
+		var before = DateTimeOffset.UtcNow;
+		var painScore = new PainScore { Score = 9 };
+
+		emergencyCase.RecordPainScore(painScore);
+
+		Assert.Same(painScore, Assert.Single(emergencyCase.PainScores));
+		Assert.Equal(AcuityLevel.Stable, emergencyCase.Acuity);
+		Assert.Single(emergencyCase.TriageAssessments);
+		Assert.InRange(emergencyCase.LastUpdated, before, DateTimeOffset.UtcNow);
+	}
+
+	[Fact]
 	public void RecordTriage_UpdatesLastUpdated()
 	{
 		var emergencyCase = NewCase();

@@ -140,6 +140,57 @@ public class DatabaseConstraintTests(VetiFlowApiFactory factory)
 	}
 
 	[Fact]
+	public async Task Case_WithPainScore_CannotBeDeleted()
+	{
+		var emergencyCase = TestData.Case(TestData.Patient());
+		emergencyCase.RecordPainScore(new PainScore { Score = 4 });
+		await SaveAsync(emergencyCase);
+
+		await using var dbContext = factory.CreateDbContext();
+
+		await AssertViolatesAsync(
+			() => dbContext.EmergencyCases
+				.Where(c => c.Id == emergencyCase.Id)
+				.ExecuteDeleteAsync(_cancellationToken),
+			PostgresErrorCodes.ForeignKeyViolation,
+			"FK_PainScores_EmergencyCases_EmergencyCaseId");
+	}
+
+	[Theory]
+	[InlineData(-1)]
+	[InlineData(11)]
+	public async Task PainScore_OutsideZeroToTen_IsRejected(int score)
+	{
+		var emergencyCase = TestData.Case(TestData.Patient());
+		emergencyCase.RecordPainScore(new PainScore { Score = score });
+
+		await using var dbContext = factory.CreateDbContext();
+		dbContext.EmergencyCases.Add(emergencyCase);
+
+		await AssertViolatesAsync(
+			dbContext,
+			PostgresErrorCodes.CheckViolation,
+			"CK_PainScores_ScoreZeroToTen");
+	}
+
+	[Theory]
+	[InlineData(-1)]
+	[InlineData(101)]
+	public async Task Vitals_SpO2OutsideZeroToHundred_IsRejected(int spO2)
+	{
+		var emergencyCase = TestData.Case(TestData.Patient());
+		emergencyCase.RecordVitals(new VitalsRecord { SpO2 = spO2 });
+
+		await using var dbContext = factory.CreateDbContext();
+		dbContext.EmergencyCases.Add(emergencyCase);
+
+		await AssertViolatesAsync(
+			dbContext,
+			PostgresErrorCodes.CheckViolation,
+			"CK_VitalsRecords_SpO2Percent");
+	}
+
+	[Fact]
 	public async Task Enums_AreStoredByName()
 	{
 		var emergencyCase = TestData.Case(TestData.Patient());

@@ -26,6 +26,8 @@ public class VetiFlowDbContext : DbContext
 
 	public DbSet<VitalsRecord> VitalsRecords => Set<VitalsRecord>();
 
+	public DbSet<PainScore> PainScores => Set<PainScore>();
+
 	public DbSet<StaffMember> StaffMembers => Set<StaffMember>();
 
 	public DbSet<Room> Rooms => Set<Room>();
@@ -75,6 +77,23 @@ public class VetiFlowDbContext : DbContext
 					.IsUnique()
 					.HasFilter("\"DischargedAt\" IS NULL AND \"RoomId\" IS NOT NULL")
 					.HasDatabaseName("IX_EmergencyCases_RoomId_Active");
+		});
+
+		modelBuilder.Entity<VitalsRecord>(vitals =>
+		{
+			vitals.ToTable(table => table.HasCheckConstraint(
+					"CK_VitalsRecords_SpO2Percent",
+					"\"SpO2\" BETWEEN 0 AND 100"));
+		});
+
+		modelBuilder.Entity<PainScore>(painScore =>
+		{
+			painScore.ToTable(table => table.HasCheckConstraint(
+					"CK_PainScores_ScoreZeroToTen",
+					"\"Score\" BETWEEN 0 AND 10"));
+
+			// The latest score on a case.
+			painScore.HasIndex(score => new { score.EmergencyCaseId, score.RecordedAt });
 		});
 
 		modelBuilder.Entity<Account>(account =>

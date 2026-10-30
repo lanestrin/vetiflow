@@ -374,6 +374,39 @@ namespace vetiflow.Server.Migrations
                     b.ToTable("Owners");
                 });
 
+            modelBuilder.Entity("vetiflow.Server.Models.PainScore", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("EmergencyCaseId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text");
+
+                    b.Property<DateTimeOffset>("RecordedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("RecordedByStaffId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Score")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RecordedByStaffId");
+
+                    b.HasIndex("EmergencyCaseId", "RecordedAt");
+
+                    b.ToTable("PainScores", t =>
+                        {
+                            t.HasCheckConstraint("CK_PainScores_ScoreZeroToTen", "\"Score\" BETWEEN 0 AND 10");
+                        });
+                });
+
             modelBuilder.Entity("vetiflow.Server.Models.Patient", b =>
                 {
                     b.Property<Guid>("Id")
@@ -526,6 +559,9 @@ namespace vetiflow.Server.Migrations
                     b.Property<int?>("RespiratoryRate")
                         .HasColumnType("integer");
 
+                    b.Property<int?>("SpO2")
+                        .HasColumnType("integer");
+
                     b.Property<decimal?>("TemperatureF")
                         .HasColumnType("numeric");
 
@@ -535,7 +571,10 @@ namespace vetiflow.Server.Migrations
 
                     b.HasIndex("RecordedByStaffId");
 
-                    b.ToTable("VitalsRecords");
+                    b.ToTable("VitalsRecords", t =>
+                        {
+                            t.HasCheckConstraint("CK_VitalsRecords_SpO2Percent", "\"SpO2\" BETWEEN 0 AND 100");
+                        });
                 });
 
             modelBuilder.Entity("vetiflow.Server.Models.Account", b =>
@@ -680,6 +719,24 @@ namespace vetiflow.Server.Migrations
                     b.Navigation("ToStaff");
                 });
 
+            modelBuilder.Entity("vetiflow.Server.Models.PainScore", b =>
+                {
+                    b.HasOne("vetiflow.Server.Models.EmergencyCase", "EmergencyCase")
+                        .WithMany("PainScores")
+                        .HasForeignKey("EmergencyCaseId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("vetiflow.Server.Models.StaffMember", "RecordedByStaff")
+                        .WithMany()
+                        .HasForeignKey("RecordedByStaffId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("EmergencyCase");
+
+                    b.Navigation("RecordedByStaff");
+                });
+
             modelBuilder.Entity("vetiflow.Server.Models.Patient", b =>
                 {
                     b.HasOne("vetiflow.Server.Models.Owner", "Owner")
@@ -729,6 +786,8 @@ namespace vetiflow.Server.Migrations
             modelBuilder.Entity("vetiflow.Server.Models.EmergencyCase", b =>
                 {
                     b.Navigation("Events");
+
+                    b.Navigation("PainScores");
 
                     b.Navigation("Tasks");
 

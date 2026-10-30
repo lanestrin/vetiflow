@@ -122,6 +122,14 @@ public class CasesController : ControllerBase
 						.OrderBy(task => task.DueAt)
 						.Select(CaseDueItemDto.FromTask)
 						.FirstOrDefault(),
+					LatestPainScore = emergencyCase.PainScores
+						.OrderByDescending(painScore => painScore.RecordedAt)
+						.Select(painScore => new PainScoreSummaryDto
+						{
+							Score = painScore.Score,
+							RecordedAt = painScore.RecordedAt
+						})
+						.FirstOrDefault(),
 					LastUpdated = emergencyCase.LastUpdated
 				})
 				.ToListAsync();
@@ -235,6 +243,7 @@ public class CasesController : ControllerBase
 							HeartRate = vitals.HeartRate,
 							RespiratoryRate = vitals.RespiratoryRate,
 							TemperatureF = vitals.TemperatureF,
+							SpO2 = vitals.SpO2,
 							MucousMembraneColor = vitals.MucousMembraneColor,
 							CapillaryRefillTime = vitals.CapillaryRefillTime,
 							Mentation = vitals.Mentation,
@@ -248,6 +257,23 @@ public class CasesController : ControllerBase
 								}
 						})
 						.ToList(),
+					LatestPainScore = emergencyCase.PainScores
+						.OrderByDescending(painScore => painScore.RecordedAt)
+						.Select(painScore => new PainScoreDto
+						{
+							Id = painScore.Id,
+							Score = painScore.Score,
+							Notes = painScore.Notes,
+							RecordedAt = painScore.RecordedAt,
+							RecordedBy = painScore.RecordedByStaff == null
+								? null
+								: new CaseReferenceDto
+								{
+									Id = painScore.RecordedByStaff.Id,
+									Name = painScore.RecordedByStaff.FirstName + " " + painScore.RecordedByStaff.LastName
+								}
+						})
+						.FirstOrDefault(),
 					Tasks = emergencyCase.Tasks
 						.OrderBy(task => task.Status == CaseTaskStatus.Open ? 0 : 1)
 						.ThenBy(task => task.CreatedAt)
@@ -316,6 +342,11 @@ public class CasesController : ControllerBase
 		if (detail is null)
 		{
 			return NotFound();
+		}
+
+		foreach (var vitals in detail.Vitals)
+		{
+			vitals.FlagOutOfRange(detail.Patient.Species);
 		}
 
 		return detail;
