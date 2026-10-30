@@ -45,11 +45,11 @@ function buildMilo(overrides: Partial<CaseDetail> = {}): CaseDetail {
     room: { id: "room-1", name: "Oxygen Cage", type: "treatment" },
     vitals: [
       {
-        id: "v2", heartRate: 148, respiratoryRate: 48, temperatureF: 102, mucousMembraneColor: null,
+        id: "v2", heartRate: 148, respiratoryRate: 48, temperatureF: 102, spO2: null, outOfRange: [], mucousMembraneColor: null,
         capillaryRefillTime: null, mentation: null, recordedAt: at(10, 50), recordedBy: null
       },
       {
-        id: "v1", heartRate: 160, respiratoryRate: 60, temperatureF: 103, mucousMembraneColor: null,
+        id: "v1", heartRate: 160, respiratoryRate: 60, temperatureF: 103, spO2: null, outOfRange: [], mucousMembraneColor: null,
         capillaryRefillTime: null, mentation: null, recordedAt: at(10, 45), recordedBy: null
       }
     ],
@@ -130,16 +130,92 @@ describe("PatientOverviewPanel", () => {
     expect(screen.getByText("Treatment · Oxygen Cage")).toBeInTheDocument();
   });
 
-  it("shows the newest vitals in tiles, with SpO₂ not recorded yet", async () => {
-    serveCase(buildMilo());
+  it("shows the newest vitals with SpO₂ and the API's alert text", async () => {
+    const milo = buildMilo();
+    milo.vitals[0].spO2 = 91;
+    milo.vitals[0].outOfRange = ["heartRate", "respiratoryRate", "spO2"];
+    serveCase(milo);
 
     renderPanel("case-milo");
 
     const tiles = within(await screen.findByLabelText("Latest vitals"));
     expect(tiles.getAllByRole("term").map((term) => term.textContent)).toEqual(["Heart rate", "Resp rate", "Temp", "SpO₂"]);
     expect(tiles.getAllByRole("definition").map((value) => value.textContent)).toEqual([
-      "148 bpm", "48 /min", "38.9 °C", "Not recorded"
+      "148 bpmOutside range", "48 /minOutside range", "38.9 °C", "91%Outside range"
     ]);
+  });
+
+  it("uses the API flags instead of inferring alerts from the values", async () => {
+    const milo = buildMilo();
+    milo.vitals[0].spO2 = 91;
+    serveCase(milo);
+
+    renderPanel("case-milo");
+
+    const tiles = within(await screen.findByLabelText("Latest vitals"));
+    expect(tiles.getByText("148 bpm")).toBeInTheDocument();
+    expect(tiles.getByText("91%")).toBeInTheDocument();
+    expect(tiles.queryByText("Outside range")).not.toBeInTheDocument();
+  });
+
+  it("shows a temperature alert when flagged by the API", async () => {
+    const milo = buildMilo();
+    milo.vitals[0].outOfRange = ["temperatureF"];
+    serveCase(milo);
+
+    renderPanel("case-milo");
+
+    const tiles = within(await screen.findByLabelText("Latest vitals"));
+    expect(tiles.getAllByRole("definition").map((value) => value.textContent)).toEqual([
+      "148 bpm", "48 /min", "38.9 °COutside range", "Not recorded"
+    ]);
+  });
+
+  it("neither backfills nor flags missing readings in a partial newest set", async () => {
+    const milo = buildMilo();
+    milo.vitals[0] = { ...milo.vitals[0], heartRate: null, temperatureF: null, outOfRange: ["heartRate", "spO2"] };
+    milo.vitals[1].spO2 = 98;
+    serveCase(milo);
+
+    renderPanel("case-milo");
+
+    const tiles = within(await screen.findByLabelText("Latest vitals"));
+    expect(tiles.getAllByText("Not recorded")).toHaveLength(3);
+    expect(tiles.queryByText("Outside range")).not.toBeInTheDocument();
+    expect(tiles.getByText("48 /min")).toBeInTheDocument();
+    expect(tiles.queryByText("160 bpm")).not.toBeInTheDocument();
+    expect(tiles.queryByText("98%")).not.toBeInTheDocument();
+  });
+
+  it("updates the pain score when the selected case reloads", async () => {
+    const milo = buildMilo({ latestPainScore: {
+      id: "pain-1", score: 7, notes: "Before treatment", recordedAt: at(10, 50), recordedBy: null
+    } });
+    serveCase(milo);
+    const view = renderPanel("case-milo");
+    expect(await screen.findByRole("meter", { name: "Pain score" })).toHaveAttribute("aria-valuenow", "7");
+
+    serveCase({ ...milo, latestPainScore: { ...milo.latestPainScore!, id: "pain-2", score: 0, notes: null } });
+    view.rerender("case-milo", new Date(2026, 0, 2));
+
+    await vi.waitFor(() => expect(screen.getByRole("meter", { name: "Pain score" })).toHaveAttribute("aria-valuenow", "0"));
+    expect(screen.queryByText("Before treatment")).not.toBeInTheDocument();
+  });
+
+  it("does not carry the pain score into another patient's loading or empty state", async () => {
+    serveCase(buildMilo({ latestPainScore: {
+      id: "pain-1", score: 7, notes: "Before treatment", recordedAt: at(10, 50), recordedBy: null
+    } }));
+    const view = renderPanel("case-milo");
+    await screen.findByRole("meter", { name: "Pain score" });
+
+    view.rerender("case-other", new Date(2026, 0, 2));
+
+    expect(screen.queryByRole("meter")).not.toBeInTheDocument();
+    expect(screen.queryByText("Before treatment")).not.toBeInTheDocument();
+    const pain = within(await screen.findByRole("region", { name: "Pain score" }));
+    expect(pain.getByText("Not recorded")).toBeInTheDocument();
+    expect(pain.queryByRole("meter")).not.toBeInTheDocument();
   });
 
   it("says not recorded for every tile when no vitals exist", async () => {

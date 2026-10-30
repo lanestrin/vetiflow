@@ -62,6 +62,7 @@ export interface CaseDetail {
   triageAssessments: TriageAssessment[];
   // Newest first.
   vitals: VitalsRecord[];
+  latestPainScore: PainScore | null;
   // Open first, then oldest first.
   tasks: CaseTask[];
   // The earliest due open reassessment and client update (4.4a).
@@ -100,15 +101,27 @@ export interface TriageAssessment {
   assessedBy: CaseReference | null;
 }
 
+export type VitalName = "heartRate" | "respiratoryRate" | "temperatureF" | "spO2";
+
 // Any reading may be missing; temperature is stored in °F.
 export interface VitalsRecord {
   id: string;
   heartRate: number | null;
   respiratoryRate: number | null;
   temperatureF: number | null;
+  spO2: number | null;
+  outOfRange: VitalName[];
   mucousMembraneColor: string | null;
   capillaryRefillTime: string | null;
   mentation: string | null;
+  recordedAt: string;
+  recordedBy: CaseReference | null;
+}
+
+export interface PainScore {
+  id: string;
+  score: number;
+  notes: string | null;
   recordedAt: string;
   recordedBy: CaseReference | null;
 }

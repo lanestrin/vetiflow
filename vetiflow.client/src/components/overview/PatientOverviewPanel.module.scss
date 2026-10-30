@@ -203,6 +203,17 @@
 	overflow-wrap: anywhere;
 	font-size: 13px;
 	font-weight: 700;
+
+	&[data-alert="true"] {
+		color: var(--color-acuity-critical);
+	}
+}
+
+.vitalAlert {
+	display: block;
+	margin-top: 4px;
+	font-size: 10px;
+	font-weight: 600;
 }
 
 .locationSection {
