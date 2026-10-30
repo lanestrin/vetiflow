@@ -18,6 +18,26 @@
 - Backticks for code, paths, commands and file names.
 - No deep bullet nesting on short answers.
 
+## Efficient context and tool use
+
+- Read one relevant packet: the active spec, applicable rules, the affected
+  code and its callers/tests, and matching history. Find paths and headings
+  first, then read bounded sections. Expand when dependencies or risks need it.
+- Reuse instructions already read in this session when known unchanged. Refresh
+  branch, working diff, spec, findings and evidence at their decision gates.
+  On changed instructions, uncertain freshness or lost context, reload the
+  relevant packet. Never use remembered state to authorize a gate.
+- Query the plan for the item's line, dependencies and applicable Decisions;
+  query history for matching IDs/branches. For status, return counts and
+  matching lines instead of loading the entire plan or history into context.
+- Batch independent reads; keep dependent commands and edits sequential. For
+  long checks, poll about every 20-30 seconds, adjusted to expected duration,
+  while keeping the person informed. Read the failure tail first and expand to
+  the relevant log section and code path when needed.
+- Use existing specs, findings, logs and evidence as the durable record. Add no
+  duplicate context cache or summary file. Never claim token or time savings
+  without comparable measurements.
+
 ## The loop
 
 This is the one description of the loop; other files summarise it and link
@@ -61,9 +81,9 @@ the others link to it.
 4. **Prove it.** `/check` runs the app against the "Done when" items that need
    it; `/check guide` gives you steps to try yourself. `/ready` runs it for you;
    it is skipped when nothing can be observed in the app.
-5. **Complete.** `/complete` reruns the gates, including Verify, archives the
-   spec to `blueprint/history/`, ticks the build plan, and drafts the commit
-   message and PR description.
+5. **Complete.** `/complete` checks spec, branch, findings and files before
+   Verify, then archives the spec to `blueprint/history/`, ticks the build plan,
+   and drafts the commit message and PR description.
 6. **Approve.** You run `/approve`. It commits with the draft, pushes and hands
    over the PR.
 7. **Merge.** You squash-merge on GitHub once CI is green. Changes asked for in
@@ -80,12 +100,18 @@ stay yours.
 **`/clear` is optional.** It frees context, for example before a large next
 task. No step requires it.
 
-`/verify` runs inside steps 2 and 5, and you can run it any time. It runs only
+Final Verify runs after builds and repairs in step 2, and at the gate in step 5;
+you can also request `/verify` any time. It runs only
 the checks the branch's changes need: workflow tests always, the server or
 client checks only when those files changed (see "Scope" in `/verify`). Later
 gates reuse its evidence instead of rerunning unchanged checks (see "Reusing a
 run" in `/verify`). CI runs its own checks on every PR and never reads local
 evidence.
+
+`/ready` owns final Verify and the report when coordinating `/implement`;
+standalone `/implement` owns its own. Development checks and the final-step
+broad-check rule live in `/implement` section 3. Invocation and reuse policy
+live in `/verify`; later gates never infer a PASS from manual suite runs.
 
 **Resuming after a lost chat or `/clear`.** Progress lives in files: the spec's
 status and ticked steps, `findings.md`, history and git. `/ready` and
@@ -119,7 +145,7 @@ repeat the recommendation.
 
 - A defect Claude finds while building is fixed in scope, with a regression
   test. If fixing it is outside the spec, `/ready` stops and asks.
-- A failed or skipped required check blocks (`/complete` gate 3).
+- A failed or skipped required check blocks (`/complete`'s Verify gate).
 - P0 or P1 findings from an audit you asked for block while `open` or `fixed`.
   `/ready` repairs them, and `/audit focused` confirms the repair.
 - Never waive a risk, suppress a finding or lower a severity to finish. Only
@@ -222,6 +248,12 @@ Rules:
   recommended - <reason>; optional, `/audit`"). It is never the `Next`.
 - **While `/ready` is working:** brief milestone lines and keep going. The
   handoff comes only when it finishes or stops.
+- **One report per coordinated command.** Internal skills return evidence to
+  the coordinator without their own handoffs. Report the outcome, actual
+  checks (scope, ran/reused, result), material limitations and next action.
+  Link full evidence and drafts instead of repeating them in chat; expand
+  failures and decisions as needed. `/approve` keeps its full file/message
+  preview and independently checks the current evidence and PR content.
 - **Acting on a choice:** when Claude can do it (accept a finding, stash files,
   follow `/ready` after "OK and build"), it does so straight away. When only the
   person can run it (`/ready`, `/audit`, `/check`, `/complete`, `/approve`,

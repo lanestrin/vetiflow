@@ -26,10 +26,10 @@ These always apply, with or without a skill.
 
 ## Read these when relevant
 
-- `blueprint/project-plan.md` - what VetiFlow is for, users, data, stack, constraints. Read before planning.
+- `blueprint/project-plan.md` - what VetiFlow is for, users, data, stack, constraints. Read the relevant sections before planning.
 - `blueprint/build-plan.md` - the ordered list of work items with stable IDs and branch names.
 - `blueprint/context/coding-standards.md` - read before changing code or writing tests. "Readable code" is the house style: clear names, one job per unit, no speculative layers. Frontend work also follows its accessibility, SEO/private-page and browser/AI data-security requirements.
-- `blueprint/context/ai-interaction.md` - read when running a workflow skill.
+- `blueprint/context/ai-interaction.md` - read when running a workflow skill; its "Efficient context and tool use" section governs focused reads and reuse of unchanged instructions.
 - `blueprint/context/current-feature.md` - the one spec being built in this checkout.
 - `blueprint/context/findings.md` - open audit findings for the current work.
 - `blueprint/history/` - finished specs. Read the matching file when work touches an earlier feature.

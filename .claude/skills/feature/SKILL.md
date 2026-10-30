@@ -32,6 +32,7 @@ output is `blueprint/context/current-feature.md`.
 
 ## 3. Gather a small packet
 
+Follow "Efficient context and tool use" in `blueprint/context/ai-interaction.md`.
 Read only what this item needs:
 
 1. The item's line in the build plan and the review issues it cites in brackets.

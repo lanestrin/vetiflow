@@ -27,20 +27,24 @@ line; name any other path in one sentence.
    **If it fails:** one step: `git switch <branch>` (uncommitted changes come
    along), then `/complete`. If the work was built on `main`:
    `git switch -c <branch>` moves the uncommitted changes to the new branch.
-3. **Verify:** run `scripts/verify.ps1 -ReuseIfCurrent` (see "Reusing a run" in
-   `/verify`) and report the scope and whether it reused or ran. Any FAIL or
-   SKIP stops here; a `Not needed` line is not a SKIP.
-   **If it fails:** the options from `/verify`'s "Common failures" table, then
-   `/complete`.
-4. **Findings:** `blueprint/context/findings.md` has no P0 or P1 finding that is
+3. **Findings:** `blueprint/context/findings.md` has no P0 or P1 finding that is
    `open` or `fixed`.
    **If it fails:** list the blocking IDs and titles, then the options from
    `/audit`'s report for P0 or P1 (repair, Recommended; or dispute). A `fixed`
    finding only needs confirming: `/audit focused`, then `/complete`.
-5. **Files:** `git status` shows only files in the spec's scope plus workflow
+4. **Files:** `git status` shows only files in the spec's scope plus workflow
    files.
    **If it fails:** list the files and why each does not belong, then the options
    from `/verify`'s "Unexpected files" table, then `/complete`.
+5. **Verify:** use `/verify`'s invocation policy and report the scope and whether
+   it reused or ran. Any FAIL or SKIP stops here; a `Not needed` line is not a
+   SKIP.
+   **If it fails:** the options from `/verify`'s "Common failures" table, then
+   `/complete`.
+
+Gather the cheap preflight facts in one batch and evaluate gates 1-4 before
+Verify. Archive and draft only after every gate passes. If files change after
+Verify beyond its excluded bookkeeping, recheck the gates before archiving.
 
 ## 2. Archive
 
@@ -80,14 +84,18 @@ sections with nothing applicable. Do not leave prompts, empty sections or
 wording for the person to supply. Before handing over, read the generated PR
 draft and repair missing content, duplicate sections and unfilled placeholders.
 This is a document-completeness check, not an audit or another test run.
+The archive, context resets, build-plan tick and ignored drafts are Verify's
+existing bookkeeping exclusions; they do not require another Verify run.
 
 ## 4. Hand over
 
 Tell the person:
 
-- The history file written and the build-plan line ticked.
-- The commit message in full and the PR title, with a link to the completed PR
-  draft so they can review it. They can request changes; AI makes those edits.
+- The verification scope, whether it ran or was reused, and the result.
+- Links to the history file and both completed landing drafts, plus the commit
+  subject/PR title and the build-plan item ticked (features only). Follow
+  "Efficient context and tool use" and "Ending a turn" in `ai-interaction.md`.
+  They can request changes; AI makes those edits.
   Do not ask them to write sections or copy text over a GitHub template.
 - Then end ("Ending a turn" in `blueprint/context/ai-interaction.md`):
   `Status: Results archived; commit and PR drafts prepared. Nothing committed

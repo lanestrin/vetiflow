@@ -18,11 +18,18 @@ If `pwsh` is not installed, use
 `powershell -ExecutionPolicy Bypass -File scripts/verify.ps1`.
 
 With no option, Verify picks its scope from the files changed since the branch
-left `main` (see "Scope"). `/verify` and `/implement` run it fresh with no option.
-`/ready`, `/audit`, `/complete` and `/approve` use `-ReuseIfCurrent` (see
-"Reusing a run"). `-Full` runs every step whatever changed: use it only when the
-person asks. `-ServerOnly` and `-ClientOnly` are CI's two jobs; they run one side
-whatever changed.
+left `main` (see "Scope"). Invocation policy:
+
+- Explicit `/verify` and standalone `/implement` after building run fresh with
+  no option. An already-verified standalone `/implement` uses `-ReuseIfCurrent`.
+- `/ready` invokes Verify once after builds and repairs, using `-ReuseIfCurrent`;
+  its internal `/implement` work does not invoke Verify separately.
+- `/audit`, `/complete` and `/approve` also use `-ReuseIfCurrent` (see "Reusing
+  a run"). Only the script decides whether evidence can be reused; a manual
+  suite run does not replace it.
+- `-Full` runs every step whatever changed: use it only when the person asks.
+  `-ServerOnly` and `-ClientOnly` are CI's two jobs; they run one side whatever
+  changed.
 
 ## Scope
 
