@@ -18,6 +18,12 @@ VetiFlow is a real-time ER board: every active case by acuity, with its stage
 and wait time, updated on every open screen the moment anyone changes it. A separate,
 private owner page tells each owner how their own pet is doing, in calm words.
 
+The ER Overview is a shared summary of the last documented encounter state,
+not a claim of continuous clinical observation. The separate My Patients
+workspaces have supplied veterinarian and technician requirements/prototypes
+(2026-10-30). Their implementation shares one encounter record and is staged
+behind the applicable identity, permission, clinical-policy and reliability work.
+
 ## 2. Users - Who is this for?
 
 - **Veterinarians.** Set acuity through triage, own treatment decisions, confirm
@@ -25,6 +31,11 @@ private owner page tells each owner how their own pet is doing, in calm words.
 - **Technicians.** Update a case's stage and status, record vitals and tasks,
   see their workload.
 - **Managers.** See the whole board, rooms and team load; later, the audit log.
+- **Reception/client services.** See permitted operational status, approved
+  client-facing updates and the appropriate clinician contact. Raw medical
+  notes and preliminary diagnoses require explicit access; a staff label or
+  role dropdown never grants it. Assistants/supervisors follow the approved
+  role/action matrix rather than being treated as identical clinical users.
 - **Pet owners.** Never see the staff board. They get a private page for their
   own pet only, with calm wording and no acuity, reached through a scoped,
   expiring link or sign-in. In the sign-in demo (section 10) they are "pet
@@ -38,10 +49,18 @@ Staff use shared clinic workstations, so sessions must lock quickly.
 1. Live staff board (the ER Command Center): lanes by acuity, cards with stage,
    wait and care team, and a stats row.
 2. Change a case's stage and status through Update status, with live updates.
-3. Patient overview panel: patient, owner, triage, vitals, tasks, timeline.
+3. Compact Patient Overview: identity/acuity, complaint, stage/location,
+   documented priority/reassessment, latest vitals, safety/care team and
+   approved client communication; Clinical, Medications and Timeline open
+   focused review views instead of permanently expanding the panel.
 4. Patient and owner records with search; intake for a new or existing patient,
    with an unknown owner allowed.
-5. Triage, vitals, staff and room assignment, tasks and blockers.
+5. Shared triage, observations, assignments, tasks and blockers, with
+   role-specific documentation chiefly in My Patients. Veterinarians document
+   exam/plan, authorized orders, reviews and medical discharge decisions;
+   technicians document observations, nursing care, authorized administrations,
+   review/escalation requests and discharge preparation. Preserve existing
+   working entry paths through an explicit cutover.
 6. Owner communication log and clinician-approved owner updates.
 7. Manual handoffs and discharge; case history and corrections.
 8. Administration: staff, rooms and clinic settings.
@@ -65,6 +84,19 @@ Staff use shared clinic workstations, so sessions must lock quickly.
   section 10), staff accounts (S.15), owner access links
   (S.8), owner contact log (6.4), owner updates (6.5), discharge outcome
   (6.2), clinic settings (9.3), audit log (8.1).
+- New ER requirements (2026-10-30) expose shared-data gaps, not implemented
+  fields: separate measured/event and entry times (4.11), structured allergy
+  verification and source (4.12), documented action priority/review and task
+  accountability (4.13), and approved communication with author/approver
+  metadata (6.4/6.5).
+- The supplied role designs add planned shared contracts, not implemented
+  tables: secure clinical drafts/signed note versions (4.15), review requests
+  (4.16), urgent escalation (4.17), order drafts/authorized versions (4.18),
+  reconciliation and medication administration (4.19), diagnostics/result
+  interpretation (4.20), accepted temporary coverage (6.1c) and post-departure
+  follow-up responsibility (6.8). Extend existing EmergencyCase, CaseTask,
+  Handoff and identity structures where appropriate; the documents' conceptual
+  Encounter/StaffUser names do not require duplicate per-page entities.
 
 Rules that later features must keep:
 
@@ -74,6 +106,28 @@ Rules that later features must keep:
   stored rows.
 - Deletes never cascade. Case history, assessments, AI output and handoffs are
   the audit trail.
+- Existing RecordedAt/CreatedAt values are entry times unless a contract
+  explicitly records an event time. Historical unknown measured times stay
+  unknown; do not backfill entry time as a confirmed measurement.
+- Allergy/medication text and missing values do not establish verified
+  negatives. Preserve documented allergy, verified no known allergies,
+  unknown/unverified and not recorded as distinct states in the planned model.
+- Medical clearance is not physical departure. The future outcome model must
+  keep census queries, room occupancy and active-case indexes consistent with
+  explicitly documented departure/admission/transfer/death outcomes.
+- Shared-role read responses require server-side field filtering. Reception
+  and owners never receive raw clinical notes merely because the UI hides them.
+- Persist clinical drafts on the server with approved visibility, retention,
+  recovery and version-conflict rules. Do not use browser storage for clinical
+  text. A delayed autosave must capture its encounter/input before navigation;
+  autosave, acknowledgment and signing are separate operations.
+- Clinical note/order signing identifies an authenticated actor and immutable
+  version, with additive corrections/history. A technician request or browser
+  button is not authorization. Administrations reference the patient's active
+  verified authorized order/version, and preserve performer versus entry actor.
+- A completed task, received message, reviewed result, accepted handoff and
+  resolved concern are distinct facts. Escalations/results remain visible and
+  owned independently of task completion, including follow-up after departure.
 
 ## 5. Tech - What stack are we using?
 
@@ -91,14 +145,47 @@ Not part of v1. Open question.
 
 ## 7. UI/UX - How should this look and feel?
 
-- Staff screens: the ER Command Center prototype,
-  `blueprint/reference/vetiflow-er-dashboard.html` (decided 2026-10-28). Left
-  rail, top bar with search and profile, stats row (clickable filters), patient
-  flow lanes by acuity, the patient overview panel (with the pain score meter),
-  the intake dialog, and the **My patients** clinician workspace (my cases, my
-  work queue, my status, workload and team). New intakes are provisional and
-  wait in "Awaiting triage" until a clinician completes triage. Build to look
-  like the prototype, including its 1050 px and 650 px layouts.
+- ER Board / Patient Overview requirements now come from
+  `blueprint/reference/patient-overview/VETIFLOW_ER_OVERVIEW_SPECIFICATION.md`
+  (2026-10-30). Its `VetiFlow_ER_Overview_Shared_Status_POC.html` is a behavioral proof
+  of concept, not a pixel-perfect specification or a design for other pages.
+  Preserve the existing design system and working acuity board, provisional
+  intake, stats, Filter/Priority and selection behavior while implementing
+  the new hierarchy incrementally. Test realistic panel widths, tablet/phone
+  layouts and enlarged text rather than copying tiny prototype labels.
+- The compact Overview shows the eight responsibilities in the requirements:
+  identity/acuity, complaint, stage/location, documented next action, numeric
+  vitals with meaningful times, allergy/care-team context, approved client
+  communication and Clinical/Medications/Timeline quick access. Only one
+  focused review drawer is open at once, safely bound to the selected patient.
+- The two My Patients packages are
+  `blueprint/reference/vet-my-patient/` and
+  `blueprint/reference/technician-my-patient/`. Both use one Patient Queue and
+  a wider selected chart, three distinct-patient metric filters, neutral white
+  active cards with a thin teal outline, and acuity badges beside names. No
+  extra attention sidebar, fourth draft metric or staff productivity ranking.
+- Share header/navigation/components and canonical data, while exposing the
+  veterinarian's Clinical overview, Exam & plan, Orders, Tasks & reviews,
+  Timeline and Discharge; and the technician's Care overview, Vitals &
+  observations, Care tasks, Medications, Vet review requests, Handoff &
+  escalation, Timeline and Discharge prep. Server policies govern available
+  data/actions; role-specific rendering alone is not authorization.
+- Keep ER Board / My Patients navigation visible. Standalone POCs disable the
+  sibling link; the application activates normal navigation only as the role
+  views are implemented and authorized. Legacy ER workspace HTML and hidden
+  pain controls are not implementation instructions.
+  No generic pain slider or permanently expanded full task list/timeline in
+  the compact Overview. Existing clinical data/history is retained and entry
+  workflows are moved only through an approved, usable replacement.
+- Use last documented state and source, with honest Not recorded, Unknown /
+  not verified, Not assigned and Not scheduled states. Do not invent a next
+  treatment, equate task completion with clinical resolution, use demo vital
+  ranges as approved alerts, or turn undocumented contact into "not contacted."
+  Reception's approved note is distinct from internal clinical material.
+- Each future page gets a separate requirements/prototype folder and a
+  requirement-to-item mapping. `build-plan.md` remains the single ordered
+  roadmap for shared dependencies; `current-feature.md` holds one PR's spec.
+  Page designs do not create independent patient/task/permission models.
 - Dashboard presentation update (2026-10-29): the clinic name is the main
   heading; omit the repeated ER Command Center heading below it. Use teal
   focus outlines on light surfaces, 16 px patient names, 14 px main content,
@@ -132,6 +219,18 @@ Routes:
 - `/records` - Patients (search and records), hospital team members only
 - `/pet-parent` - the pet parent home: minimal in the demo (S.18), replaced by
   the owner page (6.3, final route decided there)
+
+### Optional portfolio Security Lab
+
+The 2026-10-30 `blueprint/reference/security-poc/` package defines a small
+development/test-only proof of server-enforced permissions and safe security
+events over fictional single-hospital data. S.21a-e can be prioritized after
+the active Clinical drawer work, before the larger clinical workspaces, using
+the existing authentication/domain stack where appropriate. It has separate
+operator access and navigation, and no production test-execution/event routes.
+Its simulated identity selector is not authentication, and a fictional order
+authorization is not clinical medication authority. The app's production
+identity, complete clinical-role matrix, audit and launch gates remain separate.
 
 ## 8. Deployment - Where and how will this ship?
 
@@ -256,8 +355,8 @@ Routes:
 
 ## 10. Sign-in proof of concept (demo)
 
-A free, local demo of sign-in for both kinds of user (build plan M3a, S.16 to
-S.19), built against `blueprint/reference/vetiflow-login-mock.html`. It is
+A free, local demo of sign-in for both kinds of user (completed S.16 to
+S.19), built against `blueprint/reference/login-poc/vetiflow-login-mock.html`. It is
 not production authentication; the limits are listed at the end.
 
 ### Approach

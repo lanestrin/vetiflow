@@ -534,6 +534,59 @@ describe("record vitals from the ER board", () => {
 });
 
 
+describe("Clinical review on the ER board", () => {
+  it("uses the selected detail without writes/duplicate reads and updates through the hub", async () => {
+    const buddy = buildCase({ id: "case-buddy", patientName: "Buddy" });
+    serveCases([buddy]);
+    let newest = buildVitalsRecord({ heartRate: 100, mentation: "Alert" });
+    let detailReads = 0;
+    let writes = 0;
+    const rejectWrite = () => { writes++; return new HttpResponse(null, { status: 500 }); };
+    server.use(
+      http.get(apiUrl("/api/cases/case-buddy"), () => {
+        detailReads++;
+        return HttpResponse.json(buildCaseDetail({ id: buddy.id, vitals: [newest] }));
+      }),
+      http.post("*", rejectWrite), http.patch("*", rejectWrite), http.put("*", rejectWrite), http.delete("*", rejectWrite)
+    );
+    renderBoard();
+    fireEvent.click(await screen.findByRole("button", { name: "Buddy" }));
+    const action = await screen.findByRole("button", { name: "Clinical" });
+    const readsBeforeReview = detailReads;
+    fireEvent.click(action);
+    let drawer = within(screen.getByRole("dialog", { name: "Clinical" }));
+    expect(drawer.getByText("100 bpm")).toBeInTheDocument();
+    expect(detailReads).toBe(readsBeforeReview);
+    fireEvent.click(screen.getByRole("button", { name: "Close Clinical" }));
+    expect(detailReads).toBe(readsBeforeReview);
+    fireEvent.click(action);
+    drawer = within(screen.getByRole("dialog"));
+    newest = buildVitalsRecord({ heartRate: 95, mentation: "Not assessed", recordedBy: { id: "s1", name: "Jordan Lee" } });
+    hub.emit("caseUpdated", buddy.id);
+    expect(await drawer.findByText("95 bpm")).toBeInTheDocument();
+    expect(drawer.getByText("Not assessed")).toBeInTheDocument();
+    expect(drawer.getByText(/^Entered/)).toHaveTextContent(/Jordan Lee/);
+    expect(screen.getByRole("button", { name: "Close Clinical" })).toHaveFocus();
+    expect(writes).toBe(0);
+  });
+
+  it("closes the drawer when the selected patient leaves the active board", async () => {
+    const buddy = buildCase({ id: "case-buddy", patientName: "Buddy" });
+    serveCases([buddy]);
+    server.use(http.get(apiUrl("/api/cases/case-buddy"), () => HttpResponse.json(buildCaseDetail({
+      id: buddy.id, vitals: [buildVitalsRecord({ heartRate: 100 })]
+    }))));
+    renderBoard();
+    fireEvent.click(await screen.findByRole("button", { name: "Buddy" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Clinical" }));
+    serveCases([]);
+    hub.emit("caseUpdated", buddy.id);
+    await screen.findByText("Select a patient on the board to see their overview.");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.queryByText("100 bpm")).not.toBeInTheDocument();
+  });
+});
+
 describe("pain assessments on the ER board", () => {
   it.each([0, 10])("saves score %i and refreshes the panel and board without a hub echo", async score => {
     const buddy = buildCase({ id: "case-buddy", patientName: "Buddy", acuity: "urgent" });
