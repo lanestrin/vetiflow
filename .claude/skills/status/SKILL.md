@@ -9,6 +9,10 @@ Read-only. Writes nothing.
 
 ## Gather (one batch)
 
+Follow "Efficient context and tool use" in `blueprint/context/ai-interaction.md`:
+use counts and targeted matches for the plan, and history filenames/ID/branch
+lines for drift checks. Read candidate history sections only when needed.
+
 - `git branch --show-current`, `git status --short`, `git log --oneline -5`
 - `blueprint/context/current-feature.md`: title, `Status`, ticked and unticked steps
 - `blueprint/context/findings.md`: count by severity and status

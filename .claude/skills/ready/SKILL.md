@@ -56,9 +56,12 @@ First, every time, apply the branch check from
 `.claude/skills/implement/SKILL.md` section 2 (the exact `**Branch:**`, never
 `main`, the "Unexpected files" stop), even when there is nothing to build.
 
-Then follow `/implement` sections 3-5 for any unticked steps, including their
-stops. Skip that when every step is ticked and the spec is `verified`; its
-`Status` changes only when there is work.
+Then follow `/implement` sections 3-4 for any unticked steps, including their
+stops and checks. Skip its standalone final Verify and report: this command
+owns both after the repairs below. Read current findings before building so
+known repairs count when identifying the final step. Only the final step across
+builds and known repairs may defer its broad check to final Verify. Skip building
+when every step is ticked; the branch, findings and Verify checks still apply.
 
 ## 2. Repair blockers from a requested audit
 
@@ -67,14 +70,15 @@ order:
 
 1. Add a repair step to the spec (`- [ ] **Step N - repair F-NN: <title>.**`
    with a *Done when*) without asking, and set `Status` to `in progress`.
-2. Build it per `/implement` section 3: failing test first, the narrow check
-   (or the broader suite it lists), tick the step, mark the finding `fixed`.
+2. Build and check it per `/implement` section 3, including its final-step
+   deferral rule. Tick the step and mark the finding `fixed` only after its
+   required check passes.
 
-Then run `scripts/verify.ps1 -ReuseIfCurrent` (see "Reusing a run" in
-`/verify`): it reuses a valid PASS that covers the scope the changes need, for
-example when there was nothing to repair, and runs that scope when the evidence
-is missing or stale. Report the scope and whether it ran or was reused, and set `Status` to `verified` when it passes. A `fixed` finding stays a `/complete`
-blocker until the person runs `/audit focused` and it closes.
+After all builds and repairs, apply `/implement` section 4 and run final Verify
+once using `/verify`'s invocation policy. Follow `/implement` section 5's failure
+loop and status rules, including ticking a step awaiting its broad check only
+after it passes. A `fixed` finding stays a `/complete` blocker until the person
+runs `/audit focused` and it closes.
 
 ## 3. Prove it
 
@@ -82,23 +86,18 @@ When a *Done when* needs the running app, follow
 `.claude/skills/check/SKILL.md`. A setup problem is a stop, not a failure to
 repair.
 
+An in-scope app-check failure returns to the build/repair loop, then final
+Verify and the affected app check again. Report only the final readiness state.
+
 ## 4. Report
 
-```
-Built: steps 1-4 (repair: F-03)
-Checks: affected tests passed; Verify ran (scope client), PASS
-Check: not needed (no running-app behaviour)
-Findings: none open (or: F-03 P1 fixed, needs /audit focused)
-Audit: not needed - workflow docs only (or: recommended - <reason>; optional, /audit)
+Give one concise report per "Ending a turn" in `ai-interaction.md`: link the
+spec, name built/repaired steps, actual checks (Verify scope, ran or reused,
+result), app-check outcome or why unnecessary, findings and material limitations.
+Give the spec's Audit recommendation separately; a recommended audit is optional.
 
-Status: Implementation complete; verification passed; ready to archive and prepare publication.
-Next: /complete
-```
-
-Say Verify's scope and whether it ran or was reused; never present a reuse as
-a fresh run.
-The handoff follows "Ending a turn" in `blueprint/context/ai-interaction.md`:
-
+- ready: `Status: Implementation complete; verification passed; ready to archive
+  and prepare publication.` `Next: /complete`
 - a `fixed` P0/P1 waiting: `Status: Implementation complete; verification
   passed; repaired blocker F-NN awaits confirmation.` `Next: /audit focused`
 - a stop: `Status: Blocked - <reason>.` `Next:` the action or decision needed.

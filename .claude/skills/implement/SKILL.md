@@ -11,7 +11,8 @@ and stop before any commit.
 
 ## 1. Preflight
 
-In one batch, read:
+Follow "Efficient context and tool use" in `blueprint/context/ai-interaction.md`.
+In one batch, gather current state and the relevant instructions:
 
 - `blueprint/context/current-feature.md`
 - `git status`, the current branch, and `git log --oneline -5`
@@ -25,8 +26,8 @@ Stops here end with the handoff ("Ending a turn" in
 - `Status: not started`: `Status: Spec prepared; awaiting your approval.`
   `Next: Reply "OK and build"` (or say what to change).
 - `approved` or `in progress`: build from the first unticked step.
-- `verified` with every step ticked: nothing left to build; give section 6's
-  packet and handoff.
+- `verified` with every step ticked: nothing left to build; still apply section
+  2's branch check, then section 5 with `-ReuseIfCurrent` before the handoff.
 
 ## 2. Branch
 
@@ -36,7 +37,7 @@ Stops here end with the handoff ("Ending a turn" in
 - If it exists, switch to it.
 - Never build on `main`. If uncommitted changes unrelated to this spec are in
   the tree, stop and offer the "Unexpected files" options from `/verify`.
-- Set the spec's `Status` to `in progress`.
+- Set the spec's `Status` to `in progress` when there is build or repair work.
 
 ## 3. Build loop
 
@@ -54,7 +55,9 @@ For each unticked step, in order:
    `coding-standards.md`). For a bug, write the failing test first.
 4. Model change? Follow `/migration` for the migration in this step.
 5. Run the narrow check: `/test <filter>` for the tests this step touched, or
-   `npm run lint` / a build when there is no logic. Run the whole affected suite
+   the relevant lint/build for application changes without logic. Workflow or
+   documentation-only steps use `git diff --check` and an instruction walkthrough;
+   final Verify supplies the workflow tests. Run the whole affected suite
    instead (`dotnet test --project vetiflow.Server.Tests`, or
    `npm run test -- --run` in `vetiflow.client`) when the step changes:
    - shared code used by more than one feature;
@@ -63,6 +66,11 @@ For each unticked step, in order:
    - config (`Program.cs`, `appsettings*.json`, `vite.config.ts`, `tsconfig*.json`);
    - security (sign-in, roles, owner scope, redaction);
    - database code (`Data/`, entities, migrations).
+
+   On the final build or repair step, final Verify may supply this broader
+   check when its scope includes the required suite and no edits follow. Leave
+   the step unticked until that suite and Verify pass. Earlier steps keep their
+   checks; a failing regression test must still be observed before the fix.
 6. Tick the step's box only after its check passes. If it repaired a finding,
    mark that finding `fixed` in `findings.md` (never `closed`).
 
@@ -77,23 +85,30 @@ step's diff grows too big to review, split it in the spec first.
 
 ## 5. Verify
 
-Run `/verify` once. It runs the scope the branch's changes need (see "Scope"
-in `/verify`). If it fails, fix only in-scope problems, rerun the narrow
-check, then rerun Verify. After 2 or 3 failed attempts on the same failure, or
-when the problem is outside this spec, stop as "When something fails or stops"
+Standalone `/implement` runs final Verify once, using the invocation policy in
+`/verify`. When called by `/ready`, return after sections 3-4; `/ready` owns
+final Verify after all builds and repairs, and the final report.
+
+If Verify fails, keep any step awaiting its check unticked, fix only in-scope
+problems, rerun the narrow check, then rerun Verify. After 2 or 3 failed attempts
+on the same failure, or when the problem is outside this spec, stop as "When
+something fails or stops"
 says: what failed, which steps are ticked, and the options from `/verify`'s
 "Common failures" table. `/implement` resumes where it stopped.
 
-When Verify passes and every box is ticked, set `Status` to `verified`.
+When Verify passes, tick the final step if its deferred check passed (and mark
+any repaired finding `fixed`, never `closed`). Set `Status` to `verified` only
+when every box is ticked. A manual test run alone is never Verify evidence.
 
 ## 6. Review packet
 
-Read `blueprint/context/findings.md`. Then present:
+For standalone `/implement`, read current `findings.md` and give one concise
+report per "Ending a turn" in `ai-interaction.md`:
 
 - The branch and the spec title.
-- Changes grouped by area (server, data, client, tests).
-- Checks run, with their real results.
-- Open findings, if any. Open P0 or P1 findings block `/complete`.
+- A brief change summary and link to the spec.
+- Actual checks: Verify scope, ran or reused, result, and relevant narrow checks.
+- Open or fixed findings; P0/P1 in either state block `/complete`.
 - The spec's `**Audit:**` line, on its own line. When it is `recommended`, say
   why, and that `/audit` is optional.
 - Risks and anything you could not verify (for example, UI not yet seen in a browser).
