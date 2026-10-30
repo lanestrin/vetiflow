@@ -5,7 +5,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite
 import type { SignInRouteState } from "../components/auth/experienceHome";
 import { createCaseHubConnection } from "../services/caseHub";
 import { saveAccessToken } from "../services/session";
-import { buildBoardSummary, buildCase, buildCaseDetail, buildPainScore, buildTeamMember, buildVitalsRecord } from "../test/builders";
+import { buildBoardSummary, buildCase, buildCaseDetail, buildCaseTask, buildPainScore, buildTeamMember, buildVitalsRecord } from "../test/builders";
 import { createFakeCaseHub } from "../test/fakeCaseHub";
 import { apiUrl, server } from "../test/server";
 import type { BoardSummary } from "../types/BoardSummary";
@@ -584,6 +584,65 @@ describe("Clinical review on the ER board", () => {
     await screen.findByText("Select a patient on the board to see their overview.");
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(screen.queryByText("100 bpm")).not.toBeInTheDocument();
+  });
+});
+
+describe("Timeline review on the ER board", () => {
+  it("refreshes actual events, vitals entries and current tasks through the hub without review writes or duplicate reads", async () => {
+    const buddy = buildCase({ id: "case-buddy", patientName: "Buddy" });
+    serveCases([buddy]);
+    let detail = buildCaseDetail({ id: buddy.id });
+    let reads = 0;
+    let writes = 0;
+    const rejectWrite = () => { writes++; return new HttpResponse(null, { status: 500 }); };
+    server.use(
+      http.get(apiUrl("/api/cases/case-buddy"), () => { reads++; return HttpResponse.json(detail); }),
+      http.post("*", rejectWrite), http.patch("*", rejectWrite), http.put("*", rejectWrite), http.delete("*", rejectWrite)
+    );
+    renderBoard();
+    fireEvent.click(await screen.findByRole("button", { name: "Buddy" }));
+    const action = await screen.findByRole("button", { name: "Timeline" });
+    const readsBeforeReview = reads;
+    fireEvent.click(action);
+    expect(within(screen.getByRole("dialog", { name: "Timeline" })).getByText("No history recorded")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Close Timeline" }));
+    fireEvent.click(action);
+    expect(reads).toBe(readsBeforeReview);
+    const entered = new Date().toISOString();
+    detail = { ...detail,
+      timeline: [{ id: "actual-event", type: "roomChanged", description: "Moved to Treatment 2", createdAt: entered,
+        createdBy: { id: "actor", name: "Event Recorder" } }],
+      vitals: [buildVitalsRecord({ mentation: "Alert", recordedAt: entered, recordedBy: { id: "recorder", name: "Vitals Recorder" } })],
+      tasks: [buildCaseTask({ description: "Review saved result", status: "done", resolvedAt: entered,
+        resolvedBy: { id: "resolver", name: "Task Resolver" } })]
+    };
+    hub.emit("caseUpdated", buddy.id);
+    const drawer = within(screen.getByRole("dialog", { name: "Timeline" }));
+    expect(await drawer.findByText("Moved to Treatment 2")).toBeInTheDocument();
+    expect(drawer.getByText("Recorded by Event Recorder")).toBeInTheDocument();
+    expect(drawer.getByText("Vitals recorded")).toBeInTheDocument();
+    expect(drawer.getByText("Recorded by Vitals Recorder")).toBeInTheDocument();
+    expect(drawer.getByText("Task · Done")).toBeInTheDocument();
+    expect(drawer.getByText("Task Resolver")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Close Timeline" })).toHaveFocus();
+    expect(writes).toBe(0);
+  });
+
+  it("clears Timeline when the selected encounter leaves the board", async () => {
+    const buddy = buildCase({ id: "case-buddy", patientName: "Buddy" });
+    serveCases([buddy]);
+    server.use(http.get(apiUrl("/api/cases/case-buddy"), () => HttpResponse.json(buildCaseDetail({ id: buddy.id,
+      timeline: [{ id: "private-event", type: "arrived", description: "Selected encounter event", createdAt: new Date().toISOString(), createdBy: null }]
+    }))));
+    renderBoard();
+    fireEvent.click(await screen.findByRole("button", { name: "Buddy" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Timeline" }));
+    expect(within(screen.getByRole("dialog")).getByText("Selected encounter event")).toBeInTheDocument();
+    serveCases([]);
+    hub.emit("caseUpdated", buddy.id);
+    await screen.findByText("Select a patient on the board to see their overview.");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.queryByText("Selected encounter event")).not.toBeInTheDocument();
   });
 });
 

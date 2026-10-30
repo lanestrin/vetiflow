@@ -679,24 +679,24 @@ describe("PatientOverviewPanel", () => {
 });
 
 
-describe("Clinical review in the overview", () => {
-  it("offers Clinical only after a permitted detail loads, including a discharged record", async () => {
+describe.each(["Clinical", "Timeline"])("%s review in the overview", kind => {
+  it("offers review only after a permitted detail loads, including a discharged record", async () => {
     serveCase(buildMilo({ dischargedAt: at(11, 0) }));
     const view = renderPanel(null);
-    expect(screen.queryByRole("button", { name: "Clinical" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: kind })).not.toBeInTheDocument();
     view.rerender("case-milo", new Date());
-    expect(screen.queryByRole("button", { name: "Clinical" })).not.toBeInTheDocument();
-    expect(await screen.findByRole("button", { name: "Clinical" })).toBeEnabled();
+    expect(screen.queryByRole("button", { name: kind })).not.toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: kind })).toBeEnabled();
   });
 
   it("opens from current detail and closes back on the trigger without refetching", async () => {
     const reads = serveCase(buildMilo());
     renderPanel("case-milo");
-    fireEvent.click(await screen.findByRole("button", { name: "Clinical" }));
-    expect(within(screen.getByRole("dialog", { name: "Clinical" })).getByText("148 bpm")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Close Clinical" }));
+    fireEvent.click(await screen.findByRole("button", { name: kind }));
+    expect(within(screen.getByRole("dialog", { name: kind })).getByText(kind === "Clinical" ? "148 bpm" : "Respiratory distress")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: `Close ${kind}` }));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    await waitFor(() => expect(screen.getByRole("button", { name: "Clinical" })).toHaveFocus());
+    await waitFor(() => expect(screen.getByRole("button", { name: kind })).toHaveFocus());
     expect(reads()).toBe(1);
   });
 
@@ -704,55 +704,72 @@ describe("Clinical review in the overview", () => {
     const milo = buildMilo();
     serveCase(milo);
     const view = renderPanel("case-milo");
-    fireEvent.click(await screen.findByRole("button", { name: "Clinical" }));
+    fireEvent.click(await screen.findByRole("button", { name: kind }));
     const drawer = within(screen.getByRole("dialog"));
-    serveCase({ ...milo, vitals: [{ ...milo.vitals[0], heartRate: 95, mentation: "Alert" }] });
+    serveCase({ ...milo, vitals: [{ ...milo.vitals[0], heartRate: 95, mentation: "Alert", recordedBy: { id: "fresh-recorder", name: "Fresh Recorder" } }] });
     view.rerender("case-milo", new Date());
-    expect(await drawer.findByText("95 bpm")).toBeInTheDocument();
-    expect(drawer.getByText("Alert")).toBeInTheDocument();
-    expect(drawer.queryByText("148 bpm")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Close Clinical" })).toHaveFocus();
+    expect(await drawer.findByText(/Fresh Recorder/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: `Close ${kind}` })).toHaveFocus();
   });
 
   it("closes on deselection without leaking content", async () => {
     serveCase(buildMilo());
     const view = renderPanel("case-milo");
-    fireEvent.click(await screen.findByRole("button", { name: "Clinical" }));
+    fireEvent.click(await screen.findByRole("button", { name: kind }));
     view.rerender(null, new Date());
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    expect(screen.queryByText("148 bpm")).not.toBeInTheDocument();
+    expect(screen.queryByText(kind === "Clinical" ? "148 bpm" : "Respiratory distress")).not.toBeInTheDocument();
   });
 
   it("closes on patient change and ignores the old drawer's late close event", async () => {
     serveCase(buildMilo());
     serveCase(buildCaseDetail({ id: "case-second" }));
     const view = renderPanel("case-milo");
-    fireEvent.click(await screen.findByRole("button", { name: "Clinical" }));
+    fireEvent.click(await screen.findByRole("button", { name: kind }));
     const oldDrawer = screen.getByRole("dialog");
     view.rerender("case-second", new Date());
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    fireEvent.click(await screen.findByRole("button", { name: "Clinical" }));
+    fireEvent.click(await screen.findByRole("button", { name: kind }));
     fireEvent(oldDrawer, new Event("close"));
     expect(screen.getByRole("dialog")).toBeVisible();
-    expect(within(screen.getByRole("dialog")).queryByText("148 bpm")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Close Clinical" })).toHaveFocus();
+    expect(within(screen.getByRole("dialog")).queryByText(kind === "Clinical" ? "148 bpm" : "Respiratory distress")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: `Close ${kind}` })).toHaveFocus();
+  });
+
+  it("ignores an old patient's late detail refresh after a new review opens", async () => {
+    const milo = buildMilo();
+    const second = buildCaseDetail({ id: "case-second" });
+    serveCase(milo);
+    const view = renderPanel("case-milo");
+    fireEvent.click(await screen.findByRole("button", { name: kind }));
+    let finishOld!: (detail: CaseDetail | null) => void;
+    const oldReply = new Promise<CaseDetail | null>(resolve => { finishOld = resolve; });
+    const loader = vi.spyOn(casesApi, "getCase").mockReturnValueOnce(oldReply).mockResolvedValueOnce(second);
+    view.rerender("case-milo", new Date());
+    await waitFor(() => expect(loader).toHaveBeenCalledWith("case-milo"));
+    view.rerender(second.id, new Date());
+    fireEvent.click(await screen.findByRole("button", { name: kind }));
+    await act(async () => { finishOld(milo); await oldReply; });
+    expect(screen.getByRole("dialog", { name: kind })).toHaveAccessibleDescription(`${second.patient.name} · Case ${second.caseNumber}`);
+    expect(within(screen.getByRole("dialog")).queryByText(kind === "Clinical" ? "148 bpm" : "Respiratory distress")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: `Close ${kind}` })).toHaveFocus();
   });
 
   it.each([404, 500])("closes after refetch %s, uses heading focus and stays closed after recovery", async status => {
     const milo = buildMilo();
     serveCase(milo);
     const view = renderPanel("case-milo");
-    fireEvent.click(await screen.findByRole("button", { name: "Clinical" }));
+    fireEvent.click(await screen.findByRole("button", { name: kind }));
     server.use(http.get(apiUrl("/api/cases/case-milo"), () => new HttpResponse(null, { status })));
     view.rerender("case-milo", new Date());
     await screen.findByText(status === 404 ? "This case is no longer on the board." : "Unable to load this case.");
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Clinical" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: kind })).not.toBeInTheDocument();
     await waitFor(() => expect(screen.getByRole("heading", { name: "Patient overview" })).toHaveFocus());
     serveCase(milo);
     if (status === 500) fireEvent.click(screen.getByRole("button", { name: "Try again" }));
     else view.rerender("case-milo", new Date());
-    await screen.findByRole("button", { name: "Clinical" });
+    await screen.findByRole("button", { name: kind });
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
@@ -760,12 +777,38 @@ describe("Clinical review in the overview", () => {
     serveCase(buildMilo());
     saveAccessToken("demo-session");
     const view = renderPanel("case-milo");
-    fireEvent.click(await screen.findByRole("button", { name: "Clinical" }));
+    fireEvent.click(await screen.findByRole("button", { name: kind }));
     server.use(http.get(apiUrl("/api/cases/case-milo"), () => new HttpResponse(null, { status: Number(status) })));
     view.rerender("case-milo", new Date());
     await screen.findByText(destination);
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    expect(screen.queryByText("148 bpm")).not.toBeInTheDocument();
+    expect(screen.queryByText(kind === "Clinical" ? "148 bpm" : "Respiratory distress")).not.toBeInTheDocument();
+  });
+});
+
+describe("switching encounter review views", () => {
+  it("keeps one view open and ignores a departed view's delayed close", async () => {
+    const reads = serveCase(buildMilo());
+    renderPanel("case-milo");
+    fireEvent.click(await screen.findByRole("button", { name: "Clinical" }));
+    const oldClinical = screen.getByRole("dialog", { name: "Clinical" });
+    fireEvent.click(screen.getByRole("button", { name: "Close Clinical" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Clinical" })).toHaveFocus());
+    fireEvent.click(screen.getByRole("button", { name: "Timeline" }));
+    const oldTimeline = screen.getByRole("dialog", { name: "Timeline" });
+    fireEvent(oldClinical, new Event("close"));
+    expect(screen.getAllByRole("dialog")).toHaveLength(1);
+    expect(screen.getByRole("dialog", { name: "Timeline" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Close Timeline" })).toHaveFocus();
+    fireEvent.click(screen.getByRole("button", { name: "Close Timeline" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Timeline" })).toHaveFocus());
+    fireEvent.click(screen.getByRole("button", { name: "Clinical" }));
+    fireEvent(oldTimeline, new Event("close"));
+    expect(screen.getAllByRole("dialog")).toHaveLength(1);
+    expect(screen.getByRole("dialog", { name: "Clinical" })).toBeVisible();
+    expect(reads()).toBe(1);
+    expect(screen.getByRole("region", { name: "Care timeline" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Next actions" })).toBeInTheDocument();
   });
 });
 
