@@ -19,6 +19,47 @@
 
 @media(max-width:1050px){.layout{grid-template-columns:1fr}.detail{display:grid;grid-template-columns:1fr 1fr}.detailhead{grid-column:1/-1}.patienthero,.ownerbar,.vitals,.section,.detailactions{grid-column:auto}.ownerbar{margin:0 12px}.vitals{padding:12px}.section{padding:12px}.detailactions{grid-column:1/-1}.stats{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:650px){.rail{width:56px}.navico{width:40px;height:40px}.topbar{padding:0 14px;height:62px}.search{width:34px;padding:8px}.search input{display:none}.profile span{display:none}.wrap{padding:20px 12px}.heading{align-items:flex-start;flex-direction:column;gap:14px}.heading h1{font-size:23px}.headright{width:100%;justify-content:space-between}.stats{gap:8px}.stat{padding:12px}.statnum{font-size:21px}.layout{gap:12px}.boardtop{padding:14px}.lanes{grid-template-columns:1fr;min-height:auto}.lane{border-right:0;border-bottom:1px solid var(--line);padding:12px}.lane:not(.show){display:none}.triage-filter .lane{display:block!important}.mobiletitle{display:block}.mobiletabs{display:flex;gap:6px;padding:10px 12px;border-bottom:1px solid var(--line);overflow:auto}.mobiletabs button{white-space:nowrap}.mobiletabs button.active{background:var(--navy);color:white;border-color:var(--navy)}.detail{display:block}.vitals{grid-template-columns:repeat(4,1fr)}.toolbtn span{display:none}.view-switch{max-width:100%;overflow:auto}.view-hint{display:none}.doctorstats{grid-template-columns:1fr 1fr}.doctorstats .doctorstat:last-child{grid-column:1/-1}.doctorhead{align-items:flex-start;gap:10px;flex-direction:column}.doctor-grid{grid-template-columns:1fr}.casegrid{grid-template-columns:1fr 1fr}}
+
+/* Record vitals enhancement */
+.vitals-section{padding:15px 19px 12px}.vitals-title{display:flex;align-items:center;justify-content:space-between;gap:10px}.vitals-title strong{font:700 12px Manrope}.linkbutton{border:0;background:none;color:var(--teal);font-size:11px;font-weight:800;padding:6px 0}.linkbutton:hover{text-decoration:underline}.vitals-section .vitals{padding:10px 0 0}.vital{min-height:78px}.vvalue{font-size:15px;margin-top:8px}.vital-sub{font-size:9px;color:var(--muted);margin-top:5px}.vital-sub.flag{color:var(--red)}.clinical-list{margin-top:12px;padding-top:11px;border-top:1px solid var(--line)}.clinical-heading{font:700 11px Manrope;margin-bottom:5px}.clinical-row{display:flex;align-items:baseline;justify-content:space-between;gap:14px;padding:8px 0;border-bottom:1px solid #f0f3f2;font-size:11px}.clinical-row:last-child{border-bottom:0}.clinical-row span{color:var(--muted)}.clinical-row b{font-weight:700;text-align:right}.clinical-note{font-size:10px;color:#61747a;line-height:1.5;margin-top:8px;white-space:pre-wrap;overflow-wrap:anywhere}.vitals-footnote{color:var(--muted);font-size:10px;margin-top:9px}.vitals-modal{width:min(690px,100%)}.vform-section{margin-bottom:22px}.vform-section:last-child{margin-bottom:0}.vform-heading{display:flex;align-items:center;gap:8px;font:800 13px Manrope;margin:0 0 12px}.vform-heading small{font:500 10px 'DM Sans';color:var(--muted)}.vform-help{font-size:10px;color:var(--muted);line-height:1.5;margin-top:5px}.unit-input{display:flex;align-items:stretch;gap:5px}.unit-input input{width:100%;flex:1}.unit-input select{width:64px;padding:8px 5px}.unit-suffix{display:flex;align-items:center;color:var(--muted);font-size:11px;white-space:nowrap}.vform-divider{height:1px;background:var(--line);margin:20px 0}.vform-quick{display:flex;gap:6px;flex-wrap:wrap}.vform-quick label{cursor:pointer;display:flex;align-items:center;gap:5px;border:1px solid var(--line);padding:9px 11px;border-radius:8px;font-size:11px}.vform-quick label:has(input:checked){background:var(--mint);border-color:#76c6b9;color:#08685f}.vform-quick input{accent-color:var(--teal)}.optional-toggle{background:#f7faf9;border:1px solid var(--line);border-radius:9px;padding:11px 12px;color:var(--ink);font-weight:700;text-align:left;width:100%;font-size:11px}.optional-area{margin-top:12px}.vform-message{font-size:11px;color:var(--red);margin-top:12px;display:none}.vform-message.show{display:block}.vitals-empty{font-size:10px;color:var(--muted);padding:6px 0}.recorded-badge{background:#e8f5ef;color:#187b69;padding:3px 7px;border-radius:5px;font-size:9px;font-weight:700}.vital-summary{display:flex;flex-wrap:wrap;gap:4px;margin-top:7px}.vital-summary .tag{font-size:9px}
+@media(max-width:650px){.vitals-section{grid-column:1/-1;padding:12px}.vitals-section .vitals{grid-template-columns:repeat(2,1fr)}.vitals-modal .formgrid{grid-template-columns:1fr}.modalback{padding:10px}.vform-quick label{flex:1}}
+
+/* At-a-glance ER overview enhancements */
+.detail .patient-context{margin:0 19px 10px;padding:11px 12px;background:#f4f8f7;border-radius:9px;border:1px solid #e6efec}
+.context-label{font-size:9px;text-transform:uppercase;letter-spacing:.65px;color:#7d8e92;font-weight:800;margin-bottom:5px}.context-value{font-size:12px;font-weight:700;line-height:1.45}
+.safety-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 19px;border-bottom:1px solid var(--line);font-size:11px}.safety-row strong{font-weight:800}.safety-row .safety-meta{color:#718187}.safety-actions{display:flex;gap:6px;align-items:center}.safety-actions button{border:0;background:none;color:var(--teal);font-size:10px;font-weight:700}
+.vitals-section .vitals-title{margin-bottom:5px}.vitals-meta-top{display:flex;align-items:center;justify-content:space-between;padding:0 19px;font-size:10px;color:#788a8e}.vitals-meta-top button{background:none;border:0;color:var(--teal);font-size:10px;font-weight:700;padding:3px}.vitals .vital{min-width:0}.vital .vvalue{overflow-wrap:anywhere}.vital-trend{display:block;margin-top:6px;font-size:10px;color:#718187}.vital-trend.rise{color:#aa6521}.vital-trend.fall{color:#287d6b}
+.clinical-list:has(#clinicalFindings:empty){display:none}.clinical-list:has(.vitals-empty){display:none}.clinical-list .clinical-heading{margin-top:4px}.clinical-note{overflow-wrap:anywhere}
+.focus-panel{margin:0 19px 13px;border:1px solid #e4eae7;border-radius:10px;overflow:hidden}.focus-head{background:#f6f9f8;padding:10px 12px;font:800 11px Manrope;border-bottom:1px solid #e4eae7}.focus-row{padding:9px 12px;display:flex;gap:8px;align-items:flex-start;justify-content:space-between;border-bottom:1px solid #edf1ef}.focus-row:last-child{border:0}.focus-label{font-size:10px;color:#75868a}.focus-value{font-size:11px;font-weight:800;text-align:right}.focus-value.due{color:#b35343}.focus-value.warn{color:#a66b18}.focus-action{border:0;background:none;color:var(--teal);font-size:10px;font-weight:800;margin-left:5px}
+.hist-list{display:grid;gap:8px}.hist-entry{padding:10px;background:#f6f9f8;border-radius:9px;font-size:12px}.hist-entry b{display:block;margin-bottom:4px}.hist-entry small{color:#75858a}.history-note{font-size:10px;color:#7b898c;line-height:1.5}
+@media(max-width:1050px){.patient-context,.focus-panel{grid-column:1/-1}.safety-row,.vitals-meta-top{grid-column:1/-1}}@media(max-width:650px){.vitals .vital{padding:7px 5px}.vital .vvalue{font-size:11px}.safety-row{flex-wrap:wrap}}
+</style>
+
+<style>
+/* ER OVERVIEW POC — not a production design specification */
+.layout{grid-template-columns:minmax(550px,1.48fr) minmax(390px,.92fr)}
+.detail .pain-panel,.detail .focus-panel,.detail .safety-row,.detail .patient-context,.detail .medications-row{display:none!important}
+.detail .vitals-section .vitals-title .linkbutton{display:none!important}
+.detail .vitals-section{padding:14px 19px 12px}
+.detail .vitals-section .vitals-title strong{font:800 14px Manrope}
+.detail .vital{min-height:81px;padding:11px 8px}.detail .vlabel{font-size:11px;text-transform:none;letter-spacing:0;font-weight:700}.detail .vvalue{font-size:16px}
+.detail .vitals-section .clinical-list{display:none!important}
+.detail .vital-sub,.detail .vital-trend{font-size:11px}
+.er-poc{padding:0 19px 12px}.er-poc .complaint{border:1px solid #e1eeea;background:#f4f9f7;border-radius:10px;padding:12px 13px;margin:0 0 11px}
+.er-poc .kicker{font-size:11px;letter-spacing:.5px;text-transform:uppercase;font-weight:800;color:#657a80;margin-bottom:5px}
+.er-poc .reason{font-size:15px;font-weight:800;line-height:1.4}.er-line{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;border-bottom:1px solid #edf1ef;padding:9px 0}
+.er-line:last-child{border:0}.er-label{font-size:12px;color:#64777e;white-space:nowrap}.er-value{font-size:13px;text-align:right;font-weight:700;line-height:1.4}
+.er-safety{color:#b24b38}.er-team{background:#fafcfb;border-radius:9px;border:1px solid var(--line);padding:10px 12px;margin-top:8px}
+.er-priority{margin:0 19px 12px;background:#fff7ed;border:1px solid #f2dfc3;border-radius:10px;padding:12px 13px}
+.er-priority .er-line{border-color:#f3e6d3}.er-priority .er-line:first-of-type{padding-top:3px}
+.er-priority strong{font-size:14px;line-height:1.4}.er-footer{padding:0 19px 17px}
+.er-footer .btn{width:100%;font-size:13px;padding:12px}.detail .detailactions{display:none!important}
+.detail .quick-navigation{border-top:1px solid var(--line);padding-top:13px}
+.detail .quick-btn{min-height:70px;font-size:13px}
+.detail .heroname{font-size:21px}.detail .herometa{font-size:12px}.detail .ownerbar{margin-bottom:12px}
+.er-demo-note{font-size:11px;color:#76898d;padding:12px 19px;background:#fbfcfb;border-top:1px solid var(--line);line-height:1.5}
+@media(max-width:1050px){.layout{grid-template-columns:1fr}.detail{display:block}.er-poc,.er-priority,.er-footer,.quick-navigation{grid-column:1/-1}}
+@media(max-width:650px){.detail .vitals-section .vitals{grid-template-columns:repeat(2,minmax(0,1fr))}.detail .vvalue{font-size:16px}}
 </style>
 </head>
 <body>
@@ -46,9 +87,11 @@
 <article class="patient" data-name="Maple" data-type="Dog · Labradoodle" data-owner="Tessa Green" data-id="ER-2477" data-status="Stable"><div class="patrow"><div><div class="petname">Maple</div><div class="species">Dog · Labradoodle · 2y</div></div><span class="wait">Ready</span></div><div class="owner">Tessa Green · Allergic reaction</div><div class="tags"><span class="tag blue">Discharge review</span></div><div class="casefoot"><span>Recovery · 42 min</span><span class="assigned"><i class="miniavatar" style="background:#e6e1f5;color:#6b5a9c">AK</i> Kim</span></div></article>
 <article class="patient" data-name="Otis" data-type="Dog · French Bulldog" data-owner="Eli Morgan" data-id="ER-2476" data-status="Stable"><div class="patrow"><div><div class="petname">Otis</div><div class="species">Dog · French Bulldog · 5y</div></div><span class="wait">Recheck</span></div><div class="owner">Eli Morgan · Brachycephalic episode</div><div class="tags"><span class="tag blue">Monitoring</span><span class="tag">Room 3</span></div><div class="casefoot"><span>Monitoring · 55 min</span><span class="assigned"><i class="miniavatar" style="background:#f6e6cb;color:#946820">ML</i> Lee</span></div></article><article class="patient new-card" data-name="Pip" data-type="Cat · Domestic Shorthair" data-owner="Grace Park" data-id="ER-2487" data-status="Stable" data-stage="Incoming"><div class="patrow"><div><div class="petname">Pip</div><div class="species">Cat · Domestic Shorthair · 3y</div></div><span class="wait">New</span></div><div class="owner">Grace Park · Small paw abrasion</div><div class="tags"><span class="tag blue">Stable · provisional</span></div><div class="casefoot"><span>Awaiting triage</span><span class="assigned"><i class="miniavatar">--</i> Unassigned</span></div></article><article class="patient new-card" data-name="Nori" data-type="Dog · Shiba Inu" data-owner="Henry Wu" data-id="ER-2488" data-status="Stable" data-stage="Incoming"><div class="patrow"><div><div class="petname">Nori</div><div class="species">Dog · Shiba Inu · 2y</div></div><span class="wait">New</span></div><div class="owner">Henry Wu · Sudden limping</div><div class="tags"><span class="tag blue">Stable · provisional</span></div><div class="casefoot"><span>Awaiting triage</span><span class="assigned"><i class="miniavatar">--</i> Unassigned</span></div></article></div>
 </div><div class="flowfoot" id="flowFoot">Showing 10 of 12 active cases · 2 more cases in queue</div></section>
-<aside class="detail"><div class="detailhead"><div><h2>Patient overview</h2><div class="subid" id="subid">Case ER-2481 <span style="margin:0 5px">·</span> Checked in 10:42 AM</div></div><button class="toolbtn" id="more">•••</button></div><div class="patienthero"><div class="petavatar dog" id="petemoji">🐕</div><div><div class="heroname" id="dname">Milo</div><div class="herometa" id="dtype">Dog · Golden Retriever · 8 years · 31.4 kg</div></div><span class="criticalbadge" id="dbadge">CRITICAL</span></div><div class="ownerbar"><div><div class="ownlbl">Pet parent</div><div class="ownername" id="downer">Avery Chen</div></div><div class="owneracts">☎ &nbsp;Message</div></div><div class="vitals"><div class="vital"><div class="vlabel">Heart rate</div><div class="vvalue alert">148 bpm</div></div><div class="vital"><div class="vlabel">Resp rate</div><div class="vvalue alert">48 /min</div></div><div class="vital"><div class="vlabel">Temp</div><div class="vvalue">38.9 °C</div></div><div class="vital"><div class="vlabel">SpO₂</div><div class="vvalue alert">91%</div></div></div><div class="pain-panel"><div class="pain-head"><b>Pain score</b><span id="painValue">Not recorded</span></div><div class="pain-meter"><div class="pain-track"><i class="pain-marker" id="painMarker" style="left:0%"></i></div><div class="pain-labels"><span>0 · comfortable</span><span>5</span><span>10 · severe</span></div></div><div class="pain-foot"><small id="painMeta">Use the clinic’s approved species-specific scale.</small><button type="button" id="recordPain">＋ Record score</button></div></div><div class="section" style="padding-top:0;border-top:0"><div class="task" style="margin:0"><span>📍</span><span class="tasklabel">Location</span><span class="taskmeta" id="dlocation">Treatment · Oxygen cage</span></div><div class="task" style="margin:6px 0 0"><span>⏱</span><span class="tasklabel">Next reassessment</span><span class="taskmeta" id="drecheck">Due in 8 min</span></div><div class="task" style="margin:6px 0 0"><span>☎</span><span class="tasklabel">Client update</span><span class="taskmeta" id="dclientupdate">Due 11:15 AM</span></div></div>
+<aside class="detail"><div class="detailhead"><div><h2>Patient overview</h2><div class="subid" id="subid">Case ER-2481 <span style="margin:0 5px">·</span> Checked in 10:42 AM</div></div><button class="toolbtn" id="more">•••</button></div><div class="patienthero"><div class="petavatar dog" id="petemoji">🐕</div><div><div class="heroname" id="dname">Milo</div><div class="herometa" id="dtype">Dog · Golden Retriever · 8 years · 31.4 kg</div></div><span class="criticalbadge" id="dbadge">CRITICAL</span></div><div class="ownerbar"><div><div class="ownlbl">Pet parent</div><div class="ownername" id="downer">Avery Chen</div></div><div class="owneracts">☎ &nbsp;Message</div></div><div class="vitals-section"><div class="vitals-title"><strong>Vitals &amp; assessment</strong><button type="button" class="linkbutton" id="recordVitals">＋ Record vitals</button></div><div class="vitals" id="patientVitals"><div class="vital"><div class="vlabel">Heart rate</div><div class="vvalue alert">148 bpm</div></div><div class="vital"><div class="vlabel">Resp rate</div><div class="vvalue alert">48 /min</div></div><div class="vital"><div class="vlabel">Temp</div><div class="vvalue">38.9 °C</div></div><div class="vital"><div class="vlabel">SpO₂</div><div class="vvalue alert">91%</div></div></div><div class="clinical-list"><div class="clinical-heading">Clinical assessment</div><div id="clinicalFindings"><div class="vitals-empty">No assessment findings recorded.</div></div><div id="vitalNotes" class="clinical-note" hidden></div><div class="vitals-footnote" id="vitalsMeta">Latest available readings · demo data</div></div></div><div class="pain-panel"><div class="pain-head"><b>Pain score</b><span id="painValue">Not recorded</span></div><div class="pain-meter"><div class="pain-track"><i class="pain-marker" id="painMarker" style="left:0%"></i></div><div class="pain-labels"><span>0 · comfortable</span><span>5</span><span>10 · severe</span></div></div><div class="pain-foot"><small id="painMeta">Use the clinic’s approved species-specific scale.</small><button type="button" id="recordPain">＋ Record score</button></div></div><div class="section" style="padding-top:0;border-top:0"><div class="task" style="margin:0"><span>📍</span><span class="tasklabel">Location</span><span class="taskmeta" id="dlocation">Treatment · Oxygen cage</span></div><div class="task" style="margin:6px 0 0"><span>⏱</span><span class="tasklabel">Next reassessment</span><span class="taskmeta" id="drecheck">Due in 8 min</span></div><div class="task" style="margin:6px 0 0"><span>☎</span><span class="tasklabel">Client update</span><span class="taskmeta" id="dclientupdate">Due 11:15 AM</span></div></div>
 <div class="section"><div class="sectiontop"><b>Care timeline</b><a href="#" id="timelineLink">Full record ↗</a></div><div class="timeline"><div class="event"><div class="eventline"><span class="eventname">Triage completed</span><span class="eventtime">10:47 AM</span></div><div class="eventdesc">Triage level 1 · Respiratory distress · Dr. Reed</div></div><div class="event"><div class="eventline"><span class="eventname">Oxygen support started</span><span class="eventtime">10:53 AM</span></div><div class="eventdesc">Oxygen cage · Flow 2 L/min · SpO₂ improving</div></div><div class="event pending"><div class="eventline"><span class="eventname">Thoracic radiographs</span><span class="eventtime">In progress</span></div><div class="eventdesc">Assigned to imaging · Tech Cruz</div></div></div></div>
 <div class="section"><div class="sectiontop"><b>Next actions</b><a href="#" id="addTask">＋ Add task</a></div><div id="taskList"><div class="task"><span class="check done">✓</span><span class="tasklabel">Place IV catheter</span><span class="taskmeta">Dr. Reed</span></div><div class="task"><span class="check"></span><span class="tasklabel">Review radiographs</span><span class="taskmeta">Pending</span></div></div></div><div class="detailactions"><button class="btn triage-action" id="triageAction" hidden>✓ &nbsp; Complete triage</button><button class="btn secondary" id="handoff">⇄ &nbsp; Handoff</button><button class="btn" id="update">Update status</button></div></aside></div></div><section class="mywork" id="myWork" aria-label="My patients workspace"><div class="doctorhead"><div><h2>My patient workload</h2><div class="sub">Dr. Jordan Reed · Day shift · Your assigned cases and next actions</div></div><div class="availability"><span>My status</span><select id="availabilityStatus" aria-label="Set availability"><option>Busy</option><option>Available</option><option>At limit</option><option>Unavailable</option></select></div></div><div class="doctorstats"><div class="doctorstat"><div class="stathead"><span>My active cases</span><span>◉</span></div><div class="statnum">2</div><div class="statfoot">1 critical · 1 urgent</div></div><div class="doctorstat"><div class="stathead"><span>Needs attention</span><span class="dot"></span></div><div class="statnum">1</div><div class="statfoot">Milo · reassessment due in 8 min</div></div><div class="doctorstat"><div class="stathead"><span>Open actions</span><span>↗</span></div><div class="statnum">3</div><div class="statfoot">Imaging review · reassessment · client update</div></div></div><div class="doctor-grid"><section class="workpanel"><div class="workpanel-head"><strong>Assigned to me</strong><span>2 patients</span></div><div class="caselist"><article class="mycase"><div class="mycase-top"><div><div class="mycase-name">Milo <span class="mycase-meta">Dog · Golden Retriever · ER-2481</span></div><div class="mycase-meta">Avery Chen · Hit by vehicle</div></div><span class="acuity critical">Critical</span></div><div class="casegrid"><div class="caseinfo"><small>Location</small><b>Oxygen cage</b></div><div class="caseinfo"><small>SpO₂ · latest</small><b class="alert">91% · 10:53 AM</b></div><div class="caseinfo"><small>Next reassessment</small><b class="alert">Due in 8 min</b></div><div class="caseinfo"><small>Needs decision</small><b>Review thoracic radiographs</b></div></div><div class="mycase-bottom"><span class="mycase-meta">Last update 10:53 AM</span><button class="btn secondary open-case" data-patient="Milo">Open case</button></div></article><article class="mycase"><div class="mycase-top"><div><div class="mycase-name">Luna <span class="mycase-meta">Cat · Siamese · ER-2483</span></div><div class="mycase-meta">Mia Wilson · Urinary obstruction</div></div><span class="acuity urgent">Urgent</span></div><div class="casegrid"><div class="caseinfo"><small>Location</small><b>Treatment · room to assign</b></div><div class="caseinfo"><small>Pain score · triage</small><b>7 / 10 · high</b></div><div class="caseinfo"><small>Next reassessment</small><b>Due in 10 min</b></div><div class="caseinfo"><small>Next action</small><b>Doctor assessment</b></div></div><div class="pain-mini"><div class="pain-track"><i class="pain-marker" style="left:70%"></i></div><div class="pain-labels"><span>0</span><span>7 / 10</span><span>10</span></div></div><div class="mycase-bottom"><span class="mycase-meta">Last update · triage complete</span><button class="btn secondary open-case" data-patient="Luna">Open case</button></div></article></div></section><aside><section class="workpanel"><div class="workpanel-head"><strong>My work queue</strong><span>3 open</span></div><div class="queue-list"><div class="queue-item"><span class="queue-icon">◷</span><div class="queue-copy"><div class="queue-title">Reassess Milo</div><div class="queue-meta">SpO₂ and respiratory status · Oxygen cage</div></div><span class="queue-time">8 min</span></div><div class="queue-item"><span class="queue-icon">⌕</span><div class="queue-copy"><div class="queue-title">Review thoracic radiographs</div><div class="queue-meta">Milo · Imaging in progress</div></div><span class="queue-time">Pending</span></div><div class="queue-item"><span class="queue-icon">☎</span><div class="queue-copy"><div class="queue-title">Update pet parent</div><div class="queue-meta">Milo · Last contact not recorded</div></div><span class="queue-time">Due 11:15</span></div></div></section><section class="workpanel" style="margin-top:14px"><div class="workpanel-head"><strong>Workload & team</strong><span>4 clinicians on floor</span></div><div class="load-summary"><div class="load-label">Your load <span>Busy · mixed acuity</span></div><div class="loadbar" aria-label="One critical and one urgent active case"><i class="on-critical"></i><i class="on-urgent"></i><i></i><i></i></div><div class="load-note">Capacity is a workload signal, not a fixed patient limit. The charge clinician can rebalance cases as acuity and open tasks change.</div></div><div class="queue-list"><div class="team-row"><span class="team-name"><i class="team-dot"></i> Dr. Jordan Reed</span><span class="team-status busy">Busy · 2 cases</span></div><div class="team-row"><span class="team-name"><i class="team-dot"></i> Dr. Avery Kim</span><span class="team-status">Busy · 2 cases</span></div><div class="team-row"><span class="team-name"><i class="team-dot"></i> Dr. Morgan Lee</span><span class="team-status busy">Busy · 2 cases</span></div><div class="team-row"><span class="team-name"><i class="team-dot"></i> Dr. Taylor Cruz</span><span class="team-status">Available · 1 case</span></div></div></section></aside></div></section></div></main></div><div class="toast" id="toast"></div><div class="modalback" id="metricModal" role="presentation"><section class="modal score-modal" role="dialog" aria-modal="true" aria-labelledby="metricTitle"><div class="modalhead"><div><div class="eyebrow">Shift performance</div><h2 id="metricTitle">Door to first doctor</h2><div class="tiny">Time from patient check-in to first doctor assessment</div></div><button class="closemodal" type="button" id="closeMetric" aria-label="Close metric details">×</button></div><div class="modalbody"><div class="score-display">14 <small style="font:600 13px 'DM Sans',sans-serif;color:#829196">min average</small></div><div class="metric-compare"><div><span>Current shift</span><b>14 min</b><i><em style="width:70%"></em></i></div><div><span>Previous shift</span><b>18 min</b><i><em style="width:90%"></em></i></div></div><div class="score-hint">4 minutes faster than the previous shift in this demo. The ER board can show the patients still waiting for their first doctor assessment.</div></div><div class="modalfoot"><button class="btn secondary" type="button" id="showDoctorWait">Show waiting patients</button><button class="btn" type="button" id="doneMetric">Done</button></div></section></div><div class="modalback" id="painModal" role="presentation"><section class="modal score-modal" role="dialog" aria-modal="true" aria-labelledby="painModalTitle"><div class="modalhead"><div><div class="eyebrow">Patient assessment</div><h2 id="painModalTitle">Record pain score</h2><div class="tiny" id="painPatientName">Current patient</div></div><button class="closemodal" type="button" id="closePain" aria-label="Close pain score form">×</button></div><form id="painForm"><div class="modalbody"><div class="score-display"><span id="scoreNumber">0</span><small style="font:600 13px 'DM Sans',sans-serif;color:#829196"> / 10</small></div><input class="score-range" id="scoreRange" name="score" type="range" min="0" max="10" step="1" value="0" aria-label="Pain score from 0 to 10"><div class="score-scale" id="scoreScale"></div><div class="field" style="margin-top:16px"><label for="scoreNotes">Notes (optional)</label><input id="scoreNotes" name="notes" placeholder="Scale used or brief context"></div><div class="score-hint">Use the clinic’s approved scoring protocol for the patient. This prototype shows a common 0–10 format; it does not prescribe a scoring method.</div></div><div class="modalfoot"><button class="btn secondary" type="button" id="cancelPain">Cancel</button><button class="btn" type="submit">Save pain score</button></div></form></section></div><div class="modalback" id="intakeModal" role="presentation"><section class="modal" role="dialog" aria-modal="true" aria-labelledby="intakeTitle"><div class="modalhead"><div><div class="eyebrow">Patient flow</div><h2 id="intakeTitle">New patient intake</h2><div class="tiny">Capture arrival details, then add the patient to the triage queue.</div></div><button class="closemodal" type="button" id="closeIntake" aria-label="Close intake form">×</button></div><form id="intakeForm"><div class="modalbody"><div class="formgrid"><div class="field"><label for="petName">Patient name *</label><input id="petName" name="petName" required placeholder="e.g. Milo"></div><div class="field"><label for="species">Species *</label><select id="species" name="species" required><option value="">Select species</option><option>Dog</option><option>Cat</option><option>Other</option></select></div><div class="field"><label for="breed">Breed / description</label><input id="breed" name="breed" placeholder="Breed or identifying details"></div><div class="field"><label for="age">Age</label><input id="age" name="age" placeholder="e.g. 8 years"></div><div class="field"><label for="ownerName">Pet parent / guardian *</label><input id="ownerName" name="ownerName" required placeholder="Full name"></div><div class="field"><label for="ownerPhone">Phone number *</label><input id="ownerPhone" name="ownerPhone" type="tel" required placeholder="Best callback number"></div><div class="field full"><label for="complaint">Chief complaint *</label><input id="complaint" name="complaint" required placeholder="Reason for visit / presenting concern"></div><div class="field full"><span class="group-label">Initial priority *</span><div class="severity"><label><input type="radio" name="priority" value="Critical" required> Critical / immediate</label><label><input type="radio" name="priority" value="Urgent"> Urgent</label><label><input type="radio" name="priority" value="Stable"> Stable</label></div></div><div class="field full"><label for="triageNotes">Triage notes</label><textarea id="triageNotes" name="triageNotes" placeholder="Observed signs, onset, pertinent history, and immediate needs"></textarea></div><div class="field"><label for="allergies">Known allergies</label><input id="allergies" name="allergies" placeholder="Unknown if not confirmed"></div><div class="field"><label for="medications">Current medications</label><input id="medications" name="medications" placeholder="Medication and last dose, if known"></div><div class="field"><label for="consent">Initial treatment authorization</label><select id="consent" name="consent"><option>Not discussed</option><option>Pending</option><option>Authorized</option><option>Declined</option></select></div><div class="field"><label for="referral">Referring clinic (if applicable)</label><input id="referral" name="referral" placeholder="Clinic name"></div></div><div class="modalnote">Arrival time is recorded on submission. Priority is provisional until a clinician completes triage. Record pain using your clinic’s approved scale.</div></div><div class="modalfoot"><button class="btn secondary" type="button" id="cancelIntake">Cancel</button><button class="btn" type="submit">Add to triage queue</button></div></form></section></div>
+
+<div class="modalback" id="vitalsModal" role="presentation"><section class="modal vitals-modal" role="dialog" aria-modal="true" aria-labelledby="vitalsFormTitle"><div class="modalhead"><div><div class="eyebrow">Patient examination</div><h2 id="vitalsFormTitle">Record vitals</h2><div class="tiny" id="vitalsFormPatient">Selected patient</div></div><button type="button" class="closemodal" id="closeVitals" aria-label="Close record vitals">×</button></div><form id="vitalsForm"><div class="modalbody"><div class="vform-section"><div class="vform-heading">01 &nbsp; Vital signs <small>Enter only measurements obtained</small></div><div class="formgrid"><div class="field"><label for="vHeart">Heart rate</label><div class="unit-input"><input id="vHeart" type="number" min="0" step="1" placeholder="e.g. 96"><span class="unit-suffix">bpm</span></div></div><div class="field"><label for="vResp">Respiratory rate</label><div class="unit-input"><input id="vResp" type="number" min="0" step="1" placeholder="e.g. 24"><span class="unit-suffix">/min</span></div></div><div class="field"><label for="vTemp">Temperature</label><div class="unit-input"><input id="vTemp" type="number" step="0.1" placeholder="e.g. 38.5"><select id="vTempUnit" aria-label="Temperature unit"><option value="C">°C</option><option value="F">°F</option></select></div></div><div class="field"><label for="vSpo">SpO₂</label><div class="unit-input"><input id="vSpo" type="number" min="0" max="100" step="1" placeholder="e.g. 98"><span class="unit-suffix">%</span></div></div><div class="field"><label for="vWeight">Weight</label><div class="unit-input"><input id="vWeight" type="number" min="0" step="0.01" placeholder="e.g. 31.4"><select id="vWeightUnit" aria-label="Weight unit"><option value="kg">kg</option><option value="lb">lb</option></select></div></div></div><div class="vform-help">Blank fields remain unrecorded. The dashboard does not classify readings without an approved patient-specific range.</div></div><div class="vform-divider"></div><div class="vform-section"><div class="vform-heading">02 &nbsp; Clinical assessment <small>Choose assessed findings</small></div><div class="formgrid"><div class="field"><label for="vMM">Mucous membrane colour (MM)</label><select id="vMM"><option value="">Not assessed</option><option>Pink</option><option>Pale</option><option>White</option><option>Hyperemic / Brick red</option><option>Cyanotic / Blue</option><option>Icteric / Yellow</option><option>Muddy / Grey</option><option>Pigmented / Unable to assess</option><option>Other</option></select></div><div class="field"><label for="vMentation">Mentation</label><select id="vMentation"><option value="">Not assessed</option><option value="BAR">BAR — Bright, alert, responsive</option><option value="QAR">QAR — Quiet, alert, responsive</option><option>Depressed / Dull</option><option>Obtunded</option><option>Stuporous</option><option>Comatose</option><option>Agitated / Hyperexcitable</option><option>Other</option></select></div><div class="field full"><label>Capillary refill time (CRT)</label><div class="vform-quick"><label><input type="radio" name="vCRT" value="" checked> Not assessed</label><label><input type="radio" name="vCRT" value="< 1 sec"> &lt; 1 sec</label><label><input type="radio" name="vCRT" value="1–2 sec"> 1–2 sec</label><label><input type="radio" name="vCRT" value="> 2 sec"> &gt; 2 sec</label><label><input type="radio" name="vCRT" value="Unable to assess"> Unable to assess</label></div></div><div class="field"><label for="vCRTExact">Exact CRT (seconds, optional)</label><input id="vCRTExact" type="number" min="0" step="0.1" placeholder="e.g. 1.5"></div></div></div><div class="vform-divider"></div><div class="vform-section"><button class="optional-toggle" type="button" id="vOptionalToggle" aria-expanded="false">＋ Additional assessment (optional)</button><div class="optional-area" id="vOptionalArea" hidden><div class="formgrid"><div class="field"><label for="vHydration">Hydration status</label><select id="vHydration"><option value="">Not assessed</option><option>Normal</option><option>Mild dehydration suspected</option><option>Moderate dehydration suspected</option><option>Severe dehydration suspected</option><option>Unable to assess</option></select></div><div class="field"><label for="vPulse">Pulse quality</label><select id="vPulse"><option value="">Not assessed</option><option>Normal / Strong</option><option>Weak / Thready</option><option>Bounding</option><option>Irregular</option><option>Unable to assess</option></select></div></div></div></div><div class="field"><label for="vNotes">Clinical notes (optional)</label><textarea id="vNotes" placeholder="Context, abnormal findings, or additional observations"></textarea></div><div id="vformError" class="vform-message" role="alert"></div><div class="modalnote">Entries are attributed to Dr. Jordan Reed in this demo. This prototype stores saved entries in the browser session only and does not replace a medical record.</div></div><div class="modalfoot"><button class="btn secondary" type="button" id="cancelVitals">Cancel</button><button class="btn" type="submit">Save vitals</button></div></form></section></div>
 <script>
 const toast=(msg)=>{const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2200)};
 const caseInfo={
@@ -74,4 +117,413 @@ function activeKpi(id){document.querySelectorAll('.stats .stat.clickable').forEa
 const painModal=document.getElementById('painModal'),painForm=document.getElementById('painForm'),scoreRange=document.getElementById('scoreRange');const scoreScale=document.getElementById('scoreScale');scoreScale.innerHTML=Array.from({length:11},(_,i)=>`<span data-score="${i}">${i}</span>`).join('');function setScore(n){scoreRange.value=n;document.getElementById('scoreNumber').textContent=n;scoreScale.querySelectorAll('span').forEach(el=>el.classList.toggle('selected',Number(el.dataset.score)===Number(n)))}scoreRange.oninput=()=>setScore(scoreRange.value);scoreScale.onclick=e=>{const n=e.target.dataset.score;if(n!==undefined)setScore(n)};function closePain(){painModal.classList.remove('open')}document.getElementById('recordPain').onclick=()=>{const card=selectedPatientCard();if(!card){toast('Select a patient first');return}document.getElementById('painPatientName').textContent=card.dataset.name+' · '+card.dataset.id;setScore(caseInfo[card.dataset.name]?.painScore??0);document.getElementById('scoreNotes').value='';painModal.classList.add('open')};document.getElementById('closePain').onclick=closePain;document.getElementById('cancelPain').onclick=closePain;painModal.addEventListener('click',e=>{if(e.target===painModal)closePain()});painForm.addEventListener('submit',e=>{e.preventDefault();const card=selectedPatientCard(),score=Number(scoreRange.value);if(!card)return;caseInfo[card.dataset.name]??={};caseInfo[card.dataset.name].painScore=score;caseInfo[card.dataset.name].painMeta='Recorded just now · Dr. Jordan Reed'+(document.getElementById('scoreNotes').value.trim()?' · '+document.getElementById('scoreNotes').value.trim():'');selectPatient(card);closePain();toast('Pain score saved for '+card.dataset.name)});
 const boardView=document.getElementById('boardView'),myWork=document.getElementById('myWork'),boardTab=document.getElementById('boardViewButton'),doctorTab=document.getElementById('doctorViewButton');function setView(mode){const doctor=mode==='doctor';boardView.style.display=doctor?'none':'block';myWork.classList.toggle('active',doctor);boardTab.classList.toggle('active',!doctor);doctorTab.classList.toggle('active',doctor);boardTab.setAttribute('aria-selected',String(!doctor));doctorTab.setAttribute('aria-selected',String(doctor));document.querySelector('.heading h1').textContent=doctor?'Clinician workspace':'ER Command Center';document.querySelector('.heading .sub').textContent=doctor?'Your assigned cases, workload, and next actions':'Live patient flow and care coordination'}boardTab.onclick=()=>setView('board');doctorTab.onclick=()=>setView('doctor');document.querySelectorAll('.open-case').forEach(b=>b.onclick=()=>{setView('board');const card=[...document.querySelectorAll('.patient')].find(c=>c.dataset.name===b.dataset.patient);if(card)selectPatient(card)});document.getElementById('availabilityStatus').onchange=e=>toast('Availability set to '+e.target.value);
 document.querySelectorAll('.navico').forEach(n=>n.onclick=()=>{document.querySelectorAll('.navico').forEach(x=>x.classList.remove('active'));n.classList.add('active');if(n.title!=='ER board')toast(n.title+' view selected')});
-</script></body></html>
+
+// Structured vitals prototype: per-patient records live in memory for this demo.
+const vitalsModal=document.getElementById('vitalsModal');
+const vitalField=id=>document.getElementById(id);
+const originalSelectPatient=selectPatient;
+selectPatient=function(card){originalSelectPatient(card);renderClinicalVitals(card.dataset.name)};
+function renderClinicalVitals(name){
+ const info=caseInfo[name]||{}, rec=info.structuredVitals;
+ const texts=rec?.readings||info.vitals||['Not recorded','Not recorded','Not recorded','Not recorded'];
+ document.querySelectorAll('#patientVitals .vvalue').forEach((el,i)=>{
+  el.textContent=texts[i]||'Not recorded';
+  el.classList.toggle('alert',!rec&&(info.vitalAlert||[]).includes(i));
+ });
+ const host=vitalField('clinicalFindings');host.replaceChildren();
+ const findings=rec?[["Mucous membranes",rec.mm],["Capillary refill time",rec.crt],["Mentation",rec.mentation],["Hydration",rec.hydration],["Pulse quality",rec.pulse]].filter(([,v])=>v):[];
+ if(!findings.length){const el=document.createElement('div');el.className='vitals-empty';el.textContent='No assessment findings recorded.';host.append(el)}
+ else findings.forEach(([label,val])=>{const row=document.createElement('div');row.className='clinical-row';const a=document.createElement('span'),b=document.createElement('b');a.textContent=label;b.textContent=val;row.append(a,b);host.append(row)});
+ const notes=vitalField('vitalNotes');notes.hidden=!rec?.notes;notes.textContent=rec?.notes||'';
+ vitalField('vitalsMeta').textContent=rec?`Recorded ${rec.timestamp} · Dr. Jordan Reed${rec.weight?' · Weight '+rec.weight:''}`:'Latest available readings · demo data';
+}
+function closeVitals(){vitalsModal.classList.remove('open')}
+function openVitals(){const card=selectedPatientCard();if(!card){toast('Select a patient first');return}vitalField('vitalsForm').reset();vitalField('vformError').classList.remove('show');vitalField('vOptionalArea').hidden=true;vitalField('vOptionalToggle').setAttribute('aria-expanded','false');vitalField('vOptionalToggle').textContent='＋ Additional assessment (optional)';vitalField('vitalsFormPatient').textContent=`${card.dataset.name} · ${card.dataset.id} · ${card.dataset.type}`;vitalsModal.classList.add('open');vitalField('vHeart').focus()}
+vitalField('recordVitals').onclick=openVitals;
+vitalField('closeVitals').onclick=closeVitals;
+vitalField('cancelVitals').onclick=closeVitals;
+vitalsModal.addEventListener('click',e=>{if(e.target===vitalsModal)closeVitals()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeVitals()});
+vitalField('vOptionalToggle').onclick=()=>{const area=vitalField('vOptionalArea');area.hidden=!area.hidden;vitalField('vOptionalToggle').setAttribute('aria-expanded',String(!area.hidden));vitalField('vOptionalToggle').textContent=(area.hidden?'＋':'−')+' Additional assessment (optional)'};
+vitalField('vitalsForm').addEventListener('submit',e=>{
+ e.preventDefault();const card=selectedPatientCard();if(!card)return;
+ const value=id=>vitalField(id).value.trim(), error=vitalField('vformError');
+ const measured=['vHeart','vResp','vTemp','vSpo','vWeight','vCRTExact'];
+ if(measured.some(id=>value(id)!==''&&(!Number.isFinite(Number(value(id)))||Number(value(id))<0))||Number(value('vSpo'))>100&&value('vSpo')!=='') {error.textContent='Check the numeric measurements and SpO₂ (0–100%).';error.classList.add('show');return}
+ const crtChoice=document.querySelector('input[name="vCRT"]:checked').value;
+ if(value('vCRTExact')&&crtChoice==='Unable to assess'){error.textContent='Exact CRT conflicts with “Unable to assess”.';error.classList.add('show');return}
+ const mm=value('vMM'),ment=value('vMentation'),hydration=value('vHydration'),pulse=value('vPulse');
+ if(!measured.some(id=>value(id)!=='')&&![mm,ment,hydration,pulse,crtChoice,value('vNotes')].some(Boolean)){error.textContent='Enter at least one measurement or observation.';error.classList.add('show');return}
+ const fmt=(id,suffix)=>value(id)?`${value(id)}${suffix}`:'Not recorded';
+ const readings=[fmt('vHeart',' bpm'),fmt('vResp',' /min'),fmt('vTemp',' °'+value('vTempUnit')),fmt('vSpo','%')];
+ const weight=value('vWeight')?value('vWeight')+' '+value('vWeightUnit'):'';
+ const crt=value('vCRTExact')?value('vCRTExact')+' sec':crtChoice;
+ const stamp=new Date().toLocaleTimeString([],{hour:'numeric',minute:'2-digit'});
+ const rec={readings,weight,mm,crt,mentation:ment,hydration,pulse,notes:value('vNotes'),timestamp:stamp};
+ const info=caseInfo[card.dataset.name]??={};info.structuredVitals=rec;
+ if(weight)info.weight=weight;
+ info.timeline??=[];info.timeline.unshift(['Vitals recorded',stamp,`Clinical observations recorded by Dr. Reed${weight?' · '+weight:''}`]);
+ renderClinicalVitals(card.dataset.name);
+ if(weight)vitalField('dtype').textContent=card.dataset.type+' · '+weight;
+ renderList(document.querySelector('.timeline'),info.timeline);
+ closeVitals();toast('Vitals saved for '+card.dataset.name+' · demo session');
+});
+renderClinicalVitals(selectedPatientCard()?.dataset.name);
+</script>
+<script>
+/* Patient overview enhancements — standalone demo, no network/storage. */
+(()=>{
+ const $=id=>document.getElementById(id);
+ const hero=document.querySelector('.patienthero');
+ const context=document.createElement('div');context.className='patient-context';context.innerHTML='<div class="context-label">Presenting complaint</div><div class="context-value" id="overviewComplaint">—</div>';
+ hero.insertAdjacentElement('afterend',context);
+ const safety=document.createElement('div');safety.className='safety-row';safety.innerHTML='<div><strong>Allergy status</strong><div class="safety-meta" id="overviewAllergy">Unknown / not verified</div></div><div class="safety-actions"><button type="button" id="editAllergy">Edit</button></div>';
+ document.querySelector('.ownerbar').insertAdjacentElement('afterend',safety);
+ const meta=document.createElement('div');meta.className='vitals-meta-top';meta.innerHTML='<span id="overviewVitalTime">Latest available · demo measurements</span><button type="button" id="openVitalsHistory">View trends & history ↗</button>';
+ document.querySelector('.vitals-title').insertAdjacentElement('afterend',meta);
+ document.querySelectorAll('#patientVitals .vital').forEach((el,i)=>{const t=document.createElement('span');t.className='vital-trend';t.dataset.index=i;el.append(t)});
+ const focus=document.createElement('section');focus.className='focus-panel';focus.innerHTML='<div class="focus-head">Care priorities</div><div class="focus-row"><div class="focus-label">Care team</div><div class="focus-value" id="overviewTeam">—</div></div><div class="focus-row"><div class="focus-label">Next reassessment</div><div><span class="focus-value" id="overviewRecheck">—</span> <button class="focus-action" id="setRecheck">Set</button></div></div><div class="focus-row"><div class="focus-label">Next clinical action</div><div class="focus-value" id="overviewNextAction">—</div></div>';
+ document.querySelector('.pain-panel').insertAdjacentElement('afterend',focus);
+ // The pre-existing operational rows remain for location and client updates; avoid repeating reassessment.
+ const recheckRow=$('drecheck')?.closest('.task');if(recheckRow)recheckRow.style.display='none';
+ const history=document.createElement('div');history.className='modalback';history.id='overviewHistoryModal';history.innerHTML='<section class="modal score-modal" role="dialog" aria-modal="true" aria-labelledby="historyHeading"><div class="modalhead"><div><div class="eyebrow">Patient monitoring</div><h2 id="historyHeading">Vitals history</h2><div class="tiny" id="historyPatient">—</div></div><button class="closemodal" type="button" id="closeOverviewHistory" aria-label="Close">×</button></div><div class="modalbody"><div class="hist-list" id="overviewHistoryList"></div><p class="history-note">Demo measurements only. Trends reflect previously recorded values for this patient, not automatically interpreted clinical improvement or deterioration.</p></div><div class="modalfoot"><button class="btn secondary" type="button" id="dismissOverviewHistory">Close</button></div></section>';
+ document.body.append(history);
+ const allergyValues=['Unknown / not verified','No known allergies (verified)','Known allergy — see notes'];
+ $('editAllergy').onclick=()=>{const card=selectedPatientCard();if(!card)return;const info=caseInfo[card.dataset.name]??={};const current=allergyValues.indexOf(info.allergy||'Unknown / not verified');const next=window.prompt('Allergy status:\n1 — Unknown / not verified\n2 — No known allergies (verified)\n3 — Known allergy — see notes\nEnter 1, 2, or 3:',String(current+1));if(next===null)return;if(!['1','2','3'].includes(next)){toast('Choose 1, 2, or 3');return}info.allergy=allergyValues[Number(next)-1];if(next==='3'){const detail=window.prompt('Enter documented allergy details (optional):',info.allergyDetail||'');if(detail!==null)info.allergyDetail=detail.trim()}renderFocus()};
+ $('setRecheck').onclick=()=>{const card=selectedPatientCard();if(!card)return;const info=caseInfo[card.dataset.name]??={};const answer=window.prompt('Set next reassessment (e.g. 11:30 AM, in 15 min):',info.customRecheck||'');if(answer===null)return;info.customRecheck=answer.trim();renderFocus();toast('Reassessment updated in demo')};
+ function parseValue(s){const n=parseFloat(s);return Number.isFinite(n)?n:null}
+ function historyEntries(info){return info.vitalHistory||[]}
+ function renderFocus(){const card=selectedPatientCard();if(!card)return;const name=card.dataset.name,info=caseInfo[name]||{};
+ const description=card.querySelector('.owner')?.textContent||'';const parts=description.split(' · ');$('overviewComplaint').textContent=parts.slice(1).join(' · ')||'Not recorded';
+ const allergy=info.allergy||'Unknown / not verified';$('overviewAllergy').textContent=allergy+(allergy==='Known allergy — see notes'&&info.allergyDetail?' · '+info.allergyDetail:'');
+ const assigned=card.querySelector('.assigned')?.textContent.trim()||'Unassigned';$('overviewTeam').textContent=assigned;
+ const reassess=info.customRecheck||info.recheck||'Not scheduled';$('overviewRecheck').textContent=reassess;$('overviewRecheck').classList.toggle('due',/due now|overdue/i.test(reassess));$('overviewRecheck').classList.toggle('warn',/due in/i.test(reassess));
+ const next=(info.tasks||[]).find(task=>!task[2]);$('overviewNextAction').textContent=next?next[0]:'No outstanding tasks recorded';
+ $('overviewVitalTime').textContent=info.structuredVitals?`Recorded ${info.structuredVitals.timestamp} · Dr. Jordan Reed`:'Latest available · demo measurements';
+ const series=historyEntries(info);document.querySelectorAll('.vital-trend').forEach((el,i)=>{el.textContent='';el.className='vital-trend';if(series.length<2)return;const last=parseValue(series.at(-1).readings[i]),prev=parseValue(series.at(-2).readings[i]);if(last===null||prev===null)return;const diff=last-prev;el.textContent=diff===0?'→ No change':(diff>0?'↑ ':'↓ ')+Math.abs(diff).toFixed(i===2?1:0)+' vs previous';el.classList.add(diff>0?'rise':'fall')});
+ }
+ const prevSelect=selectPatient;selectPatient=function(card){prevSelect(card);renderFocus()};
+ const prevRender=renderClinicalVitals;renderClinicalVitals=function(name){prevRender(name);const info=caseInfo[name]||{};const host=$('clinicalFindings');if(!info.structuredVitals){host.replaceChildren();} renderFocus()};
+ // Demo history is created on first view; subsequent recorded entries append to the series.
+ Object.entries(caseInfo).forEach(([name,info])=>{if(info.vitals){info.vitalHistory=[{time:'Initial demo observation',readings:[...info.vitals]}]}});
+ const form=$('vitalsForm');form.addEventListener('submit',()=>{const card=selectedPatientCard();if(!card)return;const info=caseInfo[card.dataset.name]||{};const existing=info.vitalHistory||[];const previous=info.structuredVitals?{time:info.structuredVitals.timestamp,readings:[...info.structuredVitals.readings]}:null;if(previous&&!existing.some(x=>x.time===previous.time))existing.push(previous); // Save handler runs after this listener; defer UI sync to microtask.
+ queueMicrotask(()=>{const rec=info.structuredVitals;if(rec&& !existing.some(x=>x.time===rec.timestamp)){existing.push({time:rec.timestamp,readings:[...rec.readings]})}info.vitalHistory=existing;renderFocus()});});
+ function openHistory(){const card=selectedPatientCard();if(!card)return;const info=caseInfo[card.dataset.name]||{};$('historyPatient').textContent=card.dataset.name+' · '+card.dataset.id;const entries=historyEntries(info);const host=$('overviewHistoryList');host.replaceChildren();if(!entries.length){host.textContent='No vitals history recorded for this patient.'}else [...entries].reverse().forEach(entry=>{const div=document.createElement('div');div.className='hist-entry';const title=document.createElement('b');title.textContent=entry.time;const readings=document.createElement('div');readings.textContent=['HR','RR','Temp','SpO₂'].map((x,i)=>x+': '+(entry.readings[i]||'Not recorded')).join(' · ');div.append(title,readings);host.append(div)});history.classList.add('open')}
+ $('openVitalsHistory').onclick=openHistory;const close=()=>history.classList.remove('open');$('closeOverviewHistory').onclick=close;$('dismissOverviewHistory').onclick=close;history.addEventListener('click',e=>{if(e.target===history)close()});document.addEventListener('keydown',e=>{if(e.key==='Escape')close()});
+ renderFocus();
+ // Hide initial empty assessment, while leaving the clinical section ready for any recorded finding.
+ const first=selectedPatientCard();if(first&&!caseInfo[first.dataset.name]?.structuredVitals){$('clinicalFindings').replaceChildren()}
+})();
+</script>
+
+<style>
+/* Readability pass on the actual-width Patient Overview. */
+.detail{font-size:14px;line-height:1.48}
+.detailhead h2,.sectiontop b,.focus-head{font-size:16px!important}
+.detailhead .subid,.herometa,.tiny,.vitals-meta-top,.safety-meta,.context-label,.ownlbl{font-size:12px!important}
+.heroname{font-size:20px}.context-value,.ownername,.safety-row strong{font-size:14px!important}
+.vlabel{font-size:11px!important;letter-spacing:.15px}.vvalue{font-size:17px!important;line-height:1.25}
+.vital{min-height:84px;padding:10px!important}.vitals{gap:7px}
+.focus-label,.focus-value,.focus-action,.tasklabel,.eventname,.eventdesc,.eventtime,.taskmeta{font-size:12px!important}
+.sectiontop a,.vitals-title a,.owneracts,.pain-foot button,.safety-actions button{font-size:12px!important}
+.task{padding:10px!important;gap:8px}.event{margin-bottom:14px}.eventdesc{line-height:1.5}
+/* Bound the lists instead of growing the overview indefinitely. */
+.timeline:not(.all-events)>.event:nth-child(n+4){display:none}
+#taskList:not(.all-tasks)>.task:nth-child(n+4){display:none}
+.section-summary{font-size:12px;color:var(--muted);margin-top:10px}
+.section-summary button{font:700 12px 'DM Sans',sans-serif;color:var(--teal);background:none;border:0;padding:4px 0}
+.medications-row{margin:0 19px 12px;padding:11px 12px;border:1px solid var(--line);border-radius:9px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.medications-row strong{font-size:14px}.medications-row small{display:block;color:var(--muted);font-size:12px;margin-top:3px}.medications-row button{color:var(--teal);border:0;background:transparent;font-weight:700;font-size:12px;white-space:nowrap}
+/* Prior agreement: no generic, non-species-specific pain slider in the ER overview. */
+.detail .pain-panel{display:none}
+@media(max-width:650px){.detail .vitals{grid-template-columns:repeat(2,minmax(0,1fr))}}
+</style>
+<script>
+(()=>{
+const detail=document.querySelector('.detail');
+if(!detail)return;
+// Compact medications entry point; intentionally does not invent medication history.
+const meds=document.createElement('div');meds.className='medications-row';
+meds.innerHTML='<div><strong>Medications</strong><small id="medSummary">History not verified</small></div><button type="button" id="medOpen">View history ›</button>';
+const safety=detail.querySelector('.safety-row');if(safety)safety.insertAdjacentElement('afterend',meds);
+meds.querySelector('button').addEventListener('click',()=>{
+ const patient=detail.querySelector('#dname')?.textContent||'patient';
+ window.alert('Medication history for '+patient+'\n\nCurrent home medications: Not verified\nER medications administered: See clinical record\nPrevious medications: No verified history in this demo\n\nA production app should open a full medication reconciliation and administration history with dose, route, frequency, and last given time.');
+});
+const timeline=detail.querySelector('.timeline');const tasks=detail.querySelector('#taskList');
+function makeSummary(list,kind,max){
+ if(!list)return;
+ const wrap=document.createElement('div');wrap.className='section-summary';list.insertAdjacentElement('afterend',wrap);
+ const update=()=>{
+  const all=Array.from(list.children).filter(x=>x.classList.contains(kind==='events'?'event':'task'));
+  const count=all.length;
+  if(count<=max){list.classList.remove(kind==='events'?'all-events':'all-tasks');wrap.innerHTML='';return}
+  const expanded=list.classList.contains(kind==='events'?'all-events':'all-tasks');
+  wrap.innerHTML='';const button=document.createElement('button');button.type='button';
+  button.textContent=expanded?'Show fewer':`View all ${count} ${kind} ›`;
+  button.addEventListener('click',()=>{list.classList.toggle(kind==='events'?'all-events':'all-tasks');update()});wrap.append(button);
+ };
+ new MutationObserver(update).observe(list,{childList:true});update();
+}
+makeSummary(timeline,'events',3);makeSummary(tasks,'tasks',3);
+})();
+</script>
+
+<style>
+/* Compact ER board navigation, deeper detail appears only on demand */
+.detail .clinical-list,.detail .medications-row,.detail>.section:has(.timeline),.detail>.section:has(#taskList){display:none!important}
+.detail .vitals-section{padding-bottom:15px}
+.detail .focus-panel{margin-top:4px}
+.detail .focus-row:last-child{border-bottom:0}
+.detail .ownerbar{font-size:13px}
+.quick-navigation{padding:16px 19px 18px;border-top:1px solid var(--line)}
+.quick-navigation h3{font:800 14px Manrope;margin:0 0 12px}
+.quick-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.quick-btn{min-width:0;background:#fff;border:1px solid #dce5e2;border-radius:10px;min-height:76px;padding:11px 3px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;font-size:12px;font-weight:800;color:#263e47}
+.quick-btn:hover,.quick-btn:focus-visible{border-color:#078b81;background:#eef9f5;outline:none}
+.quick-btn svg{width:21px;height:21px;stroke:#47747a;stroke-width:1.8;fill:none;stroke-linejoin:round;stroke-linecap:round}
+.detail .detailactions{border-top:1px solid var(--line)}
+.clinical-scrim{position:fixed;inset:0;background:rgba(13,31,39,.33);z-index:90;display:none}
+.clinical-scrim.open{display:block}
+.clinical-drawer{position:fixed;right:0;top:0;bottom:0;width:min(570px,100vw);z-index:91;background:white;box-shadow:-20px 0 55px #132b3733;transform:translateX(105%);transition:transform .2s ease;display:flex;flex-direction:column;color:var(--ink)}
+.clinical-drawer.open{transform:translateX(0)}
+.drawer-head{padding:23px 24px 18px;border-bottom:1px solid var(--line);display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.drawer-heading{font:800 21px Manrope;margin:0 0 4px}.drawer-sub{font-size:13px;color:var(--muted)}
+.drawer-close{font-size:24px;line-height:1;background:#f5f7f6;border:1px solid var(--line);border-radius:9px;padding:5px 10px;color:#50646a}
+.drawer-body{overflow-y:auto;flex:1;padding:20px 24px 28px}
+.drawer-section{margin-bottom:24px}.drawer-section h3{font:800 15px Manrope;margin:0 0 11px}
+.drawer-note{background:#f0f7f5;padding:12px 14px;border-radius:9px;color:#48646b;font-size:13px;line-height:1.5;margin-bottom:18px}
+.drawer-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.drawer-cell{background:#f6f9f8;border:1px solid #edf1ef;border-radius:10px;padding:13px;min-width:0}
+.drawer-cell small{display:block;font-size:12px;color:#657a80;margin-bottom:6px}.drawer-cell strong{font-size:16px;overflow-wrap:anywhere}
+.drawer-row{padding:13px 0;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:16px;align-items:start;font-size:14px}
+.drawer-row:last-child{border-bottom:0}.drawer-row .muted{color:var(--muted);font-size:12px;margin-top:4px;line-height:1.5}
+.drawer-pill{display:inline-block;padding:4px 8px;background:var(--mint);color:#077568;border-radius:20px;font-size:11px;font-weight:700}
+.drawer-footer{padding:14px 24px;border-top:1px solid var(--line);display:flex;justify-content:flex-end;gap:10px}
+.drawer-footer .btn{font-size:13px}
+@media(max-width:650px){.clinical-drawer{width:100vw}.drawer-body{padding:16px}.drawer-grid{grid-template-columns:1fr 1fr}.quick-navigation{grid-column:1/-1}}
+</style>
+<div id="clinicalScrim" class="clinical-scrim"></div>
+<aside id="clinicalDrawer" class="clinical-drawer" role="dialog" aria-modal="true" aria-labelledby="drawerHeading" aria-hidden="true">
+ <div class="drawer-head"><div><h2 id="drawerHeading" class="drawer-heading">Clinical</h2><div id="drawerPatient" class="drawer-sub"></div></div><button type="button" id="drawerClose" class="drawer-close" aria-label="Close detail panel">×</button></div>
+ <div id="drawerBody" class="drawer-body"></div>
+ <div class="drawer-footer"><button type="button" id="drawerDismiss" class="btn secondary">Back to ER board</button></div>
+</aside>
+<script>
+(()=>{
+const detail=document.querySelector('.detail');if(!detail)return;
+const nav=document.createElement('section');nav.className='quick-navigation';nav.innerHTML=`<h3>Patient record</h3><div class="quick-grid">
+<button type="button" class="quick-btn" data-record="clinical" aria-label="Open clinical findings"><svg viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4.5h6M9 10h6M9 14h6M9 18h3"/></svg>Clinical</button>
+<button type="button" class="quick-btn" data-record="medications" aria-label="Open medication history"><svg viewBox="0 0 24 24"><path d="M10 5l9 9a5 5 0 0 1-7 7l-9-9a5 5 0 0 1 7-7ZM7 16l9-9"/></svg>Medications</button>
+<button type="button" class="quick-btn" data-record="timeline" aria-label="Open complete care timeline"><svg viewBox="0 0 24 24"><path d="M4 11a8 8 0 1 1 2 6M4 5v6h6M12 7v5l3 2"/></svg>Timeline</button>
+</div>`;
+const focus=detail.querySelector('.focus-panel');(focus||detail.querySelector('.vitals-section')).insertAdjacentElement('afterend',nav);
+const drawer=document.getElementById('clinicalDrawer'),scrim=document.getElementById('clinicalScrim'),body=document.getElementById('drawerBody');
+const safe=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const selected=()=>document.querySelector('.patient.selected');
+const cell=(label,value)=>`<div class="drawer-cell"><small>${safe(label)}</small><strong>${safe(value)}</strong></div>`;
+function getCurrent(){const card=selected(),name=card?.dataset.name||'Milo';return {card,name,info:caseInfo[name]||{}}}
+function clinical(c){
+ const v=c.info.structuredVitals;
+ const fields=v?[["Mucous membranes",v.mm],["Capillary refill time",v.crt],["Mentation",v.mentation],["Hydration",v.hydration],["Pulse quality",v.pulse]].filter(x=>x[1]):c.name==='Milo'?[['Mucous membranes','Pale'],['Capillary refill time','3–4 seconds'],['Mentation','Depressed'],['Hydration','Moderate dehydration suspected'],['Pulse quality','Weak']]:[];
+ let values=fields.length?`<div class="drawer-grid">${fields.map(x=>cell(...x)).join('')}</div>`:'<p>No clinical assessments recorded for this patient.</p>';
+ const readings=(v?.readings||c.info.vitals||[]);const vitalHtml=readings.length?`<div class="drawer-grid">${['Heart rate','Respiratory rate','Temperature','SpO₂'].map((x,i)=>cell(x,readings[i]||'Not recorded')).join('')}</div>`:'<p>No vitals recorded.</p>';
+ return `${!v&&c.name==='Milo'?'<div class="drawer-note"><strong>Populated demonstration:</strong> Clinical assessment findings below are fictional example entries, not saved observations. Measured vitals come from the existing demo patient.</div>':''}<section class="drawer-section"><h3>Latest vital signs</h3>${vitalHtml}</section><section class="drawer-section"><h3>Clinical assessment</h3>${values}</section><section class="drawer-section"><h3>Exam notes</h3><div class="drawer-cell">${safe(v?.notes|| (c.name==='Milo'?'Example: Respiratory effort increased; monitoring with oxygen support.':'No clinical notes recorded.'))}</div></section>`;
+}
+function medications(c){
+ if(c.name!=='Milo')return `<div class="drawer-note">This patient has no verified medication history in the demo. An empty record does not mean the patient takes no medications.</div><section class="drawer-section"><h3>Medication reconciliation</h3><div class="drawer-row"><div>Status</div><strong>Unknown / not verified</strong></div></section>`;
+ return `<div class="drawer-note"><strong>Fictional sample medication record</strong> for reviewing the layout. These medicines, doses, and times are demonstration data only.</div>
+ <section class="drawer-section"><h3>Medication reconciliation <span class="drawer-pill">Pending verification</span></h3><div class="drawer-row"><div>Home medication list<div class="muted">Owner-reported; not independently verified</div></div><strong>2 reported</strong></div><div class="drawer-row"><div><strong>Gabapentin</strong><div class="muted">Oral · prescribed frequency not confirmed</div></div><span class="muted">Last dose unknown</span></div><div class="drawer-row"><div><strong>Carprofen</strong><div class="muted">Oral · current status requires confirmation</div></div><span class="muted">Last dose unknown</span></div></section>
+ <section class="drawer-section"><h3>Administered during this ER visit</h3><div class="drawer-row"><div><strong>Butorphanol</strong><div class="muted">Dose and route pending documentation</div></div><span>10:47 AM</span></div><div class="drawer-row"><div><strong>IV fluids</strong><div class="muted">Type and rate pending documentation</div></div><span>10:51 AM</span></div></section><section class="drawer-section"><h3>Previous medications</h3><p class="drawer-sub">No verified historical prescriptions available in this demo.</p></section>`;
+}
+function timeline(c){
+ const entries=c.info.timeline||[];const tasks=c.info.tasks||[];
+ return `<div class="drawer-note">Care events are taken from this selected patient's existing demo timeline. This view does not limit the number of events.</div><section class="drawer-section"><h3>Care timeline · ${entries.length} events</h3>${entries.length?entries.map(x=>`<div class="drawer-row"><div><strong>${safe(x[0])}</strong><div class="muted">${safe(x[2])}</div></div><span class="muted">${safe(x[1])}</span></div>`).join(''):'<p>No events recorded.</p>'}</section><section class="drawer-section"><h3>Clinical actions · ${tasks.length}</h3>${tasks.length?tasks.map(x=>`<div class="drawer-row"><div><strong>${safe(x[0])}</strong><div class="muted">${safe(x[1])}</div></div><span class="drawer-pill">${x[2]?'Completed':'Open'}</span></div>`).join(''):'<p>No actions recorded.</p>'}</section>`;
+}
+let lastFocus=null;
+function open(kind){const c=getCurrent();lastFocus=document.activeElement;document.getElementById('drawerHeading').textContent=({clinical:'Clinical assessment',medications:'Medication history',timeline:'Care timeline'})[kind];document.getElementById('drawerPatient').textContent=`${c.name} · ${c.card?.dataset.id||'Active case'} · ${c.card?.dataset.status||''}`;body.innerHTML=({clinical,medications,timeline})[kind](c);body.scrollTop=0;drawer.classList.add('open');scrim.classList.add('open');drawer.setAttribute('aria-hidden','false');document.body.style.overflow='hidden';document.getElementById('drawerClose').focus()}
+function close(){drawer.classList.remove('open');scrim.classList.remove('open');drawer.setAttribute('aria-hidden','true');document.body.style.overflow='';lastFocus?.focus?.()}
+nav.querySelectorAll('button[data-record]').forEach(b=>b.addEventListener('click',()=>open(b.dataset.record)));
+document.getElementById('drawerClose').onclick=close;document.getElementById('drawerDismiss').onclick=close;scrim.onclick=close;document.addEventListener('keydown',e=>{if(e.key==='Escape'&&drawer.classList.contains('open'))close()});
+})();
+</script>
+
+<script>
+(()=>{
+const detail=document.querySelector('aside.detail'); if(!detail)return;
+const hero=detail.querySelector('.ownerbar');
+const overview=document.createElement('section');overview.className='er-poc';overview.innerHTML=`<div class="complaint"><div class="kicker">Presenting complaint</div><div class="reason" id="erComplaint">Hit by vehicle</div></div><div class="er-line"><span class="er-label">Allergies</span><strong class="er-value er-safety" id="erAllergies">Unknown / not verified</strong></div><div class="er-team"><div class="er-line"><span class="er-label">Attending veterinarian</span><strong class="er-value" id="erVet">Dr. Jordan Reed</strong></div><div class="er-line"><span class="er-label">Primary technician</span><strong class="er-value" id="erTech">Taylor Cruz, RVT</strong></div><div class="er-line"><span class="er-label">Location</span><strong class="er-value" id="erLocation">Oxygen cage</strong></div></div>`;
+hero.insertAdjacentElement('afterend',overview);
+const priority=document.createElement('section');priority.className='er-priority';priority.innerHTML=`<div class="kicker">Immediate care priority</div><strong id="erNext">Review thoracic radiographs</strong><div class="er-line"><span class="er-label">Next reassessment</span><strong class="er-value" id="erRecheck">Due in 8 min</strong></div>`;
+const vitals=detail.querySelector('.vitals-section');vitals.insertAdjacentElement('afterend',priority);
+const nav=detail.querySelector('.quick-navigation');
+const footer=document.createElement('div');footer.className='er-footer';footer.innerHTML=`<button id="erOpenChart" class="btn" type="button">Open patient chart →</button>`;nav.insertAdjacentElement('afterend',footer);
+footer.insertAdjacentHTML('afterend','<div class="er-demo-note">PROOF OF CONCEPT · Fictional encounter data. This ER Overview is for quick monitoring; charting and task updates belong in My Patients.</div>');
+const examples={
+Milo:{reason:'Hit by vehicle · respiratory distress',allergies:'Unknown / not verified',vet:'Dr. Jordan Reed',tech:'Taylor Cruz, RVT',next:'Review thoracic radiographs'},
+Pepper:{reason:'Suspected lily toxicity',allergies:'Unknown / not verified',vet:'Dr. Morgan Lee',tech:'Not assigned',next:'Review toxic exposure and treatment plan'},
+Biscuit:{reason:'Acute vomiting',allergies:'Not recorded',vet:'Dr. Avery Kim',tech:'Shared care pool',next:'First veterinarian assessment'},
+Luna:{reason:'Suspected urinary obstruction',allergies:'Unknown / not verified',vet:'Dr. Jordan Reed',tech:'Not assigned',next:'Veterinarian assessment'},
+Rocky:{reason:'Laceration',allergies:'No known allergies · reported',vet:'Dr. Taylor Cruz',tech:'Not assigned',next:'Review imaging'},
+Maple:{reason:'Allergic reaction',allergies:'Not recorded',vet:'Dr. Avery Kim',tech:'Not assigned',next:'Discharge review'},
+Otis:{reason:'Brachycephalic episode',allergies:'Not recorded',vet:'Dr. Morgan Lee',tech:'Not assigned',next:'Reassess respiratory status'},
+Toby:{reason:'Acute vomiting',allergies:'Unknown / not verified',vet:'Unassigned',tech:'Unassigned',next:'Complete triage'},
+Pip:{reason:'Small paw abrasion',allergies:'Unknown / not verified',vet:'Unassigned',tech:'Unassigned',next:'Complete triage'},
+Nori:{reason:'Sudden limping',allergies:'Unknown / not verified',vet:'Unassigned',tech:'Unassigned',next:'Complete triage'}};
+const put=(id,v)=>{document.getElementById(id).textContent=v};
+function update(){const card=document.querySelector('.patient.selected');if(!card)return;const n=card.dataset.name,info=caseInfo[n]||{},x=examples[n]||{};put('erComplaint',x.reason||card.querySelector('.owner')?.textContent?.split('·').slice(1).join('·').trim()||'Not recorded');put('erAllergies',x.allergies||'Not recorded');put('erVet',x.vet||'Unassigned');put('erTech',x.tech||'Not assigned');put('erLocation',info.location||'Not recorded');put('erNext',x.next||'Review patient plan');put('erRecheck',info.recheck||'Not scheduled');}
+const cards=document.querySelectorAll('.patient');cards.forEach(c=>c.addEventListener('click',()=>queueMicrotask(update)));
+const oldSelect=window.selectPatient; // Other actions can also select a patient; observe the selection state.
+const observer=new MutationObserver(()=>update());cards.forEach(c=>observer.observe(c,{attributes:true,attributeFilter:['class']}));
+document.getElementById('erOpenChart').addEventListener('click',()=>{
+ const name=document.querySelector('.patient.selected')?.dataset.name||'patient';
+ const work=document.getElementById('doctorViewButton');
+ if(work){work.click();toast(name+' · Open My Patients to document care');}else toast('Use My Patients for charting and updates');
+});
+update();
+})();
+</script>
+
+<style id="er-overview-revision">
+/* ER OVERVIEW REVISION — proof of concept only */
+.mobiletabs,#myWork{display:none !important}
+.view-switch{display:flex!important;margin:0 0 18px}
+#doctorViewButton[disabled]{opacity:.55;cursor:not-allowed}
+#doctorViewButton[disabled]:hover{background:transparent;box-shadow:none}
+.detail .ownerbar,.detail .pain-panel,.detail .detailactions{display:none !important}
+.er-meta-summary{margin:0 19px 14px;border:1px solid var(--line);border-radius:10px;background:#fbfcfb;overflow:hidden}
+.er-meta-summary .meta-head{padding:10px 12px;background:#f6f9f8;border-bottom:1px solid var(--line);font:800 11px Manrope;text-transform:uppercase;letter-spacing:.4px;color:#50646a}
+.er-meta-summary .meta-row{display:flex;justify-content:space-between;gap:14px;padding:10px 12px;border-bottom:1px solid #edf1ef;align-items:flex-start}
+.er-meta-summary .meta-row:last-child{border-bottom:0}
+.er-meta-summary .meta-label{font-size:11px;color:#6b7f85}
+.er-meta-summary .meta-value{font-size:12px;font-weight:700;text-align:right;line-height:1.45}
+.er-meta-summary .meta-value.warn{color:#b24b38}
+.detail .vitals-section .vitals-title strong{font-size:15px}
+.detail .vitals-section{padding-top:10px}
+.detail .quick-navigation h3{margin-bottom:10px}
+.heading h1{margin-top:0}
+.er-footer .btn[disabled]{background:#d6dfdd;color:#5c6f75;box-shadow:none;cursor:not-allowed}
+.er-demo-note{padding-top:10px}
+@media(max-width:650px){
+  .lane{display:block !important}
+  .er-meta-summary .meta-row{flex-direction:column;align-items:flex-start}
+  .er-meta-summary .meta-value{text-align:left}
+}
+</style>
+<script id="er-overview-revision-script">
+(()=>{
+  document.title='VetiFlow — Northside Veterinary Emergency';
+  const eyebrow=document.querySelector('.heading .eyebrow');
+  if(eyebrow) eyebrow.remove();
+  const title=document.querySelector('.heading h1');
+  if(title) title.textContent='Northside Veterinary Emergency';
+  const sub=document.querySelector('.heading .sub');
+  if(sub) sub.textContent='Live patient flow and care coordination';
+  const crumb=document.querySelector('.crumb b');
+  if(crumb) crumb.textContent='ER Overview';
+
+  const doctorTab=document.getElementById('doctorViewButton');
+  if(doctorTab){doctorTab.disabled=true;doctorTab.setAttribute('aria-disabled','true');doctorTab.title='My Patients will be designed as a separate prototype';}
+  const mobileTabs=document.querySelector('.mobiletabs');
+  if(mobileTabs) mobileTabs.remove();
+  // Retain the existing hidden My Patients DOM so legacy listeners remain safe, but navigation is disabled.
+
+  const detail=document.querySelector('aside.detail');
+  if(!detail) return;
+  const hero=detail.querySelector('.patienthero');
+  const vitals=detail.querySelector('.vitals-section');
+  const poc=detail.querySelector('.er-poc');
+  const priority=detail.querySelector('.er-priority');
+  const quickNav=detail.querySelector('.quick-navigation');
+  const footer=detail.querySelector('.er-footer');
+  const demoNote=detail.querySelector('.er-demo-note');
+  const ownerBar=detail.querySelector('.ownerbar');
+
+  if(vitals){
+    const head=vitals.querySelector('.vitals-title strong');
+    if(head) head.textContent='Latest vitals';
+  }
+
+  if(poc){
+    poc.innerHTML=`
+      <div class="complaint">
+        <div class="kicker">Presenting complaint</div>
+        <div class="reason" id="erComplaint">Hit by vehicle</div>
+      </div>
+      <div class="er-team" style="margin-top:0">
+        <div class="er-line"><span class="er-label">Current location</span><strong class="er-value" id="erLocation">Oxygen cage</strong></div>
+      </div>`;
+  }
+
+  if(priority){
+    priority.innerHTML=`
+      <div class="kicker">Immediate care priority</div>
+      <strong id="erNext">Review thoracic radiographs</strong>
+      <div class="er-line"><span class="er-label">Responsible</span><strong class="er-value" id="erActionOwner">Dr. Jordan Reed</strong></div>
+      <div class="er-line"><span class="er-label">Next reassessment</span><strong class="er-value" id="erRecheck">Due in 8 min</strong></div>`;
+  }
+
+  let meta=detail.querySelector('.er-meta-summary');
+  if(!meta){
+    meta=document.createElement('section');
+    meta.className='er-meta-summary';
+    meta.innerHTML=`
+      <div class="meta-head">Care context</div>
+      <div class="meta-row"><span class="meta-label">Allergy status</span><strong class="meta-value warn" id="erAllergies">Unknown / not verified</strong></div>
+      <div class="meta-row"><span class="meta-label">Attending veterinarian</span><strong class="meta-value" id="erVet">Dr. Jordan Reed</strong></div>
+      <div class="meta-row"><span class="meta-label">Primary technician</span><strong class="meta-value" id="erTech">Taylor Cruz, RVT</strong></div>
+      <div class="meta-row"><span class="meta-label">Pet parent</span><strong class="meta-value" id="erOwner">Avery Chen</strong></div>`;
+  }
+
+  if(ownerBar) ownerBar.style.display='none';
+  if(hero && poc) hero.insertAdjacentElement('afterend', poc);
+  if(poc && priority) poc.insertAdjacentElement('afterend', priority);
+  if(vitals) vitals.insertAdjacentElement('afterend', meta);
+  if(meta && quickNav) meta.insertAdjacentElement('afterend', quickNav);
+  if(quickNav && footer) quickNav.insertAdjacentElement('afterend', footer);
+  if(footer && demoNote) footer.insertAdjacentElement('afterend', demoNote);
+
+  const openChart=document.getElementById('erOpenChart');
+  if(openChart){
+    openChart.textContent='My Patients prototype coming next';
+    openChart.disabled=true;
+    openChart.onclick=(e)=>{ e.preventDefault(); if(window.toast) toast('My Patients will be a separate prototype'); };
+  }
+  if(demoNote) demoNote.textContent='PROOF OF CONCEPT · Fictional encounter data. My Patients navigation is intentionally disabled here; it will be designed separately.';
+
+  const examples={
+    Milo:{reason:'Hit by vehicle · respiratory distress',allergies:'Unknown / not verified',vet:'Dr. Jordan Reed',tech:'Taylor Cruz, RVT',next:'Review thoracic radiographs'},
+    Pepper:{reason:'Suspected lily toxicity',allergies:'Unknown / not verified',vet:'Dr. Morgan Lee',tech:'Not assigned',next:'Review toxic exposure and treatment plan'},
+    Biscuit:{reason:'Acute vomiting',allergies:'Not recorded',vet:'Dr. Avery Kim',tech:'Shared care pool',next:'First veterinarian assessment'},
+    Luna:{reason:'Suspected urinary obstruction',allergies:'Unknown / not verified',vet:'Dr. Jordan Reed',tech:'Not assigned',next:'Veterinarian assessment'},
+    Rocky:{reason:'Laceration',allergies:'No known allergies · reported',vet:'Dr. Taylor Cruz',tech:'Not assigned',next:'Review imaging'},
+    Maple:{reason:'Allergic reaction',allergies:'Not recorded',vet:'Dr. Avery Kim',tech:'Not assigned',next:'Discharge review'},
+    Otis:{reason:'Brachycephalic episode',allergies:'Not recorded',vet:'Dr. Morgan Lee',tech:'Not assigned',next:'Reassess respiratory status'},
+    Toby:{reason:'Acute vomiting',allergies:'Unknown / not verified',vet:'Unassigned',tech:'Unassigned',next:'Complete triage'},
+    Pip:{reason:'Small paw abrasion',allergies:'Unknown / not verified',vet:'Unassigned',tech:'Unassigned',next:'Complete triage'},
+    Nori:{reason:'Sudden limping',allergies:'Unknown / not verified',vet:'Unassigned',tech:'Unassigned',next:'Complete triage'}
+  };
+  const put=(id,v)=>{ const el=document.getElementById(id); if(el) el.textContent=v; };
+  function updateOverview(){
+    const card=document.querySelector('.patient.selected'); if(!card) return;
+    const name=card.dataset.name;
+    const info=(window.caseInfo && window.caseInfo[name]) || {};
+    const x=examples[name] || {};
+    put('erComplaint', x.reason || card.querySelector('.owner')?.textContent?.split('·').slice(1).join('·').trim() || 'Not recorded');
+    put('erAllergies', x.allergies || 'Not recorded');
+    put('erVet', x.vet || 'Unassigned');
+    put('erTech', x.tech || 'Not assigned');
+    put('erLocation', info.location || 'Not recorded');
+    put('erNext', x.next || 'Review patient plan');
+    put('erActionOwner', x.vet || 'Unassigned');
+    put('erRecheck', info.recheck || 'Not scheduled');
+    put('erOwner', card.dataset.owner || 'Not recorded');
+  }
+  document.querySelectorAll('.patient').forEach(c=>c.addEventListener('click',()=>queueMicrotask(updateOverview)));
+  const observer=new MutationObserver(()=>updateOverview());
+  document.querySelectorAll('.patient').forEach(c=>observer.observe(c,{attributes:true,attributeFilter:['class']}));
+  updateOverview();
+})();
+</script>
+
+</body></html>
