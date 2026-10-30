@@ -148,6 +148,42 @@ describe("PatientOverviewPanel", () => {
     ]);
   });
 
+  it("shows latest observations literally with the set's recorded time and staff", async () => {
+    const milo = buildMilo();
+    milo.vitals[0] = { ...milo.vitals[0], mucousMembraneColor: "Pink", capillaryRefillTime: "2 s",
+      mentation: "<script>Alert</script>", recordedBy: { id: "s1", name: "Jordan Lee" } };
+    serveCase(milo);
+    renderPanel("case-milo");
+    const vitals = within(await screen.findByRole("region", { name: "Vitals" }));
+    const observations = within(vitals.getByLabelText("Latest observations"));
+    expect(observations.getAllByRole("term").map(term => term.textContent)).toEqual([
+      "Mucous membrane colour", "Capillary refill time", "Mentation"
+    ]);
+    expect(observations.getAllByRole("definition").map(value => value.textContent)).toEqual([
+      "Pink", "2 s", "<script>Alert</script>"
+    ]);
+    expect(vitals.getByText(/^Recorded /)).toHaveTextContent("Recorded 10:50 AM · Jordan Lee");
+  });
+
+  it("does not backfill missing latest observations or invent a recorder", async () => {
+    const milo = buildMilo();
+    milo.vitals[1].mentation = "Older observation";
+    serveCase(milo);
+    renderPanel("case-milo");
+    const vitals = within(await screen.findByRole("region", { name: "Vitals" }));
+    expect(within(vitals.getByLabelText("Latest observations")).getAllByText("Not recorded")).toHaveLength(3);
+    expect(vitals.getByText(/^Recorded/)).toHaveTextContent(/^Recorded 10:50 AM$/);
+    expect(vitals.queryByText("Older observation")).not.toBeInTheDocument();
+  });
+
+  it("shows missing observations without recorded metadata when no set exists", async () => {
+    serveCase(buildMilo({ vitals: [] }));
+    renderPanel("case-milo");
+    const vitals = within(await screen.findByRole("region", { name: "Vitals" }));
+    expect(within(vitals.getByLabelText("Latest observations")).getAllByText("Not recorded")).toHaveLength(3);
+    expect(vitals.queryByText(/^Recorded /)).not.toBeInTheDocument();
+  });
+
   it("uses the API flags instead of inferring alerts from the values", async () => {
     const milo = buildMilo();
     milo.vitals[0].spO2 = 91;
@@ -666,7 +702,7 @@ describe("recording vitals in the overview", () => {
     expect(await screen.findByRole("button", { name: "Record vitals" })).toBeDisabled();
   });
 
-  it("discards a cancelled draft, restores focus and reopens blank", async () => {
+  it("discards a cancelled draft, restores focus and reopens the latest saved values", async () => {
     serveCase(buildMilo());
     renderPanel("case-milo");
     const action = await screen.findByRole("button", { name: "Record vitals" });
@@ -677,7 +713,26 @@ describe("recording vitals in the overview", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(action).toHaveFocus();
     fireEvent.click(action);
-    expect(screen.getByLabelText("Heart rate (bpm)")).toHaveValue("");
+    expect(screen.getByLabelText("Heart rate (bpm)")).toHaveValue("148");
+  });
+
+  it("retains the opening set during a background update and prefills the new set only on reopening", async () => {
+    const milo = buildMilo();
+    serveCase(milo);
+    const view = renderPanel("case-milo");
+    fireEvent.click(await screen.findByRole("button", { name: "Record vitals" }));
+    fireEvent.change(screen.getByLabelText("Heart rate (bpm)"), { target: { value: "90" } });
+    serveCase({ ...milo, vitals: [{ ...milo.vitals[0], heartRate: 120, temperatureF: 80, mentation: "Updated" }] });
+    view.rerender("case-milo", new Date());
+    await screen.findByText("120 bpm");
+    expect(screen.getByLabelText("Heart rate (bpm)")).toHaveValue("90");
+    expect(screen.getByLabelText("Temperature (°C)")).toHaveValue("38.9");
+    expect(screen.getByLabelText("Mentation")).toHaveValue("");
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    fireEvent.click(screen.getByRole("button", { name: "Record vitals" }));
+    expect(screen.getByLabelText("Heart rate (bpm)")).toHaveValue("120");
+    expect(screen.getByLabelText("Temperature (°C)")).toHaveValue("26.7");
+    expect(screen.getByLabelText("Mentation")).toHaveValue("Updated");
   });
 
   it.each([200, 500])("preserves a draft across a same-case refresh returning %s", async status => {
@@ -727,7 +782,7 @@ describe("recording vitals in the overview", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Record vitals" }));
     fireEvent.change(screen.getByLabelText("Heart rate (bpm)"), { target: { value: "90" } });
     fireEvent.click(screen.getByRole("button", { name: "Save vitals" }));
-    expect(write).toHaveBeenCalledWith("case-milo", { heartRate: 90 });
+    expect(write).toHaveBeenCalledWith("case-milo", { heartRate: 90, respiratoryRate: 48, temperatureF: 102 });
     view.rerender("case-second", new Date());
     fireEvent.click(await screen.findByRole("button", { name: "Record vitals" }));
     fireEvent.change(screen.getByLabelText("Heart rate (bpm)"), { target: { value: "100" } });

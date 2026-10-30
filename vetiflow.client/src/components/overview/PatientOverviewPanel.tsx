@@ -275,6 +275,11 @@ function Overview({ detail, nameRef, onCompleteTriage, onAddTask, onSetDue, onTa
     .filter(Boolean)
     .join(" · ");
   const vitals = detail.vitals[0];
+  const observations = [
+    { label: "Mucous membrane colour", value: vitals?.mucousMembraneColor },
+    { label: "Capillary refill time", value: vitals?.capillaryRefillTime },
+    { label: "Mentation", value: vitals?.mentation }
+  ];
   const tiles: { field: VitalName; label: string; value: string | null }[] = [
     { field: "heartRate", label: "Heart rate", value: vitals?.heartRate == null ? null : `${vitals.heartRate} bpm` },
     { field: "respiratoryRate", label: "Resp rate", value: vitals?.respiratoryRate == null ? null : `${vitals.respiratoryRate} /min` },
@@ -333,6 +338,18 @@ function Overview({ detail, nameRef, onCompleteTriage, onAddTask, onSetDue, onTa
             </div>
           ))}
         </dl>
+        <dl className={styles.observations} aria-label="Latest observations">
+          {observations.map(({ label, value }) => (
+            <div key={label}>
+              <dt>{label}</dt>
+              <dd>{value ?? notRecorded}</dd>
+            </div>
+          ))}
+        </dl>
+        {vitals && <p className={styles.vitalsRecorded}>
+          Recorded <time dateTime={vitals.recordedAt}>{timeLabel(vitals.recordedAt, now)}</time>
+          {vitals.recordedBy && <> · {vitals.recordedBy.name}</>}
+        </p>}
       </section>
 
       <PainScorePanel score={detail.latestPainScore} now={now} onRecord={onRecordPain}
