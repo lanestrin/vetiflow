@@ -23,7 +23,7 @@
 	cursor: pointer;
 
 	&:focus-visible {
-		outline: 3px solid var(--color-focus);
+		outline: var(--focus-outline-width) solid var(--color-focus);
 		outline-offset: 2px;
 	}
 

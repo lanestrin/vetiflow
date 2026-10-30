@@ -103,6 +103,9 @@ Not part of v1. Open question.
   heading; omit the repeated ER Command Center heading below it. Use teal
   focus outlines on light surfaces, 16 px patient names, 14 px main content,
   13 px metadata and at least 12 px compact labels, expressed in rem.
+- Custom focus outlines throughout the application use 1px via the shared
+  `--focus-outline-width` token (requested 2026-10-29). Keep visible keyboard
+  focus and the existing contrasting colours on light and dark surfaces.
 - Acuity colours and labels: Critical (red), Urgent (amber), Stable (teal), in
   that order (three levels, decided 2026-10-28; 0.4).
 - Calm, plain wording on the owner page. No acuity, no clinical shorthand.

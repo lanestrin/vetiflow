@@ -4,14 +4,14 @@ $fast: var(--motion-fast) var(--ease-out);
 
 @mixin rail-focus {
 	&:focus-visible {
-		outline: 3px solid var(--color-shell-rail-marker);
+		outline: var(--focus-outline-width) solid var(--color-shell-rail-marker);
 		outline-offset: 2px;
 	}
 }
 
 @mixin bar-focus {
 	&:focus-visible {
-		outline: 3px solid var(--color-focus);
+		outline: var(--focus-outline-width) solid var(--color-focus);
 		outline-offset: 2px;
 	}
 }
@@ -174,7 +174,7 @@ $fast: var(--motion-fast) var(--ease-out);
 
 	&:focus-within {
 		border-color: var(--color-care-teal);
-		outline: 2px solid #bde5dd;
+		outline: var(--focus-outline-width) solid #bde5dd;
 	}
 
 	@media (prefers-reduced-motion: reduce) {

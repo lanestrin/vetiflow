@@ -52,7 +52,7 @@
 	}
 
 	&:focus-visible {
-		outline: 3px solid var(--color-focus-on-light);
+		outline: var(--focus-outline-width) solid var(--color-focus-on-light);
 		outline-offset: 2px;
 	}
 }
@@ -182,12 +182,16 @@
 	}
 }
 
+.vitalsSection {
+	padding: 14px 19px;
+}
+
 .vitals {
 	display: grid;
 	grid-template-columns: repeat(4, minmax(0, 1fr));
 	gap: 7px;
 	margin: 0;
-	padding: 14px 19px;
+	padding: 0;
 }
 
 .vital {
@@ -270,7 +274,7 @@
 	white-space: nowrap;
 
 	&:focus-visible + .check {
-		outline: 3px solid var(--color-focus-on-light);
+		outline: var(--focus-outline-width) solid var(--color-focus-on-light);
 		outline-offset: 2px;
 	}
 
@@ -470,7 +474,7 @@
 		margin: 0 12px;
 	}
 
-	.vitals,
+	.vitalsSection,
 	.section {
 		padding: 12px;
 	}
