@@ -4,6 +4,8 @@ $fast: 150ms var(--ease-out);
 
 .card {
 	position: relative;
+	line-height: 1.5;
+	overflow-wrap: anywhere;
 	margin-bottom: 9px;
 	padding: 11px;
 	border: 1px solid var(--color-shell-line);
@@ -27,7 +29,7 @@ $fast: 150ms var(--ease-out);
 	}
 
 	&:focus-within {
-		outline: 3px solid var(--color-focus);
+		outline: 3px solid var(--color-focus-on-light);
 		outline-offset: 2px;
 	}
 
@@ -42,6 +44,7 @@ $fast: 150ms var(--ease-out);
 
 .row {
 	display: flex;
+	flex-wrap: wrap;
 	align-items: flex-start;
 	justify-content: space-between;
 	gap: 8px;
@@ -49,7 +52,7 @@ $fast: 150ms var(--ease-out);
 
 .name {
 	margin: 0;
-	font-size: 13px;
+	font-size: 1rem;
 	font-weight: 700;
 }
 
@@ -78,7 +81,7 @@ $fast: 150ms var(--ease-out);
 .kind {
 	margin: 2px 0 0;
 	color: var(--color-shell-muted);
-	font-size: 10px;
+	font-size: .8125rem;
 }
 
 .wait {
@@ -87,7 +90,7 @@ $fast: 150ms var(--ease-out);
 	border-radius: 6px;
 	background: var(--color-board-wait-bg);
 	color: var(--color-board-wait);
-	font-size: 10px;
+	font-size: .8125rem;
 	font-weight: 700;
 	white-space: nowrap;
 }
@@ -95,7 +98,7 @@ $fast: 150ms var(--ease-out);
 .owner {
 	margin: 9px 0 8px;
 	color: var(--color-shell-muted);
-	font-size: 10px;
+	font-size: .875rem;
 }
 
 .tags {
@@ -112,7 +115,7 @@ $fast: 150ms var(--ease-out);
 	border-radius: 5px;
 	background: var(--color-board-tag-bg);
 	color: var(--color-board-tag);
-	font-size: 9px;
+	font-size: .75rem;
 	font-weight: 600;
 
 	&[data-tone="critical"] {
@@ -134,6 +137,7 @@ $fast: 150ms var(--ease-out);
 
 .foot {
 	display: flex;
+	flex-wrap: wrap;
 	align-items: center;
 	justify-content: space-between;
 	gap: 8px;
@@ -141,7 +145,7 @@ $fast: 150ms var(--ease-out);
 	padding-top: 8px;
 	border-top: 1px solid #f0f3f2;
 	color: var(--color-shell-muted);
-	font-size: 10px;
+	font-size: .8125rem;
 }
 
 .assigned {
@@ -160,6 +164,6 @@ $fast: 150ms var(--ease-out);
 	border-radius: 50%;
 	background: var(--color-board-avatar-bg);
 	color: var(--color-board-avatar);
-	font-size: 8px;
+	font-size: .75rem;
 	font-weight: 800;
 }

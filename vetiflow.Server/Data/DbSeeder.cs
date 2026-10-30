@@ -26,7 +26,137 @@ public static class DbSeeder
 
 		await LinkDemoPetAsync(dbContext);
 		await RefreshDemoTimesAsync(dbContext);
+		await SeedAdditionalCasesAsync(dbContext);
 	}
+
+	// IDs belong to these fixtures, independent of names, case counts and edits.
+	// Never reuse an index for another patient: old demo databases backfill by ID.
+	private sealed record DemoCaseSeed(int Index, string Name, string Species, string Breed,
+		AcuityLevel Acuity, CaseStage Stage, int MinutesAgo, string Complaint, string NextAction);
+
+	private static readonly DemoCaseSeed[] AdditionalCases =
+	[
+		new(1, "Pepper", "Cat", "Domestic Longhair", AcuityLevel.Critical, CaseStage.Treatment, 95, "Increased breathing effort and open-mouth breathing at rest.", "Recheck respiratory effort"),
+		new(2, "Winston Montgomery", "Dog", "Cavalier King Charles Spaniel", AcuityLevel.Critical, CaseStage.Diagnostics, 130, "Sudden collapse during a walk with continued weakness and pale gums.", "Review bedside imaging"),
+		new(3, "Olive", "Dog", "Labrador Retriever", AcuityLevel.Critical, CaseStage.Incoming, 24, "Reported ingestion of an unknown quantity of medication; arriving by car.", "Confirm intake and reassess on arrival"),
+		new(4, "Jasper", "Cat", "Siamese Mix", AcuityLevel.Critical, CaseStage.Triage, 48, "Repeated straining in the litter box without passing urine.", "Complete initial assessment"),
+		new(5, "Ruby", "Dog", "Boxer", AcuityLevel.Critical, CaseStage.Recheck, 185, "Weakness following treatment for an allergic reaction.", "Repeat perfusion assessment"),
+		new(6, "Archie", "Dog", "Miniature Australian Shepherd", AcuityLevel.Urgent, CaseStage.Diagnostics, 115, "Persistent vomiting and abdominal discomfort after chewing a toy.", "Review abdominal radiographs"),
+		new(7, "Clementine", "Cat", "Domestic Medium Hair", AcuityLevel.Urgent, CaseStage.Treatment, 78, "Painful wound on the left shoulder after an outdoor altercation.", "Reassess comfort after wound care"),
+		new(8, "Finn", "Dog", "Border Collie", AcuityLevel.Urgent, CaseStage.Incoming, 20, "Facial swelling reported after an insect sting; patient en route.", "Assess swelling on arrival"),
+		new(9, "Mabel", "Cat", "Maine Coon", AcuityLevel.Urgent, CaseStage.Recheck, 210, "Reduced appetite and lethargy with a history of chronic kidney disease.", "Review response to supportive care"),
+		new(10, "Poppy", "Dog", "Beagle", AcuityLevel.Stable, CaseStage.Discharge, 250, "Small paw-pad cut after a walk; bleeding has stopped.", "Review home-care instructions"),
+		new(11, "Theodore Roosevelt", "Cat", "British Shorthair", AcuityLevel.Stable, CaseStage.Diagnostics, 155, "Intermittent sneezing and watery eyes while otherwise bright and eating.", "Review examination findings"),
+		new(12, "Nori", "Cat", "Domestic Shorthair", AcuityLevel.Stable, CaseStage.Triage, 38, "Mild ear irritation and head shaking since yesterday.", "Complete ear examination"),
+		new(13, "Hazel", "Dog", "Bernese Mountain Dog and Poodle Mix", AcuityLevel.Stable, CaseStage.Treatment, 105, "Broken toenail with mild intermittent bleeding and discomfort when walking.", "Recheck bandage and comfort"),
+		new(14, "Milo", "Dog", "Dachshund", AcuityLevel.Stable, CaseStage.Recheck, 165, "One episode of vomiting; comfortable and drinking during observation.", "Confirm discharge readiness"),
+		new(15, "Juniper", "Cat", "Ragdoll", AcuityLevel.Stable, CaseStage.Incoming, 18, "Reported mild limping after play with no visible wound; arriving shortly.", "Confirm arrival and assess gait")
+	];
+
+	private static async Task SeedAdditionalCasesAsync(VetiFlowDbContext dbContext)
+	{
+		var caseIds = AdditionalCases.Select(seed => DemoFixtureId(1, seed.Index)).ToArray();
+		// Includes discharged fixtures, so a restart never brings them back.
+		var existingIds = await dbContext.EmergencyCases.AsNoTracking()
+			.Where(emergencyCase => caseIds.Contains(emergencyCase.Id))
+			.Select(emergencyCase => emergencyCase.Id).ToHashSetAsync();
+		var missing = AdditionalCases.Where(seed => !existingIds.Contains(DemoFixtureId(1, seed.Index))).ToArray();
+		if (missing.Length == 0) return;
+
+		var patientIds = missing.Select(seed => DemoFixtureId(2, seed.Index)).ToArray();
+		var patients = await dbContext.Patients.Where(patient => patientIds.Contains(patient.Id))
+			.ToDictionaryAsync(patient => patient.Id);
+		var ownerIds = missing.Select(seed => DemoFixtureId(3, seed.Index)).ToArray();
+		var owners = await dbContext.Owners.Where(owner => ownerIds.Contains(owner.Id))
+			.ToDictionaryAsync(owner => owner.Id);
+		var activePatientIds = await dbContext.EmergencyCases.AsNoTracking()
+			.Where(emergencyCase => patientIds.Contains(emergencyCase.PatientId) && emergencyCase.DischargedAt == null)
+			.Select(emergencyCase => emergencyCase.PatientId).ToHashSetAsync();
+		var staff = await dbContext.StaffMembers.AsNoTracking().Where(member => member.IsActive)
+			.OrderBy(member => member.LastName).Select(member => new { member.Id, member.Role }).ToListAsync();
+		var doctorId = staff.FirstOrDefault(member => member.Role == StaffRole.Veterinarian)?.Id;
+		var technicianId = staff.FirstOrDefault(member => member.Role == StaffRole.Technician)?.Id;
+		var now = DateTimeOffset.UtcNow;
+
+		foreach (var seed in missing)
+		{
+			var patientId = DemoFixtureId(2, seed.Index);
+			// Preserve a fixture patient that has since been admitted to another case.
+			if (activePatientIds.Contains(patientId)) continue;
+
+			if (!patients.TryGetValue(patientId, out var patient))
+			{
+				var ownerId = DemoFixtureId(3, seed.Index);
+				if (!owners.TryGetValue(ownerId, out var owner))
+				{
+					owner = new Owner
+					{
+						Id = ownerId, FirstName = "Demo", LastName = $"Family {seed.Index}",
+						Phone = $"555-01{seed.Index + 19:D2}", Email = $"demo.family{seed.Index}@example.com"
+					};
+				}
+				patient = new Patient
+				{
+					Id = patientId, Name = seed.Name, Species = seed.Species, Breed = seed.Breed,
+					Sex = seed.Species == "Cat" ? PatientSex.FemaleSpayed : PatientSex.MaleNeutered,
+					DateOfBirth = DateOnly.FromDateTime(now.UtcDateTime).AddYears(-(seed.Index % 12 + 1)), Owner = owner
+				};
+			}
+
+			var incoming = seed.Stage == CaseStage.Incoming;
+			var blocked = !incoming && seed.Index % 4 == 0;
+			var arrivedAt = now.AddMinutes(-seed.MinutesAgo);
+			var assessedAt = arrivedAt.AddMinutes(incoming ? 0 : 5);
+			var emergencyCase = new EmergencyCase
+			{
+				Id = DemoFixtureId(1, seed.Index), Patient = patient, PresentingComplaint = seed.Complaint,
+				WeightKg = seed.Species == "Cat" ? 4.2m + seed.Index / 10m : 12m + seed.Index,
+				Stage = seed.Stage, StageEnteredAt = assessedAt, ArrivalTime = arrivedAt,
+				Status = incoming ? CaseStatus.Unassigned : blocked ? CaseStatus.Blocked : CaseStatus.InProgress,
+				AssignedDoctorId = incoming ? null : doctorId, AssignedTechnicianId = incoming ? null : technicianId,
+				NextAction = seed.NextAction,
+				OwnerUpdateStatus = seed.Index % 2 == 0 ? OwnerUpdateStatus.Updated : OwnerUpdateStatus.NotYetUpdated,
+				LastOwnerUpdateAt = seed.Index % 2 == 0 ? now.AddMinutes(-10) : null
+			};
+			emergencyCase.RecordTriage(new TriageAssessment
+			{
+				Acuity = seed.Acuity, RawIntakeNotes = seed.Complaint,
+				AssessedAt = assessedAt, AssessedByStaffId = doctorId
+			});
+			// Fictional readings for layout coverage, including partial sets.
+			emergencyCase.RecordVitals(new VitalsRecord
+			{
+				HeartRate = seed.Species == "Cat" ? 180 : 110,
+				RespiratoryRate = seed.Index % 3 == 0 ? null : 28,
+				TemperatureF = seed.Index % 3 == 0 ? null : 101.8m,
+				SpO2 = seed.Acuity == AcuityLevel.Critical ? 93 : 98,
+				RecordedAt = assessedAt, RecordedByStaffId = doctorId
+			});
+			if (!incoming && doctorId is not null)
+			{
+				emergencyCase.RecordPainScore(new PainScore
+				{
+					Score = seed.Index % 11, RecordedAt = assessedAt, RecordedByStaffId = doctorId,
+					Notes = "Fictional demo assessment for dashboard preview."
+				});
+			}
+			emergencyCase.Events.Add(new CaseEvent { Type = CaseEventType.Arrived, Description = $"{seed.Name} arrived.", CreatedAt = arrivedAt });
+			emergencyCase.Events.Add(new CaseEvent { Type = CaseEventType.Triaged, Description = $"Triaged as {seed.Acuity}.", CreatedAt = assessedAt, CreatedByStaffId = doctorId });
+			emergencyCase.Tasks.Add(new CaseTask
+			{
+				Type = blocked ? CaseTaskType.Blocker : CaseTaskType.Reassessment,
+				Description = blocked ? "Awaiting diagnostic results" : seed.NextAction,
+				CreatedAt = assessedAt, DueAt = now.AddMinutes(seed.Index % 2 == 0 ? -8 : 15),
+				CreatedByStaffId = doctorId, AssignedToStaffId = incoming ? null : technicianId
+			});
+			dbContext.EmergencyCases.Add(emergencyCase);
+		}
+
+		await dbContext.SaveChangesAsync();
+	}
+
+	private static Guid DemoFixtureId(int entity, int index) =>
+		Guid.Parse($"89dd4a0{entity}-648e-4b16-9a12-{index:D12}");
 
 	// Demo case times are set relative to the first seed and would otherwise
 	// age forever (a database seeded weeks earlier showed waits of about 1,190

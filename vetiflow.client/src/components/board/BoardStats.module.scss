@@ -44,7 +44,7 @@
 	}
 
 	&:focus-visible {
-		outline: 3px solid #9bd7cb;
+		outline: 3px solid var(--color-focus-on-light);
 		outline-offset: 2px;
 	}
 
@@ -60,7 +60,7 @@
 	justify-content: space-between;
 	gap: 6px;
 	color: var(--color-shell-muted);
-	font-size: 12px;
+	font-size: .875rem;
 	font-weight: 600;
 
 	> :first-child {
@@ -73,7 +73,7 @@
 	border-radius: 99px;
 	background: var(--color-care-mint);
 	color: #08776f;
-	font-size: 9px;
+	font-size: .75rem;
 	font-weight: 800;
 	letter-spacing: 0.3px;
 	text-transform: uppercase;
@@ -94,16 +94,16 @@
 .number {
 	display: block;
 	margin-top: 9px;
-	font-size: 25px;
+	font-size: 1.75rem;
 	font-weight: 800;
 	letter-spacing: -0.5px;
 
 	@media (max-width: 1050px) {
-		font-size: 23px;
+		font-size: 1.625rem;
 	}
 
 	@media (max-width: 650px) {
-		font-size: 21px;
+		font-size: 1.5rem;
 	}
 }
 
@@ -111,7 +111,7 @@
 	display: block;
 	margin-top: 5px;
 	color: var(--color-shell-muted);
-	font-size: 11px;
+	font-size: .8125rem;
 
 	strong {
 		color: var(--color-acuity-stable);
