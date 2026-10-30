@@ -81,6 +81,7 @@ export function buildCaseDetail(overrides: Partial<CaseDetail> = {}): CaseDetail
     lastOwnerUpdateAt: null,
     triageAssessments: [],
     vitals: [],
+    latestPainScore: null,
     tasks: [],
     nextReassessment: null,
     nextClientUpdate: null,

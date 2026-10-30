@@ -6,9 +6,10 @@ import { AddTaskDialog } from "../tasks/AddTaskDialog";
 import { DueItemDialog, type DueItemType } from "../tasks/DueItemDialog";
 import { TriageDialog } from "../triage/TriageDialog";
 import { completeTask, getCase, reopenTask } from "../../services/casesApi";
-import type { CaseDetail, CaseDueItem, CaseTask } from "../../types/CaseDetail";
+import type { CaseDetail, CaseDueItem, CaseTask, VitalName } from "../../types/CaseDetail";
 import { useToast } from "../shell/toastContext";
 import { MoreActionsMenu } from "./MoreActionsMenu";
+import { PainScorePanel } from "./PainScorePanel";
 import {
   checkInLabel,
   dueLabel,
@@ -212,12 +213,11 @@ function Overview({ detail, nameRef, onCompleteTriage, onAddTask, onSetDue, onTa
     .filter(Boolean)
     .join(" · ");
   const vitals = detail.vitals[0];
-  const tiles = [
-    ["Heart rate", vitals?.heartRate == null ? null : `${vitals.heartRate} bpm`],
-    ["Resp rate", vitals?.respiratoryRate == null ? null : `${vitals.respiratoryRate} /min`],
-    ["Temp", temperatureLabel(vitals?.temperatureF ?? null)],
-    // SpO₂ is stored from 4.8a.
-    ["SpO₂", null]
+  const tiles: { field: VitalName; label: string; value: string | null }[] = [
+    { field: "heartRate", label: "Heart rate", value: vitals?.heartRate == null ? null : `${vitals.heartRate} bpm` },
+    { field: "respiratoryRate", label: "Resp rate", value: vitals?.respiratoryRate == null ? null : `${vitals.respiratoryRate} /min` },
+    { field: "temperatureF", label: "Temp", value: temperatureLabel(vitals?.temperatureF ?? null) },
+    { field: "spO2", label: "SpO₂", value: vitals?.spO2 == null ? null : `${vitals.spO2}%` }
   ];
   const blockers = detail.tasks.filter((task) => task.type === "blocker" && task.status === "open");
   const tasks = checklistTasks(detail.tasks);
@@ -253,13 +253,20 @@ function Overview({ detail, nameRef, onCompleteTriage, onAddTask, onSetDue, onTa
       </div>
 
       <dl className={styles.vitals} aria-label="Latest vitals">
-        {tiles.map(([label, value]) => (
-          <div key={label} className={styles.vital}>
+        {tiles.map(({ field, label, value }) => (
+          <div key={field} className={styles.vital}>
             <dt className={styles.vitalLabel}>{label}</dt>
-            <dd className={styles.vitalValue}>{value ?? notRecorded}</dd>
+            <dd className={styles.vitalValue} data-alert={value !== null && vitals?.outOfRange.includes(field)}>
+              {value ?? notRecorded}
+              {value !== null && vitals?.outOfRange.includes(field) && (
+                <span className={styles.vitalAlert}>Outside range</span>
+              )}
+            </dd>
           </div>
         ))}
       </dl>
+
+      <PainScorePanel score={detail.latestPainScore} now={now} />
 
       <div className={styles.locationSection}>
         <p className={styles.row}>
