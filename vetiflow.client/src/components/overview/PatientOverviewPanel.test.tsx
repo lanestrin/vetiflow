@@ -4,7 +4,7 @@ import { http, HttpResponse } from "msw";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { readAccessToken, saveAccessToken } from "../../services/session";
-import { buildCaseDetail, buildCaseTask } from "../../test/builders";
+import { buildCaseDetail, buildCaseTask, buildPainScore } from "../../test/builders";
 import { apiUrl, server } from "../../test/server";
 import type { CaseDetail, CaseTask } from "../../types/CaseDetail";
 import { ToastProvider } from "../shell/Toast";
@@ -89,7 +89,8 @@ function renderPanel(
   refreshedAt = new Date(2026, 0, 1),
   onTriaged = vi.fn(),
   onTaskSaved = vi.fn(),
-  onVitalsSaved = vi.fn()
+  onVitalsSaved = vi.fn(),
+  onPainScoreSaved = vi.fn()
 ) {
   const panel = (id: string | null, refreshed: Date) => (
     <MemoryRouter initialEntries={["/er"]}>
@@ -97,7 +98,7 @@ function renderPanel(
         <Routes>
           <Route
             path="/er"
-            element={<PatientOverviewPanel caseId={id} refreshedAt={refreshed} onTriaged={onTriaged} onTaskSaved={onTaskSaved} onVitalsSaved={onVitalsSaved} />}
+            element={<PatientOverviewPanel caseId={id} refreshedAt={refreshed} onTriaged={onTriaged} onTaskSaved={onTaskSaved} onVitalsSaved={onVitalsSaved} onPainScoreSaved={onPainScoreSaved} />}
           />
           <Route path="/sign-in" element={<p>Sign-in page</p>} />
           <Route path="/pet-parent" element={<p>Pet parent home</p>} />
@@ -772,5 +773,153 @@ describe("recording vitals in the overview", () => {
     expect(onRefresh).toHaveBeenCalledOnce();
     expect(screen.getByRole("button", { name: "Save vitals" })).toBeDisabled();
     expect(screen.queryByText("Vitals recorded")).not.toBeInTheDocument();
+  });
+});
+
+
+describe("recording pain assessments in the overview", () => {
+  it("offers recording after a loaded active case, including one with no prior score", async () => {
+    serveCase(buildMilo({ latestPainScore: null }));
+    const view = renderPanel(null);
+    expect(screen.queryByRole("button", { name: "Record score" })).not.toBeInTheDocument();
+    view.rerender("case-milo", new Date());
+    expect(screen.queryByRole("button", { name: "Record score" })).not.toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Record score" })).toBeEnabled();
+  });
+
+  it.each([404, 500])("does not offer pain entry after load failure %s", async status => {
+    server.use(http.get(apiUrl("/api/cases/case-milo"), () => new HttpResponse(null, { status })));
+    renderPanel("case-milo");
+    await screen.findByText(status === 404 ? "This case is no longer on the board." : "Unable to load this case.");
+    expect(screen.queryByRole("button", { name: "Record score" })).not.toBeInTheDocument();
+  });
+
+  it("disables pain entry for a known discharged case", async () => {
+    serveCase(buildMilo({ dischargedAt: at(12, 0) }));
+    renderPanel("case-milo");
+    expect(await screen.findByRole("button", { name: "Record score" })).toBeDisabled();
+  });
+
+  it("discards a cancelled assessment and returns focus without preselecting an old score", async () => {
+    serveCase(buildMilo({ latestPainScore: buildPainScore({ score: 7, notes: "Previous note" }) }));
+    renderPanel("case-milo");
+    const action = await screen.findByRole("button", { name: "Record score" });
+    action.focus();
+    fireEvent.click(action);
+    expect(screen.getByLabelText("Pain score (0 to 10)")).toHaveValue("");
+    expect(screen.getByLabelText("Notes (optional)")).toHaveValue("");
+    fireEvent.change(screen.getByLabelText("Pain score (0 to 10)"), { target: { value: "3" } });
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(action).toHaveFocus();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    fireEvent.click(action);
+    expect(screen.getByLabelText("Pain score (0 to 10)")).toHaveValue("");
+    expect(screen.getByLabelText("Notes (optional)")).toHaveValue("");
+  });
+
+  it.each([200, 500])("preserves both draft fields across same-case refresh %s", async status => {
+    serveCase(buildMilo());
+    const view = renderPanel("case-milo");
+    fireEvent.click(await screen.findByRole("button", { name: "Record score" }));
+    fireEvent.change(screen.getByLabelText("Pain score (0 to 10)"), { target: { value: "0" } });
+    fireEvent.change(screen.getByLabelText("Notes (optional)"), { target: { value: "Current draft" } });
+    let reads = 0;
+    server.use(http.get(apiUrl("/api/cases/case-milo"), () => {
+      reads++;
+      return status === 200 ? HttpResponse.json(buildMilo({ weightKg: 32 })) : new HttpResponse(null, { status });
+    }));
+    view.rerender("case-milo", new Date());
+    await waitFor(() => expect(reads).toBe(1));
+    if (status === 200) await screen.findByText(/32 kg/);
+    else await screen.findByText("Unable to load this case.");
+    expect(screen.getByLabelText("Pain score (0 to 10)")).toHaveValue("0");
+    expect(screen.getByLabelText("Notes (optional)")).toHaveValue("Current draft");
+  });
+
+  it("clears the assessment when switching cases", async () => {
+    serveCase(buildMilo());
+    const second = buildCaseDetail({ id: "case-second" });
+    serveCase(second);
+    const view = renderPanel("case-milo");
+    fireEvent.click(await screen.findByRole("button", { name: "Record score" }));
+    fireEvent.change(screen.getByLabelText("Pain score (0 to 10)"), { target: { value: "3" } });
+    fireEvent.change(screen.getByLabelText("Notes (optional)"), { target: { value: "Old draft" } });
+    view.rerender(second.id, new Date());
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    fireEvent.click(await screen.findByRole("button", { name: "Record score" }));
+    expect(screen.getByRole("dialog")).toHaveTextContent(second.caseNumber);
+    expect(screen.getByLabelText("Pain score (0 to 10)")).toHaveValue("");
+    expect(screen.getByLabelText("Notes (optional)")).toHaveValue("");
+  });
+
+  it("ignores a previous patient's late save while a new patient's form is open", async () => {
+    serveCase(buildMilo());
+    serveCase(buildCaseDetail({ id: "case-second" }));
+    let finish!: () => void;
+    const pending = new Promise<void>(resolve => { finish = resolve; });
+    server.use(http.post(apiUrl("/api/cases/case-milo/pain-scores"), async () => {
+      await pending;
+      return new HttpResponse(null, { status: 201 });
+    }));
+    const request = vi.spyOn(casesApi, "recordPainScore");
+    const onSaved = vi.fn();
+    const view = renderPanel("case-milo", new Date(), vi.fn(), vi.fn(), vi.fn(), onSaved);
+    fireEvent.click(await screen.findByRole("button", { name: "Record score" }));
+    fireEvent.change(screen.getByLabelText("Pain score (0 to 10)"), { target: { value: "3" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save pain score" }));
+    expect(request).toHaveBeenCalledWith("case-milo", { score: 3 });
+    view.rerender("case-second", new Date());
+    fireEvent.click(await screen.findByRole("button", { name: "Record score" }));
+    fireEvent.change(screen.getByLabelText("Pain score (0 to 10)"), { target: { value: "8" } });
+    await act(async () => { finish(); await request.mock.results[0].value; });
+    expect(screen.getByRole("dialog")).toBeVisible();
+    expect(screen.getByLabelText("Pain score (0 to 10)")).toHaveValue("8");
+    expect(onSaved).not.toHaveBeenCalled();
+    expect(screen.queryByText("Pain score recorded")).not.toBeInTheDocument();
+  });
+
+  it("reads back score zero, notes and recorder metadata without losing the focus target", async () => {
+    const milo = buildMilo();
+    serveCase(milo);
+    server.use(http.post(apiUrl("/api/cases/case-milo/pain-scores"), () => {
+      serveCase({ ...milo, latestPainScore: buildPainScore({
+        score: 0, notes: "Brief demo note", recordedAt: at(10, 56), recordedBy: { id: "staff-ortiz", name: "Sam Ortiz" }
+      }) });
+      return new HttpResponse(null, { status: 201 });
+    }));
+    const onSaved = vi.fn();
+    renderPanel("case-milo", new Date(), vi.fn(), vi.fn(), vi.fn(), onSaved);
+    fireEvent.click(await screen.findByRole("button", { name: "Record score" }));
+    fireEvent.change(screen.getByLabelText("Pain score (0 to 10)"), { target: { value: "0" } });
+    fireEvent.change(screen.getByLabelText("Notes (optional)"), { target: { value: "Brief demo note" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save pain score" }));
+    expect(await screen.findByText("0 / 10")).toBeInTheDocument();
+    expect(screen.getByRole("meter")).toHaveAttribute("aria-valuenow", "0");
+    expect(screen.getByText("Brief demo note")).toBeInTheDocument();
+    expect(screen.getByText(/Recorded.*Sam Ortiz/)).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("Pain score recorded");
+    expect(onSaved).toHaveBeenCalledOnce();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Record score" })).toHaveFocus();
+    expect(screen.getByText("148 bpm")).toBeInTheDocument();
+    expect(screen.getByText("Critical")).toBeInTheDocument();
+  });
+
+  it("refreshes an unavailable case without a success toast or another save", async () => {
+    const milo = buildMilo();
+    serveCase(milo);
+    server.use(http.post(apiUrl("/api/cases/case-milo/pain-scores"), () => {
+      serveCase({ ...milo, dischargedAt: at(12, 0) });
+      return new HttpResponse(null, { status: 409 });
+    }));
+    const onRefresh = vi.fn();
+    renderPanel("case-milo", new Date(), vi.fn(), vi.fn(), vi.fn(), onRefresh);
+    fireEvent.click(await screen.findByRole("button", { name: "Record score" }));
+    fireEvent.change(screen.getByLabelText("Pain score (0 to 10)"), { target: { value: "4" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save pain score" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("This case has been discharged.");
+    expect(onRefresh).toHaveBeenCalledOnce();
+    expect(screen.getByRole("button", { name: "Save pain score" })).toBeDisabled();
+    expect(screen.queryByText("Pain score recorded")).not.toBeInTheDocument();
   });
 });

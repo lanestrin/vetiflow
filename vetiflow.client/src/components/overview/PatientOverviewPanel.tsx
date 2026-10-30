@@ -6,6 +6,7 @@ import { AddTaskDialog } from "../tasks/AddTaskDialog";
 import { DueItemDialog, type DueItemType } from "../tasks/DueItemDialog";
 import { TriageDialog } from "../triage/TriageDialog";
 import { RecordVitalsDialog } from "../vitals/RecordVitalsDialog";
+import { RecordPainScoreDialog } from "../pain/RecordPainScoreDialog";
 import { completeTask, getCase, reopenTask } from "../../services/casesApi";
 import type { CaseDetail, CaseDueItem, CaseTask, VitalName } from "../../types/CaseDetail";
 import { useToast } from "../shell/toastContext";
@@ -44,6 +45,7 @@ interface PatientOverviewPanelProps {
   onTaskSaved: () => void;
   // Reload the board after recording vitals or finding this case unavailable.
   onVitalsSaved: () => void;
+  onPainScoreSaved: () => void;
 }
 
 type TaskDialogKind = "addTask" | DueItemType;
@@ -55,17 +57,19 @@ const notRecorded = "Not recorded";
 // The prototype's "Patient overview" (build plan 3.2b) for the card selected
 // on the board. Complete triage and Re-triage open the triage dialog (4.2b);
 // the buttons that later items wire are shown disabled.
-export function PatientOverviewPanel({ caseId, refreshedAt, onTriaged, onTaskSaved, onVitalsSaved }: PatientOverviewPanelProps) {
+export function PatientOverviewPanel({ caseId, refreshedAt, onTriaged, onTaskSaved, onVitalsSaved, onPainScoreSaved }: PatientOverviewPanelProps) {
   const titleId = useId();
   const leaveWhenRefused = useLeaveWhenRefused();
   const nameRef = useRef<HTMLHeadingElement>(null);
   const recordVitalsRef = useRef<HTMLButtonElement>(null);
+  const recordPainRef = useRef<HTMLButtonElement>(null);
   const [attempt, setAttempt] = useState(0);
-  const [vitalsRevision, setVitalsRevision] = useState(0);
+  const [assessmentRevision, setAssessmentRevision] = useState(0);
   const showToast = useToast();
   const [isTriaging, setIsTriaging] = useState(false);
   const [taskDialog, setTaskDialog] = useState<TaskDialogKind | null>(null);
   const [vitalsDialogCase, setVitalsDialogCase] = useState<CaseDetail | null>(null);
+  const [painDialogCase, setPainDialogCase] = useState<CaseDetail | null>(null);
   // A dialog for one case never carries over to the next selection.
   const [dialogCaseId, setDialogCaseId] = useState(caseId);
   if (dialogCaseId !== caseId) {
@@ -73,6 +77,7 @@ export function PatientOverviewPanel({ caseId, refreshedAt, onTriaged, onTaskSav
     setIsTriaging(false);
     setTaskDialog(null);
     setVitalsDialogCase(null);
+    setPainDialogCase(null);
   }
   // Keyed by case and attempt, so a board reload keeps the shown case on
   // screen while a new case or a retry shows "Loading case…".
@@ -104,7 +109,7 @@ export function PatientOverviewPanel({ caseId, refreshedAt, onTriaged, onTaskSav
     return () => {
       isActive = false;
     };
-  }, [caseId, key, refreshedAt, leaveWhenRefused, vitalsRevision]);
+  }, [caseId, key, refreshedAt, leaveWhenRefused, assessmentRevision]);
 
   const result = caseId !== null && loaded?.key === key ? loaded.result : null;
   const detail = result?.kind === "shown" ? result.detail : null;
@@ -146,6 +151,8 @@ export function PatientOverviewPanel({ caseId, refreshedAt, onTriaged, onTaskSav
           onTaskSaved={onTaskSaved}
           onRecordVitals={() => setVitalsDialogCase(detail)}
           recordVitalsRef={recordVitalsRef}
+          onRecordPain={() => setPainDialogCase(detail)}
+          recordPainRef={recordPainRef}
         />
       )}
       {detail && isTriaging && (
@@ -188,12 +195,33 @@ export function PatientOverviewPanel({ caseId, refreshedAt, onTriaged, onTaskSav
             setVitalsDialogCase(null);
             recordVitalsRef.current?.focus();
             showToast("Vitals recorded");
-            setVitalsRevision(count => count + 1);
+            setAssessmentRevision(count => count + 1);
             onVitalsSaved();
           }}
           onUnavailable={() => {
-            setVitalsRevision(count => count + 1);
+            setAssessmentRevision(count => count + 1);
             onVitalsSaved();
+          }}
+        />
+      )}
+      {painDialogCase && (
+        <RecordPainScoreDialog
+          key={painDialogCase.id}
+          detail={detail ?? painDialogCase}
+          onClose={() => {
+            setPainDialogCase(null);
+            recordPainRef.current?.focus();
+          }}
+          onSaved={() => {
+            setPainDialogCase(null);
+            recordPainRef.current?.focus();
+            showToast("Pain score recorded");
+            setAssessmentRevision(count => count + 1);
+            onPainScoreSaved();
+          }}
+          onUnavailable={() => {
+            setAssessmentRevision(count => count + 1);
+            onPainScoreSaved();
           }}
         />
       )}
@@ -235,9 +263,11 @@ interface OverviewProps {
   onTaskSaved: () => void;
   onRecordVitals: () => void;
   recordVitalsRef: RefObject<HTMLButtonElement | null>;
+  onRecordPain: () => void;
+  recordPainRef: RefObject<HTMLButtonElement | null>;
 }
 
-function Overview({ detail, nameRef, onCompleteTriage, onAddTask, onSetDue, onTaskSaved, onRecordVitals, recordVitalsRef }: OverviewProps) {
+function Overview({ detail, nameRef, onCompleteTriage, onAddTask, onSetDue, onTaskSaved, onRecordVitals, recordVitalsRef, onRecordPain, recordPainRef }: OverviewProps) {
   const now = useNow();
   const { patient, owner } = detail;
   const kind = speciesKind(patient.species);
@@ -305,7 +335,8 @@ function Overview({ detail, nameRef, onCompleteTriage, onAddTask, onSetDue, onTa
         </dl>
       </section>
 
-      <PainScorePanel score={detail.latestPainScore} now={now} />
+      <PainScorePanel score={detail.latestPainScore} now={now} onRecord={onRecordPain}
+        disabled={detail.dischargedAt !== null} recordRef={recordPainRef} />
 
       <div className={styles.locationSection}>
         <p className={styles.row}>

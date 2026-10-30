@@ -106,6 +106,13 @@ Not part of v1. Open question.
 - Custom focus outlines throughout the application use 1px via the shared
   `--focus-outline-width` token (requested 2026-10-29). Keep visible keyboard
   focus and the existing contrasting colours on light and dark surfaces.
+- Application text previously set to font weight 800 uses 700 (requested
+  2026-10-30); retain the other weights and use 700 for new bold headings.
+- The landing emergency footer is compact: reduced padding and badge, with
+  information/actions sharing a row when they fit and wrapping on narrow
+  screens. It stays in normal flow on phones, tablets and short windows so
+  it does not cover sign-in controls. Keep both demo actions and the full
+  emergency guidance visible (requested 2026-10-30).
 - Acuity colours and labels: Critical (red), Urgent (amber), Stable (teal), in
   that order (three levels, decided 2026-10-28; 0.4).
 - Calm, plain wording on the owner page. No acuity, no clinical shorthand.

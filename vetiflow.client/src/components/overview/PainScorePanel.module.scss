@@ -11,7 +11,7 @@
 	gap: 4px 8px;
 	margin-bottom: 10px;
 	font-size: .875rem;
-	font-weight: 800;
+	font-weight: 700;
 
 	h3 {
 		margin: 0;
@@ -89,7 +89,16 @@
 	font: inherit;
 	font-size: .875rem;
 	font-weight: 700;
-	cursor: not-allowed;
+	cursor: pointer;
+
+	&:disabled {
+		cursor: not-allowed;
+	}
+
+	&:focus-visible {
+		outline: var(--focus-outline-width) solid var(--color-focus-on-light);
+		outline-offset: 2px;
+	}
 }
 
 @media (min-width: 651px) and (max-width: 1050px) {
