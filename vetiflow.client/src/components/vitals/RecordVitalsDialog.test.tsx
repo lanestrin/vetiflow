@@ -2,7 +2,8 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { http, HttpResponse } from "msw";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
-import { buildCaseDetail } from "../../test/builders";
+import { buildCaseDetail, buildVitalsRecord } from "../../test/builders";
+import type { CaseDetail } from "../../types/CaseDetail";
 import { apiUrl, server } from "../../test/server";
 import { readAccessToken, saveAccessToken } from "../../services/session";
 import * as casesApi from "../../services/casesApi";
@@ -22,11 +23,11 @@ const heart = () => screen.getByLabelText("Heart rate (bpm)");
 const save = () => fireEvent.click(screen.getByRole("button", { name: "Save vitals" }));
 function enter(label: string, value: string) { fireEvent.change(screen.getByLabelText(label), { target: { value } }); }
 
-function renderDialog() {
+function renderDialog(overrides: Partial<CaseDetail> = {}) {
   const onClose = vi.fn();
   const onSaved = vi.fn();
   const onUnavailable = vi.fn();
-  const detail = buildCaseDetail({ id: "case-42", caseNumber: "ER-42" });
+  const detail = buildCaseDetail({ id: "case-42", caseNumber: "ER-42", ...overrides });
   const view = render(<MemoryRouter><Routes>
     <Route path="/" element={<RecordVitalsDialog detail={detail} onClose={onClose} onSaved={onSaved} onUnavailable={onUnavailable} />} />
     <Route path="/sign-in" element={<p>Sign-in page</p>} />
@@ -51,6 +52,87 @@ function deferredWrite() {
 }
 
 describe("RecordVitalsDialog", () => {
+  it("prefills all seven latest values and records the full unchanged reviewed set", async () => {
+    const sent = serve();
+    const latest = buildVitalsRecord({ heartRate: 125, respiratoryRate: 28, temperatureF: 102, spO2: 97,
+      mucousMembraneColor: "Pink", capillaryRefillTime: "2 s", mentation: "Alert" });
+    const { onSaved } = renderDialog({ vitals: [latest] });
+    expect(screen.getAllByRole("textbox").map(input => (input as HTMLInputElement).value)).toEqual([
+      "125", "28", "38.9", "97", "Pink", "2 s", "Alert"
+    ]);
+    expect(screen.getByText(/saving records the full form as a new set/i)).toBeInTheDocument();
+    save();
+    await waitFor(() => expect(onSaved).toHaveBeenCalledOnce());
+    expect(sent).toEqual([{ heartRate: 125, respiratoryRate: 28, temperatureF: 102, spO2: 97,
+      mucousMembraneColor: "Pink", capillaryRefillTime: "2 s", mentation: "Alert" }]);
+  });
+
+  it.each([80, 101.5, 103.1, 115])("preserves an unchanged %s F reading without round-trip drift", async temperatureF => {
+    const sent = serve();
+    const { onSaved } = renderDialog({ vitals: [buildVitalsRecord({ temperatureF })] });
+    expect(screen.getByLabelText("Temperature (°C)")).toHaveValue(((temperatureF - 32) * 5 / 9).toFixed(1));
+    save();
+    await waitFor(() => expect(onSaved).toHaveBeenCalledOnce());
+    expect(sent).toEqual([{ temperatureF }]);
+  });
+
+  it("converts a changed prefilled temperature while retaining other reviewed values", async () => {
+    const sent = serve();
+    const { onSaved } = renderDialog({ vitals: [buildVitalsRecord({ heartRate: 125, temperatureF: 80 })] });
+    enter("Temperature (°C)", "38.9");
+    save();
+    await waitFor(() => expect(onSaved).toHaveBeenCalledOnce());
+    expect(sent).toEqual([{ heartRate: 125, temperatureF: 102 }]);
+  });
+
+  it("leaves missing latest values blank without borrowing from an older set", () => {
+    renderDialog({ vitals: [buildVitalsRecord({ mentation: "Alert" }), buildVitalsRecord({ heartRate: 125, temperatureF: 102 })] });
+    expect(heart()).toHaveValue("");
+    expect(screen.getByLabelText("Temperature (°C)")).toHaveValue("");
+    expect(screen.getByLabelText("Mentation")).toHaveValue("Alert");
+  });
+
+  it("omits cleared prefilled readings and observations from the new set", async () => {
+    const sent = serve();
+    const { onSaved } = renderDialog({ vitals: [buildVitalsRecord({ heartRate: 125, temperatureF: 102, mentation: "Alert" })] });
+    enter("Temperature (°C)", "");
+    enter("Mentation", "   ");
+    save();
+    await waitFor(() => expect(onSaved).toHaveBeenCalledOnce());
+    expect(sent).toEqual([{ heartRate: 125 }]);
+  });
+
+  it("rejects a reviewed set after every prefilled value is cleared", () => {
+    const sent = serve();
+    renderDialog({ vitals: [buildVitalsRecord({ heartRate: 125, mentation: "Alert" })] });
+    enter("Heart rate (bpm)", "");
+    enter("Mentation", "");
+    save();
+    expect(screen.getByRole("alert")).toHaveTextContent("Enter at least one reading or observation.");
+    expect(sent).toEqual([]);
+  });
+
+  it("retains the draft on backdrop and empty-space clicks", () => {
+    const sent = serve();
+    const { onClose } = renderDialog();
+    enter("Heart rate (bpm)", "90");
+    fireEvent.click(screen.getByRole("dialog"));
+    fireEvent.click(screen.getByRole("heading", { name: "Record vitals" }));
+    expect(screen.getByRole("dialog")).toBeVisible();
+    expect(heart()).toHaveValue("90");
+    expect(onClose).not.toHaveBeenCalled();
+    expect(sent).toEqual([]);
+  });
+
+  it("focuses a server-invalid field after pending inputs are re-enabled", async () => {
+    serve(400, { errors: { Mentation: ["Check this observation."] } });
+    renderDialog({ vitals: [buildVitalsRecord({ heartRate: 125 })] });
+    save();
+    await screen.findByText("Check this observation.");
+    expect(screen.getByLabelText("Mentation")).toBeEnabled();
+    await waitFor(() => expect(screen.getByLabelText("Mentation")).toHaveFocus());
+  });
+
   it("opens a blank set for the named case with focus on heart rate", () => {
     renderDialog();
     expect(screen.getByRole("dialog", { name: "Record vitals" })).toBeVisible();
@@ -199,12 +281,11 @@ describe("RecordVitalsDialog", () => {
     expect(onSaved).not.toHaveBeenCalled();
   });
 
-  it.each(["Cancel", "Close record vitals", "Escape", "backdrop"])("dismisses through %s without saving", method => {
+  it.each(["Cancel", "Close record vitals", "Escape"])("dismisses through %s without saving", method => {
     const sent = serve();
     const { onClose, onSaved } = renderDialog();
     enter("Heart rate (bpm)", "90");
     if (method === "Escape") fireEvent(screen.getByRole("dialog"), new Event("cancel", { cancelable: true }));
-    else if (method === "backdrop") fireEvent.click(screen.getByRole("dialog"));
     else fireEvent.click(screen.getByRole("button", { name: method }));
     expect(onClose).toHaveBeenCalledOnce();
     expect(onSaved).not.toHaveBeenCalled();

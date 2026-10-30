@@ -225,6 +225,31 @@
 	font-weight: 600;
 }
 
+.observations {
+	display: grid;
+	gap: .625rem;
+	margin: .875rem 0 0;
+	font-size: .875rem;
+	line-height: 1.5;
+
+	dt {
+		color: var(--color-shell-muted);
+	}
+
+	dd {
+		margin: .125rem 0 0;
+		overflow-wrap: anywhere;
+	}
+}
+
+.vitalsRecorded {
+	margin: .75rem 0 0;
+	color: var(--color-shell-muted);
+	font-size: .8125rem;
+	line-height: 1.5;
+	overflow-wrap: anywhere;
+}
+
 .locationSection {
 	padding: 0 19px 14px;
 }

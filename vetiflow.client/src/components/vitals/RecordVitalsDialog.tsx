@@ -39,10 +39,25 @@ export function RecordVitalsDialog({ detail, onClose, onSaved, onUnavailable }: 
   const leaveWhenRefused = useLeaveWhenRefused();
   // A background refetch must not change which patient this draft belongs to.
   const [target] = useState({ id: detail.id, name: detail.patient.name, number: detail.caseNumber });
+  const [initial] = useState(() => {
+    const latest = detail.vitals[0];
+    const temperatureF = latest?.temperatureF ?? null;
+    return {
+      heartRate: latest?.heartRate ?? "",
+      respiratoryRate: latest?.respiratoryRate ?? "",
+      temperatureC: temperatureF === null ? "" : ((temperatureF - 32) * 5 / 9).toFixed(1),
+      spO2: latest?.spO2 ?? "",
+      mucousMembraneColor: latest?.mucousMembraneColor ?? "",
+      capillaryRefillTime: latest?.capillaryRefillTime ?? "",
+      mentation: latest?.mentation ?? "",
+      temperatureF
+    };
+  });
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<Field, string>>>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isGone, setIsGone] = useState(false);
+  const [errorFocus, setErrorFocus] = useState<Field | null>(null);
   const unavailable = isGone || detail.dischargedAt !== null;
 
   function focusField(field: Field) {
@@ -57,6 +72,14 @@ export function RecordVitalsDialog({ detail, onClose, onSaved, onUnavailable }: 
     if (input instanceof HTMLInputElement) input.focus();
     return () => { active.current = false; };
   }, []);
+
+  // Server validation arrives while controls are disabled; wait for re-enable.
+  useEffect(() => {
+    if (!isSaving && errorFocus !== null) {
+      const input = formRef.current?.elements.namedItem(errorFocus);
+      if (input instanceof HTMLInputElement) input.focus();
+    }
+  }, [errorFocus, isSaving]);
 
   function dismiss() {
     if (!saving.current) dialogRef.current?.close();
@@ -80,7 +103,9 @@ export function RecordVitalsDialog({ detail, onClose, onSaved, onUnavailable }: 
       if (!/^-?\d+(\.\d+)?$/.test(text) || !Number.isFinite(value) || !precisionValid || value < field.min || value > field.max) {
         errors[field.name] = isTemperature ? temperatureError : `Enter a whole number from ${field.min} to ${field.max}.`;
       } else if (field.name === "temperatureC") {
-        const fahrenheit = Math.round((value * 9 / 5 + 32) * 10) / 10;
+        const fahrenheit = initial.temperatureF !== null && value === Number(initial.temperatureC)
+          ? initial.temperatureF
+          : Math.round((value * 9 / 5 + 32) * 10) / 10;
         if (fahrenheit < 80 || fahrenheit > 115) errors.temperatureC = temperatureError;
         else request.temperatureF = fahrenheit;
       } else {
@@ -107,6 +132,7 @@ export function RecordVitalsDialog({ detail, onClose, onSaved, onUnavailable }: 
     }
 
     saving.current = true;
+    setErrorFocus(null);
     setIsSaving(true);
     try {
       await recordVitals(target.id, request);
@@ -134,7 +160,7 @@ export function RecordVitalsDialog({ detail, onClose, onSaved, onUnavailable }: 
         setFieldErrors(mapped);
         setFormError(readingsError ? emptySetError : Object.keys(mapped).length === 0 ? "Unable to save vitals. Try again." : null);
         const invalid = fields.find(field => mapped[field.name]);
-        focusField(invalid?.name ?? "heartRate");
+        setErrorFocus(invalid?.name ?? "heartRate");
       } else {
         setFormError("Unable to save vitals. Try again.");
       }
@@ -147,8 +173,7 @@ export function RecordVitalsDialog({ detail, onClose, onSaved, onUnavailable }: 
   return (
     <dialog ref={dialogRef} className={styles.dialog} aria-labelledby={`${id}-title`}
       onClose={onClose}
-      onCancel={(event) => { event.preventDefault(); dismiss(); }}
-      onClick={(event) => { if (event.target === event.currentTarget) dismiss(); }}>
+      onCancel={(event) => { event.preventDefault(); dismiss(); }}>
       <header className={styles.head}>
         <div>
           <h2 id={`${id}-title`} className={styles.title}>Record vitals</h2>
@@ -158,7 +183,7 @@ export function RecordVitalsDialog({ detail, onClose, onSaved, onUnavailable }: 
       </header>
       <form ref={formRef} onSubmit={submit} noValidate aria-labelledby={`${id}-title`} aria-busy={isSaving}>
         <div className={styles.body}>
-          <p className={styles.hint} id={`${id}-hint`}>Enter the measurements taken now. Leave other fields blank.</p>
+          <p className={styles.hint} id={`${id}-hint`}>Review all values before saving. Saving records the full form as a new set. Clear values that were not assessed.</p>
           {(formError || detail.dischargedAt !== null) && <p className={styles.formError} role="alert">
             {formError ?? "This case has been discharged."}
           </p>}
@@ -171,6 +196,7 @@ export function RecordVitalsDialog({ detail, onClose, onSaved, onUnavailable }: 
                   <input
                     id={`${id}-${field.name}`}
                     name={field.name}
+                    defaultValue={initial[field.name]}
                     type="text"
                     inputMode={field.name === "temperatureC" ? "decimal" : "numeric"}
                     autoComplete="off"
@@ -191,6 +217,7 @@ export function RecordVitalsDialog({ detail, onClose, onSaved, onUnavailable }: 
                 <input
                   id={`${id}-${field.name}`}
                   name={field.name}
+                  defaultValue={initial[field.name]}
                   type="text"
                   maxLength={50}
                   autoComplete="off"

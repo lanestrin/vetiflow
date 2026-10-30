@@ -470,10 +470,12 @@ describe("ErBoardPage", () => {
 
 
 describe("record vitals from the ER board", () => {
-  it("reloads the board and selected panel without a hub echo, keeping acuity and newest-set semantics", async () => {
+  it("reloads the full reviewed set and server metadata without a hub echo, keeping acuity", async () => {
     const buddy = buildCase({ id: "case-buddy", patientName: "Buddy", acuity: "urgent" });
-    const before = buildVitalsRecord({ heartRate: 100, respiratoryRate: 24, temperatureF: 101.5, spO2: 98 });
-    const savedReading = buildVitalsRecord({ spO2: 91, outOfRange: ["spO2"] });
+    const before = buildVitalsRecord({ heartRate: 100, respiratoryRate: 24, temperatureF: 101.5, spO2: 98,
+      mucousMembraneColor: "Pink", capillaryRefillTime: "2 s", mentation: "Alert" });
+    const savedReading = buildVitalsRecord({ ...before, id: "new-vitals", spO2: 91, outOfRange: ["spO2"],
+      recordedAt: new Date().toISOString(), recordedBy: { id: "s1", name: "Jordan Lee" } });
     let saved = false;
     let boardReads = 0;
     let payload: unknown;
@@ -498,10 +500,16 @@ describe("record vitals from the ER board", () => {
     expect(await screen.findByText("91%")).toBeInTheDocument();
     await waitFor(() => expect(boardReads).toBeGreaterThan(readsBeforeSave));
     const latest = screen.getByLabelText("Latest vitals");
-    expect(within(latest).getAllByText("Not recorded")).toHaveLength(3);
+    expect(within(latest).queryByText("Not recorded")).not.toBeInTheDocument();
     expect(within(latest).getByText("Outside range")).toBeInTheDocument();
-    expect(within(latest).queryByText("100 bpm")).not.toBeInTheDocument();
-    expect(payload).toEqual({ spO2: 91 });
+    expect(within(latest).getByText("100 bpm")).toBeInTheDocument();
+    expect(within(latest).getByText("24 /min")).toBeInTheDocument();
+    expect(within(latest).getByText("38.6 °C")).toBeInTheDocument();
+    const observations = within(screen.getByLabelText("Latest observations"));
+    expect(observations.getAllByRole("definition").map(value => value.textContent)).toEqual(["Pink", "2 s", "Alert"]);
+    expect(within(screen.getByRole("region", { name: "Vitals" })).getByText(/^Recorded /)).toHaveTextContent(/Recorded .* · Jordan Lee/);
+    expect(payload).toEqual({ heartRate: 100, respiratoryRate: 24, temperatureF: 101.5, spO2: 91,
+      mucousMembraneColor: "Pink", capillaryRefillTime: "2 s", mentation: "Alert" });
     expect(within(await findLane("Urgent")).getByRole("button", { name: "Buddy" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("status")).toHaveTextContent("Vitals recorded");
   });
