@@ -1,6 +1,6 @@
 import type { SignedInUser } from "../types/Auth";
 import type { BoardSummary } from "../types/BoardSummary";
-import type { CaseDetail, CaseTask, VitalsRecord } from "../types/CaseDetail";
+import type { CaseDetail, CaseTask, PainScore, VitalsRecord } from "../types/CaseDetail";
 import type { EmergencyCaseListItem } from "../types/EmergencyCaseListItem";
 import type { PatientListItem } from "../types/PatientListItem";
 
@@ -95,6 +95,13 @@ export function buildVitalsRecord(overrides: Partial<VitalsRecord> = {}): Vitals
     id: crypto.randomUUID(), heartRate: null, respiratoryRate: null, temperatureF: null, spO2: null,
     mucousMembraneColor: null, capillaryRefillTime: null, mentation: null, outOfRange: [],
     recordedAt: new Date().toISOString(), recordedBy: null,
+    ...overrides
+  };
+}
+
+export function buildPainScore(overrides: Partial<PainScore> = {}): PainScore {
+  return {
+    id: crypto.randomUUID(), score: 7, notes: null, recordedAt: new Date().toISOString(), recordedBy: null,
     ...overrides
   };
 }

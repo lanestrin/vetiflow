@@ -4,11 +4,65 @@ import { buildCase, buildCaseDetail } from "../test/builders";
 import { apiUrl, server } from "../test/server";
 import type { CaseIntakeRequest } from "../types/CaseIntake";
 import { AccessDeniedError, CaseGoneError, FormRejectedError, SessionEndedError } from "./apiErrors";
-import { completeTask, createIntake, createTask, getCase, getEmergencyCases, recordVitals, reopenTask, triageCase, updateCaseStage } from "./casesApi";
+import { completeTask, createIntake, createTask, getCase, getEmergencyCases, recordPainScore, recordVitals, reopenTask, triageCase, updateCaseStage } from "./casesApi";
 import { saveAccessToken } from "./session";
 
 afterEach(() => {
   sessionStorage.clear();
+});
+
+describe("recordPainScore", () => {
+  const path = apiUrl("/api/cases/case-42/pain-scores");
+
+  it.each([{ score: 0 }, { score: 10, notes: "Brief demo observation" }])("posts a new assessment %j with authentication", async payload => {
+    saveAccessToken("token-pain");
+    let sent: unknown;
+    let token: string | null = null;
+    server.use(http.post(path, async ({ request }) => {
+      sent = await request.json();
+      token = request.headers.get("Authorization");
+      return new HttpResponse(null, { status: 201 });
+    }));
+
+    await expect(recordPainScore("case-42", payload)).resolves.toBeUndefined();
+
+    expect(sent).toEqual(payload);
+    expect(token).toBe("Bearer token-pain");
+  });
+
+  it("returns field validation messages without parsing a success body", async () => {
+    server.use(http.post(path, () => HttpResponse.json({ errors: {
+      Score: ["Choose a score from 0 to 10.", "Other error"], Notes: ["Use 500 characters or fewer."]
+    } }, { status: 400 })));
+    await expect(recordPainScore("case-42", { score: 11 })).rejects.toMatchObject({
+      fieldErrors: { Score: "Choose a score from 0 to 10.", Notes: "Use 500 characters or fewer." }
+    });
+  });
+
+  it("handles an unreadable validation response", async () => {
+    server.use(http.post(path, () => new HttpResponse("not JSON", { status: 400 })));
+    await expect(recordPainScore("case-42", { score: 4 })).rejects.toBeInstanceOf(FormRejectedError);
+  });
+
+  it.each([[401, SessionEndedError], [403, AccessDeniedError]] as const)("handles refusal %s", async (status, error) => {
+    server.use(http.post(path, () => new HttpResponse(null, { status })));
+    await expect(recordPainScore("case-42", { score: 4 })).rejects.toBeInstanceOf(error);
+  });
+
+  it.each([[404, "notFound"], [409, "discharged"]] as const)("handles unavailable case %s", async (status, reason) => {
+    server.use(http.post(path, () => new HttpResponse(null, { status })));
+    await expect(recordPainScore("case-42", { score: 4 })).rejects.toMatchObject({ name: "CaseGoneError", reason });
+  });
+
+  it("does not expose unexpected response content", async () => {
+    server.use(http.post(path, () => new HttpResponse("private details", { status: 500 })));
+    await expect(recordPainScore("case-42", { score: 4 })).rejects.toThrow("Failed to record pain score.");
+  });
+
+  it("reports network failures", async () => {
+    server.use(http.post(path, () => HttpResponse.error()));
+    await expect(recordPainScore("case-42", { score: 4 })).rejects.toThrow();
+  });
 });
 
 describe("recordVitals", () => {

@@ -1,5 +1,5 @@
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 import type { PainScore } from "../../types/CaseDetail";
 import { PainScorePanel } from "./PainScorePanel";
 
@@ -13,18 +13,34 @@ const recorded: PainScore = {
 };
 
 describe("PainScorePanel", () => {
-  it("distinguishes no score from zero and leaves recording disabled", () => {
-    render(<PainScorePanel score={null} now={now} />);
+  it("opens recording without altering the displayed assessment", () => {
+    const onRecord = vi.fn();
+    render(<PainScorePanel score={recorded} now={now} onRecord={onRecord} />);
+    fireEvent.click(screen.getByRole("button", { name: "Record score" }));
+    expect(onRecord).toHaveBeenCalledOnce();
+    expect(screen.getByRole("meter")).toHaveAttribute("aria-valuenow", "7");
+  });
+
+  it("prevents entry for a discharged case", () => {
+    const onRecord = vi.fn();
+    render(<PainScorePanel score={recorded} now={now} onRecord={onRecord} disabled />);
+    const record = screen.getByRole("button", { name: "Record score" });
+    expect(record).toBeDisabled();
+    fireEvent.click(record);
+    expect(onRecord).not.toHaveBeenCalled();
+  });
+  it("distinguishes no score from zero while offering recording", () => {
+    render(<PainScorePanel score={null} now={now} onRecord={vi.fn()} />);
 
     expect(screen.getByRole("region", { name: "Pain score" })).toHaveTextContent("Not recorded");
     expect(screen.getByText("Use the clinic's approved species-specific scale.")).toBeInTheDocument();
     expect(screen.queryByRole("meter")).not.toBeInTheDocument();
     expect(screen.queryByText("0 / 10")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "＋ Record score" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Record score" })).toBeEnabled();
   });
 
   it.each([0, 7, 10])("shows recorded score %i with its accessible meter value", (score) => {
-    render(<PainScorePanel score={{ ...recorded, score }} now={now} />);
+    render(<PainScorePanel score={{ ...recorded, score }} now={now} onRecord={vi.fn()} />);
 
     expect(screen.getByText(`${score} / 10`)).toBeInTheDocument();
     const meter = screen.getByRole("meter", { name: "Pain score" });
@@ -36,7 +52,7 @@ describe("PainScorePanel", () => {
   });
 
   it("shows when and who recorded the score", () => {
-    render(<PainScorePanel score={recorded} now={now} />);
+    render(<PainScorePanel score={recorded} now={now} onRecord={vi.fn()} />);
 
     expect(screen.getByText("Recorded 11:15 AM · Jordan Lee")).toBeInTheDocument();
   });
@@ -44,7 +60,7 @@ describe("PainScorePanel", () => {
   it("adds the date for an older score and omits an absent recorder", () => {
     render(<PainScorePanel score={{
       ...recorded, recordedBy: null, recordedAt: new Date(2026, 9, 28, 22, 15).toISOString()
-    }} now={now} />);
+    }} now={now} onRecord={vi.fn()} />);
 
     expect(screen.getByText("Recorded 28 Oct, 10:15 PM")).toBeInTheDocument();
     expect(screen.queryByText(/Jordan Lee/)).not.toBeInTheDocument();
@@ -52,16 +68,16 @@ describe("PainScorePanel", () => {
 
   it("renders clinical notes as literal text", () => {
     const notes = '<img src=x onerror="alert(1)"> Patient is restless.';
-    render(<PainScorePanel score={{ ...recorded, notes }} now={now} />);
+    render(<PainScorePanel score={{ ...recorded, notes }} now={now} onRecord={vi.fn()} />);
 
     expect(screen.getByText(notes)).toBeInTheDocument();
     expect(screen.queryByRole("img")).not.toBeInTheDocument();
   });
 
   it("replaces the meter and notes when the score becomes missing", () => {
-    const view = render(<PainScorePanel score={{ ...recorded, notes: "Restless" }} now={now} />);
+    const view = render(<PainScorePanel score={{ ...recorded, notes: "Restless" }} now={now} onRecord={vi.fn()} />);
 
-    view.rerender(<PainScorePanel score={null} now={now} />);
+    view.rerender(<PainScorePanel score={null} now={now} onRecord={vi.fn()} />);
 
     expect(screen.queryByRole("meter")).not.toBeInTheDocument();
     expect(screen.queryByText("Restless")).not.toBeInTheDocument();

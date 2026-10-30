@@ -1,4 +1,4 @@
-import { useId } from "react";
+import { useId, type RefObject } from "react";
 import type { PainScore } from "../../types/CaseDetail";
 import { timeLabel } from "./overviewFormat";
 import styles from "./PainScorePanel.module.scss";
@@ -6,9 +6,12 @@ import styles from "./PainScorePanel.module.scss";
 interface PainScorePanelProps {
   score: PainScore | null;
   now: Date;
+  onRecord: () => void;
+  disabled?: boolean;
+  recordRef?: RefObject<HTMLButtonElement | null>;
 }
 
-export function PainScorePanel({ score, now }: PainScorePanelProps) {
+export function PainScorePanel({ score, now, onRecord, disabled = false, recordRef }: PainScorePanelProps) {
   const titleId = useId();
 
   return (
@@ -38,7 +41,9 @@ export function PainScorePanel({ score, now }: PainScorePanelProps) {
             ? "Use the clinic's approved species-specific scale."
             : `Recorded ${timeLabel(score.recordedAt, now)}${score.recordedBy ? ` · ${score.recordedBy.name}` : ""}`}
         </p>
-        <button type="button" className={styles.record} disabled>＋ Record score</button>
+        <button ref={recordRef} type="button" className={styles.record} disabled={disabled} onClick={onRecord}>
+          <span aria-hidden="true">＋ </span>Record score
+        </button>
       </div>
       {score?.notes && <p className={styles.notes}>{score.notes}</p>}
     </section>

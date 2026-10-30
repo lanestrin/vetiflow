@@ -6,6 +6,7 @@ import type { CaseDetail, CaseTaskRequest } from "../types/CaseDetail";
 import type { CaseIntakeRequest, CaseIntakeResult } from "../types/CaseIntake";
 import type { TriageRequest } from "../types/Triage";
 import type { RecordVitalsRequest } from "../types/RecordVitalsRequest";
+import type { PainScoreRequest } from "../types/PainScoreRequest";
 import { CaseGoneError, FormRejectedError } from "./apiErrors";
 import { authorizationHeader, throwIfRefused } from "./apiRequest";
 
@@ -164,6 +165,28 @@ export async function recordVitals(caseId: string, request: RecordVitalsRequest)
   }
   if (!response.ok) {
     throw new Error("Failed to record vitals.");
+  }
+}
+
+export async function recordPainScore(caseId: string, request: PainScoreRequest): Promise<void> {
+  const response = await fetch(`${apiBaseUrl}/api/cases/${caseId}/pain-scores`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authorizationHeader() },
+    body: JSON.stringify(request)
+  });
+
+  throwIfRefused(response);
+  if (response.status === 400) {
+    throw new FormRejectedError(await readFieldErrors(response));
+  }
+  if (response.status === 404) {
+    throw new CaseGoneError("notFound");
+  }
+  if (response.status === 409) {
+    throw new CaseGoneError("discharged");
+  }
+  if (!response.ok) {
+    throw new Error("Failed to record pain score.");
   }
 }
 

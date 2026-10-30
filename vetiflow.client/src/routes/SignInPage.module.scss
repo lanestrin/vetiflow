@@ -74,15 +74,20 @@ $muted: #556372;
 	min-width: 0;
 }
 
-// Full width at the foot of the page, out past the shell's side padding. On
-// wide screens it sticks to the bottom of the window, as in the design, so it
-// is always in sight even when the card makes the page taller than the screen.
+// Full width past the shell's side padding. Wide, tall windows keep the
+// compact footer in view; short and narrow windows use document flow.
 .emergencyArea {
 	position: sticky;
 	inset-block-end: 0;
 	z-index: 2;
 	grid-area: emergency;
 	margin-inline: calc(-1 * var(--gutter));
+
+	// On short windows, keep every sign-in control clear of the footer.
+	@media (max-height: 45rem) {
+		position: relative;
+		inset-block-end: auto;
+	}
 }
 
 .brandArea {
@@ -110,11 +115,11 @@ $muted: #556372;
 // When a control gets focus, the browser scrolls it clear of the sticky
 // emergency bar (WCAG 2.2 "Focus not obscured").
 .cardArea :is(a, button, input, summary) {
-	scroll-margin-block-end: 7.5rem;
+	scroll-margin-block-end: 6rem;
 
-	// The bar is compact on short windows (EmergencyBar.module.scss).
+	// There is no overlay to clear once the footer is in normal flow.
 	@media (max-height: 45rem) {
-		scroll-margin-block-end: 5.5rem;
+		scroll-margin-block-end: 1rem;
 	}
 }
 
@@ -166,7 +171,7 @@ $muted: #556372;
 	margin: 0;
 	color: $navy;
 	font-size: 2.25rem;
-	font-weight: 800;
+	font-weight: 700;
 	letter-spacing: -0.045em;
 
 	&:focus {
@@ -481,7 +486,12 @@ $panel-fade: 420ms;
 	// sticky here: on a phone it would cover too much of the form.
 	.emergencyArea {
 		position: relative;
+		inset-block-end: auto;
 		margin-inline: calc(50% - 50vw);
+	}
+
+	.cardArea :is(a, button, input, summary) {
+		scroll-margin-block-end: 1rem;
 	}
 
 	// Behind the brand and story rows: from the page's top (out past the
