@@ -35,6 +35,9 @@
 }
 
 .reviewActions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: .5rem;
 	padding: 0 1.1875rem .875rem;
 
 	button { min-height: 2.75rem; }

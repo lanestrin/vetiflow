@@ -13,6 +13,7 @@ import { useToast } from "../shell/toastContext";
 import { MoreActionsMenu } from "./MoreActionsMenu";
 import { PainScorePanel } from "./PainScorePanel";
 import { ClinicalReviewDrawer } from "./ClinicalReviewDrawer";
+import { TimelineReviewDrawer } from "./TimelineReviewDrawer";
 import {
   checkInLabel,
   dueLabel,
@@ -50,6 +51,7 @@ interface PatientOverviewPanelProps {
 }
 
 type TaskDialogKind = "addTask" | DueItemType;
+type ReviewKind = "clinical" | "timeline";
 
 const avatars = { dog: "🐕", cat: "🐈", other: "🐾" };
 
@@ -65,6 +67,7 @@ export function PatientOverviewPanel({ caseId, refreshedAt, onTriaged, onTaskSav
   const recordVitalsRef = useRef<HTMLButtonElement>(null);
   const recordPainRef = useRef<HTMLButtonElement>(null);
   const clinicalRef = useRef<HTMLButtonElement>(null);
+  const timelineRef = useRef<HTMLButtonElement>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const [attempt, setAttempt] = useState(0);
   const [assessmentRevision, setAssessmentRevision] = useState(0);
@@ -73,7 +76,7 @@ export function PatientOverviewPanel({ caseId, refreshedAt, onTriaged, onTaskSav
   const [taskDialog, setTaskDialog] = useState<TaskDialogKind | null>(null);
   const [vitalsDialogCase, setVitalsDialogCase] = useState<CaseDetail | null>(null);
   const [painDialogCase, setPainDialogCase] = useState<CaseDetail | null>(null);
-  const [reviewCaseId, setReviewCaseId] = useState<string | null>(null);
+  const [review, setReview] = useState<{ caseId: string; kind: ReviewKind } | null>(null);
   // A dialog for one case never carries over to the next selection.
   const [dialogCaseId, setDialogCaseId] = useState(caseId);
   if (dialogCaseId !== caseId) {
@@ -82,7 +85,7 @@ export function PatientOverviewPanel({ caseId, refreshedAt, onTriaged, onTaskSav
     setTaskDialog(null);
     setVitalsDialogCase(null);
     setPainDialogCase(null);
-    setReviewCaseId(null);
+    setReview(null);
   }
   // Keyed by case and attempt, so a board reload keeps the shown case on
   // screen while a new case or a retry shows "Loading case…".
@@ -100,12 +103,12 @@ export function PatientOverviewPanel({ caseId, refreshedAt, onTriaged, onTaskSav
       try {
         const detail = await getCase(id);
         if (isActive) {
-          if (!detail) setReviewCaseId(null);
+          if (!detail) setReview(null);
           setLoaded({ key, result: detail ? { kind: "shown", detail } : { kind: "notFound" } });
         }
       } catch (loadError) {
         if (isActive) {
-          setReviewCaseId(null);
+          setReview(null);
           if (!leaveWhenRefused(loadError)) setLoaded({ key, result: { kind: "failed" } });
         }
       }
@@ -120,6 +123,7 @@ export function PatientOverviewPanel({ caseId, refreshedAt, onTriaged, onTaskSav
 
   const result = caseId !== null && loaded?.key === key ? loaded.result : null;
   const detail = result?.kind === "shown" ? result.detail : null;
+  const ReviewDrawer = review?.kind === "timeline" ? TimelineReviewDrawer : ClinicalReviewDrawer;
 
   return (
     <aside className={styles.panel} aria-labelledby={titleId} aria-busy={caseId !== null && result === null}>
@@ -160,13 +164,15 @@ export function PatientOverviewPanel({ caseId, refreshedAt, onTriaged, onTaskSav
           recordVitalsRef={recordVitalsRef}
           onRecordPain={() => setPainDialogCase(detail)}
           recordPainRef={recordPainRef}
-          onOpenClinical={() => setReviewCaseId(detail.id)}
+          onOpenReview={kind => setReview({ caseId: detail.id, kind })}
           clinicalRef={clinicalRef}
+          timelineRef={timelineRef}
         />
       )}
-      {detail && reviewCaseId === detail.id && (
-        <ClinicalReviewDrawer key={detail.id} detail={detail} triggerRef={clinicalRef} fallbackRef={headingRef}
-          onClose={() => setReviewCaseId(current => current === detail.id ? null : current)} />
+      {detail && review?.caseId === detail.id && (
+        <ReviewDrawer key={`${detail.id}:${review.kind}`} detail={detail}
+          triggerRef={review.kind === "clinical" ? clinicalRef : timelineRef} fallbackRef={headingRef}
+          onClose={() => setReview(current => current === review ? null : current)} />
       )}
       {detail && isTriaging && (
         <TriageDialog
@@ -278,11 +284,12 @@ interface OverviewProps {
   recordVitalsRef: RefObject<HTMLButtonElement | null>;
   onRecordPain: () => void;
   recordPainRef: RefObject<HTMLButtonElement | null>;
-  onOpenClinical: () => void;
+  onOpenReview: (kind: ReviewKind) => void;
   clinicalRef: RefObject<HTMLButtonElement | null>;
+  timelineRef: RefObject<HTMLButtonElement | null>;
 }
 
-function Overview({ detail, nameRef, onCompleteTriage, onAddTask, onSetDue, onTaskSaved, onRecordVitals, recordVitalsRef, onRecordPain, recordPainRef, onOpenClinical, clinicalRef }: OverviewProps) {
+function Overview({ detail, nameRef, onCompleteTriage, onAddTask, onSetDue, onTaskSaved, onRecordVitals, recordVitalsRef, onRecordPain, recordPainRef, onOpenReview, clinicalRef, timelineRef }: OverviewProps) {
   const now = useNow();
   const { patient, owner } = detail;
   const kind = speciesKind(patient.species);
@@ -368,7 +375,8 @@ function Overview({ detail, nameRef, onCompleteTriage, onAddTask, onSetDue, onTa
       </section>
 
       <div className={styles.reviewActions}>
-        <button ref={clinicalRef} type="button" className={styles.button} onClick={onOpenClinical}>Clinical</button>
+        <button ref={clinicalRef} type="button" className={styles.button} onClick={() => onOpenReview("clinical")}>Clinical</button>
+        <button ref={timelineRef} type="button" className={styles.button} onClick={() => onOpenReview("timeline")}>Timeline</button>
       </div>
 
       <PainScorePanel score={detail.latestPainScore} now={now} onRecord={onRecordPain}

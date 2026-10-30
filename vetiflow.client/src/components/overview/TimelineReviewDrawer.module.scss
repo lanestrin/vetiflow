@@ -1,0 +1,22 @@
+.meta { color: var(--color-shell-muted); font-size: .8125rem; }
+
+.records {
+	list-style: none;
+	margin: 1rem 0 0;
+	padding: 0;
+
+	li { padding-block: .75rem; border-top: 1px solid var(--color-shell-line); }
+	h4 { margin: 0; font-size: .9375rem; font-weight: 700; }
+	p { margin: .375rem 0 0; }
+}
+
+.metadata {
+	display: grid;
+	gap: .375rem;
+	margin: .75rem 0 0;
+	font-size: .8125rem;
+
+	div { display: flex; flex-wrap: wrap; gap: .25rem .5rem; }
+	dt::after { content: ":"; }
+	dd { margin: 0; }
+}
