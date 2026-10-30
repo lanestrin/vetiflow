@@ -99,6 +99,10 @@ Not part of v1. Open question.
   work queue, my status, workload and team). New intakes are provisional and
   wait in "Awaiting triage" until a clinician completes triage. Build to look
   like the prototype, including its 1050 px and 650 px layouts.
+- Dashboard presentation update (2026-10-29): the clinic name is the main
+  heading; omit the repeated ER Command Center heading below it. Use teal
+  focus outlines on light surfaces, 16 px patient names, 14 px main content,
+  13 px metadata and at least 12 px compact labels, expressed in rem.
 - Acuity colours and labels: Critical (red), Urgent (amber), Stable (teal), in
   that order (three levels, decided 2026-10-28; 0.4).
 - Calm, plain wording on the owner page. No acuity, no clinical shorthand.
@@ -114,6 +118,7 @@ Routes:
 - `/` - goes to the signed-in user's home, or `/sign-in` (from S.18)
 - `/sign-in` - the sign-in screen (section 10)
 - `/er` - the ER Command Center, hospital team members only
+
 - `/records` - Patients (search and records), hospital team members only
 - `/pet-parent` - the pet parent home: minimal in the demo (S.18), replaced by
   the owner page (6.3, final route decided there)
@@ -284,8 +289,7 @@ address or a choice on the screen. A team member's clinical role
 ### Demo accounts
 
 Fictional, as in the mockup, seeded only when `Database:SeedDemoData` is on
-and no account exists yet (the case seed skips once any case exists, so
-accounts get their own check):
+and no account exists yet (accounts have their own seed check):
 
 | Experience | Linked to | Email | Phone |
 | --- | --- | --- | --- |
@@ -295,6 +299,15 @@ accounts get their own check):
 Both use the demo password `welcome1`, and the screen lists both accounts as
 samples. Both use the same made-up domain, which shows the role comes from the
 account record.
+
+With demo seeding enabled, a fresh database has 18 active cases, six per
+acuity lane. Existing demo databases gain the 15 additional fixtures by stable
+IDs; restarting does not duplicate them, overwrite edits or reopen discharged
+fixtures. Buddy, Luna and Max remain the original cases. All new contacts and
+clinical records are fictional. The existing stale-demo-time refresh still runs.
+To backfill the hosted demo, deliberately deploy the API on Render with
+`Database__SeedDemoData=true`. A deployment with that flag off does not add
+cases. Keep demo seeding off for any database intended for real clinic use.
 
 ### Screens and states
 

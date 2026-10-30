@@ -4,6 +4,8 @@
 
 .panel {
 	overflow: hidden;
+	line-height: 1.5;
+	overflow-wrap: anywhere;
 	border: 1px solid var(--color-shell-line);
 	border-radius: 15px;
 	background: var(--color-surface);
@@ -13,6 +15,8 @@
 
 .head {
 	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
 	align-items: flex-start;
 	justify-content: space-between;
 	padding: 17px 19px;
@@ -21,14 +25,14 @@
 
 .title {
 	margin: 0;
-	font-size: 15px;
+	font-size: 1rem;
 	font-weight: 700;
 }
 
 .caseLine {
 	margin: 4px 0 0;
 	color: var(--color-shell-muted);
-	font-size: 11px;
+	font-size: .8125rem;
 }
 
 .separator {
@@ -48,7 +52,7 @@
 	}
 
 	&:focus-visible {
-		outline: 3px solid var(--color-focus);
+		outline: 3px solid var(--color-focus-on-light);
 		outline-offset: 2px;
 	}
 }
@@ -58,7 +62,7 @@
 	border: 0;
 	background: none;
 	color: var(--color-care-teal);
-	font-size: 10px;
+	font-size: .875rem;
 	font-weight: 700;
 }
 
@@ -78,7 +82,7 @@
 	margin: 0;
 	padding: 17px 19px;
 	color: var(--color-shell-muted);
-	font-size: 12px;
+	font-size: .875rem;
 
 	p {
 		margin: 0 0 10px;
@@ -91,7 +95,7 @@
 	border-radius: 10px;
 	background: var(--color-surface);
 	color: var(--color-shell-ink);
-	font-size: 12px;
+	font-size: .875rem;
 	font-weight: 700;
 }
 
@@ -112,7 +116,7 @@
 	height: 49px;
 	border-radius: 14px;
 	background: #edf3f4;
-	font-size: 25px;
+	font-size: 1.5625rem;
 
 	&[data-species="dog"] {
 		background: #fff0e5;
@@ -127,7 +131,7 @@
 .name {
 	margin: 0;
 	outline: 0;
-	font-size: 18px;
+	font-size: 1.25rem;
 	font-weight: 800;
 	letter-spacing: -0.3px;
 }
@@ -135,7 +139,7 @@
 .meta {
 	margin: 4px 0 0;
 	color: var(--color-shell-muted);
-	font-size: 11px;
+	font-size: .8125rem;
 }
 
 .badge {
@@ -145,6 +149,7 @@
 
 .ownerBar {
 	display: flex;
+	flex-wrap: wrap;
 	align-items: center;
 	justify-content: space-between;
 	gap: 8px;
@@ -152,13 +157,13 @@
 	padding: 10px 12px;
 	border-radius: 9px;
 	background: #f7f9f8;
-	font-size: 11px;
+	font-size: .8125rem;
 }
 
 .ownerLabel {
 	margin: 0 0 3px;
 	color: var(--color-shell-muted);
-	font-size: 9px;
+	font-size: .75rem;
 	letter-spacing: 0.7px;
 	text-transform: uppercase;
 }
@@ -173,7 +178,7 @@
 	gap: 10px;
 
 	.linkButton {
-		font-size: 11px;
+		font-size: .8125rem;
 	}
 }
 
@@ -193,7 +198,7 @@
 
 .vitalLabel {
 	color: var(--color-shell-muted);
-	font-size: 9px;
+	font-size: .75rem;
 	letter-spacing: 0.4px;
 	text-transform: uppercase;
 }
@@ -201,7 +206,7 @@
 .vitalValue {
 	margin: 4px 0 0;
 	overflow-wrap: anywhere;
-	font-size: 13px;
+	font-size: 1.125rem;
 	font-weight: 700;
 
 	&[data-alert="true"] {
@@ -212,7 +217,7 @@
 .vitalAlert {
 	display: block;
 	margin-top: 4px;
-	font-size: 10px;
+	font-size: .875rem;
 	font-weight: 600;
 }
 
@@ -222,13 +227,14 @@
 
 .row {
 	display: flex;
+	flex-wrap: wrap;
 	align-items: center;
 	gap: 8px;
 	margin: 0 0 6px;
 	padding: 8px;
 	border: 1px solid var(--color-shell-line);
 	border-radius: 8px;
-	font-size: 10px;
+	font-size: .875rem;
 
 	.locationSection & {
 		margin: 0;
@@ -264,7 +270,7 @@
 	white-space: nowrap;
 
 	&:focus-visible + .check {
-		outline: 3px solid var(--color-focus);
+		outline: 3px solid var(--color-focus-on-light);
 		outline-offset: 2px;
 	}
 
@@ -280,7 +286,7 @@
 .rowMeta {
 	margin-left: auto;
 	color: var(--color-shell-muted);
-	font-size: 9px;
+	font-size: .75rem;
 	text-align: right;
 
 	// The prototype's .alert: overdue reads in red as well as in words.
@@ -297,6 +303,8 @@
 
 .sectionTop {
 	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
 	align-items: center;
 	justify-content: space-between;
 	margin-bottom: 11px;
@@ -308,14 +316,14 @@
 
 .sectionTitle {
 	margin: 0 0 11px;
-	font-size: 12px;
+	font-size: .875rem;
 	font-weight: 700;
 }
 
 .empty {
 	margin: 0;
 	color: var(--color-shell-muted);
-	font-size: 10px;
+	font-size: .875rem;
 }
 
 .timeline {
@@ -365,25 +373,26 @@
 
 .eventLine {
 	display: flex;
+	flex-wrap: wrap;
 	justify-content: space-between;
 	gap: 8px;
 }
 
 .eventName {
-	font-size: 11px;
+	font-size: .8125rem;
 	font-weight: 700;
 }
 
 .eventTime {
 	flex: none;
 	color: var(--color-shell-muted);
-	font-size: 10px;
+	font-size: .875rem;
 }
 
 .eventDetail {
 	margin: 3px 0 0;
 	color: var(--color-shell-muted);
-	font-size: 10px;
+	font-size: .875rem;
 	line-height: 1.4;
 }
 
@@ -402,7 +411,7 @@
 	border: 1.5px solid #8fa5a0;
 	border-radius: 5px;
 	color: var(--color-text-inverse);
-	font-size: 10px;
+	font-size: .875rem;
 
 	[data-done="true"] & {
 		border-color: var(--color-care-teal);
@@ -426,7 +435,7 @@
 	background: var(--color-care-teal);
 	box-shadow: 0 5px 12px #078b8120;
 	color: var(--color-text-inverse);
-	font-size: 14px;
+	font-size: .875rem;
 	font-weight: 700;
 }
 

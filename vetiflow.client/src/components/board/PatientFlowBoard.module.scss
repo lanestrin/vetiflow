@@ -32,7 +32,7 @@
 	background: var(--color-surface);
 	color: #64767c;
 	font: inherit;
-	font-size: 11px;
+	font-size: .8125rem;
 	font-weight: 600;
 	white-space: nowrap;
 	cursor: pointer;
@@ -44,7 +44,7 @@
 	}
 
 	&:focus-visible {
-		outline: 3px solid var(--color-focus);
+		outline: 3px solid var(--color-focus-on-light);
 		outline-offset: 2px;
 	}
 }
@@ -52,7 +52,7 @@
 .title {
 	margin: 0;
 	color: var(--color-shell-ink);
-	font-size: 15px;
+	font-size: 1rem;
 	font-weight: 700;
 }
 
@@ -64,7 +64,7 @@
 	white-space: nowrap;
 	margin: 4px 0 0;
 	color: var(--color-shell-muted);
-	font-size: 11px;
+	font-size: .8125rem;
 }
 
 .live {
@@ -96,7 +96,7 @@
 	background: var(--color-surface);
 	color: #64767c;
 	font: inherit;
-	font-size: 11px;
+	font-size: .8125rem;
 	font-weight: 600;
 	white-space: nowrap;
 	cursor: pointer;
@@ -108,7 +108,7 @@
 	}
 
 	&:focus-visible {
-		outline: 3px solid var(--color-focus);
+		outline: 3px solid var(--color-focus-on-light);
 		outline-offset: 2px;
 	}
 }
@@ -139,7 +139,7 @@
 .laneTitle {
 	margin: 0;
 	color: var(--color-shell-muted);
-	font-size: 11px;
+	font-size: .8125rem;
 	font-weight: 700;
 	letter-spacing: 0.6px;
 	text-transform: uppercase;
@@ -162,7 +162,7 @@
 	border-radius: 20px;
 	background: var(--color-board-count-bg);
 	color: var(--color-board-count);
-	font-size: 10px;
+	font-size: .75rem;
 	font-weight: 700;
 }
 
@@ -170,7 +170,7 @@
 	margin: 0;
 	padding: 18px 0;
 	color: var(--color-shell-muted);
-	font-size: 11px;
+	font-size: .8125rem;
 	text-align: center;
 }
 
@@ -179,7 +179,7 @@
 	padding: 9px 13px;
 	border-top: 1px solid var(--color-shell-line);
 	color: var(--color-shell-muted);
-	font-size: 10px;
+	font-size: .75rem;
 }
 
 .footLink {
@@ -187,7 +187,7 @@
 	font-weight: 700;
 
 	&:focus-visible {
-		outline: 3px solid var(--color-focus);
+		outline: 3px solid var(--color-focus-on-light);
 		outline-offset: 2px;
 	}
 }

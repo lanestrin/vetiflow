@@ -1,8 +1,6 @@
-// The prototype's .heading, .eyebrow, .sub, .headright, .shift and .btn
-// (blueprint/reference/vetiflow-er-dashboard.html). Manrope for the title
-// arrives with 2.20.
 .heading {
 	display: flex;
+	flex-wrap: wrap;
 	align-items: flex-end;
 	justify-content: space-between;
 	gap: 14px;
@@ -13,25 +11,13 @@
 	}
 }
 
-.eyebrow {
-	margin: 0 0 7px;
-	color: var(--color-care-teal);
-	font-size: 11px;
-	font-weight: 700;
-	letter-spacing: 1.2px;
-	text-transform: uppercase;
-}
-
 .title {
 	margin: 0;
 	color: var(--color-shell-ink);
-	font-size: 27px;
+	font-size: 1.5rem;
+	line-height: 1.3;
 	font-weight: 800;
-	letter-spacing: -0.7px;
-
-	@media (max-width: 650px) {
-		font-size: 23px;
-	}
+	overflow-wrap: anywhere;
 }
 
 .sub {
@@ -45,6 +31,7 @@
 
 .headRight {
 	display: flex;
+	flex-wrap: wrap;
 	align-items: center;
 	gap: 10px;
 
@@ -64,7 +51,7 @@
 	border-radius: 10px;
 	background: var(--color-surface);
 	color: #61737a;
-	font-size: 12px;
+	font-size: .8125rem;
 }
 
 .live {
@@ -84,13 +71,13 @@
 	box-shadow: 0 5px 12px #078b8120;
 	color: var(--color-text-inverse);
 	font: inherit;
-	font-size: 14px;
+	font-size: .875rem;
 	font-weight: 700;
 	white-space: nowrap;
 	cursor: pointer;
 
 	&:focus-visible {
-		outline: 3px solid var(--color-focus);
+		outline: 3px solid var(--color-focus-on-light);
 		outline-offset: 2px;
 	}
 

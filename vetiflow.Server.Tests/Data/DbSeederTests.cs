@@ -26,9 +26,76 @@ public class DbSeederTests(VetiFlowApiFactory factory)
 		dbContext.ChangeTracker.Clear();
 		await DbSeeder.SeedAsync(dbContext);
 
-		Assert.True(casesAfterFirstRun > 0, "Seeding should create demo cases.");
+		Assert.Equal(18, casesAfterFirstRun);
+		var acuityCounts = await dbContext.EmergencyCases.GroupBy(emergencyCase => emergencyCase.Acuity)
+			.Select(group => group.Count()).ToListAsync(_cancellationToken);
+		Assert.Equal(3, acuityCounts.Count);
+		Assert.All(acuityCounts, count => Assert.Equal(6, count));
 		Assert.Equal(casesAfterFirstRun, await dbContext.EmergencyCases.CountAsync(_cancellationToken));
 		Assert.Equal(patientsAfterFirstRun, await dbContext.Patients.CountAsync(_cancellationToken));
+	}
+
+	[Fact]
+	public async Task SeedAsync_BackfillsAnOlderThreeCaseDatabaseOnce()
+	{
+		await using var dbContext = await MigratedDatabaseAsync();
+		var originalCases = new[] { "Buddy", "Luna", "Max" }.Select(name =>
+		{
+			var patient = TestData.Patient();
+			patient.Name = name;
+			return TestData.Case(patient);
+		}).ToArray();
+		dbContext.EmergencyCases.AddRange(originalCases);
+		await dbContext.SaveChangesAsync(_cancellationToken);
+
+		await SeedTwiceAsync(dbContext);
+
+		Assert.Equal(18, await dbContext.EmergencyCases.CountAsync(_cancellationToken));
+		foreach (var original in originalCases)
+		{
+			var stored = await dbContext.EmergencyCases.SingleAsync(emergencyCase => emergencyCase.Id == original.Id, _cancellationToken);
+			Assert.Equal(original.PresentingComplaint, stored.PresentingComplaint);
+			Assert.Equal(original.Stage, stored.Stage);
+		}
+	}
+
+	[Fact]
+	public async Task SeedAsync_PreservesEditedDischargedFixturesAndUnrelatedData()
+	{
+		await using var dbContext = await SeededDatabaseAsync();
+		var fixture = await dbContext.EmergencyCases.Include(emergencyCase => emergencyCase.Patient)
+			.ThenInclude(patient => patient.Owner)
+			.SingleAsync(emergencyCase => emergencyCase.Patient.Name == "Pepper", _cancellationToken);
+		fixture.Patient.Name = "Edited demo patient";
+		fixture.Patient.Owner!.LastName = "Edited owner";
+		fixture.PresentingComplaint = "Edited demo complaint";
+		fixture.DischargedAt = DateTimeOffset.UtcNow;
+		var dischargedAt = fixture.DischargedAt;
+		var unrelated = TestData.Case(TestData.Patient());
+		dbContext.EmergencyCases.Add(unrelated);
+		var staff = await dbContext.StaffMembers.FirstAsync(_cancellationToken);
+		staff.Status = StaffStatus.Unavailable;
+		await dbContext.SaveChangesAsync(_cancellationToken);
+		var ownersBefore = await dbContext.Owners.CountAsync(_cancellationToken);
+		var staffBefore = await dbContext.StaffMembers.CountAsync(_cancellationToken);
+		var roomsBefore = await dbContext.Rooms.CountAsync(_cancellationToken);
+
+		await SeedTwiceAsync(dbContext);
+
+		var stored = await dbContext.EmergencyCases.Include(emergencyCase => emergencyCase.Patient)
+			.ThenInclude(patient => patient.Owner)
+			.SingleAsync(emergencyCase => emergencyCase.Id == fixture.Id, _cancellationToken);
+		Assert.Equal(19, await dbContext.EmergencyCases.CountAsync(_cancellationToken));
+		Assert.Equal(dischargedAt!.Value.ToUnixTimeMilliseconds(), stored.DischargedAt!.Value.ToUnixTimeMilliseconds());
+		Assert.Equal("Edited demo patient", stored.Patient.Name);
+		Assert.Equal("Edited owner", stored.Patient.Owner!.LastName);
+		Assert.Equal("Edited demo complaint", stored.PresentingComplaint);
+		Assert.Equal(unrelated.PresentingComplaint, (await dbContext.EmergencyCases.FindAsync([unrelated.Id], _cancellationToken))!.PresentingComplaint);
+		Assert.Equal(StaffStatus.Unavailable, (await dbContext.StaffMembers.FindAsync([staff.Id], _cancellationToken))!.Status);
+		Assert.Equal(ownersBefore, await dbContext.Owners.CountAsync(_cancellationToken));
+		Assert.Equal(staffBefore, await dbContext.StaffMembers.CountAsync(_cancellationToken));
+		Assert.Equal(roomsBefore, await dbContext.Rooms.CountAsync(_cancellationToken));
+		Assert.Equal(2, await dbContext.Accounts.CountAsync(_cancellationToken));
 	}
 
 	[Fact]

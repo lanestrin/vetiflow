@@ -40,7 +40,7 @@ function signInAs(user: SignedInUser) {
   server.use(http.get(apiUrl("/api/auth/me"), () => HttpResponse.json(user)));
 }
 
-const boardHeading = { level: 1, name: "ER Command Center" } as const;
+const boardHeading = { level: 1, name: "Northside Veterinary Emergency" } as const;
 const signInHeading = { level: 1, name: "Welcome back" } as const;
 const petParentHeading = { level: 1, name: "Welcome back, Morgan Hale" } as const;
 const recordsHeading = { level: 1, name: "Patient records" } as const;
@@ -96,7 +96,7 @@ describe("App", () => {
 
   // Every staff page sits inside the Command Center shell (2.10b).
   it.each([
-    ["/er", "ER Command Center", "ER board"],
+    ["/er", "Northside Veterinary Emergency", "ER board"],
     ["/records", "Patient records", "Patients"],
     ["/overview", "Overview", "Overview"],
     ["/team", "Team", "Team"],
