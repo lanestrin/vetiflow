@@ -51,7 +51,7 @@ $fast: var(--motion-fast) var(--ease-out);
 	cursor: pointer;
 
 	&:focus-visible {
-		outline: 3px solid var(--color-focus);
+		outline: var(--focus-outline-width) solid var(--color-focus);
 		outline-offset: 2px;
 	}
 }
@@ -133,7 +133,7 @@ $fast: var(--motion-fast) var(--ease-out);
 
 		&:focus {
 			border-color: var(--color-shell-teal-strong);
-			outline: 2px solid #bde5dd;
+			outline: var(--focus-outline-width) solid #bde5dd;
 		}
 
 		&[aria-invalid="true"] {
@@ -165,7 +165,7 @@ $fast: var(--motion-fast) var(--ease-out);
 	cursor: pointer;
 
 	&:focus-visible {
-		outline: 3px solid var(--color-focus);
+		outline: var(--focus-outline-width) solid var(--color-focus);
 		outline-offset: 2px;
 	}
 

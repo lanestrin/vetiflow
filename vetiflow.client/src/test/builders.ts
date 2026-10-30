@@ -1,6 +1,6 @@
 import type { SignedInUser } from "../types/Auth";
 import type { BoardSummary } from "../types/BoardSummary";
-import type { CaseDetail, CaseTask } from "../types/CaseDetail";
+import type { CaseDetail, CaseTask, VitalsRecord } from "../types/CaseDetail";
 import type { EmergencyCaseListItem } from "../types/EmergencyCaseListItem";
 import type { PatientListItem } from "../types/PatientListItem";
 
@@ -86,6 +86,15 @@ export function buildCaseDetail(overrides: Partial<CaseDetail> = {}): CaseDetail
     nextReassessment: null,
     nextClientUpdate: null,
     timeline: [],
+    ...overrides
+  };
+}
+
+export function buildVitalsRecord(overrides: Partial<VitalsRecord> = {}): VitalsRecord {
+  return {
+    id: crypto.randomUUID(), heartRate: null, respiratoryRate: null, temperatureF: null, spO2: null,
+    mucousMembraneColor: null, capillaryRefillTime: null, mentation: null, outOfRange: [],
+    recordedAt: new Date().toISOString(), recordedBy: null,
     ...overrides
   };
 }

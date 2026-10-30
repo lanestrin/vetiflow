@@ -29,7 +29,7 @@ $fast: 150ms var(--ease-out);
 	}
 
 	&:focus-within {
-		outline: 3px solid var(--color-focus-on-light);
+		outline: var(--focus-outline-width) solid var(--color-focus-on-light);
 		outline-offset: 2px;
 	}
 

@@ -5,6 +5,7 @@ import { useNow } from "../board/useNow";
 import { AddTaskDialog } from "../tasks/AddTaskDialog";
 import { DueItemDialog, type DueItemType } from "../tasks/DueItemDialog";
 import { TriageDialog } from "../triage/TriageDialog";
+import { RecordVitalsDialog } from "../vitals/RecordVitalsDialog";
 import { completeTask, getCase, reopenTask } from "../../services/casesApi";
 import type { CaseDetail, CaseDueItem, CaseTask, VitalName } from "../../types/CaseDetail";
 import { useToast } from "../shell/toastContext";
@@ -41,6 +42,8 @@ interface PatientOverviewPanelProps {
   // saved or not: the board and this panel reload, so they show the saved
   // state (4.4b, 4.4c).
   onTaskSaved: () => void;
+  // Reload the board after recording vitals or finding this case unavailable.
+  onVitalsSaved: () => void;
 }
 
 type TaskDialogKind = "addTask" | DueItemType;
@@ -52,20 +55,24 @@ const notRecorded = "Not recorded";
 // The prototype's "Patient overview" (build plan 3.2b) for the card selected
 // on the board. Complete triage and Re-triage open the triage dialog (4.2b);
 // the buttons that later items wire are shown disabled.
-export function PatientOverviewPanel({ caseId, refreshedAt, onTriaged, onTaskSaved }: PatientOverviewPanelProps) {
+export function PatientOverviewPanel({ caseId, refreshedAt, onTriaged, onTaskSaved, onVitalsSaved }: PatientOverviewPanelProps) {
   const titleId = useId();
   const leaveWhenRefused = useLeaveWhenRefused();
   const nameRef = useRef<HTMLHeadingElement>(null);
+  const recordVitalsRef = useRef<HTMLButtonElement>(null);
   const [attempt, setAttempt] = useState(0);
+  const [vitalsRevision, setVitalsRevision] = useState(0);
   const showToast = useToast();
   const [isTriaging, setIsTriaging] = useState(false);
   const [taskDialog, setTaskDialog] = useState<TaskDialogKind | null>(null);
+  const [vitalsDialogCase, setVitalsDialogCase] = useState<CaseDetail | null>(null);
   // A dialog for one case never carries over to the next selection.
   const [dialogCaseId, setDialogCaseId] = useState(caseId);
   if (dialogCaseId !== caseId) {
     setDialogCaseId(caseId);
     setIsTriaging(false);
     setTaskDialog(null);
+    setVitalsDialogCase(null);
   }
   // Keyed by case and attempt, so a board reload keeps the shown case on
   // screen while a new case or a retry shows "Loading case…".
@@ -97,7 +104,7 @@ export function PatientOverviewPanel({ caseId, refreshedAt, onTriaged, onTaskSav
     return () => {
       isActive = false;
     };
-  }, [caseId, key, refreshedAt, leaveWhenRefused]);
+  }, [caseId, key, refreshedAt, leaveWhenRefused, vitalsRevision]);
 
   const result = caseId !== null && loaded?.key === key ? loaded.result : null;
   const detail = result?.kind === "shown" ? result.detail : null;
@@ -137,6 +144,8 @@ export function PatientOverviewPanel({ caseId, refreshedAt, onTriaged, onTaskSav
           onAddTask={() => setTaskDialog("addTask")}
           onSetDue={setTaskDialog}
           onTaskSaved={onTaskSaved}
+          onRecordVitals={() => setVitalsDialogCase(detail)}
+          recordVitalsRef={recordVitalsRef}
         />
       )}
       {detail && isTriaging && (
@@ -164,6 +173,27 @@ export function PatientOverviewPanel({ caseId, refreshedAt, onTriaged, onTaskSav
             setTaskDialog(null);
             showToast(message);
             onTaskSaved();
+          }}
+        />
+      )}
+      {vitalsDialogCase && (
+        <RecordVitalsDialog
+          key={vitalsDialogCase.id}
+          detail={detail ?? vitalsDialogCase}
+          onClose={() => {
+            setVitalsDialogCase(null);
+            recordVitalsRef.current?.focus();
+          }}
+          onSaved={() => {
+            setVitalsDialogCase(null);
+            recordVitalsRef.current?.focus();
+            showToast("Vitals recorded");
+            setVitalsRevision(count => count + 1);
+            onVitalsSaved();
+          }}
+          onUnavailable={() => {
+            setVitalsRevision(count => count + 1);
+            onVitalsSaved();
           }}
         />
       )}
@@ -203,9 +233,11 @@ interface OverviewProps {
   onAddTask: () => void;
   onSetDue: (type: DueItemType) => void;
   onTaskSaved: () => void;
+  onRecordVitals: () => void;
+  recordVitalsRef: RefObject<HTMLButtonElement | null>;
 }
 
-function Overview({ detail, nameRef, onCompleteTriage, onAddTask, onSetDue, onTaskSaved }: OverviewProps) {
+function Overview({ detail, nameRef, onCompleteTriage, onAddTask, onSetDue, onTaskSaved, onRecordVitals, recordVitalsRef }: OverviewProps) {
   const now = useNow();
   const { patient, owner } = detail;
   const kind = speciesKind(patient.species);
@@ -252,19 +284,26 @@ function Overview({ detail, nameRef, onCompleteTriage, onAddTask, onSetDue, onTa
         )}
       </div>
 
-      <dl className={styles.vitals} aria-label="Latest vitals">
-        {tiles.map(({ field, label, value }) => (
-          <div key={field} className={styles.vital}>
-            <dt className={styles.vitalLabel}>{label}</dt>
-            <dd className={styles.vitalValue} data-alert={value !== null && vitals?.outOfRange.includes(field)}>
-              {value ?? notRecorded}
-              {value !== null && vitals?.outOfRange.includes(field) && (
-                <span className={styles.vitalAlert}>Outside range</span>
-              )}
-            </dd>
-          </div>
-        ))}
-      </dl>
+      <section className={styles.vitalsSection} aria-label="Vitals">
+        <div className={styles.sectionTop}>
+          <h3 className={styles.sectionTitle}>Vitals</h3>
+          <button ref={recordVitalsRef} type="button" className={styles.linkButton}
+            disabled={detail.dischargedAt !== null} onClick={onRecordVitals}>Record vitals</button>
+        </div>
+        <dl className={styles.vitals} aria-label="Latest vitals">
+          {tiles.map(({ field, label, value }) => (
+            <div key={field} className={styles.vital}>
+              <dt className={styles.vitalLabel}>{label}</dt>
+              <dd className={styles.vitalValue} data-alert={value !== null && vitals?.outOfRange.includes(field)}>
+                {value ?? notRecorded}
+                {value !== null && vitals?.outOfRange.includes(field) && (
+                  <span className={styles.vitalAlert}>Outside range</span>
+                )}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      </section>
 
       <PainScorePanel score={detail.latestPainScore} now={now} />
 

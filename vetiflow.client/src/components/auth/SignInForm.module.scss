@@ -92,7 +92,7 @@ $focus: var(--color-focus-on-light);
 	// The teal ring shows at once; the border and the soft halo in the gap
 	// under it ease in. Neither changes the field's size.
 	&:focus-visible {
-		outline: 2px solid $focus;
+		outline: var(--focus-outline-width) solid $focus;
 		outline-offset: 2px;
 		border-color: $focus;
 		box-shadow: inset 0 0 0 1px transparent, 0 0 0 4px var(--color-focus-halo);
@@ -141,7 +141,7 @@ $focus: var(--color-focus-on-light);
 	}
 
 	&:focus-visible {
-		outline: 2px solid var(--color-focus-on-light);
+		outline: var(--focus-outline-width) solid var(--color-focus-on-light);
 		outline-offset: -3px;
 	}
 }
@@ -200,7 +200,7 @@ $focus: var(--color-focus-on-light);
 	}
 
 	&:focus-visible {
-		outline: 2px solid var(--color-focus-on-light);
+		outline: var(--focus-outline-width) solid var(--color-focus-on-light);
 		outline-offset: 2px;
 	}
 }

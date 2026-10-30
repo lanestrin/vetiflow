@@ -44,7 +44,7 @@
 	}
 
 	&:focus-visible {
-		outline: 3px solid var(--color-focus-on-light);
+		outline: var(--focus-outline-width) solid var(--color-focus-on-light);
 		outline-offset: 2px;
 	}
 }
@@ -108,7 +108,7 @@
 	}
 
 	&:focus-visible {
-		outline: 3px solid var(--color-focus-on-light);
+		outline: var(--focus-outline-width) solid var(--color-focus-on-light);
 		outline-offset: 2px;
 	}
 }
@@ -187,7 +187,7 @@
 	font-weight: 700;
 
 	&:focus-visible {
-		outline: 3px solid var(--color-focus-on-light);
+		outline: var(--focus-outline-width) solid var(--color-focus-on-light);
 		outline-offset: 2px;
 	}
 }

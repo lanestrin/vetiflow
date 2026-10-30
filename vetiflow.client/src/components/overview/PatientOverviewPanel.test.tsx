@@ -1,4 +1,5 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import * as casesApi from "../../services/casesApi";
 import { http, HttpResponse } from "msw";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
@@ -87,7 +88,8 @@ function renderPanel(
   caseId: string | null,
   refreshedAt = new Date(2026, 0, 1),
   onTriaged = vi.fn(),
-  onTaskSaved = vi.fn()
+  onTaskSaved = vi.fn(),
+  onVitalsSaved = vi.fn()
 ) {
   const panel = (id: string | null, refreshed: Date) => (
     <MemoryRouter initialEntries={["/er"]}>
@@ -95,7 +97,7 @@ function renderPanel(
         <Routes>
           <Route
             path="/er"
-            element={<PatientOverviewPanel caseId={id} refreshedAt={refreshed} onTriaged={onTriaged} onTaskSaved={onTaskSaved} />}
+            element={<PatientOverviewPanel caseId={id} refreshedAt={refreshed} onTriaged={onTriaged} onTaskSaved={onTaskSaved} onVitalsSaved={onVitalsSaved} />}
           />
           <Route path="/sign-in" element={<p>Sign-in page</p>} />
           <Route path="/pet-parent" element={<p>Pet parent home</p>} />
@@ -636,5 +638,139 @@ describe("PatientOverviewPanel", () => {
       expect(await screen.findByText("Sign-in page")).toBeInTheDocument();
       expect(readAccessToken()).toBeNull();
     });
+  });
+});
+
+
+describe("recording vitals in the overview", () => {
+  it("offers entry only after an active case loads", async () => {
+    serveCase(buildMilo());
+    const view = renderPanel(null);
+    expect(screen.queryByRole("button", { name: "Record vitals" })).not.toBeInTheDocument();
+    view.rerender("case-milo", new Date());
+    expect(screen.queryByRole("button", { name: "Record vitals" })).not.toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Record vitals" })).toBeEnabled();
+  });
+
+  it.each([404, 500])("offers no entry after detail failure %s", async status => {
+    server.use(http.get(apiUrl("/api/cases/case-milo"), () => new HttpResponse(null, { status })));
+    renderPanel("case-milo");
+    await screen.findByText(status === 404 ? "This case is no longer on the board." : "Unable to load this case.");
+    expect(screen.queryByRole("button", { name: "Record vitals" })).not.toBeInTheDocument();
+  });
+
+  it("disables entry for a known discharged case", async () => {
+    serveCase(buildMilo({ dischargedAt: at(11, 0) }));
+    renderPanel("case-milo");
+    expect(await screen.findByRole("button", { name: "Record vitals" })).toBeDisabled();
+  });
+
+  it("discards a cancelled draft, restores focus and reopens blank", async () => {
+    serveCase(buildMilo());
+    renderPanel("case-milo");
+    const action = await screen.findByRole("button", { name: "Record vitals" });
+    action.focus();
+    fireEvent.click(action);
+    fireEvent.change(screen.getByLabelText("Heart rate (bpm)"), { target: { value: "90" } });
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(action).toHaveFocus();
+    fireEvent.click(action);
+    expect(screen.getByLabelText("Heart rate (bpm)")).toHaveValue("");
+  });
+
+  it.each([200, 500])("preserves a draft across a same-case refresh returning %s", async status => {
+    serveCase(buildMilo());
+    const view = renderPanel("case-milo");
+    fireEvent.click(await screen.findByRole("button", { name: "Record vitals" }));
+    fireEvent.change(screen.getByLabelText("Heart rate (bpm)"), { target: { value: "91" } });
+    let requests = 0;
+    server.use(http.get(apiUrl("/api/cases/case-milo"), () => {
+      requests++;
+      return status === 200 ? HttpResponse.json(buildMilo({ weightKg: 32 })) : new HttpResponse(null, { status });
+    }));
+    view.rerender("case-milo", new Date());
+    await waitFor(() => expect(requests).toBe(1));
+    if (status === 200) await screen.findByText(/32 kg/);
+    else await screen.findByText("Unable to load this case.");
+    expect(screen.getByLabelText("Heart rate (bpm)")).toHaveValue("91");
+    expect(screen.getByRole("dialog")).toHaveTextContent("Milo");
+  });
+
+  it("clears the form on a case switch and does not carry readings to the next patient", async () => {
+    serveCase(buildMilo());
+    const second = buildCaseDetail({ id: "case-second" });
+    serveCase(second);
+    const view = renderPanel("case-milo");
+    fireEvent.click(await screen.findByRole("button", { name: "Record vitals" }));
+    fireEvent.change(screen.getByLabelText("Heart rate (bpm)"), { target: { value: "90" } });
+    view.rerender(second.id, new Date());
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    fireEvent.click(await screen.findByRole("button", { name: "Record vitals" }));
+    expect(screen.getByRole("dialog")).toHaveTextContent(second.caseNumber);
+    expect(screen.getByLabelText("Heart rate (bpm)")).toHaveValue("");
+  });
+
+  it("does not close another patient's form or show a stale toast when an earlier save completes", async () => {
+    serveCase(buildMilo());
+    serveCase(buildCaseDetail({ id: "case-second" }));
+    let finish!: () => void;
+    const response = new Promise<void>(resolve => { finish = resolve; });
+    server.use(http.post(apiUrl("/api/cases/case-milo/vitals"), async () => {
+      await response;
+      return new HttpResponse(null, { status: 201 });
+    }));
+    const write = vi.spyOn(casesApi, "recordVitals");
+    const onSaved = vi.fn();
+    const view = renderPanel("case-milo", new Date(), vi.fn(), vi.fn(), onSaved);
+    fireEvent.click(await screen.findByRole("button", { name: "Record vitals" }));
+    fireEvent.change(screen.getByLabelText("Heart rate (bpm)"), { target: { value: "90" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save vitals" }));
+    expect(write).toHaveBeenCalledWith("case-milo", { heartRate: 90 });
+    view.rerender("case-second", new Date());
+    fireEvent.click(await screen.findByRole("button", { name: "Record vitals" }));
+    fireEvent.change(screen.getByLabelText("Heart rate (bpm)"), { target: { value: "100" } });
+    await act(async () => { finish(); await write.mock.results[0].value; });
+    expect(screen.getByRole("dialog")).toBeVisible();
+    expect(screen.getByLabelText("Heart rate (bpm)")).toHaveValue("100");
+    expect(onSaved).not.toHaveBeenCalled();
+    expect(screen.queryByText("Vitals recorded")).not.toBeInTheDocument();
+  });
+
+  it("refreshes the displayed set and announces success after saving", async () => {
+    const milo = buildMilo();
+    serveCase(milo);
+    server.use(http.post(apiUrl("/api/cases/case-milo/vitals"), () => {
+      serveCase({ ...milo, vitals: [{ ...milo.vitals[0], heartRate: 95, spO2: 98 }] });
+      return new HttpResponse(null, { status: 201 });
+    }));
+    const onSaved = vi.fn();
+    renderPanel("case-milo", new Date(), vi.fn(), vi.fn(), onSaved);
+    fireEvent.click(await screen.findByRole("button", { name: "Record vitals" }));
+    fireEvent.change(screen.getByLabelText("Heart rate (bpm)"), { target: { value: "95" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save vitals" }));
+    expect(await screen.findByText("95 bpm")).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("Vitals recorded");
+    expect(onSaved).toHaveBeenCalledOnce();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Record vitals" })).toHaveFocus();
+  });
+
+  it("requests a refresh without success when a case becomes unavailable", async () => {
+    const milo = buildMilo();
+    serveCase(milo);
+    server.use(http.post(apiUrl("/api/cases/case-milo/vitals"), () => {
+      serveCase({ ...milo, dischargedAt: at(12, 0) });
+      return new HttpResponse(null, { status: 409 });
+    }));
+    const onRefresh = vi.fn();
+    renderPanel("case-milo", new Date(), vi.fn(), vi.fn(), onRefresh);
+    fireEvent.click(await screen.findByRole("button", { name: "Record vitals" }));
+    fireEvent.change(screen.getByLabelText("Heart rate (bpm)"), { target: { value: "90" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save vitals" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("This case has been discharged.");
+    expect(onRefresh).toHaveBeenCalledOnce();
+    expect(screen.getByRole("button", { name: "Save vitals" })).toBeDisabled();
+    expect(screen.queryByText("Vitals recorded")).not.toBeInTheDocument();
   });
 });

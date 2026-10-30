@@ -68,6 +68,7 @@
 	// Complete triage (4.2b): the prototype's #c77719 darkened for AA with white.
 	--color-triage-action: #a86312;
 	// Focus
+	--focus-outline-width: 1px;
 	--color-focus: #2563eb;
 	--color-focus-on-light: var(--color-care-teal);
 	--color-focus-halo: color-mix(in srgb, var(--color-focus-on-light) 15%, transparent);

@@ -5,7 +5,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite
 import type { SignInRouteState } from "../components/auth/experienceHome";
 import { createCaseHubConnection } from "../services/caseHub";
 import { saveAccessToken } from "../services/session";
-import { buildBoardSummary, buildCase, buildCaseDetail, buildTeamMember } from "../test/builders";
+import { buildBoardSummary, buildCase, buildCaseDetail, buildTeamMember, buildVitalsRecord } from "../test/builders";
 import { createFakeCaseHub } from "../test/fakeCaseHub";
 import { apiUrl, server } from "../test/server";
 import type { BoardSummary } from "../types/BoardSummary";
@@ -465,5 +465,62 @@ describe("ErBoardPage", () => {
     fireEvent.change(screen.getByRole("searchbox", { name: "Search patients" }), { target: { value: "" } });
 
     expect(screen.getByRole("heading", { name: "Milo" })).toBeInTheDocument();
+  });
+});
+
+
+describe("record vitals from the ER board", () => {
+  it("reloads the board and selected panel without a hub echo, keeping acuity and newest-set semantics", async () => {
+    const buddy = buildCase({ id: "case-buddy", patientName: "Buddy", acuity: "urgent" });
+    const before = buildVitalsRecord({ heartRate: 100, respiratoryRate: 24, temperatureF: 101.5, spO2: 98 });
+    const savedReading = buildVitalsRecord({ spO2: 91, outOfRange: ["spO2"] });
+    let saved = false;
+    let boardReads = 0;
+    let payload: unknown;
+    server.use(
+      http.get(apiUrl("/api/cases"), () => { boardReads++; return HttpResponse.json([buddy]); }),
+      http.get(apiUrl("/api/cases/case-buddy"), () => HttpResponse.json(buildCaseDetail({
+        id: buddy.id, acuity: "urgent", vitals: saved ? [savedReading, before] : [before]
+      }))),
+      http.post(apiUrl("/api/cases/case-buddy/vitals"), async ({ request }) => {
+        payload = await request.json();
+        saved = true;
+        return new HttpResponse(null, { status: 201 });
+      })
+    );
+    renderBoard();
+    fireEvent.click(await screen.findByRole("button", { name: "Buddy" }));
+    expect(await screen.findByText("100 bpm")).toBeInTheDocument();
+    const readsBeforeSave = boardReads;
+    fireEvent.click(screen.getByRole("button", { name: "Record vitals" }));
+    fireEvent.change(screen.getByLabelText("SpO₂ (%)"), { target: { value: "91" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save vitals" }));
+    expect(await screen.findByText("91%")).toBeInTheDocument();
+    await waitFor(() => expect(boardReads).toBeGreaterThan(readsBeforeSave));
+    const latest = screen.getByLabelText("Latest vitals");
+    expect(within(latest).getAllByText("Not recorded")).toHaveLength(3);
+    expect(within(latest).getByText("Outside range")).toBeInTheDocument();
+    expect(within(latest).queryByText("100 bpm")).not.toBeInTheDocument();
+    expect(payload).toEqual({ spO2: 91 });
+    expect(within(await findLane("Urgent")).getByRole("button", { name: "Buddy" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("status")).toHaveTextContent("Vitals recorded");
+  });
+
+  it("refreshes vitals entered from another board when caseUpdated arrives", async () => {
+    const buddy = buildCase({ id: "case-buddy", patientName: "Buddy", acuity: "urgent" });
+    serveCases([buddy]);
+    let newest = buildVitalsRecord({ heartRate: 100, spO2: 98 });
+    server.use(http.get(apiUrl("/api/cases/case-buddy"), () => HttpResponse.json(buildCaseDetail({
+      id: buddy.id, acuity: "urgent", vitals: [newest]
+    }))));
+    renderBoard();
+    fireEvent.click(await screen.findByRole("button", { name: "Buddy" }));
+    await screen.findByText("100 bpm");
+    newest = buildVitalsRecord({ heartRate: 160, spO2: 94, outOfRange: ["heartRate", "spO2"] });
+    hub.emit("caseUpdated", buddy.id);
+    expect(await screen.findByText("160 bpm")).toBeInTheDocument();
+    expect(screen.getByText("94%")).toBeInTheDocument();
+    expect(within(screen.getByLabelText("Latest vitals")).getAllByText("Outside range")).toHaveLength(2);
+    expect(within(await findLane("Urgent")).getByRole("button", { name: "Buddy" })).toHaveAttribute("aria-pressed", "true");
   });
 });

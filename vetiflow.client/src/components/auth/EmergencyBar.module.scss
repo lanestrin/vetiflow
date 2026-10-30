@@ -98,7 +98,7 @@ $crimson: #d9383a;
 	}
 
 	&:focus-visible {
-		outline: 3px solid #fff;
+		outline: var(--focus-outline-width) solid #fff;
 		outline-offset: 3px;
 	}
 }

@@ -74,7 +74,7 @@
 	}
 
 	&:focus-visible {
-		outline: 2px solid var(--color-focus-on-light);
+		outline: var(--focus-outline-width) solid var(--color-focus-on-light);
 		outline-offset: 2px;
 	}
 }

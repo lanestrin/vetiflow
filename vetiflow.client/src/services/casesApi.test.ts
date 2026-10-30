@@ -4,11 +4,71 @@ import { buildCase, buildCaseDetail } from "../test/builders";
 import { apiUrl, server } from "../test/server";
 import type { CaseIntakeRequest } from "../types/CaseIntake";
 import { AccessDeniedError, CaseGoneError, FormRejectedError, SessionEndedError } from "./apiErrors";
-import { completeTask, createIntake, createTask, getCase, getEmergencyCases, reopenTask, triageCase, updateCaseStage } from "./casesApi";
+import { completeTask, createIntake, createTask, getCase, getEmergencyCases, recordVitals, reopenTask, triageCase, updateCaseStage } from "./casesApi";
 import { saveAccessToken } from "./session";
 
 afterEach(() => {
   sessionStorage.clear();
+});
+
+describe("recordVitals", () => {
+  const path = apiUrl("/api/cases/case-42/vitals");
+
+  it("posts only the new readings and observations with the session token", async () => {
+    saveAccessToken("token-vitals");
+    const payload = { heartRate: 125, temperatureF: 102, spO2: 97, mentation: "Alert" };
+    let sent: unknown;
+    let token: string | null = null;
+    server.use(http.post(path, async ({ request }) => {
+      sent = await request.json();
+      token = request.headers.get("Authorization");
+      // No dependency on parsing the response after the write has succeeded.
+      return new HttpResponse(null, { status: 201 });
+    }));
+
+    await expect(recordVitals("case-42", payload)).resolves.toBeUndefined();
+
+    expect(sent).toEqual(payload);
+    expect(token).toBe("Bearer token-vitals");
+  });
+
+  it("returns the first message for each refused field", async () => {
+    server.use(http.post(path, () => HttpResponse.json({ errors: {
+      TemperatureF: ["Temperature is outside the permitted range.", "Other error"],
+      Readings: ["Record at least one reading or observation."]
+    } }, { status: 400 })));
+
+    await expect(recordVitals("case-42", {})).rejects.toMatchObject({
+      fieldErrors: { TemperatureF: "Temperature is outside the permitted range.", Readings: "Record at least one reading or observation." }
+    });
+  });
+
+  it("handles an unreadable validation response as a form refusal", async () => {
+    server.use(http.post(path, () => new HttpResponse("not JSON", { status: 400 })));
+    await expect(recordVitals("case-42", {})).rejects.toBeInstanceOf(FormRejectedError);
+  });
+
+  it.each([
+    [401, SessionEndedError], [403, AccessDeniedError]
+  ] as const)("handles session refusal %s", async (status, error) => {
+    server.use(http.post(path, () => new HttpResponse(null, { status })));
+    await expect(recordVitals("case-42", { heartRate: 90 })).rejects.toBeInstanceOf(error);
+  });
+
+  it.each([[404, "notFound"], [409, "discharged"]] as const)("handles unavailable case %s", async (status, reason) => {
+    server.use(http.post(path, () => new HttpResponse(null, { status })));
+    await expect(recordVitals("case-42", { heartRate: 90 })).rejects.toMatchObject({ name: "CaseGoneError", reason });
+  });
+
+  it("does not expose an unexpected response body", async () => {
+    server.use(http.post(path, () => new HttpResponse("private details", { status: 500 })));
+    await expect(recordVitals("case-42", { heartRate: 90 })).rejects.toThrow("Failed to record vitals.");
+  });
+
+  it("reports network failures", async () => {
+    server.use(http.post(path, () => HttpResponse.error()));
+    await expect(recordVitals("case-42", { heartRate: 90 })).rejects.toThrow();
+  });
 });
 
 describe("board requests", () => {
