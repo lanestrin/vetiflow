@@ -419,6 +419,100 @@ public class CasesEndpointTests(VetiFlowApiFactory factory)
 	}
 
 	[Fact]
+	public async Task GetCase_ReturnsVitalsSpO2()
+	{
+		var emergencyCase = TestData.Case(TestData.Patient());
+		emergencyCase.RecordVitals(new VitalsRecord { SpO2 = 91 });
+		emergencyCase.RecordVitals(new VitalsRecord { HeartRate = 100, RecordedAt = DateTimeOffset.UtcNow.AddMinutes(-10) });
+		await SaveAsync(emergencyCase);
+		using var client = await factory.CreateSignedInClientAsync(DemoAccounts.TeamEmail);
+
+		var detail = await GetCaseAsync(client, emergencyCase.Id);
+
+		var vitals = detail.GetProperty("vitals").EnumerateArray().ToList();
+		Assert.Equal(91, vitals[0].GetProperty("spO2").GetInt32());
+		Assert.Equal(JsonValueKind.Null, vitals[1].GetProperty("spO2").ValueKind);
+	}
+
+	[Fact]
+	public async Task GetCase_VitalsListOutOfRangeReadings()
+	{
+		var emergencyCase = TestData.Case(TestData.Patient());
+		emergencyCase.RecordVitals(new VitalsRecord { HeartRate = 148, TemperatureF = 102.0m, SpO2 = 91 });
+		emergencyCase.RecordVitals(new VitalsRecord { HeartRate = 100, RecordedAt = DateTimeOffset.UtcNow.AddMinutes(-10) });
+		await SaveAsync(emergencyCase);
+		using var client = await factory.CreateSignedInClientAsync(DemoAccounts.TeamEmail);
+
+		var detail = await GetCaseAsync(client, emergencyCase.Id);
+
+		var vitals = detail.GetProperty("vitals").EnumerateArray().ToList();
+		Assert.Equal(
+			["heartRate", "spO2"],
+			vitals[0].GetProperty("outOfRange").EnumerateArray().Select(name => name.GetString()));
+		Assert.Empty(vitals[1].GetProperty("outOfRange").EnumerateArray());
+	}
+
+	[Fact]
+	public async Task GetCase_ReturnsLatestPainScore()
+	{
+		var technician = TestData.StaffMember(StaffRole.Technician);
+		var emergencyCase = PainScoredCase(technician);
+		await SaveAsync(emergencyCase);
+		using var client = await factory.CreateSignedInClientAsync(DemoAccounts.TeamEmail);
+
+		var detail = await GetCaseAsync(client, emergencyCase.Id);
+
+		var latest = detail.GetProperty("latestPainScore");
+		Assert.Equal(6, latest.GetProperty("score").GetInt32());
+		Assert.Equal("After methadone", latest.GetProperty("notes").GetString());
+		AssertReference(latest.GetProperty("recordedBy"), technician.Id, $"{technician.FirstName} {technician.LastName}");
+	}
+
+	[Fact]
+	public async Task GetCases_ReturnsLatestPainScoreWithoutNotes()
+	{
+		var emergencyCase = PainScoredCase(TestData.StaffMember(StaffRole.Technician));
+		await SaveAsync(emergencyCase);
+		using var client = await factory.CreateSignedInClientAsync(DemoAccounts.TeamEmail);
+
+		var item = await GetBoardItemAsync(client, emergencyCase.Id);
+
+		var latest = item.GetProperty("latestPainScore");
+		Assert.Equal(6, latest.GetProperty("score").GetInt32());
+		Assert.Equal(["score", "recordedAt"], latest.EnumerateObject().Select(property => property.Name));
+	}
+
+	[Fact]
+	public async Task GetCase_NoPainScore_ReturnsNull()
+	{
+		var emergencyCase = TestData.Case(TestData.Patient());
+		await SaveAsync(emergencyCase);
+		using var client = await factory.CreateSignedInClientAsync(DemoAccounts.TeamEmail);
+
+		var detail = await GetCaseAsync(client, emergencyCase.Id);
+		var item = await GetBoardItemAsync(client, emergencyCase.Id);
+
+		Assert.Equal(JsonValueKind.Null, detail.GetProperty("latestPainScore").ValueKind);
+		Assert.Equal(JsonValueKind.Null, item.GetProperty("latestPainScore").ValueKind);
+	}
+
+	// An older 8 then a newer 6.
+	private static EmergencyCase PainScoredCase(StaffMember recorder)
+	{
+		var emergencyCase = TestData.Case(TestData.Patient());
+		var now = DateTimeOffset.UtcNow;
+		emergencyCase.RecordPainScore(new PainScore { Score = 8, Notes = "On arrival", RecordedAt = now.AddMinutes(-30) });
+		emergencyCase.RecordPainScore(new PainScore
+		{
+			Score = 6,
+			Notes = "After methadone",
+			RecordedAt = now.AddMinutes(-5),
+			RecordedByStaff = recorder
+		});
+		return emergencyCase;
+	}
+
+	[Fact]
 	public async Task GetCase_ListsOpenTasksFirst()
 	{
 		var emergencyCase = TestData.Case(TestData.Patient());

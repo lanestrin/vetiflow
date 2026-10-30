@@ -205,7 +205,7 @@ replaces it. Demo data only.
 
 **Vitals and pain** (prototype: four vitals tiles, pain score meter)
 
-- [ ] **4.8a** `feature/vitals-api`: add SpO₂ to `VitalsRecord` (migration), record vitals through `RecordVitals` (never changes acuity), and return which readings are outside the decided ranges; a pain score record (0 to 10, optional notes, when and who; migration) with the latest on the case detail and board list.
+- [x] **4.8a** `feature/vitals-api`: add SpO₂ to `VitalsRecord` (migration), record vitals through `RecordVitals` (never changes acuity), and return which readings are outside the decided ranges; a pain score record (0 to 10, optional notes, when and who; migration) with the latest on the case detail and board list. Done (history/features/4.8a-vitals-api.md).
 - [ ] **4.8b** `feature/vitals-tiles`: the heart rate, resp rate and temperature tiles (°C, "Not recorded" when missing) exist from 3.2b; 4.8b adds the SpO₂ value, the red alert style and recording a new set from the panel; the pain score meter and the **Record score** dialog.
 
 **Update status** (prototype: "Update status" button)

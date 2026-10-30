@@ -16,6 +16,9 @@ public class VitalsRecord
 
 	public decimal? TemperatureF { get; set; }
 
+	// Oxygen saturation, in percent.
+	public int? SpO2 { get; set; }
+
 	public string? MucousMembraneColor { get; set; }
 
 	public string? CapillaryRefillTime { get; set; }

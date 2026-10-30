@@ -61,3 +61,19 @@ POST {{vetiflow.Server_HostAddress}}/api/cases/{{caseId}}/tasks/{{taskId}}/reope
 Authorization: Bearer {{token}}
 
 ###
+
+POST {{vetiflow.Server_HostAddress}}/api/cases/{{caseId}}/vitals
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "heartRate": 148, "respiratoryRate": 48, "temperatureF": 102.0, "spO2": 91 }
+
+###
+
+POST {{vetiflow.Server_HostAddress}}/api/cases/{{caseId}}/pain-scores
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "score": 7, "notes": "Glasgow CMPS-SF" }
+
+###

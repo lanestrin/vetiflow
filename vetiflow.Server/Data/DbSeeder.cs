@@ -66,6 +66,8 @@ public static class DbSeeder
 				.SetProperty(task => task.ResolvedAt, task => task.ResolvedAt + by));
 		await dbContext.VitalsRecords.ExecuteUpdateAsync(setters => setters
 				.SetProperty(vitals => vitals.RecordedAt, vitals => vitals.RecordedAt + by));
+		await dbContext.PainScores.ExecuteUpdateAsync(setters => setters
+				.SetProperty(painScore => painScore.RecordedAt, painScore => painScore.RecordedAt + by));
 		await dbContext.TriageAssessments.ExecuteUpdateAsync(setters => setters
 				.SetProperty(triage => triage.AssessedAt, triage => triage.AssessedAt + by));
 		await dbContext.CaseEvents.ExecuteUpdateAsync(setters => setters
@@ -280,6 +282,7 @@ public static class DbSeeder
 		{
 			HeartRate = 168,
 			RespiratoryRate = 44,
+			SpO2 = 93,
 			MucousMembraneColor = "Pale",
 			CapillaryRefillTime = ">2 s",
 			Mentation = "Restless",
@@ -302,6 +305,7 @@ public static class DbSeeder
 		{
 			HeartRate = 180,
 			RespiratoryRate = 48,
+			SpO2 = 91,
 			MucousMembraneColor = "Pale",
 			CapillaryRefillTime = ">2 s",
 			Mentation = "Restless",
@@ -342,6 +346,7 @@ public static class DbSeeder
 			HeartRate = 210,
 			RespiratoryRate = 32,
 			TemperatureF = 102.9m,
+			SpO2 = 97,
 			MucousMembraneColor = "Pink, tacky",
 			CapillaryRefillTime = "2 s",
 			Mentation = "Quiet",
@@ -355,6 +360,14 @@ public static class DbSeeder
 			RawIntakeNotes = "Vomited 5 times since 7am. Won't eat. Spayed.",
 			AssessedAt = now.AddMinutes(-35),
 			AssessedByStaff = drShah
+		});
+
+		lunaCase.RecordPainScore(new PainScore
+		{
+			Score = 7,
+			Notes = "Tense abdomen on palpation",
+			RecordedAt = now.AddMinutes(-35),
+			RecordedByStaff = drShah
 		});
 
 		lunaCase.Tasks.Add(new CaseTask
@@ -388,6 +401,7 @@ public static class DbSeeder
 			HeartRate = 96,
 			RespiratoryRate = 24,
 			TemperatureF = 101.5m,
+			SpO2 = 98,
 			MucousMembraneColor = "Pink",
 			CapillaryRefillTime = "<2 s",
 			Mentation = "Bright, alert",
@@ -401,6 +415,14 @@ public static class DbSeeder
 			RawIntakeNotes = "Jumped out of truck, holding right back leg up. Neutered.",
 			AssessedAt = now.AddMinutes(-60),
 			AssessedByStaff = drShah
+		});
+
+		maxCase.RecordPainScore(new PainScore
+		{
+			Score = 6,
+			Notes = "Non-weight-bearing on right hind",
+			RecordedAt = now.AddMinutes(-60),
+			RecordedByStaff = drShah
 		});
 
 		maxCase.Tasks.Add(new CaseTask
