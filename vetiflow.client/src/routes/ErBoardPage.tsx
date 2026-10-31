@@ -19,6 +19,7 @@ import { getEmergencyCases } from "../services/casesApi";
 import { clearAccessToken } from "../services/session";
 import { createCaseHubConnection } from "../services/caseHub";
 import styles from "./ErBoardPage.module.scss";
+import { useClinicalDraftNavigation } from "../components/forms/clinicalDraftContext";
 
 // React 19 moves <title> into the document head, so each page names its own tab.
 const pageTitle = <title>ER Board · VetiFlow</title>;
@@ -39,6 +40,7 @@ async function loadSummary(): Promise<BoardSummary | null> {
 
 export function ErBoardPage() {
   const navigate = useNavigate();
+  const drafts = useClinicalDraftNavigation();
   const [cases, setCases] = useState<EmergencyCaseListItem[]>([]);
   const [summary, setSummary] = useState<BoardSummary | null>(null);
   const [filter, setFilter] = useState<BoardFilter>("all");
@@ -70,7 +72,7 @@ export function ErBoardPage() {
         setSummary(boardSummary);
         // A case that left the board (discharged) is no longer selected.
         setSelectedCaseId((selected) =>
-          emergencyCases.some((emergencyCase) => emergencyCase.id === selected) ? selected : null);
+          drafts.hasDraft() || emergencyCases.some((emergencyCase) => emergencyCase.id === selected) ? selected : null);
         setUpdatedAt(new Date());
         setError(null);
       } catch (loadError) {
@@ -80,9 +82,11 @@ export function ErBoardPage() {
 
         // The token expired or was refused while the board was open.
         if (loadError instanceof SessionEndedError) {
+          drafts.forceExit();
           clearAccessToken();
           navigate("/sign-in", { replace: true, state: { sessionEnded: true } satisfies SignInRouteState });
         } else if (loadError instanceof AccessDeniedError) {
+          drafts.forceExit();
           navigate("/pet-parent", { replace: true });
         } else {
           setError("Unable to load emergency cases.");
@@ -118,7 +122,7 @@ export function ErBoardPage() {
       connection.off("caseUpdated");
       void connection.stop();
     };
-  }, [navigate]);
+  }, [navigate, drafts]);
 
   // The new case appears in its lane, selected (prototype intake).
   function showNewIntake(result: CaseIntakeResult, petName: string) {
@@ -153,7 +157,7 @@ export function ErBoardPage() {
     );
   }
 
-  if (error) {
+  if (error && cases.length === 0 && !drafts.hasDraft()) {
     return (
       <main>
         {pageTitle}
@@ -165,6 +169,7 @@ export function ErBoardPage() {
   return (
     <main className={styles.page}>
       {pageTitle}
+      {error && <p role="alert">{error}</p>}
       <BoardHeading summary={summary} onIntake={() => setIsIntakeOpen(true)} />
 
       <BoardStats summary={summary} filter={filter} now={now} onFilter={chooseFilter} />
@@ -174,7 +179,9 @@ export function ErBoardPage() {
           cases={cases}
           updatedAt={updatedAt}
           selectedCaseId={selectedCaseId}
-          onSelect={setSelectedCaseId}
+          onSelect={id => {
+            if (id !== selectedCaseId) void drafts.requestLeave(() => setSelectedCaseId(id));
+          }}
           filter={filter}
           search={search}
           onFilter={chooseFilter}
@@ -182,6 +189,7 @@ export function ErBoardPage() {
 
         <PatientOverviewPanel
           caseId={selectedCaseId}
+          caseUnavailable={selectedCaseId !== null && !cases.some(item => item.id === selectedCaseId)}
           refreshedAt={updatedAt}
           onTriaged={showTriaged}
           onTaskSaved={() => void reloadCases.current()}

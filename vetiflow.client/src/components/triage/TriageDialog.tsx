@@ -5,12 +5,14 @@ import type { CaseDetail } from "../../types/CaseDetail";
 import type { AcuityLevel } from "../../types/EmergencyCaseListItem";
 import { FieldError } from "../auth/FormMessages";
 import { useLeaveWhenRefused } from "../auth/useLeaveWhenRefused";
+import { useClinicalDraft } from "../forms/useClinicalDraft";
 import styles from "./TriageDialog.module.scss";
 
 type TriageField = "priority" | "notes";
 
 interface TriageDialogProps {
   detail: CaseDetail;
+  caseUnavailable?: boolean;
   onClose: () => void;
   // The toast to show; the caller reloads the board.
   onSaved: (message: string) => void;
@@ -42,9 +44,14 @@ function toFieldErrors(apiErrors: Record<string, string>): Partial<Record<Triage
 // 4.2b), in a native modal dialog like the intake form: it opens when
 // mounted, keeps focus inside, closes on Escape or the backdrop and returns
 // focus to the button that opened it. Nothing typed is lost on an error.
-export function TriageDialog({ detail, onClose, onSaved }: TriageDialogProps) {
+export function TriageDialog({ detail, caseUnavailable = false, onClose, onSaved }: TriageDialogProps) {
   const id = useId();
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
+  const draft = useClinicalDraft(dialogRef, formRef);
+  const [target] = useState(detail);
+  const [isGone, setIsGone] = useState(false);
+  const unavailable = caseUnavailable || isGone || detail.dischargedAt !== null;
   const firstRadioRef = useRef<HTMLInputElement>(null);
   const leaveWhenRefused = useLeaveWhenRefused();
   // Fixed when opened, so a reload while it is open doesn't change the task.
@@ -60,6 +67,7 @@ export function TriageDialog({ detail, onClose, onSaved }: TriageDialogProps) {
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (draft.isSaving() || !draft.isActive() || unavailable) return;
     const data = new FormData(event.currentTarget);
     const priority = data.get("priority") as AcuityLevel | null;
     const notes = String(data.get("notes") ?? "").trim() || null;
@@ -72,21 +80,25 @@ export function TriageDialog({ detail, onClose, onSaved }: TriageDialogProps) {
     }
 
     setFieldErrors({});
+    if (!draft.startSaving()) return;
     setIsSaving(true);
     try {
-      await triageCase(detail.id, { priority, notes });
+      await triageCase(target.id, { priority, notes });
+      if (!draft.isActive()) return;
+      draft.saved();
       dialogRef.current?.close();
       onSaved(isCompleting
-        ? `${detail.patient.name} triage completed`
-        : `${detail.patient.name} re-triaged · ${priorityLabel(priority)}`);
+        ? `${target.patient.name} triage completed`
+        : `${target.patient.name} re-triaged · ${priorityLabel(priority)}`);
     } catch (error) {
-      if (leaveWhenRefused(error)) {
+      if (!draft.isActive() || leaveWhenRefused(error)) {
         return;
       }
 
       if (error instanceof FormRejectedError && Object.keys(toFieldErrors(error.fieldErrors)).length > 0) {
         setFieldErrors(toFieldErrors(error.fieldErrors));
       } else if (error instanceof CaseGoneError) {
+        setIsGone(true);
         setFormError(error.reason === "discharged"
           ? "This case has been discharged."
           : "This case is no longer on the board.");
@@ -94,7 +106,8 @@ export function TriageDialog({ detail, onClose, onSaved }: TriageDialogProps) {
         setFormError("Unable to save triage. Try again.");
       }
     } finally {
-      setIsSaving(false);
+      draft.finishSaving();
+      if (draft.isActive()) setIsSaving(false);
     }
   }
 
@@ -102,37 +115,41 @@ export function TriageDialog({ detail, onClose, onSaved }: TriageDialogProps) {
   const errorId = (field: TriageField) => `${id}-${field}-error`;
   const title = isCompleting ? "Complete triage" : "Re-triage";
 
+  if (draft.exited) return null;
+
   return (
+    <>
     <dialog
       ref={dialogRef}
       className={styles.dialog}
       aria-labelledby={titleId}
       onClose={onClose}
+      onCancel={event => { event.preventDefault(); draft.dismiss(); }}
       onClick={(event) => {
         // A click on the backdrop lands on the dialog itself.
         if (event.target === event.currentTarget) {
-          event.currentTarget.close();
+          draft.dismiss();
         }
       }}
     >
       <div className={styles.head}>
         <div>
           <h2 id={titleId} className={styles.title}>{title}</h2>
-          <p className={styles.tiny}>{detail.patient.name} · Case {detail.caseNumber}</p>
+          <p className={styles.tiny}>{target.patient.name} · Case {target.caseNumber}</p>
         </div>
         <button
           type="button"
           className={styles.close}
           aria-label={`Close ${title.toLowerCase()}`}
-          onClick={() => dialogRef.current?.close()}
+          disabled={isSaving} onClick={draft.dismiss}
         >
           ×
         </button>
       </div>
 
-      <form onSubmit={submit} noValidate>
+      <form ref={formRef} {...draft.formProps} onSubmit={submit} noValidate aria-labelledby={titleId} aria-busy={isSaving}>
         <div className={styles.body}>
-          {formError && <p className={styles.formError} role="alert">{formError}</p>}
+          {(formError || unavailable) && <p className={styles.formError} role="alert">{formError ?? "This case is no longer available for changes."}</p>}
           <fieldset
             className={styles.priority}
             aria-invalid={fieldErrors.priority ? true : undefined}
@@ -147,7 +164,7 @@ export function TriageDialog({ detail, onClose, onSaved }: TriageDialogProps) {
                     type="radio"
                     name="priority"
                     value={option.value}
-                    defaultChecked={detail.acuity === option.value}
+                    defaultChecked={target.acuity === option.value}
                   />
                   {" "}{option.label}
                 </label>
@@ -170,14 +187,16 @@ export function TriageDialog({ detail, onClose, onSaved }: TriageDialogProps) {
           </div>
         </div>
         <div className={styles.foot}>
-          <button type="button" className={styles.secondary} onClick={() => dialogRef.current?.close()}>
+          <button type="button" className={styles.secondary} disabled={isSaving} onClick={draft.dismiss}>
             Cancel
           </button>
-          <button type="submit" className={styles.primary} disabled={isSaving}>
+          <button type="submit" className={styles.primary} disabled={isSaving || unavailable}>
             {isSaving ? "Saving…" : isCompleting ? "Complete triage" : "Save priority"}
           </button>
         </div>
       </form>
     </dialog>
+    {draft.confirmation}
+    </>
   );
 }

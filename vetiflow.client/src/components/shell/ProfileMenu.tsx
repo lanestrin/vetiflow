@@ -4,6 +4,7 @@ import { clearAccessToken } from "../../services/session";
 import type { SignedInUser } from "../../types/Auth";
 import styles from "./AppShell.module.scss";
 import { MyStatusControl } from "./MyStatusControl";
+import { useClinicalDraftNavigation } from "../forms/clinicalDraftContext";
 
 interface ProfileMenuProps {
   user: SignedInUser;
@@ -14,6 +15,7 @@ interface ProfileMenuProps {
 // so the guards send the back button to sign-in.
 export function ProfileMenu({ user }: ProfileMenuProps) {
   const navigate = useNavigate();
+  const drafts = useClinicalDraftNavigation();
   const menuId = useId();
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -47,8 +49,10 @@ export function ProfileMenu({ user }: ProfileMenuProps) {
   }, [isOpen]);
 
   function signOut() {
-    clearAccessToken();
-    navigate("/sign-in", { replace: true });
+    void drafts.requestLeave(() => {
+      clearAccessToken();
+      navigate("/sign-in", { replace: true });
+    });
   }
 
   return (

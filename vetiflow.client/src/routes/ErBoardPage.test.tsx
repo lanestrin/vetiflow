@@ -13,6 +13,7 @@ import type { EmergencyCaseListItem } from "../types/EmergencyCaseListItem";
 import { AppShell } from "../components/shell/AppShell";
 import { ToastProvider } from "../components/shell/Toast";
 import { ErBoardPage } from "./ErBoardPage";
+import { ClinicalDraftProvider } from "../components/forms/ClinicalDraftProvider";
 
 vi.mock("../services/caseHub", () => ({
   createCaseHubConnection: vi.fn()
@@ -65,13 +66,38 @@ function SignInStub() {
 function renderBoard() {
   return render(
     <MemoryRouter initialEntries={["/er"]}>
+      <ClinicalDraftProvider>
       <Routes>
         <Route path="/er" element={<ToastProvider><ErBoardPage /></ToastProvider>} />
         <Route path="/sign-in" element={<SignInStub />} />
       </Routes>
+      </ClinicalDraftProvider>
     </MemoryRouter>
   );
 }
+
+it("guards patient selection and retains the draft on board failure or departure", async () => {
+  serveCases([buildCase({ id: "case-buddy", patientName: "Buddy" }), buildCase({ id: "case-max", patientName: "Max" })]);
+  server.use(http.get(apiUrl("/api/cases/case-buddy"), () => HttpResponse.json(buildCaseDetail({ id: "case-buddy", acuity: "urgent" }))));
+  renderBoard();
+  fireEvent.click(await screen.findByRole("button", { name: "Buddy" }));
+  fireEvent.click(await screen.findByRole("button", { name: "More actions" }));
+  fireEvent.click(screen.getByRole("button", { name: "Re-triage" }));
+  const notes = within(screen.getByRole("dialog", { name: "Re-triage" })).getByLabelText("Triage notes");
+  fireEvent.change(notes, { target: { value: "Retain the original encounter" } });
+  fireEvent.click(screen.getByRole("button", { name: "Max" }));
+  fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
+  expect(screen.getByRole("button", { name: "Buddy" })).toHaveAttribute("aria-pressed", "true");
+  server.use(http.get(apiUrl("/api/cases"), () => new HttpResponse(null, { status: 500 })));
+  hub.emit("caseUpdated", "case-buddy");
+  expect(await screen.findByRole("alert")).toHaveTextContent("Unable to load emergency cases.");
+  expect(notes).toHaveValue("Retain the original encounter");
+  serveCases([]);
+  hub.emit("caseUpdated", "case-buddy");
+  await waitFor(() => expect(screen.getByRole("button", { name: "Save priority" })).toBeDisabled());
+  expect(notes).toHaveValue("Retain the original encounter");
+  expect(screen.queryByText("Select a patient on the board to see their overview.")).not.toBeInTheDocument();
+});
 
 describe("ErBoardPage", () => {
   // "Sends the person to sign in when the session has ended" was removed: it
