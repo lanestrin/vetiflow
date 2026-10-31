@@ -15,6 +15,12 @@ body {
 	min-width: 320px;
 }
 
+@media (max-width: 320px) {
+	body {
+		min-width: 0;
+	}
+}
+
 button,
 input,
 textarea,

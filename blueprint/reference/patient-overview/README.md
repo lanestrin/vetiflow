@@ -1,30 +1,39 @@
 # ER Board and Patient Overview
 
-Current product-direction revision: **2026-10-30**. This package describes the
+Current product-direction revision: **2026-10-31**. This package describes the
 shared ER coordination screen, not a complete medical chart or My Patients.
 
 ## Sources and precedence
 
 1. [Development specification](VETIFLOW_ER_OVERVIEW_SPECIFICATION.md): intended
    content, workflows, boundaries, acceptance criteria and open decisions.
-2. [HTML prototype](VetiFlow_ER_Overview_Next_Care_Action.html): behavioral proof of
-   concept. Inspect its final state and scripts, not just its original markup;
-   it is not an exact production layout or an authorization implementation.
-3. [Project plan](../../project-plan.md) and [master build plan](../../build-plan.md):
+2. [Desktop HTML prototype](VetiFlow_ER_Overview_Next_Care_Action.html): the
+   selected-patient overview's visual target for build-plan item 2.23, with an
+   85% similarity goal assessed side by side. Inspect its final state and
+   scripts, not just its original markup. It is not a data, workflow,
+   authorization or accessibility implementation.
+3. [Responsive HTML example](VetiFlow_Responsive_Navigation_Improved.html):
+   companion reference for mobile shell navigation and narrow-width
+   composition. It does not replace the desktop panel target or define
+   application data and behavior.
+4. [Project plan](../../project-plan.md) and [master build plan](../../build-plan.md):
    shared constraints, implementation dependencies and stable work IDs.
 
-The current prototype is `VetiFlow_ER_Overview_Next_Care_Action.html`. The previous
-Shared Status POC and top-level `vetiflow-er-dashboard.html` are superseded.
-Historical feature documents retain their original references.
+The desktop prototype remains the patient-panel target. The responsive example
+guides the mobile navigation adaptation. The previous Shared Status POC and
+top-level `vetiflow-er-dashboard.html` are superseded. Historical feature
+documents retain their original references.
 
-The HTML retains legacy pain controls, clinical-entry demos and My Patients
-markup/listeners, and still contains old headings, small text and font weights.
-Later scripts hide/rearrange parts of that markup. The written requirements
-take precedence: no generic Overview pain slider, My Patients inactive until
-its role implementation is ready, and
-the current clinic heading/design system/readable typography retained. Do not
-copy fictional medications, sample clinical priorities or demo thresholds into
-production data or make them the application's default clinical rules.
+The approved visual match is scoped to the selected-patient overview's final
+rendered composition and visual treatment. The responsive companion also
+guides the mobile shell menu; it does not authorize a desktop shell redesign or
+a new My Patients route. During responsive review, note any area that looks out
+of place or does not fit the layout, with viewport, adaptation and rationale.
+Neither HTML file is a data, workflow, authorization or accessibility
+implementation. Do not copy legacy pain controls, clinical-entry demos,
+fictional medications, sample clinical priorities or demo thresholds. Keep My
+Patients inactive, preserve the clinic heading and board controls, and use
+supported data, honest missing states and readable accessible typography.
 
 ## Implementation mapping
 
@@ -33,7 +42,7 @@ other historical items stay completed; a new reference does not erase them.
 
 | Requirement | Existing foundation / gap | Master work IDs |
 | --- | --- | --- |
-| Header, board selection, acuity lanes and responsive navigation | Clinic heading/stats/filters already exist. Current phone lane tabs must be accounted for when removing the redundant pill strip. | 2.23; preserve 2.11/2.12/2.14/2.15 |
+| Header, board selection, acuity lanes and responsive navigation | Clinic heading/stats/filters already exist. Keep phone lane tabs; collapse only the shell rail into the accessible mobile menu. | 2.23; preserve 2.11/2.12/2.14/2.15 |
 | Compact identity, complaint, care stage and location | Case detail already has these fields; the panel lacks the new hierarchy. Keep missing values honest. Stage vocabulary is still an open hospital decision. | 2.23, 4.9a/b, 4.3a/b |
 | Focused Clinical / Timeline / Medications review | Reuse current vitals/observations, events and medication text first; one drawer open at a time, correctly bound to the selected encounter. No new full chart form. | 3.6a/b/c, then S.6 and 3.7a/b for field-level role filtering |
 | Next documented action, responsible person and reassessment | Existing nextAction/tasks/due items are useful, but lack the approved priority/review/assignment-history rules. Do not choose the case doctor as the action assignee by assumption. | 2.23 for honest existing data; 4.13a/b for the richer shared source |

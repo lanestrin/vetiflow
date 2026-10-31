@@ -1,12 +1,21 @@
 # VetiFlow — ER Overview Development Specification
 
 **Document status:** Development handoff / product requirements  
-**Scope:** ER Board and selected Patient Overview panel only  
-**Reference prototype:** `VetiFlow_ER_Overview_Next_Care_Action.html`  
-**Visual status:** **PROOF OF CONCEPT — NOT A PIXEL-PERFECT DESIGN SPECIFICATION**  
-**Date:** October 30, 2026
+**Scope:** ER Board, selected Patient Overview panel, and mobile shell navigation
+**Reference prototypes:** `VetiFlow_ER_Overview_Next_Care_Action.html`; `VetiFlow_Responsive_Navigation_Improved.html`
+**Visual status:** **APPROVED 85% VISUAL MATCH FOR 2.23**
+**Date:** October 31, 2026
 
-> **Important for Claude / the development team:** The referenced HTML is a functional exploration of information hierarchy, not a production-ready implementation or mandatory visual replica. Inspect the existing VetiFlow codebase and design system before implementation. Preserve working features and use the prototype to understand intended content, navigation, and workflows. **Do not copy arbitrary demo data, clinical thresholds, times, colors, or layouts as authoritative.**
+> Approved for build-plan item 2.23: target at least 85% visual similarity to
+> the desktop HTML's selected-patient overview at 1600 × 1000 CSS pixels,
+> assessed by side-by-side visual review rather than a pixel-difference score.
+> Use the responsive companion for mobile shell navigation and narrow-width
+> composition; collapse the desktop rail into an accessible menu at widths up
+> to 760 CSS pixels, preserving its existing destinations and route behavior.
+> Neither HTML is a source for clinical facts, workflow behavior,
+> authorization or unsupported states. Preserve readable typography and
+> accessibility; do not copy fictional data, clinical thresholds, legacy pain
+> controls or the embedded My Patients workspace.
 
 ## 1. Product intent
 
@@ -27,6 +36,8 @@ The ER Overview **does not replace** clinical judgment, the full patient chart, 
 - ER Board with priority/acuity lanes and selectable active patient cards.
 - Hospital overview metrics and existing filter/sort controls.
 - Selected patient's compact Patient Overview.
+- Accessible mobile shell navigation that preserves the existing destinations
+  and active-route behavior.
 - Read-only quick-access **Clinical**, **Medications**, and **Timeline** views/drawers.
 - Current care stage, location, care-team assignment, recorded vitals, care priorities, and client communications.
 - Clear source/status/freshness handling and role-based visibility.
@@ -37,6 +48,7 @@ The ER Overview **does not replace** clinical judgment, the full patient chart, 
 - Full order entry, examination entry, nursing task completion, medication administration, and discharge charting.
 - Final role-authentication, clinical permission enforcement, signatures, billing, and audit infrastructure.
 - Production clinical alert rules/reference ranges.
+- Redesigning desktop shell navigation or adding My Patients as a destination.
 
 Those features belong in the broader VetiFlow plan and must connect to the ER Overview through shared patient/encounter data when implemented.
 
@@ -45,6 +57,8 @@ Those features belong in the broader VetiFlow plan and must connect to the ER Ov
 - Keep the **ER Board | My Patients** navigation visible, along with its short supporting label if space permits.
 - **ER Board** is selected on this prototype.
 - **My Patients is present but inactive/non-navigating** until its dedicated prototype and page design are complete. Do **not** use an obsolete demo My Patients screen in place of that future design.
+- At phone widths, the shell rail becomes an accessible menu with the existing
+  destinations; it does not add a My Patients route.
 - Main page title: **Northside Veterinary Emergency**.
 - Subtitle: **Live patient flow and care coordination**.
 - Header breadcrumb may say **VetiFlow / ER Overview**. Avoid repeating “ER Command Center” as the large page title.
@@ -81,7 +95,12 @@ This panel is the **shared status summary**. Keep type readable at the actual pa
 | 7 | Client communication | Last approved update (who/when), next planned update, and short approved client-facing note when available. |
 | 8 | Quick access | **Clinical**, **Medications**, **Timeline** buttons opening deeper information without permanently extending the overview. |
 
-**Clarification:** The layout and precise order can be refined during UI testing. All eight responsibilities should be supported. Avoid displaying an entire task list, full chronology, medication ledger, or exam form in this compact panel.
+**Clarification:** Match the final rendered HTML's section composition and
+order for the compact panel. Adapt it only as needed for responsive behavior,
+readability, accessibility, supported data and the safety boundaries below.
+All eight responsibilities should be supported. Avoid displaying an entire
+task list, full chronology, medication ledger, or exam form in this compact
+panel.
 
 ### 5.1 Patient identity and complaint
 
@@ -201,14 +220,24 @@ The ER Overview shows the stage, such as **Discharge preparation**, **Ready for 
 
 ## 11. Visual design guidance
 
-**PROOF OF CONCEPT — NOT AN EXACT UI SPECIFICATION.** The HTML demonstrates structure and interactions only.
+For build-plan item 2.23, the HTML's final rendered patient overview is the
+visual target. Aim for at least 85% similarity in a side-by-side review at the
+same viewport, considering composition, spacing, alignment, typography
+hierarchy, colors, borders, shadows and control treatment. This is a visual
+judgment, not a pixel-difference score.
 
-- Preserve VetiFlow's current teal, navy, neutral surfaces, and overall visual language where appropriate.
-- Use readable typography at the **real available right-panel width**. Do not solve crowding by shrinking labels into illegibility.
-- Prefer a short, legible hierarchy over a large number of cards and colored badges.
-- Use color for verified clinical significance or actual workflow urgency, not decoration.
+- Preserve the desktop application shell and board controls around the panel.
+- At widths up to 760 CSS pixels, use the responsive companion's collapsed
+  mobile navigation. Keep the existing route destinations and active state;
+  support opening, Escape/route close and focus return.
+- Keep readable typography at the **real available right-panel width**. Do not
+  solve crowding by shrinking labels into illegibility; adapt the composition
+  responsively while preserving its visual hierarchy.
+- Use reference colors for visual fidelity, but do not treat them as validated
+  clinical significance or workflow urgency.
 - Do not repeat fields (location, status, staff, or timestamps) in multiple adjacent sections.
-- Optimize for desktop ER coordination; establish a mobile/tablet behavior without redundant filter controls.
+- Match the reference at desktop and establish responsive tablet/phone layouts
+  without redundant filter controls or unreachable phone lanes.
 - Use explicit empty states and accessible button labels; support keyboard and screen reader navigation.
 
 ## 12. Implementation acceptance criteria
@@ -226,6 +255,17 @@ The ER Overview shows the stage, such as **Discharge preparation**, **Ready for 
 - [ ] No generic pain-score slider or permanent full care timeline appears in the compact overview.
 - [ ] Latest documented data is displayed without inventing real-time clinical changes.
 - [ ] No unsafe automatic clinical conclusions or fabricated recommendations appear.
+- [ ] At 1600 × 1000 CSS pixels, a side-by-side visual review finds at least
+      85% similarity between the selected-patient overview and the HTML's final
+      rendered visual composition and treatment.
+- [ ] At narrower widths, responsive review notes any area that looks out of
+      place or does not fit the responsive layout, with viewport, affected
+      area, adaptation and rationale; the interface remains readable and
+      operable.
+- [ ] At 760 CSS pixels and narrower, the mobile menu exposes the existing
+      routes, closes on Escape or route selection, and returns focus safely.
+- [ ] No horizontal page overflow or clipped navigation/panel controls at 320,
+      390, 650 and 760 CSS pixels, including at 200% text sizing.
 - [ ] Screen works at realistic dashboard widths, and keyboard interaction is usable.
 
 ## 13. Open items requiring clinical/product validation
@@ -240,8 +280,19 @@ The ER Overview shows the stage, such as **Discharge preparation**, **Ready for 
 
 ## 14. Developer instruction / handoff prompt
 
-> Implement the VetiFlow ER Overview according to this document, using `VetiFlow_ER_Overview_Shared_Status_POC.html` as a **proof-of-concept behavioral reference only**. Do not reproduce the HTML pixel-for-pixel or reuse its fictional medical findings as production data. Keep the ER Board and My Patients navigation visible, with My Patients inactive in this prototype. Prioritize shared hospital awareness, documented data freshness, clinical safety, and approved client communication. Keep documentation workflows in the separately designed My Patients area. Inspect the existing design system and code before making structural changes; implement incrementally and verify the acceptance criteria above.
+> Implement the VetiFlow ER Overview according to this document, using the
+> final rendered `VetiFlow_ER_Overview_Next_Care_Action.html` as the desktop
+> visual source for the selected-patient overview and
+> `VetiFlow_Responsive_Navigation_Improved.html` for mobile shell navigation.
+> Match the references while preserving responsive/accessibility requirements
+> and never reusing fictional medical findings, unsafe states or legacy
+> pain/My Patients UI.
+> Keep the ER Board and My Patients navigation visible, with My Patients
+> inactive until its role implementation is ready. Prioritize shared hospital
+> awareness, documented data freshness, clinical safety and approved client
+> communication. Inspect the existing code before structural changes; implement
+> incrementally and verify the acceptance criteria above.
 
 ---
 
-**Document scope boundary:** This file intentionally covers only the ER Overview. The full VetiFlow development handoff separately addresses My Patients, clinician/technician workflows, task assignment, medication management, and discharge.
+**Document scope boundary:** This file covers the ER Overview and its mobile shell navigation. The full VetiFlow development handoff separately addresses My Patients, clinician/technician workflows, task assignment, medication management, and discharge.

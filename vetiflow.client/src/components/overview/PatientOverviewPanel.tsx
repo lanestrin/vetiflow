@@ -292,6 +292,7 @@ function Overview({ detail, nameRef, onOpenReview, clinicalRef, medicationsRef, 
   const meta = [patient.species, patient.breed, longAgeLabel(patient.dateOfBirth, now), weightLabel(detail.weightKg)]
     .filter(Boolean)
     .join(" · ");
+  const complaint = detail.presentingComplaint.trim() || "Not recorded";
   const vitals = detail.vitals[0];
   const tiles: { field: VitalName; label: string; value: string }[] = [
     { field: "heartRate", label: "Heart rate", value: vitals?.heartRate == null ? "Not recorded" : `${vitals.heartRate} bpm` },
@@ -322,22 +323,45 @@ function Overview({ detail, nameRef, onOpenReview, clinicalRef, medicationsRef, 
         </span>
       </div>
 
-      <div className={styles.ownerBar}>
-        <div>
-          <p className={styles.ownerLabel}>Pet parent</p>
-          <p className={styles.ownerName}>
-            {owner ? `${owner.firstName} ${owner.lastName}` : "No pet parent recorded"}
+      <section className={styles.caseContext} aria-label="Case context">
+        <div className={styles.complaint}>
+          <h3 className={styles.kicker}>
+            <svg className={styles.icon} viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M9 18h6M10 22h4M9 14a6 6 0 1 1 6 0c-1.2 1-1.7 2-1.7 4h-2.6c0-2-.5-3-1.7-4Z" />
+            </svg>
+            Presenting complaint
+          </h3>
+          <p className={styles.complaintValue}>{complaint}</p>
+          <p className={styles.stageContext}>
+            <span>Care stage</span>
+            <strong>{stageLabel(detail.stage)}</strong>
           </p>
         </div>
-        {owner && (
-          <div className={styles.ownerActions}>
-            <button type="button" className={styles.linkButton} disabled>
-              <span aria-hidden="true">☎ </span>Call
-            </button>
-            <button type="button" className={styles.linkButton} disabled>Message</button>
+
+        <div className={styles.facts}>
+          <div className={styles.factCard}>
+            <h3 className={styles.factLabel}>
+              <svg className={styles.icon} viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M21 11.5a8.4 8.4 0 0 1-9 8.5 9 9 0 0 1-4-.9L3 21l1.9-5A8.4 8.4 0 1 1 21 11.5Z" />
+              </svg>
+              Client update
+            </h3>
+            <p className={styles.factValue}>{lastUpdate}</p>
+            <small>Update status: {ownerUpdateLabel(detail.ownerUpdateStatus)}</small>
+            <small>Next planned update: {nextUpdate}</small>
           </div>
-        )}
-      </div>
+          <div className={styles.factCard}>
+            <h3 className={styles.factLabel}>
+              <svg className={styles.icon} viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0Z" />
+                <circle cx="12" cy="10" r="2.5" />
+              </svg>
+              Location
+            </h3>
+            <p className={styles.factValue}>{locationLabel(detail.room)}</p>
+          </div>
+        </div>
+      </section>
 
       <section className={styles.reviewActions} aria-label="Patient record">
         <h3 className={styles.sectionTitle}>Patient record</h3>
@@ -357,30 +381,29 @@ function Overview({ detail, nameRef, onOpenReview, clinicalRef, medicationsRef, 
         </div>
       </section>
 
-      <section className={styles.summary} aria-label="Current patient status">
-        <div className={styles.summaryRow}>
-          <h3>Presenting complaint</h3>
-          <p>{detail.presentingComplaint.trim() || "Not recorded"}</p>
+      <section className={styles.nextAction} aria-label="Next care action">
+        <h3 className={styles.kicker}>
+          <svg className={styles.icon} viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 3 2 21h20L12 3Z" />
+            <path d="M12 9v5m0 3h.01" />
+          </svg>
+          Next care action
+        </h3>
+        <p className={styles.actionValue}>{detail.nextAction?.trim() || "No next action documented"}</p>
+        <div className={styles.actionRow}>
+          <span>Responsible</span>
+          <strong>Not recorded</strong>
         </div>
-        <div className={styles.summaryRow}>
-          <h3>Care stage</h3>
-          <p>{stageLabel(detail.stage)}</p>
-        </div>
-        <div className={styles.summaryRow}>
-          <h3>Current location</h3>
-          <p>{locationLabel(detail.room)}</p>
-        </div>
-        <div className={styles.summaryRow}>
-          <h3>Next documented action</h3>
-          <p>{detail.nextAction?.trim() || "No next action documented"}</p>
-          <small>Action assignee: Not recorded</small>
-        </div>
-        <div className={styles.summaryRow}>
-          <h3>Next reassessment</h3>
-          <p>{detail.nextReassessment
-            ? `${detail.nextReassessment.description} · ${dueLabel(detail.nextReassessment.dueAt, now)}`
-            : "Not scheduled"}</p>
-          {detail.nextReassessment?.assignedTo && <small>Assigned to {detail.nextReassessment.assignedTo.name}</small>}
+        <div className={styles.actionRow}>
+          <span>Next reassessment</span>
+          <div>
+            <strong>{detail.nextReassessment
+              ? `${detail.nextReassessment.description} · ${dueLabel(detail.nextReassessment.dueAt, now)}`
+              : "Not scheduled"}</strong>
+            {detail.nextReassessment?.assignedTo && (
+              <small>Assigned to {detail.nextReassessment.assignedTo.name}</small>
+            )}
+          </div>
         </div>
       </section>
 
@@ -401,30 +424,33 @@ function Overview({ detail, nameRef, onOpenReview, clinicalRef, medicationsRef, 
         </p>
       </section>
 
-      <section className={styles.summary} aria-label="Safety and coordination">
-        <div className={styles.summaryRow}>
-          <h3>Allergy status</h3>
-          <p>{allergy.length > 0
+      <section className={styles.careContext} aria-label="Care team and safety">
+        <h3 className={styles.careContextTitle}>
+          <svg className={styles.icon} viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z" />
+            <path d="M9 12h6m-3-3v6" />
+          </svg>
+          Care team &amp; safety
+        </h3>
+        <div className={styles.contextRow}>
+          <span>Allergies</span>
+          <strong>{allergy.length > 0
             ? `${allergy.join(" · ")} · verification unknown`
-            : "Unknown / not verified"}</p>
+            : "Unknown / not verified"}</strong>
         </div>
-        <div className={styles.summaryRow}>
-          <h3>Attending veterinarian</h3>
-          <p data-role="attending-veterinarian">{detail.assignedDoctor?.name ?? "Unassigned"}</p>
+        <div className={styles.contextRow}>
+          <span>Attending veterinarian</span>
+          <strong data-role="attending-veterinarian">{detail.assignedDoctor?.name ?? "Unassigned"}</strong>
         </div>
-        <div className={styles.summaryRow}>
-          <h3>Primary technician</h3>
-          <p data-role="primary-technician">{detail.assignedTechnician?.name ?? "Not assigned"}</p>
+        <div className={styles.contextRow}>
+          <span>Primary technician</span>
+          <strong data-role="primary-technician">{detail.assignedTechnician?.name ?? "Not assigned"}</strong>
         </div>
-        <div className={styles.summaryRow}>
-          <h3>Client communication</h3>
-          <p>{lastUpdate}</p>
-          <small>Update status: {ownerUpdateLabel(detail.ownerUpdateStatus)}</small>
-          <small>Next planned update: {nextUpdate}</small>
+        <div className={styles.contextRow}>
+          <span>Pet parent</span>
+          <strong>{owner ? `${owner.firstName} ${owner.lastName}` : "No pet parent recorded"}</strong>
         </div>
       </section>
-
-      <p className={styles.communicationNote}>Approved client-facing update: Not available in this record.</p>
     </>
   );
 }
