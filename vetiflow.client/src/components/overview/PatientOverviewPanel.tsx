@@ -13,6 +13,7 @@ import { useToast } from "../shell/toastContext";
 import { MoreActionsMenu } from "./MoreActionsMenu";
 import { PainScorePanel } from "./PainScorePanel";
 import { ClinicalReviewDrawer } from "./ClinicalReviewDrawer";
+import { MedicationReviewDrawer } from "./MedicationReviewDrawer";
 import { TimelineReviewDrawer } from "./TimelineReviewDrawer";
 import {
   checkInLabel,
@@ -51,7 +52,9 @@ interface PatientOverviewPanelProps {
 }
 
 type TaskDialogKind = "addTask" | DueItemType;
-type ReviewKind = "clinical" | "timeline";
+type ReviewKind = "clinical" | "medications" | "timeline";
+
+const reviewDrawers = { clinical: ClinicalReviewDrawer, medications: MedicationReviewDrawer, timeline: TimelineReviewDrawer };
 
 const avatars = { dog: "🐕", cat: "🐈", other: "🐾" };
 
@@ -67,6 +70,7 @@ export function PatientOverviewPanel({ caseId, refreshedAt, onTriaged, onTaskSav
   const recordVitalsRef = useRef<HTMLButtonElement>(null);
   const recordPainRef = useRef<HTMLButtonElement>(null);
   const clinicalRef = useRef<HTMLButtonElement>(null);
+  const medicationsRef = useRef<HTMLButtonElement>(null);
   const timelineRef = useRef<HTMLButtonElement>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const [attempt, setAttempt] = useState(0);
@@ -123,7 +127,8 @@ export function PatientOverviewPanel({ caseId, refreshedAt, onTriaged, onTaskSav
 
   const result = caseId !== null && loaded?.key === key ? loaded.result : null;
   const detail = result?.kind === "shown" ? result.detail : null;
-  const ReviewDrawer = review?.kind === "timeline" ? TimelineReviewDrawer : ClinicalReviewDrawer;
+  const ReviewDrawer = reviewDrawers[review?.kind ?? "clinical"];
+  const reviewTriggers = { clinical: clinicalRef, medications: medicationsRef, timeline: timelineRef };
 
   return (
     <aside className={styles.panel} aria-labelledby={titleId} aria-busy={caseId !== null && result === null}>
@@ -166,12 +171,13 @@ export function PatientOverviewPanel({ caseId, refreshedAt, onTriaged, onTaskSav
           recordPainRef={recordPainRef}
           onOpenReview={kind => setReview({ caseId: detail.id, kind })}
           clinicalRef={clinicalRef}
+          medicationsRef={medicationsRef}
           timelineRef={timelineRef}
         />
       )}
       {detail && review?.caseId === detail.id && (
         <ReviewDrawer key={`${detail.id}:${review.kind}`} detail={detail}
-          triggerRef={review.kind === "clinical" ? clinicalRef : timelineRef} fallbackRef={headingRef}
+          triggerRef={reviewTriggers[review.kind]} fallbackRef={headingRef}
           onClose={() => setReview(current => current === review ? null : current)} />
       )}
       {detail && isTriaging && (
@@ -286,10 +292,11 @@ interface OverviewProps {
   recordPainRef: RefObject<HTMLButtonElement | null>;
   onOpenReview: (kind: ReviewKind) => void;
   clinicalRef: RefObject<HTMLButtonElement | null>;
+  medicationsRef: RefObject<HTMLButtonElement | null>;
   timelineRef: RefObject<HTMLButtonElement | null>;
 }
 
-function Overview({ detail, nameRef, onCompleteTriage, onAddTask, onSetDue, onTaskSaved, onRecordVitals, recordVitalsRef, onRecordPain, recordPainRef, onOpenReview, clinicalRef, timelineRef }: OverviewProps) {
+function Overview({ detail, nameRef, onCompleteTriage, onAddTask, onSetDue, onTaskSaved, onRecordVitals, recordVitalsRef, onRecordPain, recordPainRef, onOpenReview, clinicalRef, medicationsRef, timelineRef }: OverviewProps) {
   const now = useNow();
   const { patient, owner } = detail;
   const kind = speciesKind(patient.species);
@@ -341,6 +348,24 @@ function Overview({ detail, nameRef, onCompleteTriage, onAddTask, onSetDue, onTa
         )}
       </div>
 
+      <section className={styles.reviewActions} aria-label="Patient record">
+        <h3 className={styles.sectionTitle}>Patient record</h3>
+        <div className={styles.reviewGrid}>
+          <button ref={clinicalRef} type="button" className={styles.reviewButton} onClick={() => onOpenReview("clinical")}>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2" /><path d="M9 4.5h6M9 10h6M9 14h6M9 18h3" /></svg>
+            Clinical
+          </button>
+          <button ref={medicationsRef} type="button" className={styles.reviewButton} onClick={() => onOpenReview("medications")}>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 5l9 9a5 5 0 0 1-7 7l-9-9a5 5 0 0 1 7-7ZM7 16l9-9" /></svg>
+            Medications
+          </button>
+          <button ref={timelineRef} type="button" className={styles.reviewButton} onClick={() => onOpenReview("timeline")}>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11a8 8 0 1 1 2 6M4 5v6h6M12 7v5l3 2" /></svg>
+            Timeline
+          </button>
+        </div>
+      </section>
+
       <section className={styles.vitalsSection} aria-label="Vitals">
         <div className={styles.sectionTop}>
           <h3 className={styles.sectionTitle}>Vitals</h3>
@@ -373,11 +398,6 @@ function Overview({ detail, nameRef, onCompleteTriage, onAddTask, onSetDue, onTa
           {vitals.recordedBy && <> · {vitals.recordedBy.name}</>}
         </p>}
       </section>
-
-      <div className={styles.reviewActions}>
-        <button ref={clinicalRef} type="button" className={styles.button} onClick={() => onOpenReview("clinical")}>Clinical</button>
-        <button ref={timelineRef} type="button" className={styles.button} onClick={() => onOpenReview("timeline")}>Timeline</button>
-      </div>
 
       <PainScorePanel score={detail.latestPainScore} now={now} onRecord={onRecordPain}
         disabled={detail.dischargedAt !== null} recordRef={recordPainRef} />
