@@ -1,30 +1,26 @@
 import { useEffect, useId, useRef, useState, type RefObject } from "react";
 import { useLeaveWhenRefused } from "../auth/useLeaveWhenRefused";
 import { AcuityBadge } from "../clinical/AcuityBadge";
+import { stageLabel } from "../board/boardFormat";
 import { useNow } from "../board/useNow";
 import { AddTaskDialog } from "../tasks/AddTaskDialog";
 import { DueItemDialog, type DueItemType } from "../tasks/DueItemDialog";
 import { TriageDialog } from "../triage/TriageDialog";
 import { RecordVitalsDialog } from "../vitals/RecordVitalsDialog";
-import { RecordPainScoreDialog } from "../pain/RecordPainScoreDialog";
-import { completeTask, getCase, reopenTask } from "../../services/casesApi";
-import type { CaseDetail, CaseDueItem, CaseTask, VitalName } from "../../types/CaseDetail";
+import { getCase } from "../../services/casesApi";
+import type { CaseDetail, VitalName } from "../../types/CaseDetail";
 import { useToast } from "../shell/toastContext";
 import { MoreActionsMenu } from "./MoreActionsMenu";
-import { PainScorePanel } from "./PainScorePanel";
+import { CaseTasksDialog } from "./CaseTasksDialog";
 import { ClinicalReviewDrawer } from "./ClinicalReviewDrawer";
 import { MedicationReviewDrawer } from "./MedicationReviewDrawer";
 import { TimelineReviewDrawer } from "./TimelineReviewDrawer";
 import {
   checkInLabel,
   dueLabel,
-  eventDetail,
-  eventLabel,
-  isOverdue,
   locationLabel,
   longAgeLabel,
   speciesKind,
-  taskMeta,
   temperatureLabel,
   timeLabel,
   weightLabel
@@ -48,7 +44,6 @@ interface PatientOverviewPanelProps {
   onTaskSaved: () => void;
   // Reload the board after recording vitals or finding this case unavailable.
   onVitalsSaved: () => void;
-  onPainScoreSaved: () => void;
 }
 
 type TaskDialogKind = "addTask" | DueItemType;
@@ -58,17 +53,14 @@ const reviewDrawers = { clinical: ClinicalReviewDrawer, medications: MedicationR
 
 const avatars = { dog: "🐕", cat: "🐈", other: "🐾" };
 
-const notRecorded = "Not recorded";
-
 // The prototype's "Patient overview" (build plan 3.2b) for the card selected
 // on the board. Complete triage and Re-triage open the triage dialog (4.2b);
 // the buttons that later items wire are shown disabled.
-export function PatientOverviewPanel({ caseId, refreshedAt, onTriaged, onTaskSaved, onVitalsSaved, onPainScoreSaved }: PatientOverviewPanelProps) {
+export function PatientOverviewPanel({ caseId, refreshedAt, onTriaged, onTaskSaved, onVitalsSaved }: PatientOverviewPanelProps) {
   const titleId = useId();
   const leaveWhenRefused = useLeaveWhenRefused();
   const nameRef = useRef<HTMLHeadingElement>(null);
-  const recordVitalsRef = useRef<HTMLButtonElement>(null);
-  const recordPainRef = useRef<HTMLButtonElement>(null);
+  const moreActionsRef = useRef<HTMLButtonElement>(null);
   const clinicalRef = useRef<HTMLButtonElement>(null);
   const medicationsRef = useRef<HTMLButtonElement>(null);
   const timelineRef = useRef<HTMLButtonElement>(null);
@@ -78,8 +70,8 @@ export function PatientOverviewPanel({ caseId, refreshedAt, onTriaged, onTaskSav
   const showToast = useToast();
   const [isTriaging, setIsTriaging] = useState(false);
   const [taskDialog, setTaskDialog] = useState<TaskDialogKind | null>(null);
+  const [isTaskReviewOpen, setIsTaskReviewOpen] = useState(false);
   const [vitalsDialogCase, setVitalsDialogCase] = useState<CaseDetail | null>(null);
-  const [painDialogCase, setPainDialogCase] = useState<CaseDetail | null>(null);
   const [review, setReview] = useState<{ caseId: string; kind: ReviewKind } | null>(null);
   // A dialog for one case never carries over to the next selection.
   const [dialogCaseId, setDialogCaseId] = useState(caseId);
@@ -87,8 +79,8 @@ export function PatientOverviewPanel({ caseId, refreshedAt, onTriaged, onTaskSav
     setDialogCaseId(caseId);
     setIsTriaging(false);
     setTaskDialog(null);
+    setIsTaskReviewOpen(false);
     setVitalsDialogCase(null);
-    setPainDialogCase(null);
     setReview(null);
   }
   // Keyed by case and attempt, so a board reload keeps the shown case on
@@ -139,7 +131,26 @@ export function PatientOverviewPanel({ caseId, refreshedAt, onTriaged, onTaskSav
         </div>
         {detail && (
           <MoreActionsMenu
-            actions={detail.stage === "incoming" ? [] : [{ label: "Re-triage", onSelect: () => setIsTriaging(true) }]}
+            actionButtonRef={moreActionsRef}
+            actions={[
+              {
+                label: detail.stage === "incoming" ? "Complete triage" : "Re-triage",
+                onSelect: () => setIsTriaging(true)
+              },
+              { label: "Tasks and due items", onSelect: () => setIsTaskReviewOpen(true) },
+              ...(detail.dischargedAt === null
+                ? [
+                    { label: "Add task", onSelect: () => setTaskDialog("addTask") },
+                    { label: "Set reassessment", onSelect: () => setTaskDialog("reassessment") },
+                    { label: "Set client update", onSelect: () => setTaskDialog("clientUpdate") }
+                  ]
+                : []),
+              {
+                label: "Record vitals",
+                disabled: detail.dischargedAt !== null,
+                onSelect: () => setVitalsDialogCase(detail)
+              }
+            ]}
           />
         )}
       </header>
@@ -161,14 +172,6 @@ export function PatientOverviewPanel({ caseId, refreshedAt, onTriaged, onTaskSav
         <Overview
           detail={detail}
           nameRef={nameRef}
-          onCompleteTriage={() => setIsTriaging(true)}
-          onAddTask={() => setTaskDialog("addTask")}
-          onSetDue={setTaskDialog}
-          onTaskSaved={onTaskSaved}
-          onRecordVitals={() => setVitalsDialogCase(detail)}
-          recordVitalsRef={recordVitalsRef}
-          onRecordPain={() => setPainDialogCase(detail)}
-          recordPainRef={recordPainRef}
           onOpenReview={kind => setReview({ caseId: detail.id, kind })}
           clinicalRef={clinicalRef}
           medicationsRef={medicationsRef}
@@ -180,10 +183,22 @@ export function PatientOverviewPanel({ caseId, refreshedAt, onTriaged, onTaskSav
           triggerRef={reviewTriggers[review.kind]} fallbackRef={headingRef}
           onClose={() => setReview(current => current === review ? null : current)} />
       )}
+      {detail && isTaskReviewOpen && (
+        <CaseTasksDialog
+          detail={detail}
+          triggerRef={moreActionsRef}
+          fallbackRef={headingRef}
+          onClose={() => setIsTaskReviewOpen(false)}
+          onTaskSaved={onTaskSaved}
+        />
+      )}
       {detail && isTriaging && (
         <TriageDialog
           detail={detail}
-          onClose={() => setIsTriaging(false)}
+          onClose={() => {
+            setIsTriaging(false);
+            moreActionsRef.current?.focus();
+          }}
           onSaved={(message) => {
             // Closed here as well as by the dialog's close event, which the
             // browser may deliver after the board has moved on.
@@ -199,7 +214,10 @@ export function PatientOverviewPanel({ caseId, refreshedAt, onTriaged, onTaskSav
         <TaskDialog
           kind={taskDialog}
           detail={detail}
-          onClose={() => setTaskDialog(null)}
+          onClose={() => {
+            setTaskDialog(null);
+            moreActionsRef.current?.focus();
+          }}
           onSaved={(message) => {
             // Closed here too, in case the close event comes late (as triage).
             setTaskDialog(null);
@@ -214,11 +232,11 @@ export function PatientOverviewPanel({ caseId, refreshedAt, onTriaged, onTaskSav
           detail={detail ?? vitalsDialogCase}
           onClose={() => {
             setVitalsDialogCase(null);
-            recordVitalsRef.current?.focus();
+            moreActionsRef.current?.focus();
           }}
           onSaved={() => {
             setVitalsDialogCase(null);
-            recordVitalsRef.current?.focus();
+            moreActionsRef.current?.focus();
             showToast("Vitals recorded");
             setAssessmentRevision(count => count + 1);
             onVitalsSaved();
@@ -226,27 +244,6 @@ export function PatientOverviewPanel({ caseId, refreshedAt, onTriaged, onTaskSav
           onUnavailable={() => {
             setAssessmentRevision(count => count + 1);
             onVitalsSaved();
-          }}
-        />
-      )}
-      {painDialogCase && (
-        <RecordPainScoreDialog
-          key={painDialogCase.id}
-          detail={detail ?? painDialogCase}
-          onClose={() => {
-            setPainDialogCase(null);
-            recordPainRef.current?.focus();
-          }}
-          onSaved={() => {
-            setPainDialogCase(null);
-            recordPainRef.current?.focus();
-            showToast("Pain score recorded");
-            setAssessmentRevision(count => count + 1);
-            onPainScoreSaved();
-          }}
-          onUnavailable={() => {
-            setAssessmentRevision(count => count + 1);
-            onPainScoreSaved();
           }}
         />
       )}
@@ -282,21 +279,13 @@ function TaskDialog({ kind, detail, onClose, onSaved }: TaskDialogProps) {
 interface OverviewProps {
   detail: CaseDetail;
   nameRef: RefObject<HTMLHeadingElement | null>;
-  onCompleteTriage: () => void;
-  onAddTask: () => void;
-  onSetDue: (type: DueItemType) => void;
-  onTaskSaved: () => void;
-  onRecordVitals: () => void;
-  recordVitalsRef: RefObject<HTMLButtonElement | null>;
-  onRecordPain: () => void;
-  recordPainRef: RefObject<HTMLButtonElement | null>;
   onOpenReview: (kind: ReviewKind) => void;
   clinicalRef: RefObject<HTMLButtonElement | null>;
   medicationsRef: RefObject<HTMLButtonElement | null>;
   timelineRef: RefObject<HTMLButtonElement | null>;
 }
 
-function Overview({ detail, nameRef, onCompleteTriage, onAddTask, onSetDue, onTaskSaved, onRecordVitals, recordVitalsRef, onRecordPain, recordPainRef, onOpenReview, clinicalRef, medicationsRef, timelineRef }: OverviewProps) {
+function Overview({ detail, nameRef, onOpenReview, clinicalRef, medicationsRef, timelineRef }: OverviewProps) {
   const now = useNow();
   const { patient, owner } = detail;
   const kind = speciesKind(patient.species);
@@ -304,19 +293,21 @@ function Overview({ detail, nameRef, onCompleteTriage, onAddTask, onSetDue, onTa
     .filter(Boolean)
     .join(" · ");
   const vitals = detail.vitals[0];
-  const observations = [
-    { label: "Mucous membrane colour", value: vitals?.mucousMembraneColor },
-    { label: "Capillary refill time", value: vitals?.capillaryRefillTime },
-    { label: "Mentation", value: vitals?.mentation }
+  const tiles: { field: VitalName; label: string; value: string }[] = [
+    { field: "heartRate", label: "Heart rate", value: vitals?.heartRate == null ? "Not recorded" : `${vitals.heartRate} bpm` },
+    { field: "respiratoryRate", label: "Resp rate", value: vitals?.respiratoryRate == null ? "Not recorded" : `${vitals.respiratoryRate} /min` },
+    { field: "temperatureF", label: "Temp", value: temperatureLabel(vitals?.temperatureF ?? null) ?? "Not recorded" },
+    { field: "spO2", label: "SpO₂", value: vitals?.spO2 == null ? "Not recorded" : `${vitals.spO2}%` }
   ];
-  const tiles: { field: VitalName; label: string; value: string | null }[] = [
-    { field: "heartRate", label: "Heart rate", value: vitals?.heartRate == null ? null : `${vitals.heartRate} bpm` },
-    { field: "respiratoryRate", label: "Resp rate", value: vitals?.respiratoryRate == null ? null : `${vitals.respiratoryRate} /min` },
-    { field: "temperatureF", label: "Temp", value: temperatureLabel(vitals?.temperatureF ?? null) },
-    { field: "spO2", label: "SpO₂", value: vitals?.spO2 == null ? null : `${vitals.spO2}%` }
-  ];
-  const blockers = detail.tasks.filter((task) => task.type === "blocker" && task.status === "open");
-  const tasks = checklistTasks(detail.tasks);
+  const allergy = [...new Set([detail.allergiesAtIntake, patient.allergies]
+    .map(value => value?.trim())
+    .filter((value): value is string => Boolean(value)))];
+  const lastUpdate = detail.lastOwnerUpdateAt
+    ? `Last recorded owner update: ${timeLabel(detail.lastOwnerUpdateAt, now)}`
+    : "Last recorded owner update: Not recorded";
+  const nextUpdate = detail.nextClientUpdate
+    ? `${detail.nextClientUpdate.description} · ${dueLabel(detail.nextClientUpdate.dueAt, now)}`
+    : "Not scheduled";
 
   return (
     <>
@@ -366,260 +357,85 @@ function Overview({ detail, nameRef, onCompleteTriage, onAddTask, onSetDue, onTa
         </div>
       </section>
 
-      <section className={styles.vitalsSection} aria-label="Vitals">
-        <div className={styles.sectionTop}>
-          <h3 className={styles.sectionTitle}>Vitals</h3>
-          <button ref={recordVitalsRef} type="button" className={styles.linkButton}
-            disabled={detail.dischargedAt !== null} onClick={onRecordVitals}>Record vitals</button>
+      <section className={styles.summary} aria-label="Current patient status">
+        <div className={styles.summaryRow}>
+          <h3>Presenting complaint</h3>
+          <p>{detail.presentingComplaint.trim() || "Not recorded"}</p>
         </div>
+        <div className={styles.summaryRow}>
+          <h3>Care stage</h3>
+          <p>{stageLabel(detail.stage)}</p>
+        </div>
+        <div className={styles.summaryRow}>
+          <h3>Current location</h3>
+          <p>{locationLabel(detail.room)}</p>
+        </div>
+        <div className={styles.summaryRow}>
+          <h3>Next documented action</h3>
+          <p>{detail.nextAction?.trim() || "No next action documented"}</p>
+          <small>Action assignee: Not recorded</small>
+        </div>
+        <div className={styles.summaryRow}>
+          <h3>Next reassessment</h3>
+          <p>{detail.nextReassessment
+            ? `${detail.nextReassessment.description} · ${dueLabel(detail.nextReassessment.dueAt, now)}`
+            : "Not scheduled"}</p>
+          {detail.nextReassessment?.assignedTo && <small>Assigned to {detail.nextReassessment.assignedTo.name}</small>}
+        </div>
+      </section>
+
+      <section className={styles.vitalsSection} aria-label="Latest vitals">
+        <h3 className={styles.sectionTitle}>Latest vitals</h3>
         <dl className={styles.vitals} aria-label="Latest vitals">
           {tiles.map(({ field, label, value }) => (
             <div key={field} className={styles.vital}>
               <dt className={styles.vitalLabel}>{label}</dt>
-              <dd className={styles.vitalValue} data-alert={value !== null && vitals?.outOfRange.includes(field)}>
-                {value ?? notRecorded}
-                {value !== null && vitals?.outOfRange.includes(field) && (
-                  <span className={styles.vitalAlert}>Outside range</span>
-                )}
-              </dd>
+              <dd className={styles.vitalValue}>{value}</dd>
             </div>
           ))}
         </dl>
-        <dl className={styles.observations} aria-label="Latest observations">
-          {observations.map(({ label, value }) => (
-            <div key={label}>
-              <dt>{label}</dt>
-              <dd>{value ?? notRecorded}</dd>
-            </div>
-          ))}
-        </dl>
-        {vitals && <p className={styles.vitalsRecorded}>
-          Recorded <time dateTime={vitals.recordedAt}>{timeLabel(vitals.recordedAt, now)}</time>
-          {vitals.recordedBy && <> · {vitals.recordedBy.name}</>}
-        </p>}
-      </section>
-
-      <PainScorePanel score={detail.latestPainScore} now={now} onRecord={onRecordPain}
-        disabled={detail.dischargedAt !== null} recordRef={recordPainRef} />
-
-      <div className={styles.locationSection}>
-        <p className={styles.row}>
-          <span aria-hidden="true">📍</span>
-          <span className={styles.rowLabel}>Location</span>
-          <span className={styles.rowMeta}>{locationLabel(detail.room)}</span>
+        <p className={styles.vitalsRecorded}>
+          {vitals
+            ? <>Entered <time dateTime={vitals.recordedAt}>{timeLabel(vitals.recordedAt, now)}</time>{vitals.recordedBy && <> · {vitals.recordedBy.name}</>}</>
+            : "No vitals recorded"}
         </p>
-        <DueRow
-          icon="⏱"
-          label="Next reassessment"
-          caseId={detail.id}
-          item={detail.nextReassessment}
-          now={now}
-          onSet={() => onSetDue("reassessment")}
-          onTaskSaved={onTaskSaved}
-        />
-        <DueRow
-          icon="☎"
-          label="Client update"
-          caseId={detail.id}
-          item={detail.nextClientUpdate}
-          now={now}
-          onSet={() => onSetDue("clientUpdate")}
-          onTaskSaved={onTaskSaved}
-        />
-      </div>
-
-      <section className={styles.section} aria-labelledby={`${detail.id}-timeline`}>
-        <h3 id={`${detail.id}-timeline`} className={styles.sectionTitle}>Care timeline</h3>
-        {detail.timeline.length === 0 && blockers.length === 0 ? (
-          <p className={styles.empty}>No events yet.</p>
-        ) : (
-          <ol className={styles.timeline}>
-            {detail.timeline.map((caseEvent) => (
-              <li key={caseEvent.id} className={styles.event}>
-                <div className={styles.eventLine}>
-                  <span className={styles.eventName}>{eventLabel(caseEvent.type)}</span>
-                  <span className={styles.eventTime}>{timeLabel(caseEvent.createdAt, now)}</span>
-                </div>
-                <p className={styles.eventDetail}>{eventDetail(caseEvent)}</p>
-              </li>
-            ))}
-            {blockers.map((blocker) => (
-              <li key={blocker.id} className={styles.event} data-pending="true">
-                <div className={styles.eventLine}>
-                  <span className={styles.eventName}>{blocker.description}</span>
-                  <span className={styles.eventTime}>Waiting</span>
-                </div>
-                <p className={styles.eventDetail}>
-                  {blocker.assignedTo ? `Open blocker · ${blocker.assignedTo.name}` : "Open blocker"}
-                </p>
-              </li>
-            ))}
-          </ol>
-        )}
       </section>
 
-      <section className={styles.section} aria-labelledby={`${detail.id}-actions`}>
-        <div className={styles.sectionTop}>
-          <h3 id={`${detail.id}-actions`} className={styles.sectionTitle}>Next actions</h3>
-          <button type="button" className={styles.linkButton} onClick={onAddTask}>＋ Add task</button>
+      <section className={styles.summary} aria-label="Safety and coordination">
+        <div className={styles.summaryRow}>
+          <h3>Allergy status</h3>
+          <p>{allergy.length > 0
+            ? `${allergy.join(" · ")} · verification unknown`
+            : "Unknown / not verified"}</p>
         </div>
-        {tasks.length === 0 ? (
-          <p className={styles.empty}>No tasks yet.</p>
-        ) : (
-          <TaskChecklist caseId={detail.id} caseTasks={detail.tasks} onTaskSaved={onTaskSaved} />
-        )}
+        <div className={styles.summaryRow}>
+          <h3>Attending veterinarian</h3>
+          <p data-role="attending-veterinarian">{detail.assignedDoctor?.name ?? "Unassigned"}</p>
+        </div>
+        <div className={styles.summaryRow}>
+          <h3>Primary technician</h3>
+          <p data-role="primary-technician">{detail.assignedTechnician?.name ?? "Not assigned"}</p>
+        </div>
+        <div className={styles.summaryRow}>
+          <h3>Client communication</h3>
+          <p>{lastUpdate}</p>
+          <small>Update status: {ownerUpdateLabel(detail.ownerUpdateStatus)}</small>
+          <small>Next planned update: {nextUpdate}</small>
+        </div>
       </section>
 
-      <div className={styles.actions}>
-        {detail.stage === "incoming" && (
-          <button type="button" className={`${styles.button} ${styles.triage}`} onClick={onCompleteTriage}>
-            <span aria-hidden="true">✓ </span>Complete triage
-          </button>
-        )}
-        <button type="button" className={`${styles.button} ${styles.secondary}`} disabled>
-          <span aria-hidden="true">⇄ </span>Handoff
-        </button>
-        <button type="button" className={styles.button} disabled>Update status</button>
-      </div>
+      <p className={styles.communicationNote}>Approved client-facing update: Not available in this record.</p>
     </>
   );
 }
 
-interface DueRowProps {
-  icon: string;
-  label: string;
-  caseId: string;
-  item: CaseDueItem | null;
-  now: Date;
-  onSet: () => void;
-  onTaskSaved: () => void;
-}
+function ownerUpdateLabel(status: CaseDetail["ownerUpdateStatus"]): string {
+  const labels = {
+    notYetUpdated: "No recorded update status",
+    updated: "Update status recorded",
+    awaitingOwnerReply: "Awaiting owner reply",
+    consentNeeded: "Consent needed"
+  } satisfies Record<CaseDetail["ownerUpdateStatus"], string>;
 
-// The prototype's "Next reassessment" and "Client update" rows (4.4b). An
-// overdue time says so in words as well as colour. Set opens the due item
-// dialog; once one is scheduled, Done completes it and the next one due
-// takes its place (4.4c). One button for both, so focus stays on it when
-// Done turns back into Set. While saving it is aria-disabled, not disabled:
-// the browser takes focus away from a disabled button.
-function DueRow({ icon, label, caseId, item, now, onSet, onTaskSaved }: DueRowProps) {
-  const leaveWhenRefused = useLeaveWhenRefused();
-  const showToast = useToast();
-  const [isSaving, setIsSaving] = useState(false);
-  const dueAt = item?.dueAt ?? null;
-  const name = label.toLowerCase();
-
-  async function complete(itemId: string) {
-    if (isSaving) {
-      return;
-    }
-
-    setIsSaving(true);
-    try {
-      await completeTask(caseId, itemId);
-    } catch (saveError) {
-      if (leaveWhenRefused(saveError)) {
-        return;
-      }
-
-      showToast("Couldn't update the task. Try again.");
-    } finally {
-      setIsSaving(false);
-    }
-
-    onTaskSaved();
-  }
-
-  return (
-    <p className={styles.row}>
-      <span aria-hidden="true">{icon}</span>
-      <span className={styles.rowLabel}>{label}</span>
-      <span className={styles.rowMeta} data-overdue={isOverdue(dueAt, now)}>{dueLabel(dueAt, now)}</span>
-      <button
-        type="button"
-        className={`${styles.linkButton} ${styles.rowAction}`}
-        aria-label={item ? `Mark ${name} done` : `Set ${name}`}
-        aria-disabled={isSaving || undefined}
-        onClick={() => (item ? void complete(item.id) : onSet())}
-      >
-        {item ? "Done" : "Set"}
-      </button>
-    </p>
-  );
-}
-
-interface TaskChecklistProps {
-  caseId: string;
-  // Every task on the case, as loaded; the checklist shows the plain tasks.
-  caseTasks: CaseTask[];
-  onTaskSaved: () => void;
-}
-
-// Ticking completes a task and unticking reopens it (4.4b). The tick changes
-// at once; a failure puts it back and the reload shows the saved state.
-function TaskChecklist({ caseId, caseTasks, onTaskSaved }: TaskChecklistProps) {
-  const leaveWhenRefused = useLeaveWhenRefused();
-  const showToast = useToast();
-  const [ticked, setTicked] = useState<Record<string, boolean>>({});
-  const [savingId, setSavingId] = useState<string | null>(null);
-  // A reload brings the saved state, so earlier ticks no longer apply.
-  const [followedTasks, setFollowedTasks] = useState(caseTasks);
-  if (caseTasks !== followedTasks) {
-    setFollowedTasks(caseTasks);
-    setTicked({});
-  }
-  const tasks = checklistTasks(caseTasks);
-
-  async function toggle(task: CaseTask, isDone: boolean) {
-    setTicked((current) => ({ ...current, [task.id]: isDone }));
-    setSavingId(task.id);
-
-    try {
-      await (isDone ? completeTask(caseId, task.id) : reopenTask(caseId, task.id));
-    } catch (saveError) {
-      if (leaveWhenRefused(saveError)) {
-        return;
-      }
-
-      setTicked((current) => {
-        const reverted = { ...current };
-        delete reverted[task.id];
-        return reverted;
-      });
-      showToast("Couldn't update the task. Try again.");
-    } finally {
-      setSavingId(null);
-    }
-
-    onTaskSaved();
-  }
-
-  return (
-    <ul className={styles.tasks}>
-      {tasks.map((task) => {
-        const isDone = ticked[task.id] ?? task.status === "done";
-        return (
-          <li key={task.id} className={styles.row} data-done={isDone}>
-            <label className={styles.taskLabel}>
-              <input
-                type="checkbox"
-                className={styles.checkInput}
-                checked={isDone}
-                disabled={savingId === task.id}
-                onChange={(event) => void toggle(task, event.target.checked)}
-              />
-              <span className={styles.check} aria-hidden="true">{isDone ? "✓" : ""}</span>
-              <span className={styles.rowLabel}>{task.description}</span>
-            </label>
-            <span className={styles.rowMeta}>{taskMeta(task)}</span>
-          </li>
-        );
-      })}
-    </ul>
-  );
-}
-
-// The Next actions checklist: plain tasks that are not cancelled. Blockers
-// show in the timeline and due items in their own rows.
-function checklistTasks(caseTasks: CaseTask[]): CaseTask[] {
-  return caseTasks.filter((task) => task.type === "task" && task.status !== "cancelled");
+  return labels[status];
 }

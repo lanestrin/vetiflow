@@ -4,7 +4,7 @@ import { http, HttpResponse } from "msw";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { readAccessToken, saveAccessToken } from "../../services/session";
-import { buildCaseDetail, buildCaseTask, buildPainScore } from "../../test/builders";
+import { buildCaseDetail, buildCaseTask } from "../../test/builders";
 import { apiUrl, server } from "../../test/server";
 import type { CaseDetail, CaseTask } from "../../types/CaseDetail";
 import { ToastProvider } from "../shell/Toast";
@@ -89,8 +89,7 @@ function renderPanel(
   refreshedAt = new Date(2026, 0, 1),
   onTriaged = vi.fn(),
   onTaskSaved = vi.fn(),
-  onVitalsSaved = vi.fn(),
-  onPainScoreSaved = vi.fn()
+  onVitalsSaved = vi.fn()
 ) {
   const panel = (id: string | null, refreshed: Date) => (
     <MemoryRouter initialEntries={["/er"]}>
@@ -98,7 +97,7 @@ function renderPanel(
         <Routes>
           <Route
             path="/er"
-            element={<PatientOverviewPanel caseId={id} refreshedAt={refreshed} onTriaged={onTriaged} onTaskSaved={onTaskSaved} onVitalsSaved={onVitalsSaved} onPainScoreSaved={onPainScoreSaved} />}
+            element={<PatientOverviewPanel caseId={id} refreshedAt={refreshed} onTriaged={onTriaged} onTaskSaved={onTaskSaved} onVitalsSaved={onVitalsSaved} />}
           />
           <Route path="/sign-in" element={<p>Sign-in page</p>} />
           <Route path="/pet-parent" element={<p>Pet parent home</p>} />
@@ -108,6 +107,11 @@ function renderPanel(
   );
   const view = render(panel(caseId, refreshedAt));
   return { rerender: (id: string | null, refreshed: Date) => view.rerender(panel(id, refreshed)) };
+}
+
+async function openMoreAction(label: string) {
+  fireEvent.click(await screen.findByRole("button", { name: "More actions" }));
+  fireEvent.click(await screen.findByRole("button", { name: label }));
 }
 
 describe("PatientOverviewPanel", () => {
@@ -133,7 +137,93 @@ describe("PatientOverviewPanel", () => {
     expect(screen.getByText("Treatment · Oxygen Cage")).toBeInTheDocument();
   });
 
-  it("shows the newest vitals with SpO₂ and the API's alert text", async () => {
+  it("shows the compact documented summary without duplicating review ledgers", async () => {
+    const milo = buildMilo({
+      nextAction: "Review radiographs",
+      assignedDoctor: { id: "doctor-1", name: "Jordan Reed" },
+      assignedTechnician: { id: "tech-1", name: "Sam Cruz" },
+      allergiesAtIntake: "Peanuts",
+      ownerUpdateStatus: "updated",
+      lastOwnerUpdateAt: at(10, 52),
+      nextReassessment: {
+        id: "recheck-1",
+        description: "Recheck respiratory status",
+        dueAt: new Date(Date.now() + 8.5 * 60_000).toISOString(),
+        assignedTo: { id: "tech-1", name: "Sam Cruz" }
+      }
+    });
+    milo.vitals[0].outOfRange = ["heartRate", "respiratoryRate"];
+    serveCase(milo);
+
+    renderPanel("case-milo");
+
+    await screen.findByRole("heading", { name: "Milo" });
+    expect(screen.getByText("In treatment")).toBeInTheDocument();
+    expect(screen.getByText("Critical")).toBeInTheDocument();
+    expect(screen.getByText("Review radiographs")).toBeInTheDocument();
+    expect(screen.getByText("Recheck respiratory status · Due in 8 min")).toBeInTheDocument();
+    expect(screen.getByText("Jordan Reed")).toBeInTheDocument();
+    expect(screen.getByText("Sam Cruz")).toBeInTheDocument();
+    expect(screen.getByText(/Peanuts/)).toBeInTheDocument();
+    expect(screen.getByText(/verification unknown/i)).toBeInTheDocument();
+    expect(screen.getByText(/Last recorded owner update/)).toBeInTheDocument();
+    expect(screen.queryByText("Approved client update")).not.toBeInTheDocument();
+    expect(screen.queryByText("Outside range")).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Care timeline" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Next actions" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Pain score" })).not.toBeInTheDocument();
+    for (const name of ["Clinical", "Medications", "Timeline"]) {
+      expect(screen.getByRole("button", { name })).toBeInTheDocument();
+    }
+  });
+
+  it("shows neutral missing states for stage context, action, allergies and care-team assignments", async () => {
+    serveCase(buildMilo({
+      nextAction: null,
+      assignedDoctor: null,
+      assignedTechnician: null,
+      allergiesAtIntake: null,
+      patient: { ...buildMilo().patient, allergies: null },
+      room: null
+    }));
+
+    renderPanel("case-milo");
+
+    expect(await screen.findByText("In treatment")).toBeInTheDocument();
+    expect(screen.getByText("No next action documented")).toBeInTheDocument();
+    expect(screen.getByText("No room assigned")).toBeInTheDocument();
+    expect(screen.getByText("Unknown / not verified")).toBeInTheDocument();
+    expect(screen.getByText("Unassigned", { selector: "[data-role='attending-veterinarian']" })).toBeInTheDocument();
+    expect(screen.getByText("Not assigned", { selector: "[data-role='primary-technician']" })).toBeInTheDocument();
+    expect(screen.getByText("Last recorded owner update: Not recorded")).toBeInTheDocument();
+    expect(screen.getByText(/Next planned update:\s*Not scheduled/)).toBeInTheDocument();
+  });
+
+  it("moves task and entry actions into More actions while keeping task review case-bound", async () => {
+    serveCase(buildMilo());
+    const onTaskSaved = vi.fn();
+    renderPanel("case-milo", new Date(), vi.fn(), onTaskSaved);
+
+    await screen.findByRole("heading", { name: "Milo" });
+    expect(screen.queryByRole("button", { name: "Record vitals" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Add task" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "More actions" }));
+    fireEvent.click(screen.getByRole("button", { name: "Tasks and due items" }));
+
+    const taskDialog = await screen.findByRole("dialog", { name: "Tasks and due items" });
+    expect(taskDialog).toHaveTextContent("Milo");
+    expect(taskDialog).toHaveTextContent("ER-2481");
+    expect(within(taskDialog).getByRole("checkbox", { name: "Review radiographs" })).toBeInTheDocument();
+    fireEvent.click(within(taskDialog).getByRole("button", { name: "Close tasks and due items" }));
+    expect(screen.queryByRole("dialog", { name: "Tasks and due items" })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "More actions" }));
+    fireEvent.click(screen.getByRole("button", { name: "Record vitals" }));
+    expect(await screen.findByRole("dialog", { name: "Record vitals" })).toBeInTheDocument();
+    expect(onTaskSaved).not.toHaveBeenCalled();
+  });
+
+  it("shows the newest vitals as a neutral summary without clinical alert styling", async () => {
     const milo = buildMilo();
     milo.vitals[0].spO2 = 91;
     milo.vitals[0].outOfRange = ["heartRate", "respiratoryRate", "spO2"];
@@ -141,47 +231,51 @@ describe("PatientOverviewPanel", () => {
 
     renderPanel("case-milo");
 
-    const tiles = within(await screen.findByLabelText("Latest vitals"));
+    const tiles = within(await screen.findByRole("region", { name: "Latest vitals" }));
     expect(tiles.getAllByRole("term").map((term) => term.textContent)).toEqual(["Heart rate", "Resp rate", "Temp", "SpO₂"]);
     expect(tiles.getAllByRole("definition").map((value) => value.textContent)).toEqual([
-      "148 bpmOutside range", "48 /minOutside range", "38.9 °C", "91%Outside range"
+      "148 bpm", "48 /min", "38.9 °C", "91%"
     ]);
   });
 
-  it("shows latest observations literally with the set's recorded time and staff", async () => {
+  it("keeps detailed observations in the Clinical review drawer", async () => {
     const milo = buildMilo();
     milo.vitals[0] = { ...milo.vitals[0], mucousMembraneColor: "Pink", capillaryRefillTime: "2 s",
       mentation: "<script>Alert</script>", recordedBy: { id: "s1", name: "Jordan Lee" } };
     serveCase(milo);
     renderPanel("case-milo");
-    const vitals = within(await screen.findByRole("region", { name: "Vitals" }));
-    const observations = within(vitals.getByLabelText("Latest observations"));
-    expect(observations.getAllByRole("term").map(term => term.textContent)).toEqual([
-      "Mucous membrane colour", "Capillary refill time", "Mentation"
-    ]);
-    expect(observations.getAllByRole("definition").map(value => value.textContent)).toEqual([
-      "Pink", "2 s", "<script>Alert</script>"
-    ]);
-    expect(vitals.getByText(/^Recorded /)).toHaveTextContent("Recorded 10:50 AM · Jordan Lee");
+    fireEvent.click(await screen.findByRole("button", { name: "Clinical" }));
+    const clinical = within(await screen.findByRole("dialog", { name: "Clinical" }));
+    expect(clinical.getByText("Mucous membrane colour")).toBeInTheDocument();
+    expect(clinical.getByText("Capillary refill time")).toBeInTheDocument();
+    expect(clinical.getByText("Mentation")).toBeInTheDocument();
+    expect(clinical.getByText("Pink")).toBeInTheDocument();
+    expect(clinical.getByText("2 s")).toBeInTheDocument();
+    expect(clinical.getByText("<script>Alert</script>")).toBeInTheDocument();
+    expect(clinical.getByText(/^Entered/)).toHaveTextContent("Entered 10:50 AM · Jordan Lee");
   });
 
-  it("does not backfill missing latest observations or invent a recorder", async () => {
+  it("does not backfill missing observations or invent a recorder in Clinical", async () => {
     const milo = buildMilo();
     milo.vitals[1].mentation = "Older observation";
     serveCase(milo);
     renderPanel("case-milo");
-    const vitals = within(await screen.findByRole("region", { name: "Vitals" }));
-    expect(within(vitals.getByLabelText("Latest observations")).getAllByText("Not recorded")).toHaveLength(3);
-    expect(vitals.getByText(/^Recorded/)).toHaveTextContent(/^Recorded 10:50 AM$/);
-    expect(vitals.queryByText("Older observation")).not.toBeInTheDocument();
+    fireEvent.click(await screen.findByRole("button", { name: "Clinical" }));
+    const clinical = within(await screen.findByRole("dialog", { name: "Clinical" }));
+    expect(clinical.getAllByText("Not recorded")).toHaveLength(1);
+    expect(clinical.getByText("No assessment findings recorded in this set")).toBeInTheDocument();
+    expect(clinical.getByText(/^Entered/)).toHaveTextContent(/^Entered 10:50 AM$/);
+    expect(clinical.queryByText("Older observation")).not.toBeInTheDocument();
   });
 
-  it("shows missing observations without recorded metadata when no set exists", async () => {
+  it("shows missing observations without recorded metadata in Clinical when no set exists", async () => {
     serveCase(buildMilo({ vitals: [] }));
     renderPanel("case-milo");
-    const vitals = within(await screen.findByRole("region", { name: "Vitals" }));
-    expect(within(vitals.getByLabelText("Latest observations")).getAllByText("Not recorded")).toHaveLength(3);
-    expect(vitals.queryByText(/^Recorded /)).not.toBeInTheDocument();
+    fireEvent.click(await screen.findByRole("button", { name: "Clinical" }));
+    const clinical = within(await screen.findByRole("dialog", { name: "Clinical" }));
+    expect(clinical.getAllByText("Not recorded")).toHaveLength(4);
+    expect(clinical.getByText("No assessment findings recorded")).toBeInTheDocument();
+    expect(clinical.queryByText(/^Entered/)).not.toBeInTheDocument();
   });
 
   it("uses the API flags instead of inferring alerts from the values", async () => {
@@ -191,22 +285,22 @@ describe("PatientOverviewPanel", () => {
 
     renderPanel("case-milo");
 
-    const tiles = within(await screen.findByLabelText("Latest vitals"));
+    const tiles = within(await screen.findByRole("region", { name: "Latest vitals" }));
     expect(tiles.getByText("148 bpm")).toBeInTheDocument();
     expect(tiles.getByText("91%")).toBeInTheDocument();
     expect(tiles.queryByText("Outside range")).not.toBeInTheDocument();
   });
 
-  it("shows a temperature alert when flagged by the API", async () => {
+  it("does not turn a flagged temperature into a summary alert", async () => {
     const milo = buildMilo();
     milo.vitals[0].outOfRange = ["temperatureF"];
     serveCase(milo);
 
     renderPanel("case-milo");
 
-    const tiles = within(await screen.findByLabelText("Latest vitals"));
+    const tiles = within(await screen.findByRole("region", { name: "Latest vitals" }));
     expect(tiles.getAllByRole("definition").map((value) => value.textContent)).toEqual([
-      "148 bpm", "48 /min", "38.9 °COutside range", "Not recorded"
+      "148 bpm", "48 /min", "38.9 °C", "Not recorded"
     ]);
   });
 
@@ -218,7 +312,7 @@ describe("PatientOverviewPanel", () => {
 
     renderPanel("case-milo");
 
-    const tiles = within(await screen.findByLabelText("Latest vitals"));
+    const tiles = within(await screen.findByRole("region", { name: "Latest vitals" }));
     expect(tiles.getAllByText("Not recorded")).toHaveLength(3);
     expect(tiles.queryByText("Outside range")).not.toBeInTheDocument();
     expect(tiles.getByText("48 /min")).toBeInTheDocument();
@@ -226,90 +320,64 @@ describe("PatientOverviewPanel", () => {
     expect(tiles.queryByText("98%")).not.toBeInTheDocument();
   });
 
-  it("updates the pain score when the selected case reloads", async () => {
-    const milo = buildMilo({ latestPainScore: {
-      id: "pain-1", score: 7, notes: "Before treatment", recordedAt: at(10, 50), recordedBy: null
-    } });
-    serveCase(milo);
-    const view = renderPanel("case-milo");
-    expect(await screen.findByRole("meter", { name: "Pain score" })).toHaveAttribute("aria-valuenow", "7");
-
-    serveCase({ ...milo, latestPainScore: { ...milo.latestPainScore!, id: "pain-2", score: 0, notes: null } });
-    view.rerender("case-milo", new Date(2026, 0, 2));
-
-    await vi.waitFor(() => expect(screen.getByRole("meter", { name: "Pain score" })).toHaveAttribute("aria-valuenow", "0"));
-    expect(screen.queryByText("Before treatment")).not.toBeInTheDocument();
-  });
-
-  it("does not carry the pain score into another patient's loading or empty state", async () => {
-    serveCase(buildMilo({ latestPainScore: {
-      id: "pain-1", score: 7, notes: "Before treatment", recordedAt: at(10, 50), recordedBy: null
-    } }));
-    const view = renderPanel("case-milo");
-    await screen.findByRole("meter", { name: "Pain score" });
-
-    view.rerender("case-other", new Date(2026, 0, 2));
-
-    expect(screen.queryByRole("meter")).not.toBeInTheDocument();
-    expect(screen.queryByText("Before treatment")).not.toBeInTheDocument();
-    const pain = within(await screen.findByRole("region", { name: "Pain score" }));
-    expect(pain.getByText("Not recorded")).toBeInTheDocument();
-    expect(pain.queryByRole("meter")).not.toBeInTheDocument();
-  });
-
   it("says not recorded for every tile when no vitals exist", async () => {
     serveCase(buildMilo({ vitals: [] }));
 
     renderPanel("case-milo");
 
-    const tiles = within(await screen.findByLabelText("Latest vitals"));
+    const tiles = within(await screen.findByRole("region", { name: "Latest vitals" }));
     expect(tiles.getAllByText("Not recorded")).toHaveLength(4);
   });
 
-  it("lists the timeline with open blockers marked as waiting", async () => {
+  it("lists the recorded timeline in the Timeline review drawer", async () => {
     serveCase(buildMilo());
 
     renderPanel("case-milo");
 
-    const timeline = within(await screen.findByRole("region", { name: "Care timeline" }));
-    const items = timeline.getAllByRole("listitem");
+    fireEvent.click(await screen.findByRole("button", { name: "Timeline" }));
+    const timeline = within(await screen.findByRole("dialog", { name: "Timeline" }));
+    const history = within(timeline.getByRole("region", { name: "Recorded history" }));
+    const items = history.getAllByRole("listitem");
     expect(items.map((item) => item.textContent)).toEqual([
-      "Arrived10:42 AMRespiratory distress",
-      "Triage completed10:47 AMCritical · Jordan Reed",
-      "Thoracic radiographsWaitingOpen blocker · Sam Cruz"
+      "ArrivedRespiratory distressRecorded 10:42 AM",
+      "Vitals recordedEntered 10:45 AM",
+      "Triage completedCriticalRecorded 10:47 AMRecorded by Jordan Reed",
+      "Vitals recordedEntered 10:50 AM"
     ]);
   });
 
-  it("lists tasks with done and pending, leaving out cancelled tasks and blockers", async () => {
+  it("lists tasks with done and pending in the Tasks and due items view", async () => {
     serveCase(buildMilo());
 
     renderPanel("case-milo");
 
-    const actions = within(await screen.findByRole("region", { name: "Next actions" }));
-    const items = actions.getAllByRole("listitem");
+    await openMoreAction("Tasks and due items");
+    const actions = within(await screen.findByRole("dialog", { name: "Tasks and due items" }));
+    const items = actions.getAllByRole("checkbox");
     expect(items).toHaveLength(2);
-    expect(within(items[0]).getByRole("checkbox", { name: "Review radiographs" })).not.toBeChecked();
-    expect(items[0]).toHaveTextContent("Review radiographsPending");
-    expect(within(items[1]).getByRole("checkbox", { name: "Place IV catheter" })).toBeChecked();
-    expect(items[1]).toHaveTextContent("✓Place IV catheterJordan Reed");
+    expect(items[0]).not.toBeChecked();
+    expect(items[1]).toBeChecked();
   });
 
-  it("shows empty timeline and task messages", async () => {
-    serveCase(buildMilo({ timeline: [], tasks: [] }));
+  it("shows empty timeline and task messages in their review views", async () => {
+    serveCase(buildMilo({ timeline: [], tasks: [], vitals: [] }));
 
     renderPanel("case-milo");
 
-    expect(await screen.findByText("No events yet.")).toBeInTheDocument();
-    expect(screen.getByText("No tasks yet.")).toBeInTheDocument();
+    fireEvent.click(await screen.findByRole("button", { name: "Timeline" }));
+    expect(await screen.findByText("No history recorded")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Close Timeline" }));
+    await openMoreAction("Tasks and due items");
+    expect(await screen.findByText("No tasks yet.")).toBeInTheDocument();
   });
 
-  it("shows the controls later items wire as disabled", async () => {
+  it("keeps unavailable owner actions disabled", async () => {
     serveCase(buildMilo());
 
     renderPanel("case-milo");
 
     await screen.findByRole("heading", { name: "Milo" });
-    for (const name of ["Call", "Message", "Handoff", "Update status"]) {
+    for (const name of ["Call", "Message"]) {
       expect(screen.getByRole("button", { name })).toBeDisabled();
     }
   });
@@ -323,15 +391,15 @@ describe("PatientOverviewPanel", () => {
   });
 
   // Triage (build plan 4.2b).
-  it("offers Complete triage only for an incoming case, with ••• disabled", async () => {
+  it("offers Complete triage from More actions only for an incoming case", async () => {
     serveCase(buildMilo({ stage: "incoming", acuity: "urgent" }));
 
     renderPanel("case-milo");
 
-    fireEvent.click(await screen.findByRole("button", { name: "Complete triage" }));
+    await openMoreAction("Complete triage");
     expect(screen.getByRole("dialog", { name: "Complete triage" })).toBeInTheDocument();
     expect(screen.getByRole("radio", { name: "Urgent" })).toBeChecked();
-    expect(screen.getByRole("button", { name: "More actions" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "More actions" })).toHaveAttribute("aria-expanded", "false");
   });
 
   it("offers Re-triage from ••• once a case is past Incoming", async () => {
@@ -372,7 +440,7 @@ describe("PatientOverviewPanel", () => {
     const onTriaged = vi.fn();
     renderPanel("case-milo", new Date(2026, 0, 1), onTriaged);
 
-    fireEvent.click(await screen.findByRole("button", { name: "Complete triage" }));
+    await openMoreAction("Complete triage");
     fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Complete triage" }));
 
     await vi.waitFor(() => expect(onTriaged).toHaveBeenCalledWith("Milo triage completed"));
@@ -391,7 +459,7 @@ describe("PatientOverviewPanel", () => {
     const onTriaged = vi.fn();
     const { rerender } = renderPanel("case-milo", new Date(2026, 0, 1), onTriaged);
 
-    fireEvent.click(await screen.findByRole("button", { name: "Complete triage" }));
+    await openMoreAction("Complete triage");
     fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Complete triage" }));
     await vi.waitFor(() => expect(onTriaged).toHaveBeenCalled());
     rerender("case-other", new Date(2026, 0, 2));
@@ -478,13 +546,13 @@ describe("PatientOverviewPanel", () => {
 
       renderPanel("case-milo");
 
-      expect(await screen.findByText("Due in 8 min")).toHaveAttribute("data-overdue", "false");
+      expect(await screen.findByText(/Recheck pain · Due in 8 min/)).toBeInTheDocument();
       expect(screen.getByText("Next reassessment")).toBeInTheDocument();
-      expect(screen.getByText("Client update")).toBeInTheDocument();
-      expect(screen.getByText("Not scheduled")).toHaveAttribute("data-overdue", "false");
+      expect(screen.getByText(/Next planned update:/)).toBeInTheDocument();
+      expect(screen.getByText(/Next planned update:\s*Not scheduled/)).toBeInTheDocument();
     });
 
-    it("marks an overdue item in words and for colour", async () => {
+    it("marks an overdue item in words", async () => {
       const twelveAgo = new Date(Date.now() - 12.5 * 60_000).toISOString();
       serveCase(buildMilo({
         nextClientUpdate: { id: "c1", description: "Call owner", dueAt: twelveAgo, assignedTo: null }
@@ -492,7 +560,7 @@ describe("PatientOverviewPanel", () => {
 
       renderPanel("case-milo");
 
-      expect(await screen.findByText("Overdue by 12 min")).toHaveAttribute("data-overdue", "true");
+      expect(await screen.findByText(/Call owner · Overdue by 12 min/)).toBeInTheDocument();
     });
 
     it("offers Set with nothing scheduled and Done once something is", async () => {
@@ -503,8 +571,11 @@ describe("PatientOverviewPanel", () => {
 
       renderPanel("case-milo");
 
-      expect(await screen.findByRole("button", { name: "Mark next reassessment done" })).toHaveTextContent("Done");
-      expect(screen.getByRole("button", { name: "Set client update" })).toHaveTextContent("Set");
+      await openMoreAction("Tasks and due items");
+      expect(await screen.findByRole("button", { name: "Mark next reassessment done" })).toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: "Close tasks and due items" }));
+      await openMoreAction("Set client update");
+      expect(screen.getByRole("dialog", { name: "Set client update" })).toBeInTheDocument();
     });
 
     it("completes the scheduled item on Done and asks for a reload", async () => {
@@ -521,6 +592,7 @@ describe("PatientOverviewPanel", () => {
       const onTaskSaved = vi.fn();
       renderPanel("case-milo", new Date(2026, 0, 1), vi.fn(), onTaskSaved);
 
+      await openMoreAction("Tasks and due items");
       const done = await screen.findByRole("button", { name: "Mark client update done" });
 
       fireEvent.click(done);
@@ -542,6 +614,7 @@ describe("PatientOverviewPanel", () => {
       );
       renderPanel("case-milo");
 
+      await openMoreAction("Tasks and due items");
       fireEvent.click(await screen.findByRole("button", { name: "Mark client update done" }));
 
       expect(await screen.findByText("Couldn't update the task. Try again.")).toBeInTheDocument();
@@ -554,7 +627,7 @@ describe("PatientOverviewPanel", () => {
       const onTaskSaved = vi.fn();
       renderPanel("case-milo", new Date(2026, 0, 1), vi.fn(), onTaskSaved);
 
-      fireEvent.click(await screen.findByRole("button", { name: "Set next reassessment" }));
+      await openMoreAction("Set reassessment");
       const dialog = screen.getByRole("dialog", { name: "Set reassessment" });
       fireEvent.click(within(dialog).getByRole("button", { name: "Set reassessment" }));
 
@@ -578,7 +651,7 @@ describe("PatientOverviewPanel", () => {
       const onTaskSaved = vi.fn();
       renderPanel("case-milo", new Date(2026, 0, 1), vi.fn(), onTaskSaved);
 
-      fireEvent.click(await screen.findByRole("button", { name: "＋ Add task" }));
+      await openMoreAction("Add task");
       const dialog = screen.getByRole("dialog", { name: "Add task" });
       fireEvent.change(within(dialog).getByLabelText("Task *"), { target: { value: "Recheck glucose" } });
       fireEvent.click(within(dialog).getByRole("button", { name: "Add task" }));
@@ -593,7 +666,7 @@ describe("PatientOverviewPanel", () => {
       serveCase(buildMilo());
       const { rerender } = renderPanel("case-milo");
 
-      fireEvent.click(await screen.findByRole("button", { name: "＋ Add task" }));
+      await openMoreAction("Add task");
       expect(screen.getByRole("dialog", { name: "Add task" })).toBeInTheDocument();
       rerender("case-other", new Date(2026, 0, 2));
       await screen.findByText(/Case ER-/);
@@ -616,7 +689,8 @@ describe("PatientOverviewPanel", () => {
     }
 
     async function checkbox(name: string) {
-      return within(await screen.findByRole("region", { name: "Next actions" })).getByRole("checkbox", { name });
+      await openMoreAction("Tasks and due items");
+      return within(await screen.findByRole("dialog", { name: "Tasks and due items" })).getByRole("checkbox", { name });
     }
 
     it("completes an open task and asks for a reload", async () => {
@@ -819,8 +893,7 @@ describe("switching encounter review views", () => {
     expect(screen.getAllByRole("dialog")).toHaveLength(1);
     expect(screen.getByRole("dialog", { name: "Clinical" })).toBeVisible();
     expect(reads()).toBe(1);
-    expect(screen.getByRole("region", { name: "Care timeline" })).toBeInTheDocument();
-    expect(screen.getByRole("region", { name: "Next actions" })).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Clinical" })).toBeInTheDocument();
   });
 });
 
@@ -831,7 +904,8 @@ describe("recording vitals in the overview", () => {
     expect(screen.queryByRole("button", { name: "Record vitals" })).not.toBeInTheDocument();
     view.rerender("case-milo", new Date());
     expect(screen.queryByRole("button", { name: "Record vitals" })).not.toBeInTheDocument();
-    expect(await screen.findByRole("button", { name: "Record vitals" })).toBeEnabled();
+    await openMoreAction("Record vitals");
+    expect(screen.getByRole("dialog", { name: "Record vitals" })).toBeInTheDocument();
   });
 
   it.each([404, 500])("offers no entry after detail failure %s", async status => {
@@ -844,20 +918,19 @@ describe("recording vitals in the overview", () => {
   it("disables entry for a known discharged case", async () => {
     serveCase(buildMilo({ dischargedAt: at(11, 0) }));
     renderPanel("case-milo");
+    fireEvent.click(await screen.findByRole("button", { name: "More actions" }));
     expect(await screen.findByRole("button", { name: "Record vitals" })).toBeDisabled();
   });
 
   it("discards a cancelled draft, restores focus and reopens the latest saved values", async () => {
     serveCase(buildMilo());
     renderPanel("case-milo");
-    const action = await screen.findByRole("button", { name: "Record vitals" });
-    action.focus();
-    fireEvent.click(action);
+    await openMoreAction("Record vitals");
     fireEvent.change(screen.getByLabelText("Heart rate (bpm)"), { target: { value: "90" } });
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    expect(action).toHaveFocus();
-    fireEvent.click(action);
+    expect(screen.getByRole("button", { name: "More actions" })).toHaveFocus();
+    await openMoreAction("Record vitals");
     expect(screen.getByLabelText("Heart rate (bpm)")).toHaveValue("148");
   });
 
@@ -865,7 +938,7 @@ describe("recording vitals in the overview", () => {
     const milo = buildMilo();
     serveCase(milo);
     const view = renderPanel("case-milo");
-    fireEvent.click(await screen.findByRole("button", { name: "Record vitals" }));
+    await openMoreAction("Record vitals");
     fireEvent.change(screen.getByLabelText("Heart rate (bpm)"), { target: { value: "90" } });
     serveCase({ ...milo, vitals: [{ ...milo.vitals[0], heartRate: 120, temperatureF: 80, mentation: "Updated" }] });
     view.rerender("case-milo", new Date());
@@ -874,7 +947,7 @@ describe("recording vitals in the overview", () => {
     expect(screen.getByLabelText("Temperature (°C)")).toHaveValue("38.9");
     expect(screen.getByLabelText("Mentation")).toHaveValue("");
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
-    fireEvent.click(screen.getByRole("button", { name: "Record vitals" }));
+    await openMoreAction("Record vitals");
     expect(screen.getByLabelText("Heart rate (bpm)")).toHaveValue("120");
     expect(screen.getByLabelText("Temperature (°C)")).toHaveValue("26.7");
     expect(screen.getByLabelText("Mentation")).toHaveValue("Updated");
@@ -883,7 +956,7 @@ describe("recording vitals in the overview", () => {
   it.each([200, 500])("preserves a draft across a same-case refresh returning %s", async status => {
     serveCase(buildMilo());
     const view = renderPanel("case-milo");
-    fireEvent.click(await screen.findByRole("button", { name: "Record vitals" }));
+    await openMoreAction("Record vitals");
     fireEvent.change(screen.getByLabelText("Heart rate (bpm)"), { target: { value: "91" } });
     let requests = 0;
     server.use(http.get(apiUrl("/api/cases/case-milo"), () => {
@@ -903,11 +976,11 @@ describe("recording vitals in the overview", () => {
     const second = buildCaseDetail({ id: "case-second" });
     serveCase(second);
     const view = renderPanel("case-milo");
-    fireEvent.click(await screen.findByRole("button", { name: "Record vitals" }));
+    await openMoreAction("Record vitals");
     fireEvent.change(screen.getByLabelText("Heart rate (bpm)"), { target: { value: "90" } });
     view.rerender(second.id, new Date());
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    fireEvent.click(await screen.findByRole("button", { name: "Record vitals" }));
+    await openMoreAction("Record vitals");
     expect(screen.getByRole("dialog")).toHaveTextContent(second.caseNumber);
     expect(screen.getByLabelText("Heart rate (bpm)")).toHaveValue("");
   });
@@ -924,12 +997,12 @@ describe("recording vitals in the overview", () => {
     const write = vi.spyOn(casesApi, "recordVitals");
     const onSaved = vi.fn();
     const view = renderPanel("case-milo", new Date(), vi.fn(), vi.fn(), onSaved);
-    fireEvent.click(await screen.findByRole("button", { name: "Record vitals" }));
+    await openMoreAction("Record vitals");
     fireEvent.change(screen.getByLabelText("Heart rate (bpm)"), { target: { value: "90" } });
     fireEvent.click(screen.getByRole("button", { name: "Save vitals" }));
     expect(write).toHaveBeenCalledWith("case-milo", { heartRate: 90, respiratoryRate: 48, temperatureF: 102 });
     view.rerender("case-second", new Date());
-    fireEvent.click(await screen.findByRole("button", { name: "Record vitals" }));
+    await openMoreAction("Record vitals");
     fireEvent.change(screen.getByLabelText("Heart rate (bpm)"), { target: { value: "100" } });
     await act(async () => { finish(); await write.mock.results[0].value; });
     expect(screen.getByRole("dialog")).toBeVisible();
@@ -947,14 +1020,14 @@ describe("recording vitals in the overview", () => {
     }));
     const onSaved = vi.fn();
     renderPanel("case-milo", new Date(), vi.fn(), vi.fn(), onSaved);
-    fireEvent.click(await screen.findByRole("button", { name: "Record vitals" }));
+    await openMoreAction("Record vitals");
     fireEvent.change(screen.getByLabelText("Heart rate (bpm)"), { target: { value: "95" } });
     fireEvent.click(screen.getByRole("button", { name: "Save vitals" }));
     expect(await screen.findByText("95 bpm")).toBeInTheDocument();
     expect(screen.getByRole("status")).toHaveTextContent("Vitals recorded");
     expect(onSaved).toHaveBeenCalledOnce();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Record vitals" })).toHaveFocus();
+    expect(screen.getByRole("button", { name: "More actions" })).toHaveFocus();
   });
 
   it("requests a refresh without success when a case becomes unavailable", async () => {
@@ -966,160 +1039,12 @@ describe("recording vitals in the overview", () => {
     }));
     const onRefresh = vi.fn();
     renderPanel("case-milo", new Date(), vi.fn(), vi.fn(), onRefresh);
-    fireEvent.click(await screen.findByRole("button", { name: "Record vitals" }));
+    await openMoreAction("Record vitals");
     fireEvent.change(screen.getByLabelText("Heart rate (bpm)"), { target: { value: "90" } });
     fireEvent.click(screen.getByRole("button", { name: "Save vitals" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("This case has been discharged.");
     expect(onRefresh).toHaveBeenCalledOnce();
     expect(screen.getByRole("button", { name: "Save vitals" })).toBeDisabled();
     expect(screen.queryByText("Vitals recorded")).not.toBeInTheDocument();
-  });
-});
-
-
-describe("recording pain assessments in the overview", () => {
-  it("offers recording after a loaded active case, including one with no prior score", async () => {
-    serveCase(buildMilo({ latestPainScore: null }));
-    const view = renderPanel(null);
-    expect(screen.queryByRole("button", { name: "Record score" })).not.toBeInTheDocument();
-    view.rerender("case-milo", new Date());
-    expect(screen.queryByRole("button", { name: "Record score" })).not.toBeInTheDocument();
-    expect(await screen.findByRole("button", { name: "Record score" })).toBeEnabled();
-  });
-
-  it.each([404, 500])("does not offer pain entry after load failure %s", async status => {
-    server.use(http.get(apiUrl("/api/cases/case-milo"), () => new HttpResponse(null, { status })));
-    renderPanel("case-milo");
-    await screen.findByText(status === 404 ? "This case is no longer on the board." : "Unable to load this case.");
-    expect(screen.queryByRole("button", { name: "Record score" })).not.toBeInTheDocument();
-  });
-
-  it("disables pain entry for a known discharged case", async () => {
-    serveCase(buildMilo({ dischargedAt: at(12, 0) }));
-    renderPanel("case-milo");
-    expect(await screen.findByRole("button", { name: "Record score" })).toBeDisabled();
-  });
-
-  it("discards a cancelled assessment and returns focus without preselecting an old score", async () => {
-    serveCase(buildMilo({ latestPainScore: buildPainScore({ score: 7, notes: "Previous note" }) }));
-    renderPanel("case-milo");
-    const action = await screen.findByRole("button", { name: "Record score" });
-    action.focus();
-    fireEvent.click(action);
-    expect(screen.getByLabelText("Pain score (0 to 10)")).toHaveValue("");
-    expect(screen.getByLabelText("Notes (optional)")).toHaveValue("");
-    fireEvent.change(screen.getByLabelText("Pain score (0 to 10)"), { target: { value: "3" } });
-    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
-    expect(action).toHaveFocus();
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    fireEvent.click(action);
-    expect(screen.getByLabelText("Pain score (0 to 10)")).toHaveValue("");
-    expect(screen.getByLabelText("Notes (optional)")).toHaveValue("");
-  });
-
-  it.each([200, 500])("preserves both draft fields across same-case refresh %s", async status => {
-    serveCase(buildMilo());
-    const view = renderPanel("case-milo");
-    fireEvent.click(await screen.findByRole("button", { name: "Record score" }));
-    fireEvent.change(screen.getByLabelText("Pain score (0 to 10)"), { target: { value: "0" } });
-    fireEvent.change(screen.getByLabelText("Notes (optional)"), { target: { value: "Current draft" } });
-    let reads = 0;
-    server.use(http.get(apiUrl("/api/cases/case-milo"), () => {
-      reads++;
-      return status === 200 ? HttpResponse.json(buildMilo({ weightKg: 32 })) : new HttpResponse(null, { status });
-    }));
-    view.rerender("case-milo", new Date());
-    await waitFor(() => expect(reads).toBe(1));
-    if (status === 200) await screen.findByText(/32 kg/);
-    else await screen.findByText("Unable to load this case.");
-    expect(screen.getByLabelText("Pain score (0 to 10)")).toHaveValue("0");
-    expect(screen.getByLabelText("Notes (optional)")).toHaveValue("Current draft");
-  });
-
-  it("clears the assessment when switching cases", async () => {
-    serveCase(buildMilo());
-    const second = buildCaseDetail({ id: "case-second" });
-    serveCase(second);
-    const view = renderPanel("case-milo");
-    fireEvent.click(await screen.findByRole("button", { name: "Record score" }));
-    fireEvent.change(screen.getByLabelText("Pain score (0 to 10)"), { target: { value: "3" } });
-    fireEvent.change(screen.getByLabelText("Notes (optional)"), { target: { value: "Old draft" } });
-    view.rerender(second.id, new Date());
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    fireEvent.click(await screen.findByRole("button", { name: "Record score" }));
-    expect(screen.getByRole("dialog")).toHaveTextContent(second.caseNumber);
-    expect(screen.getByLabelText("Pain score (0 to 10)")).toHaveValue("");
-    expect(screen.getByLabelText("Notes (optional)")).toHaveValue("");
-  });
-
-  it("ignores a previous patient's late save while a new patient's form is open", async () => {
-    serveCase(buildMilo());
-    serveCase(buildCaseDetail({ id: "case-second" }));
-    let finish!: () => void;
-    const pending = new Promise<void>(resolve => { finish = resolve; });
-    server.use(http.post(apiUrl("/api/cases/case-milo/pain-scores"), async () => {
-      await pending;
-      return new HttpResponse(null, { status: 201 });
-    }));
-    const request = vi.spyOn(casesApi, "recordPainScore");
-    const onSaved = vi.fn();
-    const view = renderPanel("case-milo", new Date(), vi.fn(), vi.fn(), vi.fn(), onSaved);
-    fireEvent.click(await screen.findByRole("button", { name: "Record score" }));
-    fireEvent.change(screen.getByLabelText("Pain score (0 to 10)"), { target: { value: "3" } });
-    fireEvent.click(screen.getByRole("button", { name: "Save pain score" }));
-    expect(request).toHaveBeenCalledWith("case-milo", { score: 3 });
-    view.rerender("case-second", new Date());
-    fireEvent.click(await screen.findByRole("button", { name: "Record score" }));
-    fireEvent.change(screen.getByLabelText("Pain score (0 to 10)"), { target: { value: "8" } });
-    await act(async () => { finish(); await request.mock.results[0].value; });
-    expect(screen.getByRole("dialog")).toBeVisible();
-    expect(screen.getByLabelText("Pain score (0 to 10)")).toHaveValue("8");
-    expect(onSaved).not.toHaveBeenCalled();
-    expect(screen.queryByText("Pain score recorded")).not.toBeInTheDocument();
-  });
-
-  it("reads back score zero, notes and recorder metadata without losing the focus target", async () => {
-    const milo = buildMilo();
-    serveCase(milo);
-    server.use(http.post(apiUrl("/api/cases/case-milo/pain-scores"), () => {
-      serveCase({ ...milo, latestPainScore: buildPainScore({
-        score: 0, notes: "Brief demo note", recordedAt: at(10, 56), recordedBy: { id: "staff-ortiz", name: "Sam Ortiz" }
-      }) });
-      return new HttpResponse(null, { status: 201 });
-    }));
-    const onSaved = vi.fn();
-    renderPanel("case-milo", new Date(), vi.fn(), vi.fn(), vi.fn(), onSaved);
-    fireEvent.click(await screen.findByRole("button", { name: "Record score" }));
-    fireEvent.change(screen.getByLabelText("Pain score (0 to 10)"), { target: { value: "0" } });
-    fireEvent.change(screen.getByLabelText("Notes (optional)"), { target: { value: "Brief demo note" } });
-    fireEvent.click(screen.getByRole("button", { name: "Save pain score" }));
-    expect(await screen.findByText("0 / 10")).toBeInTheDocument();
-    expect(screen.getByRole("meter")).toHaveAttribute("aria-valuenow", "0");
-    expect(screen.getByText("Brief demo note")).toBeInTheDocument();
-    expect(screen.getByText(/Recorded.*Sam Ortiz/)).toBeInTheDocument();
-    expect(screen.getByRole("status")).toHaveTextContent("Pain score recorded");
-    expect(onSaved).toHaveBeenCalledOnce();
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Record score" })).toHaveFocus();
-    expect(screen.getByText("148 bpm")).toBeInTheDocument();
-    expect(screen.getByText("Critical")).toBeInTheDocument();
-  });
-
-  it("refreshes an unavailable case without a success toast or another save", async () => {
-    const milo = buildMilo();
-    serveCase(milo);
-    server.use(http.post(apiUrl("/api/cases/case-milo/pain-scores"), () => {
-      serveCase({ ...milo, dischargedAt: at(12, 0) });
-      return new HttpResponse(null, { status: 409 });
-    }));
-    const onRefresh = vi.fn();
-    renderPanel("case-milo", new Date(), vi.fn(), vi.fn(), vi.fn(), onRefresh);
-    fireEvent.click(await screen.findByRole("button", { name: "Record score" }));
-    fireEvent.change(screen.getByLabelText("Pain score (0 to 10)"), { target: { value: "4" } });
-    fireEvent.click(screen.getByRole("button", { name: "Save pain score" }));
-    expect(await screen.findByRole("alert")).toHaveTextContent("This case has been discharged.");
-    expect(onRefresh).toHaveBeenCalledOnce();
-    expect(screen.getByRole("button", { name: "Save pain score" })).toBeDisabled();
-    expect(screen.queryByText("Pain score recorded")).not.toBeInTheDocument();
   });
 });
