@@ -34,6 +34,7 @@ type LoadResult =
 
 interface PatientOverviewPanelProps {
   caseId: string | null;
+  caseUnavailable?: boolean;
   // When the board last loaded; a change loads the shown case again.
   refreshedAt: Date;
   // After triage is saved, with the toast to show; the board reloads.
@@ -56,7 +57,7 @@ const avatars = { dog: "🐕", cat: "🐈", other: "🐾" };
 // The prototype's "Patient overview" (build plan 3.2b) for the card selected
 // on the board. Complete triage and Re-triage open the triage dialog (4.2b);
 // the buttons that later items wire are shown disabled.
-export function PatientOverviewPanel({ caseId, refreshedAt, onTriaged, onTaskSaved, onVitalsSaved }: PatientOverviewPanelProps) {
+export function PatientOverviewPanel({ caseId, caseUnavailable = false, refreshedAt, onTriaged, onTaskSaved, onVitalsSaved }: PatientOverviewPanelProps) {
   const titleId = useId();
   const leaveWhenRefused = useLeaveWhenRefused();
   const nameRef = useRef<HTMLHeadingElement>(null);
@@ -68,6 +69,7 @@ export function PatientOverviewPanel({ caseId, refreshedAt, onTriaged, onTaskSav
   const [attempt, setAttempt] = useState(0);
   const [assessmentRevision, setAssessmentRevision] = useState(0);
   const showToast = useToast();
+  const [editingCase, setEditingCase] = useState<CaseDetail | null>(null);
   const [isTriaging, setIsTriaging] = useState(false);
   const [taskDialog, setTaskDialog] = useState<TaskDialogKind | null>(null);
   const [isTaskReviewOpen, setIsTaskReviewOpen] = useState(false);
@@ -77,6 +79,7 @@ export function PatientOverviewPanel({ caseId, refreshedAt, onTriaged, onTaskSav
   const [dialogCaseId, setDialogCaseId] = useState(caseId);
   if (dialogCaseId !== caseId) {
     setDialogCaseId(caseId);
+    setEditingCase(null);
     setIsTriaging(false);
     setTaskDialog(null);
     setIsTaskReviewOpen(false);
@@ -119,6 +122,8 @@ export function PatientOverviewPanel({ caseId, refreshedAt, onTriaged, onTaskSav
 
   const result = caseId !== null && loaded?.key === key ? loaded.result : null;
   const detail = result?.kind === "shown" ? result.detail : null;
+  const draftDetail = detail ?? editingCase;
+  const unavailable = caseUnavailable || result?.kind === "notFound";
   const ReviewDrawer = reviewDrawers[review?.kind ?? "clinical"];
   const reviewTriggers = { clinical: clinicalRef, medications: medicationsRef, timeline: timelineRef };
 
@@ -135,14 +140,14 @@ export function PatientOverviewPanel({ caseId, refreshedAt, onTriaged, onTaskSav
             actions={[
               {
                 label: detail.stage === "incoming" ? "Complete triage" : "Re-triage",
-                onSelect: () => setIsTriaging(true)
+                onSelect: () => { setEditingCase(detail); setIsTriaging(true); }
               },
               { label: "Tasks and due items", onSelect: () => setIsTaskReviewOpen(true) },
               ...(detail.dischargedAt === null
                 ? [
-                    { label: "Add task", onSelect: () => setTaskDialog("addTask") },
-                    { label: "Set reassessment", onSelect: () => setTaskDialog("reassessment") },
-                    { label: "Set client update", onSelect: () => setTaskDialog("clientUpdate") }
+                    { label: "Add task", onSelect: () => { setEditingCase(detail); setTaskDialog("addTask"); } },
+                    { label: "Set reassessment", onSelect: () => { setEditingCase(detail); setTaskDialog("reassessment"); } },
+                    { label: "Set client update", onSelect: () => { setEditingCase(detail); setTaskDialog("clientUpdate"); } }
                   ]
                 : []),
               {
@@ -192,9 +197,10 @@ export function PatientOverviewPanel({ caseId, refreshedAt, onTriaged, onTaskSav
           onTaskSaved={onTaskSaved}
         />
       )}
-      {detail && isTriaging && (
+      {draftDetail && isTriaging && (
         <TriageDialog
-          detail={detail}
+          caseUnavailable={unavailable}
+          detail={draftDetail}
           onClose={() => {
             setIsTriaging(false);
             moreActionsRef.current?.focus();
@@ -210,10 +216,11 @@ export function PatientOverviewPanel({ caseId, refreshedAt, onTriaged, onTaskSav
           }}
         />
       )}
-      {detail && taskDialog !== null && (
+      {draftDetail && taskDialog !== null && (
         <TaskDialog
           kind={taskDialog}
-          detail={detail}
+          caseUnavailable={unavailable}
+          detail={draftDetail}
           onClose={() => {
             setTaskDialog(null);
             moreActionsRef.current?.focus();
@@ -229,6 +236,7 @@ export function PatientOverviewPanel({ caseId, refreshedAt, onTriaged, onTaskSav
       {vitalsDialogCase && (
         <RecordVitalsDialog
           key={vitalsDialogCase.id}
+          caseUnavailable={unavailable}
           detail={detail ?? vitalsDialogCase}
           onClose={() => {
             setVitalsDialogCase(null);
@@ -264,16 +272,17 @@ function CaseLine({ detail }: { detail: CaseDetail }) {
 }
 
 interface TaskDialogProps {
+  caseUnavailable: boolean;
   kind: TaskDialogKind;
   detail: CaseDetail;
   onClose: () => void;
   onSaved: (message: string) => void;
 }
 
-function TaskDialog({ kind, detail, onClose, onSaved }: TaskDialogProps) {
+function TaskDialog({ kind, caseUnavailable, detail, onClose, onSaved }: TaskDialogProps) {
   return kind === "addTask"
-    ? <AddTaskDialog detail={detail} onClose={onClose} onSaved={onSaved} />
-    : <DueItemDialog detail={detail} type={kind} onClose={onClose} onSaved={onSaved} />;
+    ? <AddTaskDialog caseUnavailable={caseUnavailable} detail={detail} onClose={onClose} onSaved={onSaved} />
+    : <DueItemDialog caseUnavailable={caseUnavailable} detail={detail} type={kind} onClose={onClose} onSaved={onSaved} />;
 }
 
 interface OverviewProps {

@@ -138,9 +138,9 @@ describe("TriageDialog", () => {
     const { onClose } = renderDialog(buildToby());
     const dialog = screen.getByRole<HTMLDialogElement>("dialog");
 
-    // The browser closes a modal dialog on Escape; jsdom only fires the events.
-    fireEvent(dialog, new Event("cancel"));
-    dialog.close();
+    const cancel = new Event("cancel", { cancelable: true });
+    fireEvent(dialog, cancel);
+    expect(cancel.defaultPrevented).toBe(true);
 
     expect(onClose).toHaveBeenCalledTimes(1);
   });

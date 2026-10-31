@@ -1,0 +1,38 @@
+.dialog {
+  width: min(420px, 100% - 32px);
+  max-height: 90vh;
+  overflow: auto;
+  padding: 22px;
+  border: 1px solid var(--color-shell-line);
+  border-radius: 16px;
+  background: var(--color-surface);
+  color: var(--color-shell-ink);
+  box-shadow: 0 24px 70px #132b3740;
+
+  &::backdrop { background: rgb(13 31 39 / 48%); }
+  h2 { margin: 0; font-size: 1.2rem; }
+  p { margin-block: 14px 22px; }
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+
+  button {
+    min-height: 44px;
+    padding: 10px 14px;
+    border: 1px solid var(--color-shell-line);
+    border-radius: 8px;
+    background: var(--color-surface);
+    color: var(--color-shell-ink);
+    font: inherit;
+    cursor: pointer;
+
+    &:focus-visible {
+      outline: var(--focus-outline-width) solid var(--color-focus-on-light);
+      outline-offset: 3px;
+    }
+  }
+}

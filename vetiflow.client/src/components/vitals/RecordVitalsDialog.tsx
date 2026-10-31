@@ -5,6 +5,7 @@ import type { CaseDetail } from "../../types/CaseDetail";
 import type { RecordVitalsRequest } from "../../types/RecordVitalsRequest";
 import { FieldError } from "../auth/FormMessages";
 import { useLeaveWhenRefused } from "../auth/useLeaveWhenRefused";
+import { useClinicalDraft } from "../forms/useClinicalDraft";
 import styles from "./RecordVitalsDialog.module.scss";
 
 const readings = [
@@ -25,17 +26,17 @@ const temperatureError = "Enter a temperature from 26.7 to 46.1 °C, with at mos
 
 interface RecordVitalsDialogProps {
   detail: CaseDetail;
+  caseUnavailable?: boolean;
   onClose: () => void;
   onSaved: () => void;
   onUnavailable: () => void;
 }
 
-export function RecordVitalsDialog({ detail, onClose, onSaved, onUnavailable }: RecordVitalsDialogProps) {
+export function RecordVitalsDialog({ detail, caseUnavailable = false, onClose, onSaved, onUnavailable }: RecordVitalsDialogProps) {
   const id = useId();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
-  const active = useRef(false);
-  const saving = useRef(false);
+  const draft = useClinicalDraft(dialogRef, formRef);
   const leaveWhenRefused = useLeaveWhenRefused();
   // A background refetch must not change which patient this draft belongs to.
   const [target] = useState({ id: detail.id, name: detail.patient.name, number: detail.caseNumber });
@@ -58,7 +59,7 @@ export function RecordVitalsDialog({ detail, onClose, onSaved, onUnavailable }: 
   const [isSaving, setIsSaving] = useState(false);
   const [isGone, setIsGone] = useState(false);
   const [errorFocus, setErrorFocus] = useState<Field | null>(null);
-  const unavailable = isGone || detail.dischargedAt !== null;
+  const unavailable = caseUnavailable || isGone || detail.dischargedAt !== null;
 
   function focusField(field: Field) {
     const input = formRef.current?.elements.namedItem(field);
@@ -66,11 +67,9 @@ export function RecordVitalsDialog({ detail, onClose, onSaved, onUnavailable }: 
   }
 
   useEffect(() => {
-    active.current = true;
     dialogRef.current?.showModal();
     const input = formRef.current?.elements.namedItem("heartRate");
     if (input instanceof HTMLInputElement) input.focus();
-    return () => { active.current = false; };
   }, []);
 
   // Server validation arrives while controls are disabled; wait for re-enable.
@@ -81,13 +80,11 @@ export function RecordVitalsDialog({ detail, onClose, onSaved, onUnavailable }: 
     }
   }, [errorFocus, isSaving]);
 
-  function dismiss() {
-    if (!saving.current) dialogRef.current?.close();
-  }
+  const dismiss = draft.dismiss;
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (saving.current || unavailable) return;
+    if (draft.isSaving() || unavailable || !draft.isActive()) return;
     const data = new FormData(event.currentTarget);
     const request: RecordVitalsRequest = {};
     const errors: Partial<Record<Field, string>> = {};
@@ -131,16 +128,17 @@ export function RecordVitalsDialog({ detail, onClose, onSaved, onUnavailable }: 
       return;
     }
 
-    saving.current = true;
+    if (!draft.startSaving()) return;
     setErrorFocus(null);
     setIsSaving(true);
     try {
       await recordVitals(target.id, request);
-      if (!active.current) return;
+      if (!draft.isActive()) return;
+      draft.saved();
       dialogRef.current?.close();
       onSaved();
     } catch (error) {
-      if (!active.current || leaveWhenRefused(error)) return;
+      if (!draft.isActive() || leaveWhenRefused(error)) return;
       if (error instanceof CaseGoneError) {
         setIsGone(true);
         setFormError(error.reason === "discharged" ? "This case has been discharged." : "This case is no longer on the board.");
@@ -165,12 +163,15 @@ export function RecordVitalsDialog({ detail, onClose, onSaved, onUnavailable }: 
         setFormError("Unable to save vitals. Try again.");
       }
     } finally {
-      saving.current = false;
-      if (active.current) setIsSaving(false);
+      draft.finishSaving();
+      if (draft.isActive()) setIsSaving(false);
     }
   }
 
+  if (draft.exited) return null;
+
   return (
+    <>
     <dialog ref={dialogRef} className={styles.dialog} aria-labelledby={`${id}-title`}
       onClose={onClose}
       onCancel={(event) => { event.preventDefault(); dismiss(); }}>
@@ -181,11 +182,11 @@ export function RecordVitalsDialog({ detail, onClose, onSaved, onUnavailable }: 
         </div>
         <button type="button" className={styles.close} aria-label="Close record vitals" disabled={isSaving} onClick={dismiss}>×</button>
       </header>
-      <form ref={formRef} onSubmit={submit} noValidate aria-labelledby={`${id}-title`} aria-busy={isSaving}>
+      <form ref={formRef} {...draft.formProps} onSubmit={submit} noValidate aria-labelledby={`${id}-title`} aria-busy={isSaving}>
         <div className={styles.body}>
           <p className={styles.hint} id={`${id}-hint`}>Review all values before saving. Saving records the full form as a new set. Clear values that were not assessed.</p>
-          {(formError || detail.dischargedAt !== null) && <p className={styles.formError} role="alert">
-            {formError ?? "This case has been discharged."}
+          {(formError || unavailable) && <p className={styles.formError} role="alert">
+            {formError ?? (caseUnavailable ? "This case is no longer on the board." : "This case has been discharged.")}
           </p>}
           <div className={styles.readings}>
             {readings.map(field => {
@@ -236,5 +237,7 @@ export function RecordVitalsDialog({ detail, onClose, onSaved, onUnavailable }: 
         </footer>
       </form>
     </dialog>
+    {draft.confirmation}
+    </>
   );
 }

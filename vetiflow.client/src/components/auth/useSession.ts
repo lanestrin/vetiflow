@@ -3,6 +3,7 @@ import { SessionEndedError } from "../../services/apiErrors";
 import { getSignedInUser } from "../../services/authApi";
 import { clearAccessToken, readAccessToken } from "../../services/session";
 import type { SignedInUser } from "../../types/Auth";
+import { useClinicalDraftNavigation } from "../forms/clinicalDraftContext";
 
 export type SessionState =
   | { kind: "checking" }
@@ -15,6 +16,7 @@ export type SessionState =
 
 // Who is signed in in this tab, asked once when the page opens.
 export function useSession(): SessionState {
+  const drafts = useClinicalDraftNavigation();
   const [state, setState] = useState<SessionState>(() =>
     readAccessToken() ? { kind: "checking" } : { kind: "signedOut" }
   );
@@ -40,6 +42,7 @@ export function useSession(): SessionState {
         }
 
         if (error instanceof SessionEndedError) {
+          drafts.forceExit();
           clearAccessToken();
           setState({ kind: "ended" });
         } else {
@@ -50,7 +53,7 @@ export function useSession(): SessionState {
     return () => {
       isActive = false;
     };
-  }, []);
+  }, [drafts]);
 
   return state;
 }

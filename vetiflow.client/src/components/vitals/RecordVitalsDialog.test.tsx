@@ -281,13 +281,15 @@ describe("RecordVitalsDialog", () => {
     expect(onSaved).not.toHaveBeenCalled();
   });
 
-  it.each(["Cancel", "Close record vitals", "Escape"])("dismisses through %s without saving", method => {
+  it.each(["Cancel", "Close record vitals", "Escape"])("confirms discard through %s without saving", async method => {
     const sent = serve();
     const { onClose, onSaved } = renderDialog();
     enter("Heart rate (bpm)", "90");
     if (method === "Escape") fireEvent(screen.getByRole("dialog"), new Event("cancel", { cancelable: true }));
     else fireEvent.click(screen.getByRole("button", { name: method }));
-    expect(onClose).toHaveBeenCalledOnce();
+    expect(onClose).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Discard changes" }));
+    await vi.waitFor(() => expect(onClose).toHaveBeenCalledOnce());
     expect(onSaved).not.toHaveBeenCalled();
     expect(sent).toEqual([]);
   });

@@ -6,6 +6,7 @@ import type { CaseDetail } from "../../types/CaseDetail";
 import type { OnFloorClinician } from "../../types/StaffStatus";
 import { FieldError } from "../auth/FormMessages";
 import { useLeaveWhenRefused } from "../auth/useLeaveWhenRefused";
+import { useClinicalDraft } from "../forms/useClinicalDraft";
 import styles from "./TaskDialog.module.scss";
 
 type TaskField = "description" | "type" | "assignee";
@@ -14,6 +15,7 @@ type Clinicians = { kind: "loading" } | { kind: "shown"; list: OnFloorClinician[
 
 interface AddTaskDialogProps {
   detail: CaseDetail;
+  caseUnavailable?: boolean;
   onClose: () => void;
   // The toast to show; the caller reloads the board.
   onSaved: (message: string) => void;
@@ -41,9 +43,14 @@ function toFieldErrors(apiErrors: Record<string, string>): Partial<Record<TaskFi
 // floor (build plan 4.4c). A native modal dialog like the triage dialog: it
 // opens when mounted, closes on Escape or the backdrop and returns focus to
 // ＋ Add task. Nothing typed is lost on an error.
-export function AddTaskDialog({ detail, onClose, onSaved }: AddTaskDialogProps) {
+export function AddTaskDialog({ detail, caseUnavailable = false, onClose, onSaved }: AddTaskDialogProps) {
   const id = useId();
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
+  const draft = useClinicalDraft(dialogRef, formRef);
+  const [target] = useState(detail);
+  const [isGone, setIsGone] = useState(false);
+  const unavailable = caseUnavailable || isGone || detail.dischargedAt !== null;
   const descriptionRef = useRef<HTMLInputElement>(null);
   const leaveWhenRefused = useLeaveWhenRefused();
   const [clinicians, setClinicians] = useState<Clinicians>({ kind: "loading" });
@@ -81,6 +88,7 @@ export function AddTaskDialog({ detail, onClose, onSaved }: AddTaskDialogProps) 
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (draft.isSaving() || !draft.isActive() || unavailable) return;
     const data = new FormData(event.currentTarget);
     const description = String(data.get("description") ?? "").trim();
     const type = data.get("type") === "blocker" ? "blocker" : "task";
@@ -94,19 +102,23 @@ export function AddTaskDialog({ detail, onClose, onSaved }: AddTaskDialogProps) 
     }
 
     setFieldErrors({});
+    if (!draft.startSaving()) return;
     setIsSaving(true);
     try {
-      await createTask(detail.id, { type, description, ...(assignee ? { assignedToStaffId: assignee } : {}) });
+      await createTask(target.id, { type, description, ...(assignee ? { assignedToStaffId: assignee } : {}) });
+      if (!draft.isActive()) return;
+      draft.saved();
       dialogRef.current?.close();
       onSaved(type === "blocker" ? "Blocker added" : "Task added");
     } catch (error) {
-      if (leaveWhenRefused(error)) {
+      if (!draft.isActive() || leaveWhenRefused(error)) {
         return;
       }
 
       if (error instanceof FormRejectedError && Object.keys(toFieldErrors(error.fieldErrors)).length > 0) {
         setFieldErrors(toFieldErrors(error.fieldErrors));
       } else if (error instanceof CaseGoneError) {
+        setIsGone(true);
         setFormError(error.reason === "discharged"
           ? "This case has been discharged."
           : "This case is no longer on the board.");
@@ -114,7 +126,8 @@ export function AddTaskDialog({ detail, onClose, onSaved }: AddTaskDialogProps) 
         setFormError("Unable to save. Try again.");
       }
     } finally {
-      setIsSaving(false);
+      draft.finishSaving();
+      if (draft.isActive()) setIsSaving(false);
     }
   }
 
@@ -122,16 +135,20 @@ export function AddTaskDialog({ detail, onClose, onSaved }: AddTaskDialogProps) 
   const errorId = (field: TaskField) => `${id}-${field}-error`;
   const describedBy = (field: TaskField) => (fieldErrors[field] ? errorId(field) : undefined);
 
+  if (draft.exited) return null;
+
   return (
+    <>
     <dialog
       ref={dialogRef}
       className={styles.dialog}
       aria-labelledby={titleId}
       onClose={onClose}
+      onCancel={event => { event.preventDefault(); draft.dismiss(); }}
       onClick={(event) => {
         // A click on the backdrop lands on the dialog itself.
         if (event.target === event.currentTarget) {
-          event.currentTarget.close();
+          draft.dismiss();
         }
       }}
     >
@@ -139,21 +156,21 @@ export function AddTaskDialog({ detail, onClose, onSaved }: AddTaskDialogProps) 
         <div>
           <p className={styles.eyebrow}>Next actions</p>
           <h2 id={titleId} className={styles.title}>Add task</h2>
-          <p className={styles.tiny}>{detail.patient.name} · Case {detail.caseNumber}</p>
+          <p className={styles.tiny}>{target.patient.name} · Case {target.caseNumber}</p>
         </div>
         <button
           type="button"
           className={styles.close}
           aria-label="Close add task"
-          onClick={() => dialogRef.current?.close()}
+          disabled={isSaving} onClick={draft.dismiss}
         >
           ×
         </button>
       </div>
 
-      <form onSubmit={submit} noValidate>
+      <form ref={formRef} {...draft.formProps} onSubmit={submit} noValidate aria-labelledby={titleId} aria-busy={isSaving}>
         <div className={styles.body}>
-          {formError && <p className={styles.formError} role="alert">{formError}</p>}
+          {(formError || unavailable) && <p className={styles.formError} role="alert">{formError ?? "This case is no longer available for changes."}</p>}
           <div className={styles.field}>
             <label className={styles.label} htmlFor={`${id}-description`}>Task *</label>
             <input
@@ -176,11 +193,11 @@ export function AddTaskDialog({ detail, onClose, onSaved }: AddTaskDialogProps) 
             <legend className={styles.label}>Kind</legend>
             <div className={styles.options}>
               <label>
-                <input type="radio" name="type" value="task" defaultChecked />
+                <input disabled={isSaving} type="radio" name="type" value="task" defaultChecked />
                 {" "}Task
               </label>
               <label>
-                <input type="radio" name="type" value="blocker" />
+                <input disabled={isSaving} type="radio" name="type" value="blocker" />
                 {" "}Blocker
               </label>
             </div>
@@ -210,14 +227,16 @@ export function AddTaskDialog({ detail, onClose, onSaved }: AddTaskDialogProps) 
           </div>
         </div>
         <div className={styles.foot}>
-          <button type="button" className={styles.secondary} onClick={() => dialogRef.current?.close()}>
+          <button type="button" className={styles.secondary} disabled={isSaving} onClick={draft.dismiss}>
             Cancel
           </button>
-          <button type="submit" className={styles.primary} disabled={isSaving}>
+          <button type="submit" className={styles.primary} disabled={isSaving || unavailable}>
             {isSaving ? "Saving…" : "Add task"}
           </button>
         </div>
       </form>
     </dialog>
+    {draft.confirmation}
+    </>
   );
 }

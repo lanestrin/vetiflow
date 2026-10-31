@@ -114,6 +114,35 @@ async function openMoreAction(label: string) {
   fireEvent.click(await screen.findByRole("button", { name: label }));
 }
 
+it.each([
+  ["Re-triage", "Triage notes", "Save priority"],
+  ["Add task", "Task *", "Add task"],
+  ["Set reassessment", "Note", "Set reassessment"],
+  ["Record vitals", "Mentation", "Save vitals"]
+])("retains %s through same-case refresh, a failed load and a missing encounter", async (action, field, save) => {
+  const detail = buildMilo();
+  let loads = 0;
+  server.use(http.get(apiUrl("/api/cases/case-milo"), () => {
+    loads++;
+    if (loads === 3) return new HttpResponse(null, { status: 500 });
+    if (loads === 4) return new HttpResponse(null, { status: 404 });
+    return HttpResponse.json(detail);
+  }));
+  const view = renderPanel("case-milo");
+  await openMoreAction(action);
+  fireEvent.change(screen.getByLabelText(field), { target: { value: "Retained fixture input" } });
+  view.rerender("case-milo", new Date(2026, 1, 1));
+  await waitFor(() => expect(loads).toBe(2));
+  expect(screen.getByLabelText(field)).toHaveValue("Retained fixture input");
+  view.rerender("case-milo", new Date(2026, 1, 2));
+  expect(await screen.findByText("Unable to load this case.")).toBeInTheDocument();
+  expect(screen.getByLabelText(field)).toHaveValue("Retained fixture input");
+  view.rerender("case-milo", new Date(2026, 1, 3));
+  expect((await screen.findAllByText("This case is no longer on the board.")).length).toBeGreaterThan(0);
+  expect(screen.getByLabelText(field)).toHaveValue("Retained fixture input");
+  expect(screen.getByRole("button", { name: save })).toBeDisabled();
+});
+
 describe("PatientOverviewPanel", () => {
   it("asks for a selection when no card is selected", () => {
     renderPanel(null);
@@ -941,6 +970,8 @@ describe("recording vitals in the overview", () => {
     await openMoreAction("Record vitals");
     fireEvent.change(screen.getByLabelText("Heart rate (bpm)"), { target: { value: "90" } });
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    fireEvent.click(screen.getByRole("button", { name: "Discard changes" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "More actions" })).toHaveFocus();
     await openMoreAction("Record vitals");
@@ -960,6 +991,8 @@ describe("recording vitals in the overview", () => {
     expect(screen.getByLabelText("Temperature (°C)")).toHaveValue("38.9");
     expect(screen.getByLabelText("Mentation")).toHaveValue("");
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    fireEvent.click(screen.getByRole("button", { name: "Discard changes" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
     await openMoreAction("Record vitals");
     expect(screen.getByLabelText("Heart rate (bpm)")).toHaveValue("120");
     expect(screen.getByLabelText("Temperature (°C)")).toHaveValue("26.7");
