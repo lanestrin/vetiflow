@@ -228,14 +228,15 @@ describe("ErBoardPage", () => {
     expect(within(lane).getByText("Urgent · provisional")).toBeInTheDocument();
     fireEvent.click(within(lane).getByRole("button", { name: "Toby" }));
 
-    fireEvent.click(await screen.findByRole("button", { name: "Complete triage" }));
+    fireEvent.click(await screen.findByRole("button", { name: "More actions" }));
+    fireEvent.click(screen.getByRole("button", { name: "Complete triage" }));
     fireEvent.click(within(screen.getByRole("dialog", { name: "Complete triage" })).getByRole("button", { name: "Complete triage" }));
 
     expect(await screen.findByRole("status")).toHaveTextContent(/triage completed/);
     await vi.waitFor(() => expect(within(lane).queryByText("Urgent · provisional")).not.toBeInTheDocument());
     expect(within(lane).queryByText("New")).not.toBeInTheDocument();
-    await vi.waitFor(() =>
-      expect(screen.queryByRole("button", { name: "Complete triage" })).not.toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: "More actions" }));
+    expect(await screen.findByRole("button", { name: "Re-triage" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "More actions" })).toBeEnabled();
   });
 
@@ -494,20 +495,23 @@ describe("record vitals from the ER board", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Buddy" }));
     expect(await screen.findByText("100 bpm")).toBeInTheDocument();
     const readsBeforeSave = boardReads;
+    fireEvent.click(screen.getByRole("button", { name: "More actions" }));
     fireEvent.click(screen.getByRole("button", { name: "Record vitals" }));
     fireEvent.change(screen.getByLabelText("SpO₂ (%)"), { target: { value: "91" } });
     fireEvent.click(screen.getByRole("button", { name: "Save vitals" }));
     expect(await screen.findByText("91%")).toBeInTheDocument();
     await waitFor(() => expect(boardReads).toBeGreaterThan(readsBeforeSave));
-    const latest = screen.getByLabelText("Latest vitals");
-    expect(within(latest).queryByText("Not recorded")).not.toBeInTheDocument();
-    expect(within(latest).getByText("Outside range")).toBeInTheDocument();
-    expect(within(latest).getByText("100 bpm")).toBeInTheDocument();
-    expect(within(latest).getByText("24 /min")).toBeInTheDocument();
-    expect(within(latest).getByText("38.6 °C")).toBeInTheDocument();
-    const observations = within(screen.getByLabelText("Latest observations"));
+    const latest = within(screen.getByRole("region", { name: "Latest vitals" }));
+    expect(latest.queryByText("Not recorded")).not.toBeInTheDocument();
+    expect(latest.queryByText("Outside range")).not.toBeInTheDocument();
+    expect(latest.getByText("100 bpm")).toBeInTheDocument();
+    expect(latest.getByText("24 /min")).toBeInTheDocument();
+    expect(latest.getByText("38.6 °C")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Clinical" }));
+    const clinical = within(screen.getByRole("dialog", { name: "Clinical" }));
+    const observations = within(clinical.getByRole("region", { name: "Clinical assessment" }));
     expect(observations.getAllByRole("definition").map(value => value.textContent)).toEqual(["Pink", "2 s", "Alert"]);
-    expect(within(screen.getByRole("region", { name: "Vitals" })).getByText(/^Recorded /)).toHaveTextContent(/Recorded .* · Jordan Lee/);
+    expect(clinical.getByText(/^Entered/)).toHaveTextContent(/Entered .* · Jordan Lee/);
     expect(payload).toEqual({ heartRate: 100, respiratoryRate: 24, temperatureF: 101.5, spO2: 91,
       mucousMembraneColor: "Pink", capillaryRefillTime: "2 s", mentation: "Alert" });
     expect(within(await findLane("Urgent")).getByRole("button", { name: "Buddy" })).toHaveAttribute("aria-pressed", "true");
@@ -528,7 +532,7 @@ describe("record vitals from the ER board", () => {
     hub.emit("caseUpdated", buddy.id);
     expect(await screen.findByText("160 bpm")).toBeInTheDocument();
     expect(screen.getByText("94%")).toBeInTheDocument();
-    expect(within(screen.getByLabelText("Latest vitals")).getAllByText("Outside range")).toHaveLength(2);
+    expect(within(screen.getByRole("region", { name: "Latest vitals" })).queryByText("Outside range")).not.toBeInTheDocument();
     expect(within(await findLane("Urgent")).getByRole("button", { name: "Buddy" })).toHaveAttribute("aria-pressed", "true");
   });
 });
@@ -646,66 +650,22 @@ describe("Timeline review on the ER board", () => {
   });
 });
 
-describe("pain assessments on the ER board", () => {
-  it.each([0, 10])("saves score %i and refreshes the panel and board without a hub echo", async score => {
-    const buddy = buildCase({ id: "case-buddy", patientName: "Buddy", acuity: "urgent" });
-    const vitals = buildVitalsRecord({ heartRate: 95, spO2: 98 });
-    const previous = buildPainScore({ score: 7, notes: "Previous assessment" });
-    const next = buildPainScore({ score, notes: "New demo note", recordedBy: { id: "staff-ortiz", name: "Sam Ortiz" } });
-    let saved = false;
-    let reads = 0;
-    let sent: unknown;
-    server.use(
-      http.get(apiUrl("/api/cases"), () => {
-        reads++;
-        return HttpResponse.json([{ ...buddy, latestPainScore: { score: saved ? score : 7, recordedAt: next.recordedAt } }]);
-      }),
-      http.get(apiUrl("/api/cases/case-buddy"), () => HttpResponse.json(buildCaseDetail({
-        id: buddy.id, acuity: "urgent", vitals: [vitals], latestPainScore: saved ? next : previous
-      }))),
-      http.post(apiUrl("/api/cases/case-buddy/pain-scores"), async ({ request }) => {
-        sent = await request.json();
-        saved = true;
-        return new HttpResponse(null, { status: 201 });
-      })
-    );
-    renderBoard();
-    fireEvent.click(await screen.findByRole("button", { name: "Buddy" }));
-    expect(await screen.findByText("7 / 10")).toBeInTheDocument();
-    const readsBefore = reads;
-    fireEvent.click(screen.getByRole("button", { name: "Record score" }));
-    fireEvent.change(screen.getByLabelText("Pain score (0 to 10)"), { target: { value: String(score) } });
-    fireEvent.change(screen.getByLabelText("Notes (optional)"), { target: { value: " New demo note " } });
-    fireEvent.click(screen.getByRole("button", { name: "Save pain score" }));
-    expect(await screen.findByText(score + " / 10")).toBeInTheDocument();
-    await waitFor(() => expect(reads).toBeGreaterThan(readsBefore));
-    expect(screen.getByRole("meter", { name: "Pain score" })).toHaveAttribute("aria-valuenow", String(score));
-    expect(screen.getByText("New demo note")).toBeInTheDocument();
-    expect(screen.queryByText("Previous assessment")).not.toBeInTheDocument();
-    expect(screen.getByText(/Recorded.*Sam Ortiz/)).toBeInTheDocument();
-    expect(screen.getByRole("status")).toHaveTextContent("Pain score recorded");
-    expect(screen.getByText("95 bpm")).toBeInTheDocument();
-    expect(screen.getByText("98%")).toBeInTheDocument();
-    expect(within(await findLane("Urgent")).getByRole("button", { name: "Buddy" })).toHaveAttribute("aria-pressed", "true");
-    expect(sent).toEqual({ score, notes: "New demo note" });
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-  });
-
-  it("updates the displayed assessment after another board records a score", async () => {
+describe("pain-score data in the overview", () => {
+  it("does not display saved pain data or offer a pain entry action", async () => {
     const buddy = buildCase({ id: "case-buddy", patientName: "Buddy", acuity: "urgent" });
     serveCases([buddy]);
-    let latest = buildPainScore({ score: 0 });
     server.use(http.get(apiUrl("/api/cases/case-buddy"), () => HttpResponse.json(buildCaseDetail({
-      id: buddy.id, acuity: "urgent", latestPainScore: latest
+      id: buddy.id,
+      acuity: "urgent",
+      latestPainScore: buildPainScore({ score: 7, notes: "Existing saved assessment" })
     }))));
     renderBoard();
     fireEvent.click(await screen.findByRole("button", { name: "Buddy" }));
-    await screen.findByText("0 / 10");
-    latest = buildPainScore({ score: 9, notes: "Assessment from another board" });
-    hub.emit("caseUpdated", buddy.id);
-    expect(await screen.findByText("9 / 10")).toBeInTheDocument();
-    expect(screen.getByRole("meter")).toHaveAttribute("aria-valuenow", "9");
-    expect(screen.getByText("Assessment from another board")).toBeInTheDocument();
-    expect(within(await findLane("Urgent")).getByRole("button", { name: "Buddy" })).toHaveAttribute("aria-pressed", "true");
+
+    await screen.findByRole("heading", { name: "Buddy" });
+    expect(screen.queryByText("7 / 10")).not.toBeInTheDocument();
+    expect(screen.queryByText("Existing saved assessment")).not.toBeInTheDocument();
+    fireEvent.click(await screen.findByRole("button", { name: "More actions" }));
+    expect(screen.queryByRole("button", { name: /pain score/i })).not.toBeInTheDocument();
   });
 });

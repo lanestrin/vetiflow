@@ -1,0 +1,152 @@
+.dialog {
+	width: min(36rem, calc(100% - 1.5rem));
+	max-width: none;
+	max-height: min(85vh, 48rem);
+	padding: 0;
+	overflow: auto;
+	border: 1px solid var(--color-shell-line);
+	border-radius: 1rem;
+	background: var(--color-surface);
+	color: var(--color-shell-ink);
+	box-shadow: 0 1.5rem 4rem rgb(19 43 55 / 25%);
+
+	&::backdrop {
+		background: rgb(13 31 39 / 48%);
+	}
+}
+
+.head {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 1rem;
+	padding: 1.25rem 1.375rem 1rem;
+	border-bottom: 1px solid var(--color-shell-line);
+}
+
+.eyebrow {
+	margin: 0 0 .4rem;
+	color: var(--color-shell-teal-strong);
+	font-size: .75rem;
+	font-weight: 700;
+	letter-spacing: .08em;
+	text-transform: uppercase;
+}
+
+.title {
+	margin: 0;
+	font-size: 1.2rem;
+}
+
+.identity {
+	margin: .25rem 0 0;
+	color: var(--color-shell-muted);
+	font-size: .875rem;
+}
+
+.close {
+	flex: none;
+	padding: 0 .25rem;
+	border: 0;
+	border-radius: .375rem;
+	background: transparent;
+	color: var(--color-shell-muted);
+	font: inherit;
+	font-size: 1.5rem;
+	line-height: 1;
+	cursor: pointer;
+
+	&:focus-visible {
+		outline: var(--focus-outline-width) solid var(--color-focus-on-light);
+		outline-offset: 2px;
+	}
+}
+
+.body {
+	padding: 1.125rem 1.375rem;
+}
+
+.body section + section {
+	margin-top: 1.25rem;
+}
+
+.sectionTitle {
+	margin: 0 0 .5rem;
+	font-size: .95rem;
+}
+
+.dueItem {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 1rem;
+	padding: .75rem 0;
+	border-bottom: 1px solid var(--color-shell-line);
+}
+
+.dueItem p,
+.dueItem small {
+	display: block;
+	margin: .25rem 0 0;
+	color: var(--color-shell-muted);
+}
+
+.done {
+	flex: none;
+}
+
+.empty {
+	margin: 0;
+	color: var(--color-shell-muted);
+}
+
+.tasks {
+	display: grid;
+	gap: .75rem;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.task {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: .5rem 1rem;
+	padding: .75rem;
+	border: 1px solid var(--color-shell-line);
+	border-radius: .625rem;
+
+	label {
+		display: flex;
+		flex: 1 1 12rem;
+		align-items: center;
+		gap: .625rem;
+		min-width: 0;
+		font-weight: 600;
+		cursor: pointer;
+	}
+
+	input {
+		flex: none;
+		accent-color: var(--color-care-teal);
+
+		&:focus-visible {
+			outline: var(--focus-outline-width) solid var(--color-focus-on-light);
+			outline-offset: 2px;
+		}
+	}
+
+	&[data-done="true"] label span {
+		color: var(--color-shell-muted);
+		text-decoration: line-through;
+	}
+}
+
+.meta {
+	margin-left: auto;
+	color: var(--color-shell-muted);
+	font-size: .8125rem;
+	text-align: right;
+}

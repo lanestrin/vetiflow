@@ -186,7 +186,6 @@ export function ErBoardPage() {
           onTriaged={showTriaged}
           onTaskSaved={() => void reloadCases.current()}
           onVitalsSaved={() => void reloadCases.current()}
-          onPainScoreSaved={() => void reloadCases.current()}
         />
       </div>
 
