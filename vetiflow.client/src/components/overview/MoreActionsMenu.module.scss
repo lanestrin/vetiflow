@@ -69,4 +69,10 @@
 		outline: var(--focus-outline-width) solid var(--color-focus-on-light);
 		outline-offset: -3px;
 	}
+
+	&:disabled {
+		color: var(--color-shell-muted);
+		cursor: not-allowed;
+		opacity: .6;
+	}
 }

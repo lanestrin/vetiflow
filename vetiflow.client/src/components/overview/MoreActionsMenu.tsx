@@ -1,19 +1,21 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState, type RefObject } from "react";
 import styles from "./MoreActionsMenu.module.scss";
 
 export interface MoreAction {
   label: string;
   onSelect: () => void;
+  disabled?: boolean;
 }
 
 interface MoreActionsMenuProps {
   actions: MoreAction[];
+  actionButtonRef?: RefObject<HTMLButtonElement | null>;
 }
 
 // The panel's **•••** (prototype `#more`): a button that shows a short list of
 // case actions. Disabled when there are none. Escape closes it and returns
 // focus to the button; a click outside closes it.
-export function MoreActionsMenu({ actions }: MoreActionsMenuProps) {
+export function MoreActionsMenu({ actions, actionButtonRef }: MoreActionsMenuProps) {
   const listId = useId();
   const containerRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -49,7 +51,10 @@ export function MoreActionsMenu({ actions }: MoreActionsMenuProps) {
       }}
     >
       <button
-        ref={buttonRef}
+        ref={element => {
+          buttonRef.current = element;
+          if (actionButtonRef) actionButtonRef.current = element;
+        }}
         type="button"
         className={styles.toggle}
         aria-label="More actions"
@@ -67,6 +72,7 @@ export function MoreActionsMenu({ actions }: MoreActionsMenuProps) {
               <button
                 type="button"
                 className={styles.item}
+                disabled={action.disabled}
                 onClick={() => {
                   setIsOpen(false);
                   action.onSelect();
