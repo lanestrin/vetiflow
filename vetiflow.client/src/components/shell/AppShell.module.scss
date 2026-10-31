@@ -36,6 +36,13 @@ $fast: var(--motion-fast) var(--ease-out);
 	color: var(--color-shell-rail-text);
 }
 
+.railBrand {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 10px;
+}
+
 .brandmark {
 	display: grid;
 	place-items: center;
@@ -47,6 +54,11 @@ $fast: var(--motion-fast) var(--ease-out);
 	color: var(--color-text-inverse);
 	font-size: 20px;
 	font-weight: 700;
+}
+
+.brandName,
+.navLabel {
+	display: none;
 }
 
 .railNav {
@@ -125,6 +137,31 @@ $fast: var(--motion-fast) var(--ease-out);
 	padding: 0 32px;
 	border-bottom: 1px solid var(--color-shell-line);
 	background: var(--color-surface);
+}
+
+.mobileMenuToggle {
+	display: none;
+	flex: none;
+	place-items: center;
+	width: 40px;
+	height: 40px;
+	padding: 0;
+	border: 1px solid var(--color-shell-line);
+	border-radius: 10px;
+	background: var(--color-surface);
+	color: var(--color-shell-ink);
+	cursor: pointer;
+
+	svg {
+		width: 20px;
+		height: 20px;
+		fill: none;
+		stroke: currentColor;
+		stroke-width: 1.8;
+		stroke-linecap: round;
+	}
+
+	@include bar-focus;
 }
 
 .crumb {
@@ -325,20 +362,81 @@ $fast: var(--motion-fast) var(--ease-out);
 	@include bar-focus;
 }
 
-@media (max-width: 650px) {
+@media (max-width: 760px) {
 	.rail {
-		width: 56px;
-	}
+		position: fixed;
+		z-index: 30;
+		top: var(--demo-bar-height);
+		bottom: 0;
+		left: 0;
+		display: none;
+		align-items: stretch;
+		width: min(14rem, 85vw);
+		padding: 20px 14px;
+		overflow-y: auto;
+		box-shadow: 0 10px 32px rgb(26 55 63 / 18%);
 
-	.navIcon {
-		width: 40px;
-		height: 40px;
-
-		&[aria-current="page"]::before {
-			left: -8px;
+		&[data-mobile-open="true"] {
+			display: flex;
 		}
 	}
 
+	.railBrand {
+		justify-content: flex-start;
+	}
+
+	.brandName {
+		display: inline;
+		color: var(--color-text-inverse);
+		font-weight: 700;
+	}
+
+	.railNav,
+	.railBottom {
+		width: 100%;
+	}
+
+	.navIcon {
+		display: flex;
+		align-items: center;
+		justify-content: flex-start;
+		gap: 12px;
+		width: 100%;
+		min-height: 44px;
+		height: auto;
+		padding: 0 12px;
+
+		&[aria-current="page"]::before {
+			left: 0;
+		}
+	}
+
+	.navLabel {
+		display: inline;
+	}
+
+	.mobileMenuToggle {
+		position: relative;
+		z-index: 31;
+		display: grid;
+	}
+
+	.topbar {
+		justify-content: flex-start;
+		gap: 14px;
+	}
+
+	.crumb {
+		flex: 1;
+		min-width: 0;
+	}
+
+	.topRight {
+		margin-left: auto;
+	}
+}
+
+@media (max-width: 650px) {
 	.topbar {
 		height: 62px;
 		padding: 0 14px;

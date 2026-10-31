@@ -135,6 +135,8 @@ describe("PatientOverviewPanel", () => {
     expect(screen.getByText("Avery Chen")).toBeInTheDocument();
     expect(screen.queryByText("312-555-0100")).not.toBeInTheDocument();
     expect(screen.getByText("Treatment · Oxygen Cage")).toBeInTheDocument();
+    expect(screen.getByText("Care stage")).toBeInTheDocument();
+    expect(screen.getByText("In treatment")).toBeInTheDocument();
   });
 
   it("shows the compact documented summary without duplicating review ledgers", async () => {
@@ -172,6 +174,17 @@ describe("PatientOverviewPanel", () => {
     expect(screen.queryByRole("region", { name: "Care timeline" })).not.toBeInTheDocument();
     expect(screen.queryByRole("region", { name: "Next actions" })).not.toBeInTheDocument();
     expect(screen.queryByRole("region", { name: "Pain score" })).not.toBeInTheDocument();
+    const visualSections = [
+      screen.getByRole("region", { name: "Case context" }),
+      screen.getByRole("region", { name: "Patient record" }),
+      screen.getByRole("region", { name: "Next care action" }),
+      screen.getByRole("region", { name: "Latest vitals" }),
+      screen.getByRole("region", { name: "Care team and safety" })
+    ];
+    expect(visualSections.every((section, index) => {
+      const previous = visualSections[index - 1];
+      return !previous || Boolean(previous.compareDocumentPosition(section) & Node.DOCUMENT_POSITION_FOLLOWING);
+    })).toBe(true);
     for (const name of ["Clinical", "Medications", "Timeline"]) {
       expect(screen.getByRole("button", { name })).toBeInTheDocument();
     }
@@ -371,14 +384,14 @@ describe("PatientOverviewPanel", () => {
     expect(await screen.findByText("No tasks yet.")).toBeInTheDocument();
   });
 
-  it("keeps unavailable owner actions disabled", async () => {
+  it("keeps owner contact actions out of the overview", async () => {
     serveCase(buildMilo());
 
     renderPanel("case-milo");
 
     await screen.findByRole("heading", { name: "Milo" });
     for (const name of ["Call", "Message"]) {
-      expect(screen.getByRole("button", { name })).toBeDisabled();
+      expect(screen.queryByRole("button", { name })).not.toBeInTheDocument();
     }
   });
 

@@ -1,6 +1,6 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
-import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
-import { afterEach, describe, expect, it } from "vitest";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { MemoryRouter, Route, Routes, useLocation, useNavigate } from "react-router-dom";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { readAccessToken, saveAccessToken } from "../../services/session";
 import { buildTeamMember } from "../../test/builders";
 import { AppShell } from "./AppShell";
@@ -21,6 +21,14 @@ function SearchReader() {
   return <p data-testid="shared-search">{useShellSearch()}</p>;
 }
 
+function HistoryControls() {
+  const navigate = useNavigate();
+  return <>
+    <button onClick={() => navigate(-1)}>Previous route</button>
+    <button onClick={() => navigate(1)}>Next route</button>
+  </>;
+}
+
 function renderShell(path = "/er") {
   render(
     <MemoryRouter initialEntries={[path]}>
@@ -32,6 +40,7 @@ function renderShell(path = "/er") {
             <AppShell user={buildTeamMember({ displayName: "Dr. Jordan Reed", initials: "JR" })}>
               <Where />
               <SearchReader />
+              <HistoryControls />
             </AppShell>
           }
         />
@@ -169,5 +178,78 @@ describe("AppShell", () => {
     fireEvent.submit(screen.getByRole("search", { name: "Quick search" }));
 
     expect(screen.getByTestId("shared-search")).toBeEmptyDOMElement();
+  });
+
+  it("opens the mobile navigation and focuses its first destination", () => {
+    renderShell();
+    const toggle = screen.getByRole("button", { name: "Open navigation menu" });
+
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    expect(toggle).toHaveAttribute("aria-controls", "main-navigation");
+
+    fireEvent.click(toggle);
+
+    expect(screen.getByRole("button", { name: "Close navigation menu" })).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("navigation", { name: "Main" })).toHaveAttribute("id", "main-navigation");
+    expect(screen.getByRole("link", { name: "Overview" })).toHaveFocus();
+  });
+
+  it("closes the mobile navigation with Escape and returns focus to the toggle", () => {
+    renderShell();
+    const toggle = screen.getByRole("button", { name: "Open navigation menu" });
+    fireEvent.click(toggle);
+
+    fireEvent.keyDown(document, { key: "Escape" });
+
+    expect(screen.getByRole("button", { name: "Open navigation menu" })).toHaveAttribute("aria-expanded", "false");
+    expect(toggle).toHaveFocus();
+  });
+
+  it("closes the mobile navigation after selecting a destination", () => {
+    renderShell();
+    const toggle = screen.getByRole("button", { name: "Open navigation menu" });
+    fireEvent.click(toggle);
+
+    fireEvent.click(screen.getByRole("link", { name: "Patients" }));
+
+    expect(screen.getByTestId("where")).toHaveTextContent("/records");
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    expect(toggle).toHaveFocus();
+  });
+
+  it("closes after non-rail navigation and stays closed through browser history", () => {
+    renderShell();
+    const toggle = screen.getByRole("button", { name: "Open navigation menu" });
+    fireEvent.click(toggle);
+    fireEvent.click(screen.getByRole("link", { name: "Search patients" }));
+    expect(screen.getByTestId("where")).toHaveTextContent("/records");
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(screen.getByRole("button", { name: "Previous route" }));
+    expect(screen.getByTestId("where")).toHaveTextContent("/er");
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(toggle);
+    fireEvent.click(screen.getByRole("button", { name: "Next route" }));
+    expect(screen.getByTestId("where")).toHaveTextContent("/records");
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("resets on desktop without intercepting Escape or reopening on mobile", () => {
+    const media = Object.assign(new EventTarget(), { matches: true });
+    vi.stubGlobal("matchMedia", () => media);
+    renderShell();
+    const toggle = screen.getByRole("button", { name: "Open navigation menu" });
+    fireEvent.click(toggle);
+    media.matches = false;
+    act(() => media.dispatchEvent(Object.assign(new Event("change"), { matches: false })));
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    expect(toggle).not.toHaveFocus();
+    const escape = new KeyboardEvent("keydown", { key: "Escape", cancelable: true });
+    fireEvent(document, escape);
+    expect(escape.defaultPrevented).toBe(false);
+    media.matches = true;
+    act(() => media.dispatchEvent(Object.assign(new Event("change"), { matches: true })));
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(toggle);
+    expect(screen.getByRole("link", { name: "Overview" })).toHaveFocus();
   });
 });
