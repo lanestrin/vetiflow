@@ -2,7 +2,7 @@
 
 **Document status:** Development handoff / product requirements  
 **Scope:** ER Board and selected Patient Overview panel only  
-**Reference prototype:** `VetiFlow_ER_Overview_Shared_Status_POC.html`  
+**Reference prototype:** `VetiFlow_ER_Overview_Next_Care_Action.html`  
 **Visual status:** **PROOF OF CONCEPT — NOT A PIXEL-PERFECT DESIGN SPECIFICATION**  
 **Date:** October 30, 2026
 

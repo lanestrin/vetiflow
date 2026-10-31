@@ -7,15 +7,15 @@ shared ER coordination screen, not a complete medical chart or My Patients.
 
 1. [Development specification](VETIFLOW_ER_OVERVIEW_SPECIFICATION.md): intended
    content, workflows, boundaries, acceptance criteria and open decisions.
-2. [HTML prototype](VetiFlow_ER_Overview_Shared_Status_POC.html): behavioral proof of
+2. [HTML prototype](VetiFlow_ER_Overview_Next_Care_Action.html): behavioral proof of
    concept. Inspect its final state and scripts, not just its original markup;
    it is not an exact production layout or an authorization implementation.
 3. [Project plan](../../project-plan.md) and [master build plan](../../build-plan.md):
    shared constraints, implementation dependencies and stable work IDs.
 
-The prototype now uses the same filename as the specification. The previous
-top-level `vetiflow-er-dashboard.html` was removed in this
-revision. Historical feature documents retain their original references.
+The current prototype is `VetiFlow_ER_Overview_Next_Care_Action.html`. The previous
+Shared Status POC and top-level `vetiflow-er-dashboard.html` are superseded.
+Historical feature documents retain their original references.
 
 The HTML retains legacy pain controls, clinical-entry demos and My Patients
 markup/listeners, and still contains old headings, small text and font weights.
