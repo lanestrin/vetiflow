@@ -26,6 +26,23 @@
 	overflow-wrap: anywhere;
 }
 
+.nameLink {
+	color: inherit;
+	text-decoration: underline;
+	text-decoration-color: var(--color-border-strong);
+	text-underline-offset: 3px;
+
+	&:hover {
+		color: var(--color-care-teal);
+		text-decoration-color: currentColor;
+	}
+
+	&:focus-visible {
+		outline: var(--focus-outline-width) solid var(--color-focus-on-light);
+		outline-offset: 2px;
+	}
+}
+
 .detail {
 	grid-column: 1;
 	margin: 0;

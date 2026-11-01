@@ -5,6 +5,7 @@ import { DemoBar } from "../components/layout/DemoBar";
 import { AppShell } from "../components/shell/AppShell";
 import { ComingSoonPage } from "../routes/ComingSoonPage";
 import { ErBoardPage } from "../routes/ErBoardPage";
+import { PatientProfilePage } from "../routes/PatientProfilePage";
 import { PetParentHomePage } from "../routes/PetParentHomePage";
 import { RecordsPage } from "../routes/RecordsPage";
 import { SignInPage } from "../routes/SignInPage";
@@ -30,6 +31,7 @@ function App() {
         >
           <Route path="/er" element={<ErBoardPage />} />
           <Route path="/records" element={<RecordsPage />} />
+          <Route path="/records/:patientId" element={<PatientProfilePage />} />
           <Route path="/overview" element={<ComingSoonPage name="Overview" />} />
           <Route path="/team" element={<TeamPage />} />
           <Route path="/reports" element={<ComingSoonPage name="Reports" />} />

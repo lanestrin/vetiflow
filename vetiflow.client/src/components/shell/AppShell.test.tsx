@@ -71,6 +71,7 @@ describe("AppShell", () => {
   it.each([
     ["/er", "ER board", "ER Command Center"],
     ["/records", "Patients", "Patients"],
+    ["/records/patient-1", "Patients", "Patients"],
     ["/settings", "Settings", "Settings"]
   ])("marks %s active and names it in the breadcrumb", (path, railLink, crumb) => {
     renderShell(path);

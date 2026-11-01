@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using vetiflow.Server.Contracts;
+using vetiflow.Server.Contracts.Cases;
 using vetiflow.Server.Contracts.Patients;
 using vetiflow.Server.Data;
 using vetiflow.Server.Hosting;
@@ -84,6 +85,52 @@ public class PatientsController : ControllerBase
 		}
 
 		return PatientDto.From(patient);
+	}
+
+	// The patient's ER visits, active and discharged, for the profile's Visit
+	// History (build plan 4.21b).
+	[HttpGet("{id:guid}/visits")]
+	public async Task<ActionResult<PatientVisitHistoryDto>> GetPatientVisits(Guid id, CancellationToken cancellationToken)
+	{
+		var patient = await _dbContext.Patients
+				.AsNoTracking()
+				.Where(patient => patient.Id == id)
+				.Select(patient => new PatientHeaderDto
+				{
+					Id = patient.Id,
+					Name = patient.Name,
+					Species = patient.Species,
+					Breed = patient.Breed
+				})
+				.FirstOrDefaultAsync(cancellationToken);
+
+		if (patient is null)
+		{
+			return NotFound();
+		}
+
+		var visits = await _dbContext.EmergencyCases
+				.AsNoTracking()
+				.Where(emergencyCase => emergencyCase.PatientId == id)
+				.OrderByDescending(emergencyCase => emergencyCase.ArrivalTime)
+				.Select(emergencyCase => new PatientVisitDto
+				{
+					CaseId = emergencyCase.Id,
+					CaseNumber = "ER-" + emergencyCase.CaseNumber,
+					ArrivalTime = emergencyCase.ArrivalTime,
+					PresentingComplaint = emergencyCase.PresentingComplaint,
+					DischargedAt = emergencyCase.DischargedAt,
+					AttendingDoctor = emergencyCase.AssignedDoctor == null
+						? null
+						: new CaseReferenceDto
+						{
+							Id = emergencyCase.AssignedDoctor.Id,
+							Name = emergencyCase.AssignedDoctor.FirstName + " " + emergencyCase.AssignedDoctor.LastName
+						}
+				})
+				.ToListAsync(cancellationToken);
+
+		return new PatientVisitHistoryDto { Patient = patient, Visits = visits };
 	}
 
 	[HttpPost]

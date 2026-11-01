@@ -1,0 +1,202 @@
+// The patient profile (build plan 4.21b), from
+// blueprint/reference/patient-history/visit-history.png, in the staff pages' look.
+.page {
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+	padding: 20px 16px;
+	color: var(--color-shell-ink);
+}
+
+.back {
+	align-self: flex-start;
+	color: var(--color-care-teal);
+	font-size: 0.875rem;
+	font-weight: 700;
+	text-decoration: none;
+
+	&:hover {
+		text-decoration: underline;
+	}
+
+	&:focus-visible {
+		outline: var(--focus-outline-width) solid var(--color-focus-on-light);
+		outline-offset: 2px;
+	}
+}
+
+.message {
+	margin: 0;
+	padding: 12px 14px;
+	border: 1px solid var(--color-shell-line);
+	border-radius: 10px;
+	background: var(--color-surface);
+	font-size: 0.875rem;
+
+	&[role="alert"] {
+		border-color: transparent;
+		background: var(--color-acuity-critical-bg);
+		color: var(--color-acuity-critical);
+	}
+
+	p {
+		margin: 0;
+	}
+}
+
+.retry {
+	margin-top: 8px;
+	min-height: 2.5rem;
+	padding: 8px 14px;
+	border: 1px solid var(--color-shell-line);
+	border-radius: 8px;
+	background: var(--color-surface);
+	color: var(--color-shell-ink);
+	font: inherit;
+	font-weight: 700;
+	cursor: pointer;
+
+	&:focus-visible {
+		outline: var(--focus-outline-width) solid var(--color-focus-on-light);
+		outline-offset: 2px;
+	}
+}
+
+.card {
+	max-width: 52rem;
+	padding: 18px;
+	border: 1px solid var(--color-shell-line);
+	border-radius: 14px;
+	background: var(--color-surface);
+}
+
+.head {
+	padding-bottom: 14px;
+	border-bottom: 1px solid var(--color-shell-line);
+}
+
+.title {
+	margin: 0;
+	font-size: 1.375rem;
+	font-weight: 700;
+	overflow-wrap: anywhere;
+}
+
+.detail {
+	margin: 4px 0 0;
+	color: var(--color-shell-muted);
+	font-size: 0.875rem;
+}
+
+.tabs {
+	display: flex;
+	gap: 18px;
+	margin-top: 10px;
+	overflow-x: auto;
+}
+
+.tab,
+.tabSelected {
+	padding: 10px 0 8px;
+	border: 0;
+	border-bottom: 2px solid transparent;
+	background: transparent;
+	font: inherit;
+	font-size: 0.875rem;
+	font-weight: 700;
+	white-space: nowrap;
+}
+
+.tab {
+	color: var(--color-shell-muted);
+
+	&:disabled {
+		cursor: not-allowed;
+		opacity: 0.7;
+	}
+}
+
+.tabSelected {
+	border-bottom-color: var(--color-care-teal);
+	color: var(--color-shell-ink);
+
+	&:focus-visible {
+		outline: var(--focus-outline-width) solid var(--color-focus-on-light);
+		outline-offset: 2px;
+	}
+}
+
+.panel {
+	padding-top: 14px;
+}
+
+.panelTitle {
+	margin: 0;
+	font-size: 1rem;
+	font-weight: 700;
+}
+
+.hint {
+	margin: 4px 0 12px;
+	color: var(--color-shell-muted);
+	font-size: 0.8125rem;
+}
+
+.empty {
+	margin: 0;
+	color: var(--color-shell-muted);
+	font-size: 0.875rem;
+}
+
+.visits {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.visit {
+	padding: 14px;
+	border: 1px solid var(--color-shell-line);
+	border-radius: 11px;
+}
+
+.visitTop {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 6px 12px;
+}
+
+.visitDate {
+	font-size: 0.875rem;
+}
+
+.active,
+.discharged {
+	font-size: 0.8125rem;
+	font-weight: 700;
+}
+
+.active {
+	color: var(--color-acuity-stable);
+}
+
+.discharged {
+	color: var(--color-shell-muted);
+}
+
+.complaint {
+	margin: 8px 0 0;
+	font-size: 0.9375rem;
+	overflow-wrap: anywhere;
+}
+
+.meta {
+	margin: 6px 0 0;
+	color: var(--color-shell-muted);
+	font-size: 0.8125rem;
+}

@@ -7,6 +7,7 @@ import { readAccessToken, saveAccessToken } from "../services/session";
 import { buildPatientListItem } from "../test/builders";
 import { apiUrl, server } from "../test/server";
 import type { PatientListItem } from "../types/PatientListItem";
+import { PatientProfilePage } from "./PatientProfilePage";
 import { RecordsPage } from "./RecordsPage";
 
 afterEach(() => {
@@ -109,6 +110,39 @@ describe("RecordsPage", () => {
     expect(items[1]).toHaveTextContent("Cat");
     expect(items[1]).toHaveTextContent("No owner recorded");
     expect(items[1]).toHaveTextContent("Not in care");
+  });
+
+  it("opens a patient's profile with their visits from the results", async () => {
+    servePatients([buildPatientListItem({ id: "patient-7", name: "Milo" })]);
+    server.use(
+      http.get(apiUrl("/api/patients/patient-7/visits"), () =>
+        HttpResponse.json({
+          patient: { id: "patient-7", name: "Milo", species: "Dog", breed: null },
+          visits: [{
+            caseId: "case-1",
+            caseNumber: "ER-2481",
+            arrivalTime: "2026-10-30T12:00:00Z",
+            presentingComplaint: "Respiratory distress",
+            dischargedAt: "2026-10-30T18:00:00Z",
+            attendingDoctor: null
+          }]
+        }))
+    );
+    render(
+      <MemoryRouter initialEntries={["/records"]}>
+        <Routes>
+          <Route path="/records" element={<RecordsPage />} />
+          <Route path="/records/:patientId" element={<PatientProfilePage />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    search("milo");
+    fireEvent.click(await screen.findByRole("link", { name: "Milo" }));
+
+    expect(await screen.findByRole("heading", { level: 1, name: "Milo" })).toBeInTheDocument();
+    expect(screen.getByText("Respiratory distress")).toBeInTheDocument();
+    expect(screen.getByText(/^Discharged/)).toBeInTheDocument();
   });
 
   it("says it is searching, then announces how many were found", async () => {
