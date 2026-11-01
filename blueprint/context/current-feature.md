@@ -1,4 +1,4 @@
-# Current Feature
+﻿# Current Feature
 
 > **Generated file.** Holds the one feature or fix being built in this checkout.
 > `/feature <id>` writes a spec for a build-plan item, `/fix "<bug>"` for an

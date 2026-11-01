@@ -3,8 +3,8 @@ import { afterEach, describe, expect, it } from "vitest";
 import { buildCase, buildCaseDetail } from "../test/builders";
 import { apiUrl, server } from "../test/server";
 import type { CaseIntakeRequest } from "../types/CaseIntake";
-import { AccessDeniedError, CaseGoneError, FormRejectedError, SessionEndedError, StatusRefusedError } from "./apiErrors";
-import { completeTask, createIntake, createTask, getCase, getEmergencyCases, recordPainScore, recordVitals, reopenTask, triageCase, updateCaseStatus } from "./casesApi";
+import { AccessDeniedError, CaseGoneError, FormRejectedError, SessionEndedError, ChangeRefusedError } from "./apiErrors";
+import { addCaseTag, completeTask, createIntake, createTask, getCase, getEmergencyCases, recordPainScore, recordVitals, removeCaseTag, reopenTask, triageCase, updateCaseStatus } from "./casesApi";
 import { saveAccessToken } from "./session";
 
 afterEach(() => {
@@ -46,8 +46,8 @@ describe("updateCaseStatus", () => {
     const error = await updateCaseStatus("case-42", { stage: "triage", status: "unassigned", nextAction: null })
       .catch((caught: unknown) => caught);
 
-    expect(error).toBeInstanceOf(StatusRefusedError);
-    expect((error as StatusRefusedError).reason).toBe("A case in Treatment cannot move to Triage.");
+    expect(error).toBeInstanceOf(ChangeRefusedError);
+    expect((error as ChangeRefusedError).reason).toBe("A case in Treatment cannot move to Triage.");
   });
 
   it("uses a neutral reason when a 409 has no readable body", async () => {
@@ -56,7 +56,7 @@ describe("updateCaseStatus", () => {
     const error = await updateCaseStatus("case-42", { stage: "triage", status: "unassigned", nextAction: null })
       .catch((caught: unknown) => caught);
 
-    expect((error as StatusRefusedError).reason).toBe("This change is not allowed.");
+    expect((error as ChangeRefusedError).reason).toBe("This change is not allowed.");
   });
 
   it("turns 404 into CaseGoneError", async () => {
@@ -77,6 +77,107 @@ describe("updateCaseStatus", () => {
     server.use(http.patch(apiUrl("/api/cases/case-42/status"), () => new HttpResponse(null, { status: 403 })));
     await expect(updateCaseStatus("case-42", { stage: "triage", status: "unassigned", nextAction: null }))
       .rejects.toBeInstanceOf(AccessDeniedError);
+  });
+});
+
+describe("addCaseTag", () => {
+  it("posts the text and tone with the token", async () => {
+    saveAccessToken("token-tag");
+    let sent: { method: string; body: unknown; authorization: string | null } | null = null;
+    server.use(
+      http.post(apiUrl("/api/cases/case-42/tags"), async ({ request }) => {
+        sent = {
+          method: request.method,
+          body: await request.json(),
+          authorization: request.headers.get("Authorization")
+        };
+        return new HttpResponse(null, { status: 201 });
+      })
+    );
+
+    await addCaseTag("case-42", { text: "O2 support", tone: "caution" });
+
+    expect(sent).toEqual({
+      method: "POST",
+      body: { text: "O2 support", tone: "caution" },
+      authorization: "Bearer token-tag"
+    });
+  });
+
+  it("brings the server's limit reason back to the caller", async () => {
+    server.use(
+      http.post(apiUrl("/api/cases/case-42/tags"), () =>
+        HttpResponse.json({ title: "This case already has 5 tags.", status: 409 }, { status: 409 }))
+    );
+
+    const error = await addCaseTag("case-42", { text: "Sixth", tone: "info" }).catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(ChangeRefusedError);
+    expect((error as ChangeRefusedError).reason).toBe("This case already has 5 tags.");
+  });
+
+  it("returns the field messages for a 400", async () => {
+    server.use(
+      http.post(apiUrl("/api/cases/case-42/tags"), () =>
+        HttpResponse.json({ status: 400, errors: { Text: ["Use 40 characters or fewer."] } }, { status: 400 }))
+    );
+
+    const error = await addCaseTag("case-42", { text: "Too long", tone: "info" }).catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(FormRejectedError);
+    expect((error as FormRejectedError).fieldErrors).toEqual({ Text: "Use 40 characters or fewer." });
+  });
+
+  it("turns 404 into CaseGoneError", async () => {
+    server.use(http.post(apiUrl("/api/cases/case-42/tags"), () => new HttpResponse(null, { status: 404 })));
+
+    const error = await addCaseTag("case-42", { text: "O2 support", tone: "info" }).catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(CaseGoneError);
+  });
+
+  it("throws SessionEndedError on 401 and AccessDeniedError on 403", async () => {
+    server.use(http.post(apiUrl("/api/cases/case-42/tags"), () => new HttpResponse(null, { status: 401 })));
+    await expect(addCaseTag("case-42", { text: "O2 support", tone: "info" })).rejects.toBeInstanceOf(SessionEndedError);
+
+    server.use(http.post(apiUrl("/api/cases/case-42/tags"), () => new HttpResponse(null, { status: 403 })));
+    await expect(addCaseTag("case-42", { text: "O2 support", tone: "info" })).rejects.toBeInstanceOf(AccessDeniedError);
+  });
+});
+
+describe("removeCaseTag", () => {
+  it("deletes the tag from its case with the token", async () => {
+    saveAccessToken("token-remove");
+    let sent: { method: string; authorization: string | null } | null = null;
+    server.use(
+      http.delete(apiUrl("/api/cases/case-42/tags/tag-1"), ({ request }) => {
+        sent = { method: request.method, authorization: request.headers.get("Authorization") };
+        return new HttpResponse(null, { status: 204 });
+      })
+    );
+
+    await removeCaseTag("case-42", "tag-1");
+
+    expect(sent).toEqual({ method: "DELETE", authorization: "Bearer token-remove" });
+  });
+
+  it("brings the server's refusal reason back for a discharged case", async () => {
+    server.use(
+      http.delete(apiUrl("/api/cases/case-42/tags/tag-1"), () =>
+        HttpResponse.json({ title: "This case has been discharged", status: 409 }, { status: 409 }))
+    );
+
+    const error = await removeCaseTag("case-42", "tag-1").catch((caught: unknown) => caught);
+
+    expect((error as ChangeRefusedError).reason).toBe("This case has been discharged");
+  });
+
+  it("turns 404 into CaseGoneError", async () => {
+    server.use(http.delete(apiUrl("/api/cases/case-42/tags/tag-1"), () => new HttpResponse(null, { status: 404 })));
+
+    const error = await removeCaseTag("case-42", "tag-1").catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(CaseGoneError);
   });
 });
 

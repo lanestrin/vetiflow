@@ -6,6 +6,8 @@ import type {
   CaseStatus
 } from "./EmergencyCaseListItem";
 
+import type { CaseTag } from "./CaseTag";
+
 export type TreatmentAuthorization = "notDiscussed" | "pending" | "authorized" | "declined";
 
 export type OwnerUpdateStatus = "notYetUpdated" | "updated" | "awaitingOwnerReply" | "consentNeeded";
@@ -62,6 +64,8 @@ export interface CaseDetail {
   triageAssessments: TriageAssessment[];
   // Newest first.
   vitals: VitalsRecord[];
+  // Oldest first (build plan 3.5a).
+  tags: CaseTag[];
   latestPainScore: PainScore | null;
   // Open first, then oldest first.
   tasks: CaseTask[];

@@ -7,6 +7,7 @@ import { readAccessToken, saveAccessToken } from "../../services/session";
 import { buildCaseDetail, buildCaseTask } from "../../test/builders";
 import { apiUrl, server } from "../../test/server";
 import type { CaseDetail, CaseTask } from "../../types/CaseDetail";
+import type { CaseTag } from "../../types/CaseTag";
 import { ToastProvider } from "../shell/Toast";
 import { PatientOverviewPanel } from "./PatientOverviewPanel";
 
@@ -71,6 +72,10 @@ function buildMilo(overrides: Partial<CaseDetail> = {}): CaseDetail {
     ],
     ...overrides
   };
+}
+
+function caseTag(id: string, text: string, tone: CaseTag["tone"]): CaseTag {
+  return { id, text, tone, createdAt: "2026-10-28T11:00:00Z", createdBy: null };
 }
 
 function serveCase(detail: CaseDetail) {
@@ -197,7 +202,7 @@ describe("PatientOverviewPanel", () => {
     expect(screen.getByText("Sam Cruz")).toBeInTheDocument();
     expect(screen.getByText(/Peanuts/)).toBeInTheDocument();
     expect(screen.getByText(/verification unknown/i)).toBeInTheDocument();
-    expect(screen.getByText(/Last recorded owner update/)).toBeInTheDocument();
+    expect(screen.getByText("Last owner update")).toBeInTheDocument();
     expect(screen.queryByText("Approved client update")).not.toBeInTheDocument();
     expect(screen.queryByText("Outside range")).not.toBeInTheDocument();
     expect(screen.queryByRole("region", { name: "Care timeline" })).not.toBeInTheDocument();
@@ -237,8 +242,10 @@ describe("PatientOverviewPanel", () => {
     expect(screen.getByText("Unknown / not verified")).toBeInTheDocument();
     expect(screen.getByText("Unassigned", { selector: "[data-role='attending-veterinarian']" })).toBeInTheDocument();
     expect(screen.getByText("Not assigned", { selector: "[data-role='primary-technician']" })).toBeInTheDocument();
-    expect(screen.getByText("Last recorded owner update: Not recorded")).toBeInTheDocument();
-    expect(screen.getByText(/Next planned update:\s*Not scheduled/)).toBeInTheDocument();
+    const nextAction = screen.getByRole("region", { name: "Next care action" });
+    expect(within(nextAction).getByText("Last owner update")).toBeInTheDocument();
+    expect(within(nextAction).getByText("Next client update")).toBeInTheDocument();
+    expect(within(nextAction).getAllByText("Not scheduled").length).toBeGreaterThan(0);
   });
 
   it("moves task and entry actions into More actions while keeping task review case-bound", async () => {
@@ -460,6 +467,112 @@ describe("PatientOverviewPanel", () => {
     expect(await screen.findByText("Urgent · provisional")).toBeInTheDocument();
   });
 
+  // Case tags (build plan 3.5b).
+  it("lists the case's tags with their tone in words and a remove button each", async () => {
+    serveCase(buildMilo({ tags: [caseTag("t1", "O2 support", "caution"), caseTag("t2", "Fresh wound", "alert")] }));
+
+    renderPanel("case-milo");
+
+    const section = await screen.findByRole("region", { name: "Tags" });
+    expect(within(section).getByText("O2 support")).toBeInTheDocument();
+    expect(within(section).getByText("Caution")).toBeInTheDocument();
+    expect(within(section).getByRole("button", { name: "Remove tag O2 support" })).toBeInTheDocument();
+    expect(within(section).getByRole("button", { name: "Add tag" })).toBeEnabled();
+  });
+
+  it("shows an empty Tags section when the case has none", async () => {
+    serveCase(buildMilo({ tags: [] }));
+
+    renderPanel("case-milo");
+
+    const section = await screen.findByRole("region", { name: "Tags" });
+    expect(within(section).getByText("No tags recorded")).toBeInTheDocument();
+  });
+
+  it("removes a tag, reports it removed and reloads the board", async () => {
+    serveCase(buildMilo({ tags: [caseTag("t1", "O2 support", "caution")] }));
+    let deleted = 0;
+    server.use(http.delete(apiUrl("/api/cases/case-milo/tags/t1"), () => {
+      deleted += 1;
+      return new HttpResponse(null, { status: 204 });
+    }));
+    const onTaskSaved = vi.fn();
+    renderPanel("case-milo", undefined, undefined, onTaskSaved);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Remove tag O2 support" }));
+
+    expect(await screen.findByText("Tag removed")).toBeInTheDocument();
+    expect(deleted).toBe(1);
+    expect(onTaskSaved).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows the server's reason when a removal is refused", async () => {
+    serveCase(buildMilo({ tags: [caseTag("t1", "O2 support", "caution")] }));
+    server.use(http.delete(apiUrl("/api/cases/case-milo/tags/t1"), () =>
+      HttpResponse.json({ title: "This case has been discharged", status: 409 }, { status: 409 })));
+    renderPanel("case-milo");
+
+    fireEvent.click(await screen.findByRole("button", { name: "Remove tag O2 support" }));
+
+    const section = screen.getByRole("region", { name: "Tags" });
+    expect(await within(section).findByRole("alert")).toHaveTextContent("This case has been discharged");
+  });
+
+  it("disables Add tag at five tags and says why", async () => {
+    serveCase(buildMilo({
+      tags: ["One", "Two", "Three", "Four", "Five"].map((text, index) => caseTag(`t${index}`, text, "info"))
+    }));
+
+    renderPanel("case-milo");
+
+    const section = await screen.findByRole("region", { name: "Tags" });
+    expect(within(section).getByRole("button", { name: "Add tag" })).toBeDisabled();
+    expect(within(section).getByText("This case has 5 tags.")).toBeInTheDocument();
+  });
+
+  it("opens Add tag, and a saved tag reloads the board and reports it added", async () => {
+    serveCase(buildMilo({ tags: [] }));
+    server.use(http.post(apiUrl("/api/cases/case-milo/tags"), () => new HttpResponse(null, { status: 201 })));
+    const onTaskSaved = vi.fn();
+    renderPanel("case-milo", undefined, undefined, onTaskSaved);
+
+    const section = await screen.findByRole("region", { name: "Tags" });
+    fireEvent.click(within(section).getByRole("button", { name: "Add tag" }));
+    const dialog = screen.getByRole("dialog", { name: "Add tag" });
+    fireEvent.change(within(dialog).getByLabelText("Tag text"), { target: { value: "O2 support" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Add tag" }));
+
+    expect(await screen.findByText("Tag added")).toBeInTheDocument();
+    expect(onTaskSaved).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("dialog", { name: "Add tag" })).not.toBeInTheDocument();
+  });
+
+  it("offers no add or remove in a discharged case, but still lists its tags", async () => {
+    serveCase(buildMilo({
+      dischargedAt: "2026-10-28T11:30:00Z",
+      tags: [caseTag("t1", "O2 support", "caution")]
+    }));
+
+    renderPanel("case-milo");
+
+    const section = await screen.findByRole("region", { name: "Tags" });
+    expect(within(section).getByText("O2 support")).toBeInTheDocument();
+    expect(within(section).queryByRole("button", { name: "Add tag" })).not.toBeInTheDocument();
+    expect(within(section).queryByRole("button", { name: "Remove tag O2 support" })).not.toBeInTheDocument();
+  });
+
+  // Client update merged into Next care action (build plan 3.5b, step 5).
+  it("shows the owner update inside Next care action, with no separate Client update card", async () => {
+    serveCase(buildMilo({ lastOwnerUpdateAt: "2026-10-28T10:00:00Z", ownerUpdateStatus: "updated" }));
+
+    renderPanel("case-milo");
+
+    const nextAction = await screen.findByRole("region", { name: "Next care action" });
+    expect(within(nextAction).getByText("Last owner update")).toBeInTheDocument();
+    expect(within(nextAction).getByText("Update status: Update status recorded")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Client update" })).not.toBeInTheDocument();
+  });
+
   // Update status (build plan 4.9b).
   it("saves a status change from More actions, reloads the board and returns focus", async () => {
     serveCase(buildMilo());
@@ -658,8 +771,9 @@ describe("PatientOverviewPanel", () => {
 
       expect(await screen.findByText(/Recheck pain · Due in 8 min/)).toBeInTheDocument();
       expect(screen.getByText("Next reassessment")).toBeInTheDocument();
-      expect(screen.getByText(/Next planned update:/)).toBeInTheDocument();
-      expect(screen.getByText(/Next planned update:\s*Not scheduled/)).toBeInTheDocument();
+      const nextAction = screen.getByRole("region", { name: "Next care action" });
+      expect(within(nextAction).getByText("Next client update")).toBeInTheDocument();
+      expect(within(nextAction).getByText("Not scheduled")).toBeInTheDocument();
     });
 
     it("marks an overdue item in words", async () => {

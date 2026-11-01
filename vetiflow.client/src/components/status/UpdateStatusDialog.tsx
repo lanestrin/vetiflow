@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { stageLabel, caseStatusLabel } from "../board/boardFormat";
-import { CaseGoneError, StatusRefusedError } from "../../services/apiErrors";
+import { CaseGoneError, ChangeRefusedError } from "../../services/apiErrors";
 import { updateCaseStatus } from "../../services/casesApi";
 import type { CaseDetail } from "../../types/CaseDetail";
 import type { CaseStage, CaseStatus } from "../../types/EmergencyCaseListItem";
@@ -64,7 +64,7 @@ export function UpdateStatusDialog({ detail, caseUnavailable = false, onClose, o
         return;
       }
 
-      if (error instanceof StatusRefusedError) {
+      if (error instanceof ChangeRefusedError) {
         setFormError(error.reason);
       } else if (error instanceof CaseGoneError) {
         setIsGone(true);

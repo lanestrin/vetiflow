@@ -35,6 +35,7 @@ export function buildCase(
     clinician: null,
     waitChip: "minutes",
     blockers: [],
+    tags: [],
     lastUpdated: new Date().toISOString(),
     ...overrides
   };
@@ -81,6 +82,7 @@ export function buildCaseDetail(overrides: Partial<CaseDetail> = {}): CaseDetail
     lastOwnerUpdateAt: null,
     triageAssessments: [],
     vitals: [],
+    tags: [],
     latestPainScore: null,
     tasks: [],
     nextReassessment: null,

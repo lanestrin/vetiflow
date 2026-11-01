@@ -1,4 +1,4 @@
-# Build Plan
+﻿# Build Plan
 
 > One of the two planning docs you own. Each line is one work item: one branch,
 > one spec, one small PR. Numbers in brackets refer to the issues in the
@@ -352,7 +352,7 @@ the future per-role protections in S.6/3.7 are already implemented.
 **Clinical tags** (prototype: tags on cards)
 
 - [x] **3.5a** `feature/case-tags-api`: short clinical tags on a case ("Respiratory distress", "O₂ support") with a tone (alert, caution, info, neutral); add and remove, with limits. Done (history/features/3.5a-case-tags-api.md).
-- [ ] **3.5b** `feature/case-tags`: tags on cards in the prototype's colours, and adding or removing them from the panel.
+- [x] **3.5b** `feature/case-tags`: tags on cards in the prototype's colours, and adding or removing them from the panel. Done (history/features/3.5b-case-tags.md).
 
 **Care team and location** (prototype: assigned clinician, location row)
 

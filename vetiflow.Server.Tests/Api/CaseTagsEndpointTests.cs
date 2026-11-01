@@ -273,6 +273,34 @@ public class CaseTagsEndpointTests(VetiFlowApiFactory factory)
 		Assert.Equal(["Existing 0", "Existing 1", "Existing 2"], texts);
 	}
 
+	[Fact]
+	public async Task GetCases_ListsEachCasesTagsOldestFirst()
+	{
+		var emergencyCase = await SaveCaseAsync(tagCount: 2);
+		using var client = await factory.CreateSignedInClientAsync(DemoAccounts.TeamEmail);
+
+		var response = await client.GetAsync("/api/cases", _cancellationToken);
+
+		Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+		var cases = await response.Content.ReadFromJsonAsync<JsonElement>(_cancellationToken);
+		var listed = cases.EnumerateArray().Single(item => item.GetProperty("id").GetGuid() == emergencyCase.Id);
+		var texts = listed.GetProperty("tags").EnumerateArray().Select(tag => tag.GetProperty("text").GetString());
+		Assert.Equal(["Existing 0", "Existing 1"], texts);
+	}
+
+	[Fact]
+	public async Task GetCases_CaseWithNoTags_ListsAnEmptyTagList()
+	{
+		var emergencyCase = await SaveCaseAsync();
+		using var client = await factory.CreateSignedInClientAsync(DemoAccounts.TeamEmail);
+
+		var response = await client.GetAsync("/api/cases", _cancellationToken);
+
+		var cases = await response.Content.ReadFromJsonAsync<JsonElement>(_cancellationToken);
+		var listed = cases.EnumerateArray().Single(item => item.GetProperty("id").GetGuid() == emergencyCase.Id);
+		Assert.Equal(0, listed.GetProperty("tags").GetArrayLength());
+	}
+
 	private Task<HttpResponseMessage> PostTagAsync(HttpClient client, Guid caseId, object body) =>
 		client.PostAsJsonAsync($"/api/cases/{caseId}/tags", body, _cancellationToken);
 

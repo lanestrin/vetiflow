@@ -5,9 +5,10 @@ import type { CaseDetail, CaseTaskRequest } from "../types/CaseDetail";
 import type { CaseIntakeRequest, CaseIntakeResult } from "../types/CaseIntake";
 import type { TriageRequest } from "../types/Triage";
 import type { CaseStatusRequest } from "../types/CaseStatusRequest";
+import type { CaseTagRequest } from "../types/CaseTag";
 import type { RecordVitalsRequest } from "../types/RecordVitalsRequest";
 import type { PainScoreRequest } from "../types/PainScoreRequest";
-import { CaseGoneError, FormRejectedError, StatusRefusedError } from "./apiErrors";
+import { CaseGoneError, FormRejectedError, ChangeRefusedError } from "./apiErrors";
 import { authorizationHeader, throwIfRefused } from "./apiRequest";
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "";
@@ -47,7 +48,7 @@ export async function getCase(caseId: string): Promise<CaseDetail | null> {
 }
 
 // Changes a case's stage, status and next action together (build plan 4.9b).
-// A move the stage rules refuse comes back as StatusRefusedError with the
+// A move the stage rules refuse comes back as ChangeRefusedError with the
 // server's reason.
 export async function updateCaseStatus(caseId: string, request: CaseStatusRequest): Promise<void> {
   const response = await fetch(`${apiBaseUrl}/api/cases/${caseId}/status`, {
@@ -66,7 +67,7 @@ export async function updateCaseStatus(caseId: string, request: CaseStatusReques
   }
 
   if (response.status === 409) {
-    throw new StatusRefusedError(await readRefusalReason(response));
+    throw new ChangeRefusedError(await readRefusalReason(response));
   }
 
   if (!response.ok) {
@@ -85,6 +86,60 @@ async function readRefusalReason(response: Response): Promise<string> {
   }
 
   return "This change is not allowed.";
+}
+
+// Adds a tag to a case (build plan 3.5b). A refusal, such as the limit, comes back
+// as ChangeRefusedError with the server's reason; a 400 names the refused field.
+export async function addCaseTag(caseId: string, request: CaseTagRequest): Promise<void> {
+  const response = await fetch(`${apiBaseUrl}/api/cases/${caseId}/tags`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...authorizationHeader()
+    },
+    body: JSON.stringify(request)
+  });
+
+  throwIfRefused(response);
+
+  if (response.status === 400) {
+    throw new FormRejectedError(await readFieldErrors(response));
+  }
+
+  if (response.status === 404) {
+    throw new CaseGoneError("notFound");
+  }
+
+  if (response.status === 409) {
+    throw new ChangeRefusedError(await readRefusalReason(response));
+  }
+
+  if (!response.ok) {
+    throw new Error("Failed to add the tag.");
+  }
+}
+
+// Removes a tag from a case (build plan 3.5b). The server answers 404 for a tag
+// that is not on this case, so that comes back as a case that is gone.
+export async function removeCaseTag(caseId: string, tagId: string): Promise<void> {
+  const response = await fetch(`${apiBaseUrl}/api/cases/${caseId}/tags/${tagId}`, {
+    method: "DELETE",
+    headers: authorizationHeader()
+  });
+
+  throwIfRefused(response);
+
+  if (response.status === 404) {
+    throw new CaseGoneError("notFound");
+  }
+
+  if (response.status === 409) {
+    throw new ChangeRefusedError(await readRefusalReason(response));
+  }
+
+  if (!response.ok) {
+    throw new Error("Failed to remove the tag.");
+  }
 }
 
 // Adds an arriving pet to the triage queue (build plan 4.1a). A 400 brings the
