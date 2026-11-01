@@ -35,26 +35,26 @@ public class CasesEndpointTests(VetiFlowApiFactory factory)
 	}
 
 	[Fact]
-	public async Task UpdateStage_SignedOut_Returns401AndLeavesCaseAlone()
+	public async Task UpdateStatus_SignedOut_Returns401AndLeavesCaseAlone()
 	{
 		var emergencyCase = TestData.Case(TestData.Patient());
 		await SaveAsync(emergencyCase);
 		using var client = factory.CreateClient();
 
-		var response = await PatchStageAsync(client, emergencyCase.Id, """{"stage":"treatment"}""");
+		var response = await PatchStatusAsync(client, emergencyCase.Id, """{"stage":"treatment","status":"inProgress"}""");
 
 		AssertProblemStatus(response, HttpStatusCode.Unauthorized);
 		await AssertStageAsync(emergencyCase.Id, CaseStage.Incoming);
 	}
 
 	[Fact]
-	public async Task UpdateStage_AsPetParent_Returns403AndLeavesCaseAlone()
+	public async Task UpdateStatus_AsPetParent_Returns403AndLeavesCaseAlone()
 	{
 		var emergencyCase = TestData.Case(TestData.Patient());
 		await SaveAsync(emergencyCase);
 		using var client = await factory.CreateSignedInClientAsync(DemoAccounts.ParentEmail);
 
-		var response = await PatchStageAsync(client, emergencyCase.Id, """{"stage":"treatment"}""");
+		var response = await PatchStatusAsync(client, emergencyCase.Id, """{"stage":"treatment","status":"inProgress"}""");
 
 		AssertProblemStatus(response, HttpStatusCode.Forbidden);
 		await AssertStageAsync(emergencyCase.Id, CaseStage.Incoming);
@@ -220,17 +220,18 @@ public class CasesEndpointTests(VetiFlowApiFactory factory)
 	}
 
 	[Fact]
-	public async Task UpdateStage_MovesCaseAndTouchesLastUpdated()
+	public async Task UpdateStatus_MovesCaseAndTouchesLastUpdated()
 	{
 		var emergencyCase = TestData.Case(TestData.Patient());
+		emergencyCase.Stage = CaseStage.Triage;
 		emergencyCase.LastUpdated = DateTimeOffset.UtcNow.AddHours(-1);
 		emergencyCase.StageEnteredAt = DateTimeOffset.UtcNow.AddHours(-1);
 		await SaveAsync(emergencyCase);
 		using var client = await factory.CreateSignedInClientAsync(DemoAccounts.TeamEmail);
 
 		var response = await client.PatchAsJsonAsync(
-			$"/api/cases/{emergencyCase.Id}/stage",
-			new { stage = "treatment" },
+			$"/api/cases/{emergencyCase.Id}/status",
+			new { stage = "treatment", status = "inProgress" },
 			_cancellationToken);
 
 		Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
@@ -242,13 +243,13 @@ public class CasesEndpointTests(VetiFlowApiFactory factory)
 	}
 
 	[Fact]
-	public async Task UpdateStage_UnknownCase_ReturnsNotFound()
+	public async Task UpdateStatus_UnknownCase_ReturnsNotFound()
 	{
 		using var client = await factory.CreateSignedInClientAsync(DemoAccounts.TeamEmail);
 
 		var response = await client.PatchAsJsonAsync(
-			$"/api/cases/{Guid.NewGuid()}/stage",
-			new { stage = "treatment" },
+			$"/api/cases/{Guid.NewGuid()}/status",
+			new { stage = "treatment", status = "inProgress" },
 			_cancellationToken);
 
 		Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
@@ -256,20 +257,20 @@ public class CasesEndpointTests(VetiFlowApiFactory factory)
 
 	// Only a known stage name may move a case: not a number, not a missing value.
 	[Theory]
-	[InlineData("""{"stage":"surgery"}""")]
-	[InlineData("""{"stage":2}""")]
-	[InlineData("""{"stage":"2"}""")]
-	[InlineData("""{"stage":99}""")]
-	[InlineData("""{"stage":"triage,treatment"}""")]
-	[InlineData("""{"stage":null}""")]
+	[InlineData("""{"stage":"surgery","status":"waiting"}""")]
+	[InlineData("""{"stage":2,"status":"waiting"}""")]
+	[InlineData("""{"stage":"2","status":"waiting"}""")]
+	[InlineData("""{"stage":99,"status":"waiting"}""")]
+	[InlineData("""{"stage":"triage,treatment","status":"waiting"}""")]
+	[InlineData("""{"stage":null,"status":"waiting"}""")]
 	[InlineData("""{}""")]
-	public async Task UpdateStage_InvalidStage_ReturnsBadRequestAndLeavesCaseAlone(string body)
+	public async Task UpdateStatus_InvalidStage_ReturnsBadRequestAndLeavesCaseAlone(string body)
 	{
 		var emergencyCase = TestData.Case(TestData.Patient());
 		await SaveAsync(emergencyCase);
 		using var client = await factory.CreateSignedInClientAsync(DemoAccounts.TeamEmail);
 
-		var response = await PatchStageAsync(client, emergencyCase.Id, body);
+		var response = await PatchStatusAsync(client, emergencyCase.Id, body);
 
 		Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
 		await using var dbContext = factory.CreateDbContext();
@@ -278,13 +279,13 @@ public class CasesEndpointTests(VetiFlowApiFactory factory)
 	}
 
 	[Fact]
-	public async Task UpdateStage_InvalidStage_DoesNotExposeTypeNames()
+	public async Task UpdateStatus_InvalidStage_DoesNotExposeTypeNames()
 	{
 		var emergencyCase = TestData.Case(TestData.Patient());
 		await SaveAsync(emergencyCase);
 		using var client = await factory.CreateSignedInClientAsync(DemoAccounts.TeamEmail);
 
-		var response = await PatchStageAsync(client, emergencyCase.Id, """{"stage":"surgery"}""");
+		var response = await PatchStatusAsync(client, emergencyCase.Id, """{"stage":"surgery","status":"waiting"}""");
 
 		Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
 		var problem = await response.Content.ReadAsStringAsync(_cancellationToken);
@@ -293,9 +294,10 @@ public class CasesEndpointTests(VetiFlowApiFactory factory)
 	}
 
 	[Fact]
-	public async Task UpdateStage_NotifiesConnectedBoards()
+	public async Task UpdateStatus_NotifiesConnectedBoards()
 	{
 		var emergencyCase = TestData.Case(TestData.Patient());
+		emergencyCase.Stage = CaseStage.Triage;
 		await SaveAsync(emergencyCase);
 		await using var hub = new HubConnectionBuilder()
 			.WithUrl(new Uri(factory.Server.BaseAddress, "hubs/cases"), options =>
@@ -317,11 +319,127 @@ public class CasesEndpointTests(VetiFlowApiFactory factory)
 		using var client = await factory.CreateSignedInClientAsync(DemoAccounts.TeamEmail);
 
 		await client.PatchAsJsonAsync(
-			$"/api/cases/{emergencyCase.Id}/stage",
-			new { stage = "diagnostics" },
+			$"/api/cases/{emergencyCase.Id}/status",
+			new { stage = "diagnostics", status = "waiting" },
 			_cancellationToken);
 
 		await notified.Task.WaitAsync(TimeSpan.FromSeconds(10), _cancellationToken);
+	}
+
+	[Fact]
+	public async Task UpdateStatus_SetsStageStatusAndNextActionTogether()
+	{
+		var emergencyCase = TestData.Case(TestData.Patient());
+		emergencyCase.Stage = CaseStage.Triage;
+		await SaveAsync(emergencyCase);
+		using var client = await factory.CreateSignedInClientAsync(DemoAccounts.TeamEmail);
+
+		var response = await PatchStatusAsync(
+			client,
+			emergencyCase.Id,
+			"""{"stage":"treatment","status":"inProgress","nextAction":"Start fluids"}""");
+
+		Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+		await using var dbContext = factory.CreateDbContext();
+		var saved = await dbContext.EmergencyCases.SingleAsync(c => c.Id == emergencyCase.Id, _cancellationToken);
+		Assert.Equal(CaseStage.Treatment, saved.Stage);
+		Assert.Equal(CaseStatus.InProgress, saved.Status);
+		Assert.Equal("Start fluids", saved.NextAction);
+	}
+
+	[Fact]
+	public async Task UpdateStatus_RefusedStageMove_Returns409AndLeavesCaseAlone()
+	{
+		var emergencyCase = TestData.Case(TestData.Patient());
+		await SaveAsync(emergencyCase);
+		using var client = await factory.CreateSignedInClientAsync(DemoAccounts.TeamEmail);
+
+		var response = await PatchStatusAsync(client, emergencyCase.Id, """{"stage":"treatment","status":"inProgress"}""");
+
+		AssertProblemStatus(response, HttpStatusCode.Conflict);
+		await AssertStageAsync(emergencyCase.Id, CaseStage.Incoming);
+	}
+
+	[Fact]
+	public async Task UpdateStatus_CompletedOutsideDischarge_Returns409()
+	{
+		var emergencyCase = TestData.Case(TestData.Patient());
+		emergencyCase.Stage = CaseStage.Triage;
+		await SaveAsync(emergencyCase);
+		using var client = await factory.CreateSignedInClientAsync(DemoAccounts.TeamEmail);
+
+		var response = await PatchStatusAsync(client, emergencyCase.Id, """{"stage":"treatment","status":"completed"}""");
+
+		AssertProblemStatus(response, HttpStatusCode.Conflict);
+		await using var dbContext = factory.CreateDbContext();
+		var saved = await dbContext.EmergencyCases.SingleAsync(c => c.Id == emergencyCase.Id, _cancellationToken);
+		Assert.Equal(CaseStage.Triage, saved.Stage);
+		Assert.Equal(CaseStatus.Unassigned, saved.Status);
+	}
+
+	[Fact]
+	public async Task UpdateStatus_RecordsStageAndStatusEventsWithTheActor()
+	{
+		var emergencyCase = TestData.Case(TestData.Patient());
+		emergencyCase.Stage = CaseStage.Triage;
+		await SaveAsync(emergencyCase);
+		using var client = await factory.CreateSignedInClientAsync(DemoAccounts.TeamEmail);
+
+		var response = await PatchStatusAsync(client, emergencyCase.Id, """{"stage":"treatment","status":"inProgress"}""");
+
+		Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+		var saved = await LoadWithEventsAsync(emergencyCase.Id);
+		Assert.Equal(2, saved.Events.Count);
+		var stageChanged = Assert.Single(saved.Events, e => e.Type == CaseEventType.StageChanged);
+		Assert.Equal("Stage changed: Triage to Treatment", stageChanged.Description);
+		Assert.Equal("Jordan", stageChanged.CreatedByStaff?.FirstName);
+		var statusChanged = Assert.Single(saved.Events, e => e.Type == CaseEventType.StatusChanged);
+		Assert.Equal("Status changed: Unassigned to InProgress", statusChanged.Description);
+		Assert.Equal("Jordan", statusChanged.CreatedByStaff?.FirstName);
+	}
+
+	[Fact]
+	public async Task UpdateStatus_StatusOnly_RecordsOnlyAStatusEvent()
+	{
+		var emergencyCase = TestData.Case(TestData.Patient());
+		emergencyCase.Stage = CaseStage.Triage;
+		await SaveAsync(emergencyCase);
+		using var client = await factory.CreateSignedInClientAsync(DemoAccounts.TeamEmail);
+
+		await PatchStatusAsync(client, emergencyCase.Id, """{"stage":"triage","status":"waiting"}""");
+
+		var saved = await LoadWithEventsAsync(emergencyCase.Id);
+		var statusChanged = Assert.Single(saved.Events);
+		Assert.Equal(CaseEventType.StatusChanged, statusChanged.Type);
+		Assert.Equal(CaseStage.Triage, saved.Stage);
+	}
+
+	[Fact]
+	public async Task UpdateStatus_NextActionOnly_RecordsNoEvent()
+	{
+		var emergencyCase = TestData.Case(TestData.Patient());
+		emergencyCase.Stage = CaseStage.Triage;
+		await SaveAsync(emergencyCase);
+		using var client = await factory.CreateSignedInClientAsync(DemoAccounts.TeamEmail);
+
+		await PatchStatusAsync(client, emergencyCase.Id, """{"stage":"triage","status":"unassigned","nextAction":"Recheck pain"}""");
+
+		var saved = await LoadWithEventsAsync(emergencyCase.Id);
+		Assert.Empty(saved.Events);
+		Assert.Equal("Recheck pain", saved.NextAction);
+	}
+
+	[Fact]
+	public async Task StageRoute_IsRemoved()
+	{
+		using var client = await factory.CreateSignedInClientAsync(DemoAccounts.TeamEmail);
+
+		var response = await client.PatchAsync(
+			$"/api/cases/{Guid.NewGuid()}/stage",
+			new StringContent("""{"stage":"treatment"}""", System.Text.Encoding.UTF8, "application/json"),
+			_cancellationToken);
+
+		Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
 	}
 
 	// The case detail drawer's data (build plan 3.1).
@@ -901,6 +1019,14 @@ public class CasesEndpointTests(VetiFlowApiFactory factory)
 		return cases!.Single(item => item.GetProperty("id").GetGuid() == caseId);
 	}
 
+	private async Task<EmergencyCase> LoadWithEventsAsync(Guid caseId)
+	{
+		await using var dbContext = factory.CreateDbContext();
+		return await dbContext.EmergencyCases
+			.Include(c => c.Events).ThenInclude(e => e.CreatedByStaff)
+			.SingleAsync(c => c.Id == caseId, _cancellationToken);
+	}
+
 	private async Task<JsonElement> GetCaseAsync(HttpClient client, Guid caseId)
 	{
 		var response = await client.GetAsync($"/api/cases/{caseId}", _cancellationToken);
@@ -909,9 +1035,9 @@ public class CasesEndpointTests(VetiFlowApiFactory factory)
 	}
 
 	// Sends the body exactly as written, so tests can send numbers and nulls.
-	private Task<HttpResponseMessage> PatchStageAsync(HttpClient client, Guid caseId, string body) =>
+	private Task<HttpResponseMessage> PatchStatusAsync(HttpClient client, Guid caseId, string body) =>
 		client.PatchAsync(
-			$"/api/cases/{caseId}/stage",
+			$"/api/cases/{caseId}/status",
 			new StringContent(body, System.Text.Encoding.UTF8, "application/json"),
 			_cancellationToken);
 

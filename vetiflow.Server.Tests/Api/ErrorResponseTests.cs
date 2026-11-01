@@ -24,39 +24,39 @@ public class ErrorResponseTests(VetiFlowApiFactory factory)
 	}
 
 	[Fact]
-	public async Task UpdateStage_UnknownCase_ReturnsNotFoundProblem()
+	public async Task UpdateStatus_UnknownCase_ReturnsNotFoundProblem()
 	{
 		using var client = await factory.CreateSignedInClientAsync(DemoAccounts.TeamEmail);
 
 		var response = await client.PatchAsJsonAsync(
-			$"/api/cases/{Guid.NewGuid()}/stage",
-			new { stage = "treatment" },
+			$"/api/cases/{Guid.NewGuid()}/status",
+			new { stage = "treatment", status = "inProgress" },
 			_cancellationToken);
 
 		await AssertProblemAsync(response, HttpStatusCode.NotFound);
 	}
 
 	[Fact]
-	public async Task UpdateStage_NonGuidId_ReturnsNotFoundProblem()
+	public async Task UpdateStatus_NonGuidId_ReturnsNotFoundProblem()
 	{
 		using var client = factory.CreateClient();
 
 		var response = await client.PatchAsJsonAsync(
-			"/api/cases/not-a-guid/stage",
-			new { stage = "treatment" },
+			"/api/cases/not-a-guid/status",
+			new { stage = "treatment", status = "inProgress" },
 			_cancellationToken);
 
 		await AssertProblemAsync(response, HttpStatusCode.NotFound);
 	}
 
 	[Fact]
-	public async Task UpdateStage_MalformedJson_ReturnsValidationProblem()
+	public async Task UpdateStatus_MalformedJson_ReturnsValidationProblem()
 	{
 		var emergencyCase = await SaveCaseAsync();
 		using var client = await factory.CreateSignedInClientAsync(DemoAccounts.TeamEmail);
 
 		var response = await client.PatchAsync(
-			$"/api/cases/{emergencyCase.Id}/stage",
+			$"/api/cases/{emergencyCase.Id}/status",
 			new StringContent("""{"stage":""", Encoding.UTF8, "application/json"),
 			_cancellationToken);
 
@@ -65,13 +65,13 @@ public class ErrorResponseTests(VetiFlowApiFactory factory)
 	}
 
 	[Fact]
-	public async Task UpdateStage_WrongContentType_ReturnsUnsupportedMediaTypeProblem()
+	public async Task UpdateStatus_WrongContentType_ReturnsUnsupportedMediaTypeProblem()
 	{
 		var emergencyCase = await SaveCaseAsync();
 		using var client = await factory.CreateSignedInClientAsync(DemoAccounts.TeamEmail);
 
 		var response = await client.PatchAsync(
-			$"/api/cases/{emergencyCase.Id}/stage",
+			$"/api/cases/{emergencyCase.Id}/status",
 			new StringContent("stage=treatment", Encoding.UTF8, "text/plain"),
 			_cancellationToken);
 

@@ -125,6 +125,25 @@ public class EmergencyCase
 		LastUpdated = StageEnteredAt;
 	}
 
+	// Why staff may not make this stage and status change, or null when it is
+	// allowed. Completed means treatment is over, so it belongs to Discharge only.
+	public string? RefuseStageAndStatus(CaseStage stage, CaseStatus status)
+	{
+		if (!CaseStageTransitions.CanMove(Stage, stage))
+		{
+			return Stage == CaseStage.Incoming
+				? "Complete triage moves a case out of Incoming."
+				: $"A case in {Stage} cannot move to {stage}.";
+		}
+
+		if (status == CaseStatus.Completed && stage != CaseStage.Discharge)
+		{
+			return "A case can be marked Completed only in the Discharge stage.";
+		}
+
+		return null;
+	}
+
 	public void RecordTriage(TriageAssessment assessment)
 	{
 		TriageAssessments.Add(assessment);
