@@ -65,26 +65,26 @@ First, every time, apply the branch check from
 
 Then follow `/implement` sections 3-4 for any unticked steps, including their
 stops and checks. Skip its standalone final Verify and report: this command
-owns both after the repairs below. Read current findings before building so
-known repairs count when identifying the final step. Only the final step across
-builds and known repairs may defer its broad check to final Verify. Skip building
+owns both after the repairs below. Reuse the preflight findings while planning
+known repairs. Use focused checks for ordinary steps and retain `/implement`
+section 3's mandatory intermediate checks. Skip building
 when every step is ticked; the branch, findings and Verify checks still apply.
 
 ## 2. Repair blockers from a requested audit
 
-Read `blueprint/context/findings.md`. For each `open` P0 or P1, in severity
+Use the findings already read (refresh if changed). For each `open` P0 or P1, in severity
 order:
 
 1. Add a repair step to the spec (`- [ ] **Step N - repair F-NN: <title>.**`
    with a *Done when*) without asking, and set `Status` to `in progress`.
-2. Build and check it per `/implement` section 3, including its final-step
-   deferral rule. Tick the step and mark the finding `fixed` only after its
+2. Build and check it per `/implement` section 3, including its mandatory
+   intermediate checks. Tick the step and mark the finding `fixed` only after its
    required check passes.
 
 After all builds and repairs, apply `/implement` section 4 and run final Verify
 once using `/verify`'s invocation policy. Follow `/implement` section 5's failure
-loop and status rules, including ticking a step awaiting its broad check only
-after it passes. A `fixed` finding stays a `/complete` blocker until the person
+loop and status rules. Do not run ordinary whole suites before this final Verify.
+A `fixed` finding stays a `/complete` blocker until the person
 runs `/audit focused` and it closes.
 
 ## 3. Prove it

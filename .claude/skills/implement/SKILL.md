@@ -43,8 +43,8 @@ Stops here end with the handoff ("Ending a turn" in
 
 - Follow "Efficient context and tool use" in `blueprint/context/ai-interaction.md`;
   this skill adds no separate context policy.
-- Track files and checks per step to avoid duplicate reads or reruns. Section 3
-  controls final-step deferral; debug failures from the relevant log tail and
+- Track files and checks per step in the existing spec to avoid duplicate reads
+  or reruns. Section 3 controls intermediate checks; debug failures from the relevant log tail and
   code path.
 
 ## 3. Build loop
@@ -65,20 +65,21 @@ For each unticked step, in order:
 5. Run the narrow check: `/test <filter>` for the tests this step touched, or
    the relevant lint/build for application changes without logic. Workflow or
    documentation-only steps use `git diff --check` and an instruction walkthrough;
-   final Verify supplies the workflow tests. Run the whole affected suite
-   instead (`dotnet test --project vetiflow.Server.Tests`, or
-   `npm run test -- --run` in `vetiflow.client`) when the step changes:
-   - shared code used by more than one feature;
-   - a dependency (`*.csproj`, `package.json`, `package-lock.json`,
-     `.config/dotnet-tools.json`);
-   - config (`Program.cs`, `appsettings*.json`, `vite.config.ts`, `tsconfig*.json`);
-   - security (sign-in, roles, owner scope, redaction);
-   - database code (`Data/`, entities, migrations).
+   final Verify supplies the workflow tests. Defer ordinary whole-suite checks to final Verify,
+   including shared code, dependencies and config; their path alone does not
+   require a whole suite at every step. Choose focused tests for affected callers
+   and contracts, and include any relevant lint/build needed for that step.
 
-   On the final build or repair step, final Verify may supply this broader
-   check when its scope includes the required suite and no edits follow. Leave
-   the step unticked until that suite and Verify pass. Earlier steps keep their
-   checks; a failing regression test must still be observed before the fix.
+   Mandatory intermediate checks remain for changes to:
+   - database code (`Data/`, entities, migrations);
+   - authorization or security (sign-in, roles, owner scope, redaction);
+   - clinical-data integrity (triage, measurements, record preservation).
+
+   For these changes, run the whole affected server/client test suite at that
+   step, plus checks explicitly required by the spec or `/migration`.
+   Run these checks before ticking the step; do not defer them to final Verify.
+   Other checks explicitly required by the spec also remain mandatory.
+   A failing regression test must still be observed before the fix.
 6. Tick the step's box only after its check passes. If it repaired a finding,
    mark that finding `fixed` in `findings.md` (never `closed`).
 
@@ -97,15 +98,14 @@ Standalone `/implement` runs final Verify once, using the invocation policy in
 `/verify`. When called by `/ready`, return after sections 3-4; `/ready` owns
 final Verify after all builds and repairs, and the final report.
 
-If Verify fails, keep any step awaiting its check unticked, fix only in-scope
+If Verify fails, fix only in-scope
 problems, rerun the narrow check, then rerun Verify. After 2 or 3 failed attempts
 on the same failure, or when the problem is outside this spec, stop as "When
 something fails or stops"
 says: what failed, which steps are ticked, and the options from `/verify`'s
 "Common failures" table. `/implement` resumes where it stopped.
 
-When Verify passes, tick the final step if its deferred check passed (and mark
-any repaired finding `fixed`, never `closed`). Set `Status` to `verified` only
+When Verify passes, set `Status` to `verified` only
 when every box is ticked. A manual test run alone is never Verify evidence.
 
 ## 6. Review packet
