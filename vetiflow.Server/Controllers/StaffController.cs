@@ -86,6 +86,53 @@ public class StaffController : ControllerBase
 				.ToList();
 	}
 
+	// Every active veterinarian and technician (build plan 4.5): the clinicians on
+	// the floor first, then the Unavailable ones, each by name. Each has the same
+	// active-case rule as the on-floor list (2.21a).
+	[HttpGet("team")]
+	public async Task<ActionResult<List<TeamClinicianDto>>> GetTeam(CancellationToken cancellationToken)
+	{
+		var clinicians = await _dbContext.StaffMembers
+				.AsNoTracking()
+				.Where(staff => staff.IsActive && StaffQueries.ClinicianRoles.Contains(staff.Role))
+				.OrderBy(staff => staff.LastName)
+				.ThenBy(staff => staff.FirstName)
+				.Select(staff => new
+				{
+					staff.Id,
+					staff.FirstName,
+					staff.LastName,
+					staff.Role,
+					staff.Status,
+					ActiveCases = _dbContext.EmergencyCases
+						.Where(emergencyCase => emergencyCase.DischargedAt == null
+							&& (emergencyCase.AssignedDoctorId == staff.Id || emergencyCase.AssignedTechnicianId == staff.Id))
+						.OrderBy(emergencyCase => emergencyCase.CaseNumber)
+						.Select(emergencyCase => new TeamCaseDto
+						{
+							Id = emergencyCase.Id,
+							CaseNumber = "ER-" + emergencyCase.CaseNumber,
+							PatientName = emergencyCase.Patient.Name
+						})
+						.ToList()
+				})
+				.ToListAsync(cancellationToken);
+
+		return clinicians
+				.OrderBy(staff => staff.Status == StaffStatus.Unavailable)
+				.Select(staff => new TeamClinicianDto
+				{
+					Id = staff.Id,
+					DisplayName = StaffNames.DisplayName(staff.FirstName, staff.LastName, staff.Role),
+					Initials = StaffNames.Initials(staff.FirstName, staff.LastName),
+					Role = staff.Role,
+					Status = staff.Status,
+					ActiveCaseCount = staff.ActiveCases.Count,
+					ActiveCases = staff.ActiveCases
+				})
+				.ToList();
+	}
+
 	// The signed-in team member's staff record, tracked so a status can be set,
 	// when they are a veterinarian or technician.
 	private async Task<StaffMember?> SignedInClinicianAsync(CancellationToken cancellationToken)

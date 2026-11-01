@@ -8,6 +8,7 @@ import { ErBoardPage } from "../routes/ErBoardPage";
 import { PetParentHomePage } from "../routes/PetParentHomePage";
 import { RecordsPage } from "../routes/RecordsPage";
 import { SignInPage } from "../routes/SignInPage";
+import { TeamPage } from "../routes/TeamPage";
 
 function App() {
   return (
@@ -30,7 +31,7 @@ function App() {
           <Route path="/er" element={<ErBoardPage />} />
           <Route path="/records" element={<RecordsPage />} />
           <Route path="/overview" element={<ComingSoonPage name="Overview" />} />
-          <Route path="/team" element={<ComingSoonPage name="Team" />} />
+          <Route path="/team" element={<TeamPage />} />
           <Route path="/reports" element={<ComingSoonPage name="Reports" />} />
           <Route path="/settings" element={<ComingSoonPage name="Settings" />} />
         </Route>
