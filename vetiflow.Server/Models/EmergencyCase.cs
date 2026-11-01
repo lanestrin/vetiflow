@@ -127,10 +127,22 @@ public class EmergencyCase
 		LastUpdated = StageEnteredAt;
 	}
 
+	// Records the discharge time once: a later move to Discharge keeps the first time
+	// (build plan 4.21a).
+	public void RecordDischarge(DateTimeOffset now)
+	{
+		DischargedAt ??= now;
+	}
+
 	// Why staff may not make this stage and status change, or null when it is
 	// allowed. Completed means treatment is over, so it belongs to Discharge only.
 	public string? RefuseStageAndStatus(CaseStage stage, CaseStatus status)
 	{
+		if (DischargedAt is not null)
+		{
+			return "This case has been discharged.";
+		}
+
 		if (!CaseStageTransitions.CanMove(Stage, stage))
 		{
 			return Stage == CaseStage.Incoming
