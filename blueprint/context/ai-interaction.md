@@ -30,11 +30,13 @@
   remembered state to authorize a gate. `/ready` and `/complete` follow their
   owning skills rather than repeating their investigation.
 - Batch independent reads; keep dependent commands and edits sequential.
-  Identify the narrowest useful check and whether final Verify already supplies
-  a broader check. Avoid identical broad reruns without intervening changes or
-  a specific failure, but never skip an explicitly required intermediate check
-  or a prescribed regression/final suite for clinical data, permissions,
-  migrations, security or shared contracts.
+  Use focused checks during implementation and defer ordinary whole affected suites to final Verify
+  after implementation and repairs. Shared-code, dependency or config paths alone
+  do not require a whole suite per step. `/implement` section 3 owns mandatory
+  intermediate checks for database migrations, authorization, security and
+  clinical-data integrity; preserve explicit spec checks and failing-first
+  regressions. Rerun final Verify after repairs that invalidate evidence; later
+  `/complete` and `/approve` reuse valid evidence only through `-ReuseIfCurrent`.
 - Treat script output as evidence. Read status and failure tails first; expand
   only the relevant log section and code path. Never infer PASS from silence,
   chat memory or a manually run suite.
@@ -118,8 +120,8 @@ run" in `/verify`). CI runs its own checks on every PR and never reads local
 evidence.
 
 `/ready` owns final Verify and the report when coordinating `/implement`;
-standalone `/implement` owns its own. Development checks and the final-step
-broad-check rule live in `/implement` section 3. Invocation and reuse policy
+standalone `/implement` owns its own. Focused development checks and mandatory
+intermediate checks live in `/implement` section 3. Invocation and reuse policy
 live in `/verify`; later gates never infer a PASS from manual suite runs.
 
 **Resuming after a lost chat or `/clear`.** Progress lives in files: the spec's

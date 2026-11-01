@@ -4,8 +4,8 @@
   commit subject rules pass, and each broken rule fails.
 
 .DESCRIPTION
-  Plain PowerShell, no test framework. Runs the script in a child PowerShell,
-  as CI does.
+  Plain PowerShell, no test framework. Runs every rule case in-process and
+  retains child PowerShell checks for the CLI's success/failure output and exits.
 #>
 $ErrorActionPreference = 'Stop'
 $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
@@ -21,7 +21,7 @@ $checkScript = Join-Path $repoRoot 'scripts/check-pr-title.ps1'
 $powershellExe = (Get-Process -Id $PID).Path
 
 function Test-Title([string]$Title) {
-	& $powershellExe -NoProfile -ExecutionPolicy Bypass -File $checkScript -Title $Title | Out-Null
+	& $checkScript -Title $Title | Out-Null
 	$LASTEXITCODE -eq 0
 }
 
@@ -51,6 +51,17 @@ $invalid = @(
 )
 foreach ($case in $invalid) {
 	Assert-True (-not (Test-Title $case.Title)) "fails: $($case.Rule)"
+}
+
+$cliCases = @(
+	@{ Title = 'fix!: preserve owner records'; Exit = 0; Output = '^PR title passes\.$' },
+	@{ Title = 'fix: preserve owner records.'; Exit = 1; Output = '^PR title fails .*it must not end with a full stop\.$' }
+)
+foreach ($case in $cliCases) {
+	$output = @(& $powershellExe -NoProfile -ExecutionPolicy Bypass -File $checkScript -Title $case.Title)
+	$exitCode = $LASTEXITCODE
+	Assert-True ($exitCode -eq $case.Exit) "CLI exits $($case.Exit): $($case.Title)"
+	Assert-True ($output.Count -eq 1 -and $output[0] -match $case.Output) "CLI reports the result: $($case.Title)"
 }
 
 # --- Result --------------------------------------------------------------------

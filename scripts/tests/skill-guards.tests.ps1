@@ -5,8 +5,8 @@
   and /done.
 
 .DESCRIPTION
-  Plain PowerShell, no test framework. Reads skill frontmatter only; the
-  negative case uses a copy in TEMP.
+  Plain PowerShell, no test framework. Checks person-only frontmatter and
+  implementation test policy; the negative case uses a copy in TEMP.
 #>
 $ErrorActionPreference = 'Stop'
 $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
@@ -48,6 +48,25 @@ try {
 }
 finally {
 	if (Test-Path $fixture) { Remove-Item -Force $fixture }
+}
+
+$implement = Get-Content -LiteralPath (Join-Path $repoRoot '.claude/skills/implement/SKILL.md') -Raw
+$ready = Get-Content -LiteralPath (Join-Path $repoRoot '.claude/skills/ready/SKILL.md') -Raw
+$interaction = Get-Content -LiteralPath (Join-Path $repoRoot 'blueprint/context/ai-interaction.md') -Raw
+$buildChecks = [regex]::Match($implement, '(?s)5\. Run the narrow check:.*?(?=6\. Tick)').Value
+Assert-True ($buildChecks -match 'Defer ordinary whole-suite checks to final Verify') 'ordinary steps defer full suites instead of repeating them'
+Assert-True ($buildChecks -notmatch 'Run the whole affected suite\s+instead') 'no blanket whole-suite trigger for shared code, dependencies or config'
+foreach ($risk in 'database', 'migrations', 'authorization', 'security', 'clinical-data integrity') {
+	Assert-True ($buildChecks -match [regex]::Escape($risk)) "intermediate checks retain $risk coverage"
+}
+Assert-True ($buildChecks -match 'Run these checks before ticking the step; do not defer them') 'sensitive intermediate checks cannot be deferred'
+Assert-True ($buildChecks -match 'explicitly required.*spec' -and $buildChecks -match 'failing regression test.*observed before the fix') 'spec checks and failing-first regressions remain required'
+Assert-True ($implement -match 'Standalone `/implement` runs final Verify once' -and $implement -match '`/ready` owns\s+final Verify after all builds and repairs') 'standalone and coordinated work have one final Verify owner'
+Assert-True ($ready -match 'Skip its standalone final Verify and report' -and $ready -match 'After all builds and repairs.*?apply' -and $ready -match 'run final Verify\s+once') 'ready avoids nested final verification'
+Assert-True ($interaction -match 'focused checks during implementation' -and $interaction -match 'whole affected suites to final Verify') 'shared context policy defers ordinary broad checks'
+foreach ($skill in 'complete', 'approve') {
+	$content = Get-Content -LiteralPath (Join-Path $repoRoot ".claude/skills/$skill/SKILL.md") -Raw
+	Assert-True ($content -match '-ReuseIfCurrent') "/$skill retains script-controlled evidence reuse"
 }
 
 # --- Result --------------------------------------------------------------------
