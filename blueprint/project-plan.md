@@ -186,8 +186,9 @@ Not part of v1. Open question.
   requirement-to-item mapping. `build-plan.md` remains the single ordered
   roadmap for shared dependencies; `current-feature.md` holds one PR's spec.
   Page designs do not create independent patient/task/permission models.
-- Dashboard presentation update (2026-10-29): the clinic name is the main
-  heading; omit the repeated ER Command Center heading below it. Use teal
+- Dashboard presentation update (2026-10-29, heading revised 2026-11-01): the
+  clinic name is a teal eyebrow above the "ER Command Center" h1, as in the
+  prototype. Use teal
   focus outlines on light surfaces, 16 px patient names, 14 px main content,
   13 px metadata and at least 12 px compact labels, expressed in rem.
 - Custom focus outlines throughout the application use 1px via the shared

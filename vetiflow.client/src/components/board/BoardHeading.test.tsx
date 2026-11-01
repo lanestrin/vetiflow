@@ -13,8 +13,8 @@ describe("BoardHeading", () => {
     );
 
     expect(screen.getByText("Northside Veterinary Emergency")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { level: 1, name: "Northside Veterinary Emergency" })).toBeInTheDocument();
-    expect(screen.queryByText("ER Command Center")).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Northside Veterinary Emergency" })).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "ER Command Center" })).toBeInTheDocument();
     expect(screen.getByText("Live patient flow and care coordination")).toBeInTheDocument();
     expect(screen.getByText("Day shift · 4 clinicians on floor")).toBeInTheDocument();
   });
@@ -22,7 +22,7 @@ describe("BoardHeading", () => {
   it("leaves out the clinic and chip while the summary is unavailable", () => {
     render(<BoardHeading summary={null} onIntake={vi.fn()} />);
 
-    expect(screen.getByRole("heading", { level: 1, name: "Emergency board" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "ER Command Center" })).toBeInTheDocument();
     expect(screen.queryByText("Northside Veterinary Emergency")).not.toBeInTheDocument();
     expect(screen.queryByText(/on floor/)).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "New intake" })).toBeInTheDocument();
