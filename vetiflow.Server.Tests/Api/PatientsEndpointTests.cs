@@ -152,6 +152,110 @@ public class PatientsEndpointTests(VetiFlowApiFactory factory)
 		AssertProblemStatus(response, HttpStatusCode.NotFound);
 	}
 
+	// Visit History (build plan 4.21b).
+	[Fact]
+	public async Task GetPatientVisits_ListsVisitsNewestFirstWithStatusAndDoctor()
+	{
+		var patient = TestData.Patient();
+		var doctor = TestData.StaffMember(StaffRole.Veterinarian);
+		var earlier = TestData.Case(patient);
+		earlier.ArrivalTime = DateTimeOffset.UtcNow.AddDays(-30);
+		earlier.PresentingComplaint = "Vomiting and dehydration";
+		earlier.DischargedAt = DateTimeOffset.UtcNow.AddDays(-29);
+		earlier.AssignedDoctor = doctor;
+		var current = TestData.Case(patient);
+		current.ArrivalTime = DateTimeOffset.UtcNow.AddHours(-1);
+		current.PresentingComplaint = "Respiratory distress";
+		await SaveCasesAsync(earlier, current);
+		using var client = await TeamClientAsync();
+
+		var history = await client.GetFromJsonAsync<JsonElement>($"/api/patients/{patient.Id}/visits", _cancellationToken);
+
+		Assert.Equal(patient.Name, history.GetProperty("patient").GetProperty("name").GetString());
+		Assert.Equal("Mixed", history.GetProperty("patient").GetProperty("breed").GetString());
+		var visits = history.GetProperty("visits").EnumerateArray().ToList();
+		Assert.Equal([current.Id, earlier.Id], visits.Select(visit => visit.GetProperty("caseId").GetGuid()));
+		Assert.Equal("Respiratory distress", visits[0].GetProperty("presentingComplaint").GetString());
+		Assert.StartsWith("ER-", visits[0].GetProperty("caseNumber").GetString());
+		Assert.Equal(JsonValueKind.Null, visits[0].GetProperty("dischargedAt").ValueKind);
+		Assert.Equal(JsonValueKind.Null, visits[0].GetProperty("attendingDoctor").ValueKind);
+		Assert.NotEqual(JsonValueKind.Null, visits[1].GetProperty("dischargedAt").ValueKind);
+		Assert.Equal($"Staff {doctor.LastName}", visits[1].GetProperty("attendingDoctor").GetProperty("name").GetString());
+	}
+
+	[Fact]
+	public async Task GetPatientVisits_LeavesOutOtherPatientsVisits()
+	{
+		var patient = TestData.Patient();
+		var mine = TestData.Case(patient);
+		await SaveCasesAsync(mine, TestData.Case(TestData.Patient()));
+		using var client = await TeamClientAsync();
+
+		var history = await client.GetFromJsonAsync<JsonElement>($"/api/patients/{patient.Id}/visits", _cancellationToken);
+
+		var visit = Assert.Single(history.GetProperty("visits").EnumerateArray());
+		Assert.Equal(mine.Id, visit.GetProperty("caseId").GetGuid());
+	}
+
+	[Fact]
+	public async Task GetPatientVisits_NoVisits_ReturnsEmptyList()
+	{
+		var patient = TestData.Patient();
+		await SaveAsync(patient);
+		using var client = await TeamClientAsync();
+
+		var history = await client.GetFromJsonAsync<JsonElement>($"/api/patients/{patient.Id}/visits", _cancellationToken);
+
+		Assert.Empty(history.GetProperty("visits").EnumerateArray());
+	}
+
+	[Fact]
+	public async Task GetPatientVisits_UnknownPatient_ReturnsNotFound()
+	{
+		using var client = await TeamClientAsync();
+
+		var response = await client.GetAsync($"/api/patients/{Guid.NewGuid()}/visits", _cancellationToken);
+
+		AssertProblemStatus(response, HttpStatusCode.NotFound);
+	}
+
+	[Fact]
+	public async Task GetPatientVisits_LeavesOutOwnerAndClinicalNotes()
+	{
+		var owner = TestData.Owner();
+		var patient = TestData.Patient();
+		patient.Owner = owner;
+		patient.Allergies = "Penicillin";
+		patient.CurrentMedications = "Carprofen 75 mg";
+		var emergencyCase = TestData.Case(patient);
+		emergencyCase.AllergiesAtIntake = "Penicillin";
+		emergencyCase.MedicationsAtIntake = "Carprofen 75 mg";
+		await SaveCasesAsync(emergencyCase);
+		using var client = await TeamClientAsync();
+
+		var response = await client.GetAsync($"/api/patients/{patient.Id}/visits", _cancellationToken);
+		var body = await response.Content.ReadAsStringAsync(_cancellationToken);
+
+		Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+		Assert.DoesNotContain(owner.LastName, body);
+		Assert.DoesNotContain(owner.Phone!, body);
+		Assert.DoesNotContain(owner.Email!, body);
+		Assert.DoesNotContain("Penicillin", body);
+		Assert.DoesNotContain("Carprofen", body);
+	}
+
+	[Fact]
+	public async Task GetPatientVisits_PetParent_ReturnsForbidden()
+	{
+		var patient = TestData.Patient();
+		await SaveAsync(patient);
+		using var client = await factory.CreateSignedInClientAsync(DemoAccounts.ParentEmail);
+
+		var response = await client.GetAsync($"/api/patients/{patient.Id}/visits", _cancellationToken);
+
+		Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+	}
+
 	[Fact]
 	public async Task CreatePatient_WithoutOwner_ReturnsCreated()
 	{

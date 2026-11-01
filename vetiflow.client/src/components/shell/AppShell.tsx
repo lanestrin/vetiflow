@@ -191,7 +191,8 @@ function TopBar({
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const showToast = useToast();
-  const crumb = shellPages.find((page) => page.path === pathname)?.crumb;
+  // A patient's profile (/records/:patientId) sits under Patients.
+  const crumb = shellPages.find((page) => pathname === page.path || pathname.startsWith(`${page.path}/`))?.crumb;
 
   // Patients runs the search (4.6a); the board also filters as you type (2.14a).
   function openPatientSearch(event: FormEvent<HTMLFormElement>) {

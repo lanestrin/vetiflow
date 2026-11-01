@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import type { PatientListItem } from "../../types/PatientListItem";
 import styles from "./PatientResults.module.scss";
 
@@ -6,13 +7,16 @@ interface PatientResultsProps {
 }
 
 // Records search results for staff. In care shows as words, not colour alone.
-// Owner contact details are never in the list.
+// Owner contact details are never in the list. A name opens the patient's
+// profile (build plan 4.21b).
 export function PatientResults({ patients }: PatientResultsProps) {
   return (
     <ul className={styles.list}>
       {patients.map((patient) => (
         <li key={patient.id} className={styles.patient}>
-          <h2 className={styles.name}>{patient.name}</h2>
+          <h2 className={styles.name}>
+            <Link to={`/records/${encodeURIComponent(patient.id)}`} className={styles.nameLink}>{patient.name}</Link>
+          </h2>
           <p className={styles.detail}>
             {patient.breed ? `${patient.species} · ${patient.breed}` : patient.species}
           </p>
