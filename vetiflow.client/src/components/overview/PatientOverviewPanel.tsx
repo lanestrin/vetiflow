@@ -7,9 +7,13 @@ import { AddTaskDialog } from "../tasks/AddTaskDialog";
 import { DueItemDialog, type DueItemType } from "../tasks/DueItemDialog";
 import { TriageDialog } from "../triage/TriageDialog";
 import { UpdateStatusDialog } from "../status/UpdateStatusDialog";
+import { CaseTagDialog } from "../tags/CaseTagDialog";
+import { CaseTagsSection } from "../tags/CaseTagsSection";
 import { RecordVitalsDialog } from "../vitals/RecordVitalsDialog";
-import { getCase } from "../../services/casesApi";
+import { getCase, removeCaseTag } from "../../services/casesApi";
+import { CaseGoneError, ChangeRefusedError } from "../../services/apiErrors";
 import type { CaseDetail, VitalName } from "../../types/CaseDetail";
+import type { CaseTag } from "../../types/CaseTag";
 import { useToast } from "../shell/toastContext";
 import { MoreActionsMenu } from "./MoreActionsMenu";
 import { CaseTasksDialog } from "./CaseTasksDialog";
@@ -59,6 +63,20 @@ const avatars = { dog: "🐕", cat: "🐈", other: "🐾" };
 // The prototype's "Patient overview" (build plan 3.2b) for the card selected
 // on the board. Complete triage and Re-triage open the triage dialog (4.2b);
 // the buttons that later items wire are shown disabled.
+// The message for a tag that could not be removed: the server's reason when it
+// refused, otherwise a neutral line.
+function tagRemovalMessage(error: unknown): string {
+  if (error instanceof ChangeRefusedError) {
+    return error.reason;
+  }
+
+  if (error instanceof CaseGoneError) {
+    return "This tag is no longer on the case.";
+  }
+
+  return "Unable to remove the tag. Try again.";
+}
+
 export function PatientOverviewPanel({ caseId, caseUnavailable = false, refreshedAt, onTriaged, onTaskSaved, onVitalsSaved }: PatientOverviewPanelProps) {
   const titleId = useId();
   const leaveWhenRefused = useLeaveWhenRefused();
@@ -74,6 +92,10 @@ export function PatientOverviewPanel({ caseId, caseUnavailable = false, refreshe
   const [editingCase, setEditingCase] = useState<CaseDetail | null>(null);
   const [isTriaging, setIsTriaging] = useState(false);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const [isAddingTag, setIsAddingTag] = useState(false);
+  const [tagError, setTagError] = useState<string | null>(null);
+  const tagsHeadingRef = useRef<HTMLHeadingElement>(null);
+  const addTagRef = useRef<HTMLButtonElement>(null);
   const [taskDialog, setTaskDialog] = useState<TaskDialogKind | null>(null);
   const [isTaskReviewOpen, setIsTaskReviewOpen] = useState(false);
   const [vitalsDialogCase, setVitalsDialogCase] = useState<CaseDetail | null>(null);
@@ -85,6 +107,8 @@ export function PatientOverviewPanel({ caseId, caseUnavailable = false, refreshe
     setEditingCase(null);
     setIsTriaging(false);
     setIsUpdatingStatus(false);
+    setIsAddingTag(false);
+    setTagError(null);
     setTaskDialog(null);
     setIsTaskReviewOpen(false);
     setVitalsDialogCase(null);
@@ -129,6 +153,20 @@ export function PatientOverviewPanel({ caseId, caseUnavailable = false, refreshe
   const draftDetail = detail ?? editingCase;
   const unavailable = caseUnavailable || result?.kind === "notFound";
   const ReviewDrawer = reviewDrawers[review?.kind ?? "clinical"];
+  async function removeTag(tag: CaseTag) {
+    if (!detail) return;
+    setTagError(null);
+    try {
+      await removeCaseTag(detail.id, tag.id);
+      showToast("Tag removed");
+      onTaskSaved();
+    } catch (error) {
+      if (leaveWhenRefused(error)) return;
+      setTagError(tagRemovalMessage(error));
+    }
+    tagsHeadingRef.current?.focus();
+  }
+
   const reviewTriggers = { clinical: clinicalRef, medications: medicationsRef, timeline: timelineRef };
 
   return (
@@ -186,6 +224,11 @@ export function PatientOverviewPanel({ caseId, caseUnavailable = false, refreshe
           clinicalRef={clinicalRef}
           medicationsRef={medicationsRef}
           timelineRef={timelineRef}
+          tagError={tagError}
+          tagsHeadingRef={tagsHeadingRef}
+          addTagRef={addTagRef}
+          onAddTag={() => { setTagError(null); setIsAddingTag(true); }}
+          onRemoveTag={removeTag}
         />
       )}
       {detail && review?.caseId === detail.id && (
@@ -235,6 +278,22 @@ export function PatientOverviewPanel({ caseId, caseUnavailable = false, refreshe
             moreActionsRef.current?.focus();
             showToast(message);
             // The board reload also reloads this panel, so the new stage shows.
+            onTaskSaved();
+          }}
+        />
+      )}
+      {draftDetail && isAddingTag && (
+        <CaseTagDialog
+          caseUnavailable={unavailable}
+          detail={draftDetail}
+          onClose={() => {
+            setIsAddingTag(false);
+            addTagRef.current?.focus();
+          }}
+          onSaved={(message) => {
+            // Closed here as well as by the dialog's close event (as triage).
+            setIsAddingTag(false);
+            showToast(message);
             onTaskSaved();
           }}
         />
@@ -315,9 +374,26 @@ interface OverviewProps {
   clinicalRef: RefObject<HTMLButtonElement | null>;
   medicationsRef: RefObject<HTMLButtonElement | null>;
   timelineRef: RefObject<HTMLButtonElement | null>;
+  tagError: string | null;
+  tagsHeadingRef: RefObject<HTMLHeadingElement | null>;
+  addTagRef: RefObject<HTMLButtonElement | null>;
+  onAddTag: () => void;
+  onRemoveTag: (tag: CaseTag) => void;
 }
 
-function Overview({ detail, nameRef, onOpenReview, clinicalRef, medicationsRef, timelineRef }: OverviewProps) {
+function Overview({
+  detail,
+  nameRef,
+  onOpenReview,
+  clinicalRef,
+  medicationsRef,
+  timelineRef,
+  tagError,
+  tagsHeadingRef,
+  addTagRef,
+  onAddTag,
+  onRemoveTag
+}: OverviewProps) {
   const now = useNow();
   const { patient, owner } = detail;
   const kind = speciesKind(patient.species);
@@ -335,9 +411,7 @@ function Overview({ detail, nameRef, onOpenReview, clinicalRef, medicationsRef, 
   const allergy = [...new Set([detail.allergiesAtIntake, patient.allergies]
     .map(value => value?.trim())
     .filter((value): value is string => Boolean(value)))];
-  const lastUpdate = detail.lastOwnerUpdateAt
-    ? `Last recorded owner update: ${timeLabel(detail.lastOwnerUpdateAt, now)}`
-    : "Last recorded owner update: Not recorded";
+  const lastUpdate = detail.lastOwnerUpdateAt ? timeLabel(detail.lastOwnerUpdateAt, now) : "Not recorded";
   const nextUpdate = detail.nextClientUpdate
     ? `${detail.nextClientUpdate.description} · ${dueLabel(detail.nextClientUpdate.dueAt, now)}`
     : "Not scheduled";
@@ -371,17 +445,6 @@ function Overview({ detail, nameRef, onOpenReview, clinicalRef, medicationsRef, 
         </div>
 
         <div className={styles.facts}>
-          <div className={styles.factCard}>
-            <h3 className={styles.factLabel}>
-              <svg className={styles.icon} viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M21 11.5a8.4 8.4 0 0 1-9 8.5 9 9 0 0 1-4-.9L3 21l1.9-5A8.4 8.4 0 1 1 21 11.5Z" />
-              </svg>
-              Client update
-            </h3>
-            <p className={styles.factValue}>{lastUpdate}</p>
-            <small>Update status: {ownerUpdateLabel(detail.ownerUpdateStatus)}</small>
-            <small>Next planned update: {nextUpdate}</small>
-          </div>
           <div className={styles.factCard}>
             <h3 className={styles.factLabel}>
               <svg className={styles.icon} viewBox="0 0 24 24" aria-hidden="true">
@@ -437,7 +500,28 @@ function Overview({ detail, nameRef, onOpenReview, clinicalRef, medicationsRef, 
             )}
           </div>
         </div>
+        <div className={styles.actionRow}>
+          <span>Last owner update</span>
+          <div>
+            <strong>{lastUpdate}</strong>
+            <small>Update status: {ownerUpdateLabel(detail.ownerUpdateStatus)}</small>
+          </div>
+        </div>
+        <div className={styles.actionRow}>
+          <span>Next client update</span>
+          <strong>{nextUpdate}</strong>
+        </div>
       </section>
+
+      <CaseTagsSection
+        tags={detail.tags}
+        isDischarged={detail.dischargedAt !== null}
+        removeError={tagError}
+        headingRef={tagsHeadingRef}
+        addButtonRef={addTagRef}
+        onAdd={onAddTag}
+        onRemove={onRemoveTag}
+      />
 
       <section className={styles.vitalsSection} aria-label="Latest vitals">
         <h3 className={styles.sectionTitle}>Latest vitals</h3>

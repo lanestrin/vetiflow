@@ -31,7 +31,8 @@ export function PatientCard({ emergencyCase, now, isSelected, onSelect }: Patien
     arrivalTime,
     waitChip,
     clinician,
-    blockers
+    blockers,
+    tags
   } = emergencyCase;
   const isIncoming = stage === "incoming";
   const kind = [species, breed, ageLabel(patientDateOfBirth, now)].filter(Boolean).join(" · ");
@@ -65,13 +66,18 @@ export function PatientCard({ emergencyCase, now, isSelected, onSelect }: Patien
 
       <p className={styles.owner}>{ownerLine}</p>
 
-      {(isIncoming && acuity) || blockers.length > 0 ? (
+      {(isIncoming && acuity) || tags.length > 0 || blockers.length > 0 ? (
         <ul className={styles.tags} aria-label="Tags">
           {isIncoming && acuity && (
             <li className={styles.tag} data-tone={acuity}>
               {priorityLabels[acuity]} · provisional
             </li>
           )}
+          {tags.map((tag) => (
+            <li key={tag.id} className={styles.tag} data-tone={tag.tone}>
+              {tag.text}
+            </li>
+          ))}
           {blockers.map((blocker) => (
             <li key={blocker.id} className={styles.tag} data-tone="critical">
               {blocker.description}

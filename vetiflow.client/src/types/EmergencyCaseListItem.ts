@@ -1,3 +1,5 @@
+import type { CaseTag } from "./CaseTag";
+
 export type CaseStage =
   | "incoming"
   | "triage"
@@ -60,6 +62,8 @@ export interface EmergencyCaseListItem {
   waitChip: WaitChip;
   // Open blockers only, oldest first.
   blockers: CaseBlocker[];
+  // The case's tags, oldest first (build plan 3.5b).
+  tags: CaseTag[];
   lastUpdated: string;
 }
 

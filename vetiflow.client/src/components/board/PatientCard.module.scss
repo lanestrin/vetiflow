@@ -128,6 +128,23 @@ $fast: 150ms var(--ease-out);
 		color: var(--color-acuity-urgent);
 	}
 
+	// Case tags (build plan 3.5b): the prototype's red, amber and blue tags. Neutral
+	// keeps the grey default above.
+	&[data-tone="alert"] {
+		background: var(--color-acuity-critical-bg);
+		color: var(--color-acuity-critical);
+	}
+
+	&[data-tone="caution"] {
+		background: var(--color-acuity-urgent-bg);
+		color: var(--color-acuity-urgent);
+	}
+
+	&[data-tone="info"] {
+		background: var(--color-board-tag-info-bg);
+		color: var(--color-board-tag-info);
+	}
+
 	// The prototype shows stable as its blue info tag.
 	&[data-tone="stable"] {
 		background: var(--color-board-tag-info-bg);

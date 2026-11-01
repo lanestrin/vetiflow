@@ -55,6 +55,9 @@ public class EmergencyCaseListItemDto
 	// Open blockers only, oldest first; empty when nothing blocks the case.
 	public required List<CaseBlockerDto> Blockers { get; set; }
 
+	// The case's tags, oldest first; empty when none (build plan 3.5b).
+	public required List<CaseTagDto> Tags { get; set; }
+
 	// The earliest due open Reassessment and ClientUpdate tasks (4.4a).
 	public CaseDueItemDto? NextReassessment { get; set; }
 
