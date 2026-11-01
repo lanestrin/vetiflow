@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import type { SignInRouteState } from "../components/auth/experienceHome";
 import { BoardHeading } from "../components/board/BoardHeading";
 import { BoardStats, type BoardFilter } from "../components/board/BoardStats";
+import { BoardViewSwitch } from "../components/board/BoardViewSwitch";
 import { PatientFlowBoard } from "../components/board/PatientFlowBoard";
 import { useNow } from "../components/board/useNow";
 import { IntakeDialog } from "../components/intake/IntakeDialog";
@@ -171,6 +172,8 @@ export function ErBoardPage() {
       {pageTitle}
       {error && <p role="alert">{error}</p>}
       <BoardHeading summary={summary} onIntake={() => setIsIntakeOpen(true)} />
+
+      <BoardViewSwitch />
 
       <BoardStats summary={summary} filter={filter} now={now} onFilter={chooseFilter} />
 

@@ -123,6 +123,18 @@ describe("ErBoardPage", () => {
     expect(screen.getByRole("heading", { level: 1, name: "Northside Veterinary Emergency" })).toBeInTheDocument();
   });
 
+  it("shows the view switch between the heading and the stats", async () => {
+    serveSummary(buildBoardSummary());
+
+    renderBoard();
+
+    const heading = await screen.findByRole("heading", { level: 1 });
+    const viewSwitch = screen.getByRole("tablist", { name: "Dashboard view" });
+    const stats = screen.getByRole("region", { name: "Board summary" });
+    expect(heading.compareDocumentPosition(viewSwitch) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(viewSwitch.compareDocumentPosition(stats) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   it("names the browser tab while loading and once loaded", async () => {
     serveCases([buildCase()]);
     renderBoard();
