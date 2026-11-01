@@ -1,0 +1,162 @@
+// The Team page (build plan 4.5), in the staff pages' look.
+.page {
+	display: flex;
+	flex-direction: column;
+	gap: 18px;
+	padding: 20px 16px;
+	color: var(--color-shell-ink);
+}
+
+.head {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.title {
+	margin: 0;
+	font-size: 22px;
+	font-weight: 700;
+}
+
+.subtitle {
+	margin: 0;
+	color: var(--color-shell-muted);
+	font-size: 14px;
+}
+
+.message {
+	margin: 0;
+	padding: 12px 14px;
+	border-radius: 10px;
+	background: var(--color-surface);
+	border: 1px solid var(--color-shell-line);
+	font-size: 14px;
+
+	&[role="alert"] {
+		background: var(--color-acuity-critical-bg);
+		color: var(--color-acuity-critical);
+		border-color: transparent;
+	}
+}
+
+.retry {
+	margin-top: 8px;
+	min-height: 2.5rem;
+	padding: 8px 14px;
+	border: 1px solid var(--color-shell-line);
+	border-radius: 8px;
+	background: var(--color-surface);
+	color: var(--color-shell-ink);
+	font: inherit;
+	font-weight: 700;
+	cursor: pointer;
+
+	&:focus-visible {
+		outline: var(--focus-outline-width) solid var(--color-focus);
+		outline-offset: 2px;
+	}
+}
+
+.group {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.groupTitle {
+	margin: 0;
+	font-size: 16px;
+	font-weight: 700;
+}
+
+.count {
+	color: var(--color-shell-muted);
+	font-weight: 600;
+}
+
+.empty {
+	margin: 0;
+	color: var(--color-shell-muted);
+	font-size: 13px;
+}
+
+.list {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.clinician {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	padding: 12px 14px;
+	border: 1px solid var(--color-shell-line);
+	border-radius: 12px;
+	background: var(--color-surface);
+}
+
+.person {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 10px 12px;
+}
+
+.initials {
+	display: grid;
+	place-items: center;
+	width: 2.25rem;
+	height: 2.25rem;
+	border-radius: 10px;
+	background: var(--color-board-tag-bg);
+	color: var(--color-board-tag);
+	font-size: 13px;
+	font-weight: 700;
+}
+
+.identity {
+	display: flex;
+	flex: 1 1 auto;
+	flex-direction: column;
+	min-width: 0;
+}
+
+.name {
+	font-size: 15px;
+	overflow-wrap: anywhere;
+}
+
+.role {
+	color: var(--color-shell-muted);
+	font-size: 12px;
+}
+
+.status {
+	padding: 4px 8px;
+	border-radius: 6px;
+	background: var(--color-board-tag-bg);
+	color: var(--color-board-tag);
+	font-size: 12px;
+	font-weight: 700;
+}
+
+.caseCount {
+	color: var(--color-shell-muted);
+	font-size: 13px;
+	font-weight: 600;
+}
+
+.cases {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	margin: 0;
+	padding: 0 0 0 46px;
+	font-size: 13px;
+	list-style: none;
+}

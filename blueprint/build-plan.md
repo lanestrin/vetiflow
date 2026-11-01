@@ -108,6 +108,7 @@ Decided (later items must keep these):
 - **Stat cards filter the board:** decided 2026-10-28. Patients in care shows
   all cases, Awaiting triage and Critical patients filter the board, and Avg.
   door to doctor opens its details.
+- **Discharge leaves the board** (decided 2026-11-01, by the person). Moving a case to the Discharge stage records its discharge time and removes it from the ER board, and its room is freed. This is a discharge record, not a clinical departure. It supersedes the "readiness is not departure" rule for the Discharge stage only; departure, admission, transfer and death outcomes stay with 6.2e.
 - **Allergies and medications:** decided 2026-10-28, kept on the patient and
   carried to the next visit; each intake also records on the case what was
   confirmed at that visit, so staff can check next time whether the pet is
@@ -494,6 +495,8 @@ correcting those artifacts is a separate /fix, not an implicit product build.
 - [ ] **4.19c** `feature/medication-administration-api`: after 4.18c, S.6 and the administration policy, require the selected patient's current verified active authorized order/version and permitted staff identity. Record given/held/refused/not-given/partial or incident outcomes as applicable, required reasons, actual performer/time, entry actor/time and amendments. Enforce holds/discontinuations, duplicate/conflict protection and audit atomically; clients cannot substitute drug/dose/route or self-authorize.
 - [ ] **4.19d** `feature/technician-medication-administration`: after 4.19c and 2.22d, block entry without suitable authority; show order/patient/authorizer and read-only authorized drug/dose/unit/route/schedule, configured checks and clarification paths. Capture permitted outcomes and event time truthfully, handle stale order/conflict/failure without automatic duplicate submission, and update the shared MAR.
 - [ ] **4.20b** `feature/diagnostic-review-views`: after 4.20a and both charts, show pending collection/process/result/interpretation states and named follow-up ownership; authorized clinician review is distinct from technician collection completion. Keep unresolved results visible after task completion and carry them into discharge/follow-up checks.
+- [ ] **4.21a** `feature/discharge-stage-api`: moving a case to the Discharge stage through Update status (4.9a) records its discharge time, removes it from the ER board and frees its room; the change is written to the timeline with the actor. A discharged case is then refused for triage, tasks and vitals, as now. Per the 2026-11-01 decision in Decisions; departure outcomes stay with 6.2e.
+- [ ] **4.21b** `feature/discharges-page`: a read-only Discharges page listing discharged cases, one row each: discharge time, case number, patient, acuity, last stage and doctor. Filter by a from and to date, and search by patient or case number. Shows an honest empty state for a date range with none. Shares its list with 6.6 later.
 
 **Handoff** (prototype: "Handoff" button)
 
@@ -530,7 +533,7 @@ The rail's other destinations need their own approved requirements/design
 references. Reuse the design system and shared services, not the ER proof of
 concept as a substitute for another page's content or workflow.
 
-- [ ] **4.5** `feature/team-view`: the Team page: who is on the floor (My status, 2.21) and each clinician's active cases, derived from case data.
+- [x] **4.5** `feature/team-view`: the Team page: who is on the floor (My status, 2.21) and each clinician's active cases, derived from case data. Done (history/features/4.5-team-view.md).
 - [ ] **2.18** `feature/overview`: the Overview page (contents to be designed; needs a design in `blueprint/reference/` first).
 - [ ] **2.19** `feature/reports`: the Reports page (contents to be designed; needs a design first).
 - [ ] **2.8** `feature/timer-escalation`: wait times turn amber and red past per-acuity thresholds from clinic settings [24].

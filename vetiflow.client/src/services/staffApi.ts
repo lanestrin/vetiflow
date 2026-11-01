@@ -1,3 +1,4 @@
+import type { TeamClinician } from "../types/Team";
 import type { OnFloorClinician, StaffStatus } from "../types/StaffStatus";
 import { authorizationHeader, throwIfRefused } from "./apiRequest";
 
@@ -46,6 +47,22 @@ export async function getCliniciansOnFloor(): Promise<OnFloorClinician[]> {
 
   if (!response.ok) {
     throw new Error("Failed to load the clinicians on the floor.");
+  }
+
+  return response.json();
+}
+
+// Every veterinarian and technician on the team, with their status and active
+// cases, for the Team page (build plan 4.5). Other staff get 403.
+export async function getTeam(): Promise<TeamClinician[]> {
+  const response = await fetch(`${apiBaseUrl}/api/staff/team`, {
+    headers: authorizationHeader()
+  });
+
+  throwIfRefused(response);
+
+  if (!response.ok) {
+    throw new Error("Failed to load the team.");
   }
 
   return response.json();

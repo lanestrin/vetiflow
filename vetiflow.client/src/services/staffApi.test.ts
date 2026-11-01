@@ -3,12 +3,52 @@ import { afterEach, describe, expect, it } from "vitest";
 import { apiUrl, server } from "../test/server";
 import { AccessDeniedError, SessionEndedError } from "./apiErrors";
 import { saveAccessToken } from "./session";
-import { getCliniciansOnFloor, getMyStatus, setMyStatus } from "./staffApi";
+import { getCliniciansOnFloor, getMyStatus, getTeam, setMyStatus } from "./staffApi";
 
 const route = apiUrl("/api/staff/me/status");
 
 afterEach(() => {
   sessionStorage.clear();
+});
+
+describe("getTeam", () => {
+  const teamRoute = apiUrl("/api/staff/team");
+
+  it("returns the team with the token", async () => {
+    saveAccessToken("token-team");
+    let authorization: string | null = null;
+    server.use(http.get(teamRoute, ({ request }) => {
+      authorization = request.headers.get("Authorization");
+      return HttpResponse.json([{
+        id: "s1",
+        displayName: "Dr. Jordan Lee",
+        initials: "JL",
+        role: "veterinarian",
+        status: "available",
+        activeCaseCount: 1,
+        activeCases: [{ id: "c1", caseNumber: "ER-2481", patientName: "Milo" }]
+      }]);
+    }));
+
+    const team = await getTeam();
+
+    expect(authorization).toBe("Bearer token-team");
+    expect(team).toEqual([expect.objectContaining({ displayName: "Dr. Jordan Lee", activeCaseCount: 1 })]);
+  });
+
+  it("throws SessionEndedError on 401 and AccessDeniedError on 403", async () => {
+    server.use(http.get(teamRoute, () => new HttpResponse(null, { status: 401 })));
+    await expect(getTeam()).rejects.toBeInstanceOf(SessionEndedError);
+
+    server.use(http.get(teamRoute, () => new HttpResponse(null, { status: 403 })));
+    await expect(getTeam()).rejects.toBeInstanceOf(AccessDeniedError);
+  });
+
+  it("throws a plain error when the team cannot be loaded", async () => {
+    server.use(http.get(teamRoute, () => new HttpResponse(null, { status: 500 })));
+
+    await expect(getTeam()).rejects.toThrow("Failed to load the team.");
+  });
 });
 
 describe("getMyStatus", () => {
