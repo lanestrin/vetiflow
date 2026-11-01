@@ -36,6 +36,26 @@ public class DbSeederTests(VetiFlowApiFactory factory)
 	}
 
 	[Fact]
+	public async Task SeedAsync_DischargesOnlyTheSeededDischargeStageCases()
+	{
+		await using var dbContext = VetiFlowApiFactory.CreateDbContext(
+			await factory.Postgres.CreateDatabaseAsync());
+		await dbContext.Database.MigrateAsync(_cancellationToken);
+
+		await DbSeeder.SeedAsync(dbContext);
+
+		var cases = await dbContext.EmergencyCases
+			.Select(emergencyCase => new { emergencyCase.Stage, emergencyCase.DischargedAt })
+			.ToListAsync(_cancellationToken);
+		var dischargeStage = cases.Where(emergencyCase => emergencyCase.Stage == CaseStage.Discharge).ToList();
+		Assert.NotEmpty(dischargeStage);
+		Assert.All(dischargeStage, emergencyCase => Assert.NotNull(emergencyCase.DischargedAt));
+		Assert.All(
+			cases.Where(emergencyCase => emergencyCase.Stage != CaseStage.Discharge),
+			emergencyCase => Assert.Null(emergencyCase.DischargedAt));
+	}
+
+	[Fact]
 	public async Task SeedAsync_BackfillsAnOlderThreeCaseDatabaseOnce()
 	{
 		await using var dbContext = await MigratedDatabaseAsync();

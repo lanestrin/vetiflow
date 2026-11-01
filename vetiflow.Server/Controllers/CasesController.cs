@@ -433,6 +433,14 @@ public class CasesController : ControllerBase
 			AddEvent(emergencyCase, CaseEventType.StatusChanged, $"Status changed: {previousStatus} to {request.Status}", now, staffMemberId);
 		}
 
+		// A move to Discharge is a discharge: the time is kept once, which takes
+		// the case off the board and frees its room (build plan 4.21a).
+		if (request.Stage == CaseStage.Discharge && emergencyCase.DischargedAt is null)
+		{
+			emergencyCase.RecordDischarge(now);
+			AddEvent(emergencyCase, CaseEventType.Discharged, "Discharged", now, staffMemberId);
+		}
+
 		await _dbContext.SaveChangesAsync();
 
 		await _caseHub.Clients.All.SendAsync(

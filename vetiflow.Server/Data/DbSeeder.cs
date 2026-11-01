@@ -116,7 +116,9 @@ public static class DbSeeder
 				AssignedDoctorId = incoming ? null : doctorId, AssignedTechnicianId = incoming ? null : technicianId,
 				NextAction = seed.NextAction,
 				OwnerUpdateStatus = seed.Index % 2 == 0 ? OwnerUpdateStatus.Updated : OwnerUpdateStatus.NotYetUpdated,
-				LastOwnerUpdateAt = seed.Index % 2 == 0 ? now.AddMinutes(-10) : null
+				LastOwnerUpdateAt = seed.Index % 2 == 0 ? now.AddMinutes(-10) : null,
+				// A seeded Discharge-stage case is discharged, so the demo board leaves it out (4.21a).
+				DischargedAt = seed.Stage == CaseStage.Discharge ? now : null
 			};
 			emergencyCase.RecordTriage(new TriageAssessment
 			{

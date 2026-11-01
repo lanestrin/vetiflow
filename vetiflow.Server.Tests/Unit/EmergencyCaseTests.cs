@@ -190,6 +190,30 @@ public class EmergencyCaseTests
 	}
 
 	[Fact]
+	public void RecordDischarge_SetsTheTimeOnceAndKeepsTheFirst()
+	{
+		var emergencyCase = NewCase();
+		var first = DateTimeOffset.UtcNow.AddMinutes(-5);
+
+		emergencyCase.RecordDischarge(first);
+		emergencyCase.RecordDischarge(DateTimeOffset.UtcNow);
+
+		Assert.Equal(first, emergencyCase.DischargedAt);
+	}
+
+	[Theory]
+	[InlineData(CaseStatus.Waiting)]
+	[InlineData(CaseStatus.Completed)]
+	public void RefuseStageAndStatus_RefusesAnyChangeOnADischargedCase(CaseStatus status)
+	{
+		var emergencyCase = NewCase();
+		emergencyCase.Stage = CaseStage.Discharge;
+		emergencyCase.DischargedAt = DateTimeOffset.UtcNow;
+
+		Assert.Equal("This case has been discharged.", emergencyCase.RefuseStageAndStatus(CaseStage.Discharge, status));
+	}
+
+	[Fact]
 	public void RefuseStageAndStatus_LeavesAcuityAlone()
 	{
 		var emergencyCase = NewCase();
