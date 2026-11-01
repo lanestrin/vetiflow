@@ -46,6 +46,12 @@ Gather the cheap preflight facts in one batch and evaluate gates 1-4 before
 Verify. Archive and draft only after every gate passes. If files change after
 Verify beyond its excluded bookkeeping, recheck the gates before archiving.
 
+## Avoid duplicate gate work
+
+- Collect preflight facts once. Reuse evidence only through `/verify`'s
+  `-ReuseIfCurrent`; after the gates pass, do only the specified archive and
+  draft work. Preserve every gate; bookkeeping never proves a test passed.
+
 ## 2. Archive
 
 1. **Pick the file name.**

@@ -39,6 +39,14 @@ Stops here end with the handoff ("Ending a turn" in
   the tree, stop and offer the "Unexpected files" options from `/verify`.
 - Set the spec's `Status` to `in progress` when there is build or repair work.
 
+## Context and test-budget discipline
+
+- Follow "Efficient context and tool use" in `blueprint/context/ai-interaction.md`;
+  this skill adds no separate context policy.
+- Track files and checks per step to avoid duplicate reads or reruns. Section 3
+  controls final-step deferral; debug failures from the relevant log tail and
+  code path.
+
 ## 3. Build loop
 
 For each unticked step, in order:

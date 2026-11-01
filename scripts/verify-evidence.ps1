@@ -8,8 +8,9 @@
 
   The fingerprint covers every file git does not ignore, tracked or not, except
   the workflow bookkeeping that no Verify step reads and that /complete rewrites
-  after its Verify. A run is reused only when it was a PASS with every step
-  passing, its mode covers the scope needed now, and the fingerprint still matches.
+  after its Verify.   a run is reused only when it was a PASS with every required step accounted
+  for, its mode covers the scope needed now, its branch and commit still match,
+  and the fingerprint is unchanged.
 #>
 
 # The scopes each mode's run proved (see scripts/verify-scope.ps1).
@@ -19,7 +20,12 @@ $script:scopesCoveredByMode = @{
 	client   = @('client', 'workflow')
 	workflow = @('workflow')
 }
-
+$script:requiredStepsByMode = @{
+	full     = @('Workflow tests', 'Docker', 'Server build', 'Server tests', 'Client install', 'Client lint', 'Client build', 'Client tests')
+	server   = @('Workflow tests', 'Docker', 'Server build', 'Server tests')
+	client   = @('Workflow tests', 'Client install', 'Client lint', 'Client build', 'Client tests')
+	workflow = @('Workflow tests')
+}
 $script:fingerprintExcludedFiles = @(
 	'blueprint/build-plan.md',
 	'blueprint/context/current-feature.md',
@@ -87,27 +93,63 @@ function Get-VerifyFingerprint([string]$RepoRoot) {
 	}
 }
 
+function Get-VerifyIdentity([string]$RepoRoot) {
+	$ErrorActionPreference = 'Continue'
+	$branch = git -C $RepoRoot rev-parse --abbrev-ref HEAD
+	if ($LASTEXITCODE -ne 0 -or -not $branch) { throw "git could not read the current branch in $RepoRoot" }
+	$head = git -C $RepoRoot rev-parse HEAD
+	if ($LASTEXITCODE -ne 0 -or $head -notmatch '^[0-9a-fA-F]{40,64}$') {
+		throw "git could not read the current commit in $RepoRoot"
+	}
+	[pscustomobject]@{ Branch = "$branch"; Head = "$head" }
+}
+
+function Test-VerifyRepositoryState([string]$RepoRoot, [string]$Fingerprint, [string]$Branch, [string]$Head) {
+	$identity = Get-VerifyIdentity -RepoRoot $RepoRoot
+	if ($identity.Branch -ne $Branch) {
+		return [pscustomobject]@{ Unchanged = $false; Reason = 'branch changed during Verify' }
+	}
+	if ($identity.Head -ne $Head) {
+		return [pscustomobject]@{ Unchanged = $false; Reason = 'commit changed during Verify' }
+	}
+	if ((Get-VerifyFingerprint -RepoRoot $RepoRoot) -ne $Fingerprint) {
+		return [pscustomobject]@{ Unchanged = $false; Reason = 'files changed during Verify' }
+	}
+	[pscustomobject]@{ Unchanged = $true; Reason = '' }
+}
+
 function Remove-VerifyEvidence([string]$Path) {
 	if (Test-Path -LiteralPath $Path) { Remove-Item -LiteralPath $Path -Force }
 }
 
 # $Steps: one @{ name; result } per step, in run order. $Groups: the changed-file
 # groups the scope came from (empty when a mode was asked for).
-function Write-VerifyEvidence([string]$Path, [string]$RepoRoot, [string]$Result, [string]$Mode, [object[]]$Steps, [string]$Fingerprint, [string[]]$Groups = @()) {
+function Write-VerifyEvidence([string]$Path, [string]$RepoRoot, [string]$Result, [string]$Mode, [object[]]$Steps, [string]$Fingerprint, [string[]]$Groups = @(), [string]$Branch = '', [string]$Head = '') {
 	$ErrorActionPreference = 'Continue'
-	$branch = git -C $RepoRoot rev-parse --abbrev-ref HEAD
-	$head = git -C $RepoRoot rev-parse HEAD
+	$identity = Get-VerifyIdentity -RepoRoot $RepoRoot
+	if (-not $Branch) { $Branch = $identity.Branch }
+	if (-not $Head) { $Head = $identity.Head }
+	$stateReason = ''
+	if ($Result -eq 'PASS') {
+		$state = Test-VerifyRepositoryState -RepoRoot $RepoRoot -Fingerprint $Fingerprint -Branch $Branch -Head $Head
+		if (-not $state.Unchanged) {
+			$Result = 'FAIL'
+			$stateReason = $state.Reason
+			$Steps = @($Steps) + [ordered]@{ name = 'Repository state'; result = 'FAIL'; note = $stateReason }
+		}
+	}
 	$evidence = [ordered]@{
 		result      = $Result
 		mode        = $Mode
 		groups      = @($Groups)
 		steps       = @($Steps)
 		fingerprint = $Fingerprint
-		branch      = "$branch"
-		head        = "$head"
+		branch      = "$Branch"
+		head        = "$Head"
 		finishedAt  = [DateTime]::UtcNow.ToString('o')
 		powershell  = $PSVersionTable.PSVersion.ToString()
 	}
+	if ($stateReason) { $evidence.stateError = $stateReason }
 	$folder = Split-Path -Parent $Path
 	if (-not (Test-Path -LiteralPath $folder)) { New-Item -ItemType Directory $folder | Out-Null }
 	$json = ConvertTo-Json -InputObject $evidence -Depth 5
@@ -115,7 +157,7 @@ function Write-VerifyEvidence([string]$Path, [string]$RepoRoot, [string]$Result,
 }
 
 # $Scope: what this run needs (workflow, server, client or full).
-function Test-VerifyEvidence([string]$Path, [string]$Fingerprint, [string]$Scope) {
+function Test-VerifyEvidence([string]$Path, [string]$Fingerprint, [string]$Scope, [string]$RepoRoot) {
 	function New-Decision([bool]$Reusable, [string]$Reason, $Evidence) {
 		[pscustomobject]@{ Reusable = $Reusable; Reason = $Reason; Evidence = $Evidence }
 	}
@@ -135,10 +177,29 @@ function Test-VerifyEvidence([string]$Path, [string]$Fingerprint, [string]$Scope
 	if ($covered -notcontains $Scope) {
 		return New-Decision $false "last run was scope $($evidence.mode), this needs $Scope" $evidence
 	}
-	$steps = @($evidence.steps | Where-Object { $_ })
-	if ($steps.Count -eq 0 -or ($steps | Where-Object { $_.result -ne 'PASS' })) {
+	$expectedSteps = $script:requiredStepsByMode["$($evidence.mode)"]
+	$steps = @($evidence.steps)
+	$seen = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+	foreach ($step in $steps) {
+		if (-not $step -or -not $step.name -or -not $step.result -or -not ($expectedSteps -ccontains "$($step.name)")) {
+			return New-Decision $false 'unknown step' $evidence
+		}
+		if (-not $seen.Add("$($step.name)")) { return New-Decision $false 'duplicate steps' $evidence }
+	}
+	if ($seen.Count -lt $expectedSteps.Count) {
+		return New-Decision $false 'a required step is missing' $evidence
+	}
+	foreach ($step in $steps) {
+		$name = "$($step.name)"
+		if ($step.result -eq 'PASS') { continue }
+		if ($step.result -eq 'NOT_APPLICABLE' -and
+			(($name -eq 'Docker' -and $step.note -eq 'VETIFLOW_TEST_POSTGRES is set') -or
+				($name -eq 'Client install' -and $step.note -eq 'installed lockfile is current'))) { continue }
 		return New-Decision $false 'a step did not pass' $evidence
 	}
+	$identity = Get-VerifyIdentity -RepoRoot $RepoRoot
+	if ($evidence.branch -ne $identity.Branch) { return New-Decision $false 'branch changed since' $evidence }
+	if ($evidence.head -ne $identity.Head) { return New-Decision $false 'commit changed since' $evidence }
 	if ($evidence.fingerprint -ne $Fingerprint) { return New-Decision $false 'files changed since' $evidence }
 	New-Decision $true '' $evidence
 }

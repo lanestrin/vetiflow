@@ -8,6 +8,13 @@ description: Run scripts/verify.ps1 (workflow tests, then the server and client 
 Run from the repo root and report the actual output. Never say a check passed
 without running it.
 
+## Minimize duplicate verification work
+
+- This script, not model judgment, determines test scope and whether previously recorded PASS evidence is reusable. Use `-ReuseIfCurrent` only for the invocation paths already authorized below.
+- Do not add a preliminary full verification run when `/ready` will run the final scoped verification. Intermediate checks are owned by `/implement` and remain mandatory where prescribed.
+- Show the step summary and failure tail first; open full logs only to diagnose a failure. Do not repeat a run merely to reformat its output.
+- Never broaden scope to `-Full` just to be thorough; preserve the existing requirements for all affected suites, workflow tests, and safety checks.
+
 ## Run
 
 ```bash
@@ -79,15 +86,21 @@ Steps 2-4 run for scope `server` or `full`, step 5 for `client` or `full`.
 - Every run deletes `.verify/evidence.json` when it starts and writes it when it
   ends: result, mode (the scope: `workflow`, `server`, `client` or `full`), the
   changed-file groups, each step's result, the branch and commit, and a
-  fingerprint of the files when the run started. It
-  holds no environment values. Never edit it by hand.
+  fingerprint of the files when the run started. Conditional steps are recorded
+  as `NOT_APPLICABLE` with a reason; this applies only to Docker when
+  `VETIFLOW_TEST_POSTGRES` is set and client install when the installed lockfile
+  is current. If the branch, commit or fingerprint changes before a run ends,
+  it records a failure instead of a reusable PASS. Evidence holds no environment
+  values. Never edit it by hand.
 
 ## Reusing a run
 
 `scripts/verify.ps1 -ReuseIfCurrent` is the only way to reuse a result. It
 prints `Reusing Verify PASS from ...` and the stored step lines only when the
-last run was a PASS, every step passed, its mode covers the scope needed now,
-and the fingerprint still matches. `full` covers every scope, `server` covers
+last run was a PASS, every required step for its mode is present exactly once
+and passed or is an explicitly valid conditional step, its mode covers the
+scope needed now, the branch and commit still match, and the fingerprint still
+matches. `full` covers every scope, `server` covers
 `server` and `workflow`, `client` covers `client` and `workflow`, `workflow`
 covers only `workflow`. With `-Full`, only a full PASS is reused. Otherwise it
 prints `Not reusing the last Verify: <reason>` and runs the scope needed now.
@@ -97,14 +110,16 @@ except `blueprint/context/current-feature.md`, `blueprint/context/findings.md`,
 `blueprint/history/**` and `blueprint/build-plan.md`. So `/complete`'s own
 bookkeeping keeps a result, and any other edit (code, tests, scripts,
 `.claude/`, other docs) means a new run. A failed, partial or interrupted run is
-never reused. Report a reuse as a reuse, never as a new run.
+never reused. Evidence is not reusable after a branch or commit change, even if
+the files are identical. Report a reuse as a reuse, never as a new run.
 
 ## After it runs
 
 1. Report the scope and why, then one line per step from the summary: PASS,
-   FAIL (with the first real error message from the tail or log) or SKIP (and
-   why). A SKIP is not a pass; a `Not needed` line is not a SKIP. Say whether
-   the result was reused.
+   FAIL (with the first real error message from the tail or log),
+   NOT_APPLICABLE (with its reason), or SKIP (and why). Neither
+   NOT_APPLICABLE nor SKIP is a PASS; a `Not needed` line is neither. Say
+   whether the result was reused.
 2. Check the diff: `git status` and `git diff --stat`. Confirm only files in the
    current spec's scope changed and that none of the files in "Unexpected files"
    below are included.

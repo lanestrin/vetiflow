@@ -14,8 +14,9 @@
 
   Each step's full output goes to .verify/logs/<step>.log. The console shows one
   line per step and the summary, plus the end of the log when a step fails.
-  Every run writes .verify/evidence.json (result, mode, steps, file fingerprint);
-  see scripts/verify-evidence.ps1.
+  Every run writes .verify/evidence.json (result, mode, complete step plan,
+  branch, commit and file fingerprint); it records PASS only if repository
+  state is unchanged from the start. See scripts/verify-evidence.ps1.
 
   -ReuseIfCurrent skips the run when the last one was a PASS that covers the scope
   needed now and no file has changed since (workflow bookkeeping aside);
@@ -69,13 +70,16 @@ $runsServer = $mode -in 'full', 'server'
 $runsClient = $mode -in 'full', 'client'
 
 if ($ReuseIfCurrent) {
-	$check = Test-VerifyEvidence -Path $evidencePath -Fingerprint (Get-VerifyFingerprint -RepoRoot $repoRoot) -Scope $mode
+	$check = Test-VerifyEvidence -Path $evidencePath -Fingerprint (Get-VerifyFingerprint -RepoRoot $repoRoot) -Scope $mode -RepoRoot $repoRoot
 	if ($check.Reusable) {
 		$evidence = $check.Evidence
 		Write-Host "Reusing Verify PASS from $($evidence.finishedAt) ($($evidence.branch) @ $("$($evidence.head)".Substring(0, 7)), scope $($evidence.mode))"
 		Write-Host ''
 		Write-Host 'Verify summary (reused)'
-		foreach ($step in $evidence.steps) { Write-Host "  $($step.result)  $($step.name)" }
+		foreach ($step in $evidence.steps) {
+			$note = if ($step.note) { " ($($step.note))" } else { '' }
+			Write-Host "  $($step.result)  $($step.name)$note"
+		}
 		exit 0
 	}
 	Write-Host "Not reusing the last Verify: $($check.Reason). Running scope $mode."
@@ -85,18 +89,26 @@ Write-Host "Scope: $mode ($scopeReason)"
 # An interrupted run must leave no evidence behind. The fingerprint is taken
 # before any step, so a file edited during the run makes the evidence stale.
 Remove-VerifyEvidence -Path $evidencePath
+$startIdentity = Get-VerifyIdentity -RepoRoot $repoRoot
 $fingerprint = Get-VerifyFingerprint -RepoRoot $repoRoot
 if (Test-Path $logFolder) { Remove-Item (Join-Path $logFolder '*.log') -Force }
 else { New-Item -ItemType Directory $logFolder | Out-Null }
 
 function Complete-Verify([string]$Result) {
-	Write-VerifyEvidence -Path $evidencePath -RepoRoot $repoRoot -Result $Result -Mode $mode -Steps $steps -Fingerprint $fingerprint -Groups $groups
+	Write-VerifyEvidence -Path $evidencePath -RepoRoot $repoRoot -Result $Result -Mode $mode -Steps $steps -Fingerprint $fingerprint -Groups $groups -Branch $startIdentity.Branch -Head $startIdentity.Head
+	$written = Get-Content -LiteralPath $evidencePath -Raw | ConvertFrom-Json
+	if ($written.stateError) { Write-Host "Verify could not record a reusable PASS: $($written.stateError)" -ForegroundColor Yellow }
 	Write-Host ''
 	Write-Host "Verify summary (scope $mode)"
-	foreach ($step in $steps) { Write-Host "  $($step.result)  $($step.name)$($step.note)" }
+	foreach ($step in $steps) {
+		$note = if ($step.note) { " ($($step.note))" } else { '' }
+		Write-Host "  $($step.result)  $($step.name)$note"
+	}
+	if ($written.stateError) { Write-Host "  FAIL  Repository state ($($written.stateError))" }
 	# Left out by the scope, so not a SKIP: nothing they check has changed.
 	if (-not $runsServer) { Write-Host '  Not needed: server steps (no server files changed)' }
 	if (-not $runsClient) { Write-Host '  Not needed: client steps (no client files changed)' }
+	$written.result
 }
 
 function Stop-Verify([string]$Name, [string]$Note) {
@@ -155,6 +167,10 @@ try {
 			if ($global:LASTEXITCODE -ne 0) {
 				Stop-Verify 'Docker' 'not running: start Docker Desktop or set VETIFLOW_TEST_POSTGRES'
 			}
+			$steps.Add([ordered]@{ name = 'Docker'; result = 'PASS'; note = '' })
+		}
+		else {
+			$steps.Add([ordered]@{ name = 'Docker'; result = 'NOT_APPLICABLE'; note = 'VETIFLOW_TEST_POSTGRES is set' })
 		}
 
 		# Building the test project also builds the server. The solution includes the
@@ -178,6 +194,9 @@ try {
 				(Get-Item package-lock.json).LastWriteTimeUtc -gt (Get-Item $installed).LastWriteTimeUtc) {
 				Invoke-Step 'Client install' { npm ci }
 			}
+			else {
+				$steps.Add([ordered]@{ name = 'Client install'; result = 'NOT_APPLICABLE'; note = 'installed lockfile is current' })
+			}
 			Invoke-Step 'Client lint' { npm run lint }
 			Invoke-Step 'Client build' { npm run build }
 			Invoke-Step 'Client tests' { npm run test -- --run }
@@ -192,5 +211,6 @@ finally {
 	[Console]::OutputEncoding = $consoleEncoding
 }
 
-Complete-Verify 'PASS'
+$result = Complete-Verify 'PASS'
+if ($result -ne 'PASS') { exit 1 }
 exit 0
