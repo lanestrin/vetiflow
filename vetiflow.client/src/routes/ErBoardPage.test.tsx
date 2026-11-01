@@ -565,6 +565,21 @@ describe("record vitals from the ER board", () => {
 });
 
 
+describe("Status changes on the ER board", () => {
+  it("shows a stage change saved on another board when caseUpdated arrives", async () => {
+    const buddy = buildCase({ id: "case-buddy", patientName: "Buddy", acuity: "urgent", stage: "triage" });
+    serveCases([buddy]);
+    renderBoard();
+    await screen.findByText(/^Triage ·/);
+
+    serveCases([{ ...buddy, stage: "treatment" }]);
+    hub.emit("caseUpdated", buddy.id);
+
+    expect(await screen.findByText(/^In treatment ·/)).toBeInTheDocument();
+    expect(screen.queryByText(/^Triage ·/)).not.toBeInTheDocument();
+  });
+});
+
 describe("Clinical review on the ER board", () => {
   it("uses the selected detail without writes/duplicate reads and updates through the hub", async () => {
     const buddy = buildCase({ id: "case-buddy", patientName: "Buddy" });

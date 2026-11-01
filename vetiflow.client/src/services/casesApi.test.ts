@@ -3,12 +3,81 @@ import { afterEach, describe, expect, it } from "vitest";
 import { buildCase, buildCaseDetail } from "../test/builders";
 import { apiUrl, server } from "../test/server";
 import type { CaseIntakeRequest } from "../types/CaseIntake";
-import { AccessDeniedError, CaseGoneError, FormRejectedError, SessionEndedError } from "./apiErrors";
-import { completeTask, createIntake, createTask, getCase, getEmergencyCases, recordPainScore, recordVitals, reopenTask, triageCase } from "./casesApi";
+import { AccessDeniedError, CaseGoneError, FormRejectedError, SessionEndedError, StatusRefusedError } from "./apiErrors";
+import { completeTask, createIntake, createTask, getCase, getEmergencyCases, recordPainScore, recordVitals, reopenTask, triageCase, updateCaseStatus } from "./casesApi";
 import { saveAccessToken } from "./session";
 
 afterEach(() => {
   sessionStorage.clear();
+});
+
+describe("updateCaseStatus", () => {
+  it("patches the stage, status and next action with the token", async () => {
+    saveAccessToken("token-status");
+    let sent: { method: string; body: unknown; authorization: string | null; contentType: string | null } | null = null;
+    server.use(
+      http.patch(apiUrl("/api/cases/case-42/status"), async ({ request }) => {
+        sent = {
+          method: request.method,
+          body: await request.json(),
+          authorization: request.headers.get("Authorization"),
+          contentType: request.headers.get("Content-Type")
+        };
+        return new HttpResponse(null, { status: 204 });
+      })
+    );
+
+    await updateCaseStatus("case-42", { stage: "treatment", status: "inProgress", nextAction: "Start fluids" });
+
+    expect(sent).toEqual({
+      method: "PATCH",
+      body: { stage: "treatment", status: "inProgress", nextAction: "Start fluids" },
+      authorization: "Bearer token-status",
+      contentType: "application/json"
+    });
+  });
+
+  it("brings the server's refusal reason back to the caller", async () => {
+    server.use(
+      http.patch(apiUrl("/api/cases/case-42/status"), () =>
+        HttpResponse.json({ title: "A case in Treatment cannot move to Triage.", status: 409 }, { status: 409 }))
+    );
+
+    const error = await updateCaseStatus("case-42", { stage: "triage", status: "unassigned", nextAction: null })
+      .catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(StatusRefusedError);
+    expect((error as StatusRefusedError).reason).toBe("A case in Treatment cannot move to Triage.");
+  });
+
+  it("uses a neutral reason when a 409 has no readable body", async () => {
+    server.use(http.patch(apiUrl("/api/cases/case-42/status"), () => new HttpResponse("not json", { status: 409 })));
+
+    const error = await updateCaseStatus("case-42", { stage: "triage", status: "unassigned", nextAction: null })
+      .catch((caught: unknown) => caught);
+
+    expect((error as StatusRefusedError).reason).toBe("This change is not allowed.");
+  });
+
+  it("turns 404 into CaseGoneError", async () => {
+    server.use(http.patch(apiUrl("/api/cases/case-42/status"), () => new HttpResponse(null, { status: 404 })));
+
+    const error = await updateCaseStatus("case-42", { stage: "triage", status: "unassigned", nextAction: null })
+      .catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(CaseGoneError);
+    expect((error as CaseGoneError).reason).toBe("notFound");
+  });
+
+  it("throws SessionEndedError on 401 and AccessDeniedError on 403", async () => {
+    server.use(http.patch(apiUrl("/api/cases/case-42/status"), () => new HttpResponse(null, { status: 401 })));
+    await expect(updateCaseStatus("case-42", { stage: "triage", status: "unassigned", nextAction: null }))
+      .rejects.toBeInstanceOf(SessionEndedError);
+
+    server.use(http.patch(apiUrl("/api/cases/case-42/status"), () => new HttpResponse(null, { status: 403 })));
+    await expect(updateCaseStatus("case-42", { stage: "triage", status: "unassigned", nextAction: null }))
+      .rejects.toBeInstanceOf(AccessDeniedError);
+  });
 });
 
 describe("recordPainScore", () => {

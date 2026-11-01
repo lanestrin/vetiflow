@@ -6,6 +6,7 @@ import { useNow } from "../board/useNow";
 import { AddTaskDialog } from "../tasks/AddTaskDialog";
 import { DueItemDialog, type DueItemType } from "../tasks/DueItemDialog";
 import { TriageDialog } from "../triage/TriageDialog";
+import { UpdateStatusDialog } from "../status/UpdateStatusDialog";
 import { RecordVitalsDialog } from "../vitals/RecordVitalsDialog";
 import { getCase } from "../../services/casesApi";
 import type { CaseDetail, VitalName } from "../../types/CaseDetail";
@@ -72,6 +73,7 @@ export function PatientOverviewPanel({ caseId, caseUnavailable = false, refreshe
   const showToast = useToast();
   const [editingCase, setEditingCase] = useState<CaseDetail | null>(null);
   const [isTriaging, setIsTriaging] = useState(false);
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [taskDialog, setTaskDialog] = useState<TaskDialogKind | null>(null);
   const [isTaskReviewOpen, setIsTaskReviewOpen] = useState(false);
   const [vitalsDialogCase, setVitalsDialogCase] = useState<CaseDetail | null>(null);
@@ -82,6 +84,7 @@ export function PatientOverviewPanel({ caseId, caseUnavailable = false, refreshe
     setDialogCaseId(caseId);
     setEditingCase(null);
     setIsTriaging(false);
+    setIsUpdatingStatus(false);
     setTaskDialog(null);
     setIsTaskReviewOpen(false);
     setVitalsDialogCase(null);
@@ -143,6 +146,7 @@ export function PatientOverviewPanel({ caseId, caseUnavailable = false, refreshe
                 label: detail.stage === "incoming" ? "Complete triage" : "Re-triage",
                 onSelect: () => { setEditingCase(detail); setIsTriaging(true); }
               },
+              { label: "Update status", onSelect: () => { setEditingCase(detail); setIsUpdatingStatus(true); } },
               { label: "Tasks and due items", onSelect: () => setIsTaskReviewOpen(true) },
               ...(detail.dischargedAt === null
                 ? [
@@ -214,6 +218,24 @@ export function PatientOverviewPanel({ caseId, caseUnavailable = false, refreshe
             // moves to the patient instead of the page.
             nameRef.current?.focus();
             onTriaged(message);
+          }}
+        />
+      )}
+      {draftDetail && isUpdatingStatus && (
+        <UpdateStatusDialog
+          caseUnavailable={unavailable}
+          detail={draftDetail}
+          onClose={() => {
+            setIsUpdatingStatus(false);
+            moreActionsRef.current?.focus();
+          }}
+          onSaved={(message) => {
+            // Closed here as well as by the dialog's close event (as triage).
+            setIsUpdatingStatus(false);
+            moreActionsRef.current?.focus();
+            showToast(message);
+            // The board reload also reloads this panel, so the new stage shows.
+            onTaskSaved();
           }}
         />
       )}

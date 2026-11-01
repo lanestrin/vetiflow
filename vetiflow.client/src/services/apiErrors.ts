@@ -37,3 +37,16 @@ export class CaseGoneError extends Error {
     this.reason = reason;
   }
 }
+
+// The API refused a stage or status change (409). The reason is the server's
+// clinician-facing wording, such as "A case in Triage cannot move to Incoming.",
+// so it can be shown as it is.
+export class StatusRefusedError extends Error {
+  readonly reason: string;
+
+  constructor(reason: string) {
+    super(reason);
+    this.name = "StatusRefusedError";
+    this.reason = reason;
+  }
+}

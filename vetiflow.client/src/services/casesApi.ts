@@ -4,9 +4,10 @@ import type {
 import type { CaseDetail, CaseTaskRequest } from "../types/CaseDetail";
 import type { CaseIntakeRequest, CaseIntakeResult } from "../types/CaseIntake";
 import type { TriageRequest } from "../types/Triage";
+import type { CaseStatusRequest } from "../types/CaseStatusRequest";
 import type { RecordVitalsRequest } from "../types/RecordVitalsRequest";
 import type { PainScoreRequest } from "../types/PainScoreRequest";
-import { CaseGoneError, FormRejectedError } from "./apiErrors";
+import { CaseGoneError, FormRejectedError, StatusRefusedError } from "./apiErrors";
 import { authorizationHeader, throwIfRefused } from "./apiRequest";
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "";
@@ -43,6 +44,47 @@ export async function getCase(caseId: string): Promise<CaseDetail | null> {
   }
 
   return response.json();
+}
+
+// Changes a case's stage, status and next action together (build plan 4.9b).
+// A move the stage rules refuse comes back as StatusRefusedError with the
+// server's reason.
+export async function updateCaseStatus(caseId: string, request: CaseStatusRequest): Promise<void> {
+  const response = await fetch(`${apiBaseUrl}/api/cases/${caseId}/status`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      ...authorizationHeader()
+    },
+    body: JSON.stringify(request)
+  });
+
+  throwIfRefused(response);
+
+  if (response.status === 404) {
+    throw new CaseGoneError("notFound");
+  }
+
+  if (response.status === 409) {
+    throw new StatusRefusedError(await readRefusalReason(response));
+  }
+
+  if (!response.ok) {
+    throw new Error("Failed to update status.");
+  }
+}
+
+async function readRefusalReason(response: Response): Promise<string> {
+  try {
+    const problem: unknown = await response.json();
+    if (typeof problem === "object" && problem !== null && "title" in problem && typeof problem.title === "string") {
+      return problem.title;
+    }
+  } catch {
+    // A 409 without a readable body still counts as refused.
+  }
+
+  return "This change is not allowed.";
 }
 
 // Adds an arriving pet to the triage queue (build plan 4.1a). A 400 brings the
