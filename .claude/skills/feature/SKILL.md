@@ -30,6 +30,12 @@ output is `blueprint/context/current-feature.md`.
   ask for that decision.
 - State the chosen item in one sentence.
 
+## Lean specification research
+
+- Identify relevant plan lines and Decisions by targeted search before expanding sections. Read only matching history and the directly affected code paths; widen the search when a dependency or security boundary requires it.
+- Draft and critique the specification in the same planning pass. Do not run builds or tests while drafting; never invent implementation details from a partial scan.
+- Retain all required template sections and real product decision questions. Reduced context is not reduced specification coverage.
+
 ## 3. Gather a small packet
 
 Follow "Efficient context and tool use" in `blueprint/context/ai-interaction.md`.

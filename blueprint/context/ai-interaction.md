@@ -20,23 +20,32 @@
 
 ## Efficient context and tool use
 
-- Read one relevant packet: the active spec, applicable rules, the affected
-  code and its callers/tests, and matching history. Find paths and headings
-  first, then read bounded sections. Expand when dependencies or risks need it.
-- Reuse instructions already read in this session when known unchanged. Refresh
-  branch, working diff, spec, findings and evidence at their decision gates.
-  On changed instructions, uncertain freshness or lost context, reload the
-  relevant packet. Never use remembered state to authorize a gate.
-- Query the plan for the item's line, dependencies and applicable Decisions;
-  query history for matching IDs/branches. For status, return counts and
-  matching lines instead of loading the entire plan or history into context.
-- Batch independent reads; keep dependent commands and edits sequential. For
-  long checks, poll about every 20-30 seconds, adjusted to expected duration,
-  while keeping the person informed. Read the failure tail first and expand to
-  the relevant log section and code path when needed.
-- Use existing specs, findings, logs and evidence as the durable record. Add no
-  duplicate context cache or summary file. Never claim token or time savings
-  without comparable measurements.
+- Build one bounded packet from the active spec, applicable rules, affected
+  code/callers/tests and matching history. Find paths and headings first, then
+  read only relevant sections; query plans for the item and decisions, and
+  return counts/matching lines for status instead of loading entire documents.
+- Reuse instructions already read when unchanged. Refresh branch, working diff,
+  spec, findings and evidence at decision gates; after changed instructions,
+  uncertain freshness or lost context, reload the relevant packet. Never use
+  remembered state to authorize a gate. `/ready` and `/complete` follow their
+  owning skills rather than repeating their investigation.
+- Batch independent reads; keep dependent commands and edits sequential.
+  Identify the narrowest useful check and whether final Verify already supplies
+  a broader check. Avoid identical broad reruns without intervening changes or
+  a specific failure, but never skip an explicitly required intermediate check
+  or a prescribed regression/final suite for clinical data, permissions,
+  migrations, security or shared contracts.
+- Treat script output as evidence. Read status and failure tails first; expand
+  only the relevant log section and code path. Never infer PASS from silence,
+  chat memory or a manually run suite.
+- Use specs, findings, logs and evidence as the durable record; add no duplicate
+  context cache or summary file. For coordinated commands, report changed
+  scope, decisions, actual checks (ran or reused), blockers and next action,
+  not full specs or logs. Batch milestone updates; do not narrate routine passes.
+- For long checks, give timely updates and poll about every 20-30 seconds,
+  adjusted to expected duration. Never claim token or time savings without
+  comparable measurements. To evaluate Codex allowance, compare usage for one
+  ordinary feature before and after; instruction length alone is not a saving.
 
 ## The loop
 

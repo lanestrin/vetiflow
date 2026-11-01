@@ -50,6 +50,13 @@ change a finding's severity or status beyond marking a repair `fixed`.
 **Progress:** one short line at each milestone (a step built, a repair made,
 Verify ran or reused, `/check` result). No narration of routine passes.
 
+## Lean coordination
+
+- Follow "Efficient context and tool use" in `blueprint/context/ai-interaction.md`.
+  Read the spec, branch and findings once; `/implement` owns build rules and
+  `/verify` owns final evidence. This coordinator adds no second investigation
+  or report and never skips required checks.
+
 ## 1. Build
 
 First, every time, apply the branch check from
