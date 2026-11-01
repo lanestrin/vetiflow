@@ -1,0 +1,63 @@
+// The prototype's .view-switch, from
+// blueprint/reference/patient-overview/VetiFlow_Responsive_Navigation_Improved.html.
+
+.switch {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+	margin-block: -8px 18px;
+}
+
+.tabs {
+	display: flex;
+	align-items: center;
+	gap: 5px;
+	padding: 4px;
+	border-radius: 11px;
+	background: var(--color-board-count-bg);
+}
+
+.tab,
+.tabSelected {
+	padding: 9px 14px;
+	border: 0;
+	border-radius: 8px;
+	font: inherit;
+	font-size: 0.75rem;
+	font-weight: 700;
+	white-space: nowrap;
+}
+
+.tab {
+	background: transparent;
+	color: var(--color-shell-muted);
+
+	&:disabled {
+		cursor: not-allowed;
+		opacity: 0.6;
+	}
+}
+
+.tabSelected {
+	background: var(--color-surface);
+	color: var(--color-shell-ink);
+	box-shadow: 0 2px 7px rgb(26 55 63 / 7%);
+}
+
+.hint {
+	margin: 0;
+	color: var(--color-shell-muted);
+	font-size: 0.625rem;
+}
+
+@media (max-width: 650px) {
+	.switch {
+		max-width: 100%;
+	}
+
+	.tabs {
+		max-width: 100%;
+		overflow-x: auto;
+	}
+}
