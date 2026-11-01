@@ -460,6 +460,46 @@ describe("PatientOverviewPanel", () => {
     expect(await screen.findByText("Urgent · provisional")).toBeInTheDocument();
   });
 
+  // Update status (build plan 4.9b).
+  it("saves a status change from More actions, reloads the board and returns focus", async () => {
+    serveCase(buildMilo());
+    let sent: unknown = null;
+    server.use(http.patch(apiUrl("/api/cases/case-milo/status"), async ({ request }) => {
+      sent = await request.json();
+      return new HttpResponse(null, { status: 204 });
+    }));
+    const onTaskSaved = vi.fn();
+    renderPanel("case-milo", undefined, undefined, onTaskSaved);
+
+    await openMoreAction("Update status");
+    const dialog = screen.getByRole("dialog", { name: "Update status" });
+    fireEvent.change(within(dialog).getByLabelText("Status"), { target: { value: "waiting" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Save status" }));
+
+    expect(await screen.findByText("Status updated")).toBeInTheDocument();
+    expect(sent).toMatchObject({ status: "waiting" });
+    expect(onTaskSaved).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("dialog", { name: "Update status" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "More actions" })).toHaveFocus();
+  });
+
+  it("leaves the case alone and returns focus when Update status is cancelled", async () => {
+    serveCase(buildMilo());
+    let requests = 0;
+    server.use(http.patch(apiUrl("/api/cases/case-milo/status"), () => {
+      requests += 1;
+      return new HttpResponse(null, { status: 204 });
+    }));
+    renderPanel("case-milo");
+
+    await openMoreAction("Update status");
+    fireEvent.click(within(screen.getByRole("dialog", { name: "Update status" })).getByRole("button", { name: "Cancel" }));
+
+    expect(screen.queryByRole("dialog", { name: "Update status" })).not.toBeInTheDocument();
+    expect(requests).toBe(0);
+    expect(screen.getByRole("button", { name: "More actions" })).toHaveFocus();
+  });
+
   // Triage (build plan 4.2b).
   it("offers Complete triage from More actions only for an incoming case", async () => {
     serveCase(buildMilo({ stage: "incoming", acuity: "urgent" }));
