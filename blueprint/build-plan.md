@@ -346,7 +346,7 @@ the future per-role protections in S.6/3.7 are already implemented.
 
 **Update status** (prototype: "Update status" button)
 
-- [ ] **4.9a** `feature/case-status-api`: change stage, status and next action in one request, enforcing the stage transition rules, writing `StageChanged` and `StatusChanged`, and broadcasting `caseUpdated` (replaces the bare stage endpoint's rules gap, old 2.1) [10, 11].
+- [x] **4.9a** `feature/case-status-api`: change stage, status and next action in one request, enforcing the stage transition rules, writing `StageChanged` and `StatusChanged`, and broadcasting `caseUpdated` (replaces the bare stage endpoint's rules gap, old 2.1) [10, 11]. Done (history/features/4.9a-case-status-api.md).
 - [ ] **4.9b** `feature/update-status`: the **Update status** dialog from the panel, the card moving or updating on every open board, and the toast "Status updated · team notified".
 
 **Clinical tags** (prototype: tags on cards)

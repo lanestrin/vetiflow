@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
@@ -356,10 +357,11 @@ public class CasesController : ControllerBase
 		return detail;
 	}
 
-	[HttpPatch("{id:guid}/stage")]
-	public async Task<IActionResult> UpdateStage(
+	[HttpPatch("{id:guid}/status")]
+	public async Task<IActionResult> UpdateStatus(
 		Guid id,
-		UpdateCaseStageRequest request)
+		UpdateCaseStatusRequest request,
+		CancellationToken cancellationToken)
 	{
 		var emergencyCase = await _dbContext.EmergencyCases
 				.FirstOrDefaultAsync(emergencyCase => emergencyCase.Id == id);
@@ -369,7 +371,33 @@ public class CasesController : ControllerBase
 			return NotFound();
 		}
 
+		var refusal = emergencyCase.RefuseStageAndStatus(request.Stage, request.Status);
+		if (refusal is not null)
+		{
+			return Problem(
+					statusCode: StatusCodes.Status409Conflict,
+					title: refusal);
+		}
+
+		var now = DateTimeOffset.UtcNow;
+		var staffMemberId = await SignedInStaffMemberIdAsync(cancellationToken);
+		var previousStage = emergencyCase.Stage;
+		var previousStatus = emergencyCase.Status;
+
 		emergencyCase.MoveToStage(request.Stage);
+		emergencyCase.Status = request.Status;
+		emergencyCase.NextAction = request.NextAction;
+		emergencyCase.LastUpdated = now;
+
+		if (previousStage != request.Stage)
+		{
+			AddEvent(emergencyCase, CaseEventType.StageChanged, $"Stage changed: {previousStage} to {request.Stage}", now, staffMemberId);
+		}
+
+		if (previousStatus != request.Status)
+		{
+			AddEvent(emergencyCase, CaseEventType.StatusChanged, $"Status changed: {previousStatus} to {request.Status}", now, staffMemberId);
+		}
 
 		await _dbContext.SaveChangesAsync();
 
@@ -378,5 +406,36 @@ public class CasesController : ControllerBase
 				emergencyCase.Id);
 
 		return NoContent();
+	}
+
+	private void AddEvent(
+		EmergencyCase emergencyCase,
+		CaseEventType type,
+		string description,
+		DateTimeOffset now,
+		Guid? staffMemberId)
+	{
+		var caseEvent = new CaseEvent
+		{
+			Type = type,
+			Description = description,
+			CreatedAt = now,
+			CreatedByStaffId = staffMemberId
+		};
+		emergencyCase.Events.Add(caseEvent);
+
+		// The new row already carries its Guid id, so on a tracked case EF would
+		// take it for an existing row and insert nothing. Mark it as new.
+		_dbContext.CaseEvents.Add(caseEvent);
+	}
+
+	private async Task<Guid?> SignedInStaffMemberIdAsync(CancellationToken cancellationToken)
+	{
+		var accountId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+
+		return await _dbContext.Accounts
+				.Where(account => account.Id == accountId)
+				.Select(account => account.StaffMemberId)
+				.FirstOrDefaultAsync(cancellationToken);
 	}
 }

@@ -108,4 +108,96 @@ public class EmergencyCaseTests
 		Assert.Equal(enteredAt, emergencyCase.StageEnteredAt);
 		Assert.Equal(enteredAt, emergencyCase.LastUpdated);
 	}
+
+	[Theory]
+	[InlineData(CaseStage.Triage, CaseStage.Treatment)]
+	[InlineData(CaseStage.Triage, CaseStage.Diagnostics)]
+	[InlineData(CaseStage.Triage, CaseStage.Recheck)]
+	[InlineData(CaseStage.Triage, CaseStage.Discharge)]
+	[InlineData(CaseStage.Treatment, CaseStage.Diagnostics)]
+	[InlineData(CaseStage.Treatment, CaseStage.Recheck)]
+	[InlineData(CaseStage.Treatment, CaseStage.Discharge)]
+	[InlineData(CaseStage.Diagnostics, CaseStage.Treatment)]
+	[InlineData(CaseStage.Diagnostics, CaseStage.Recheck)]
+	[InlineData(CaseStage.Diagnostics, CaseStage.Discharge)]
+	[InlineData(CaseStage.Recheck, CaseStage.Treatment)]
+	[InlineData(CaseStage.Recheck, CaseStage.Diagnostics)]
+	[InlineData(CaseStage.Recheck, CaseStage.Discharge)]
+	[InlineData(CaseStage.Treatment, CaseStage.Treatment)]
+	[InlineData(CaseStage.Discharge, CaseStage.Discharge)]
+	public void RefuseStageAndStatus_AllowsListedMoves(CaseStage from, CaseStage to)
+	{
+		var emergencyCase = NewCase();
+		emergencyCase.Stage = from;
+
+		Assert.Null(emergencyCase.RefuseStageAndStatus(to, CaseStatus.InProgress));
+	}
+
+	[Theory]
+	[InlineData(CaseStage.Incoming, CaseStage.Triage)]
+	[InlineData(CaseStage.Incoming, CaseStage.Treatment)]
+	[InlineData(CaseStage.Incoming, CaseStage.Diagnostics)]
+	[InlineData(CaseStage.Incoming, CaseStage.Recheck)]
+	[InlineData(CaseStage.Incoming, CaseStage.Discharge)]
+	[InlineData(CaseStage.Triage, CaseStage.Incoming)]
+	[InlineData(CaseStage.Treatment, CaseStage.Incoming)]
+	[InlineData(CaseStage.Treatment, CaseStage.Triage)]
+	[InlineData(CaseStage.Diagnostics, CaseStage.Incoming)]
+	[InlineData(CaseStage.Diagnostics, CaseStage.Triage)]
+	[InlineData(CaseStage.Recheck, CaseStage.Incoming)]
+	[InlineData(CaseStage.Recheck, CaseStage.Triage)]
+	[InlineData(CaseStage.Discharge, CaseStage.Incoming)]
+	[InlineData(CaseStage.Discharge, CaseStage.Triage)]
+	[InlineData(CaseStage.Discharge, CaseStage.Treatment)]
+	[InlineData(CaseStage.Discharge, CaseStage.Diagnostics)]
+	[InlineData(CaseStage.Discharge, CaseStage.Recheck)]
+	public void RefuseStageAndStatus_RefusesMovesOutsideTheTable(CaseStage from, CaseStage to)
+	{
+		var emergencyCase = NewCase();
+		emergencyCase.Stage = from;
+
+		Assert.NotNull(emergencyCase.RefuseStageAndStatus(to, CaseStatus.InProgress));
+	}
+
+	[Fact]
+	public void RefuseStageAndStatus_IncomingToTreatment_PointsToCompleteTriage()
+	{
+		var emergencyCase = NewCase();
+
+		Assert.Equal(
+			"Complete triage moves a case out of Incoming.",
+			emergencyCase.RefuseStageAndStatus(CaseStage.Treatment, CaseStatus.InProgress));
+	}
+
+	[Theory]
+	[InlineData(CaseStage.Treatment)]
+	[InlineData(CaseStage.Recheck)]
+	public void RefuseStageAndStatus_CompletedOutsideDischarge_IsRefused(CaseStage stage)
+	{
+		var emergencyCase = NewCase();
+		emergencyCase.Stage = CaseStage.Treatment;
+
+		Assert.NotNull(emergencyCase.RefuseStageAndStatus(stage, CaseStatus.Completed));
+	}
+
+	[Fact]
+	public void RefuseStageAndStatus_CompletedInDischarge_IsAllowed()
+	{
+		var emergencyCase = NewCase();
+		emergencyCase.Stage = CaseStage.Recheck;
+
+		Assert.Null(emergencyCase.RefuseStageAndStatus(CaseStage.Discharge, CaseStatus.Completed));
+	}
+
+	[Fact]
+	public void RefuseStageAndStatus_LeavesAcuityAlone()
+	{
+		var emergencyCase = NewCase();
+		emergencyCase.RecordTriage(new TriageAssessment { Acuity = AcuityLevel.Urgent });
+		emergencyCase.Stage = CaseStage.Triage;
+
+		emergencyCase.MoveToStage(CaseStage.Treatment);
+
+		Assert.Equal(AcuityLevel.Urgent, emergencyCase.Acuity);
+	}
 }

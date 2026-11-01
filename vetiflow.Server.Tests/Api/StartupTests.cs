@@ -116,8 +116,8 @@ public class StartupTests(VetiFlowApiFactory factory)
 		var cases = await client.GetFromJsonAsync<JsonElement[]>("/api/cases", _cancellationToken);
 		var caseId = cases![0].GetProperty("id").GetGuid();
 		var update = await client.PatchAsJsonAsync(
-			$"/api/cases/{caseId}/stage",
-			new { stage = "treatment" },
+			$"/api/cases/{caseId}/status",
+			new { stage = "treatment", status = "inProgress" },
 			_cancellationToken);
 
 		Assert.NotEmpty(cases);

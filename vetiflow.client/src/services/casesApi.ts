@@ -1,5 +1,4 @@
 import type {
-  CaseStage,
   EmergencyCaseListItem
 } from "../types/EmergencyCaseListItem";
 import type { CaseDetail, CaseTaskRequest } from "../types/CaseDetail";
@@ -44,29 +43,6 @@ export async function getCase(caseId: string): Promise<CaseDetail | null> {
   }
 
   return response.json();
-}
-
-export async function updateCaseStage(
-  caseId: string,
-  stage: CaseStage
-): Promise<void> {
-  const response = await fetch(
-    `${apiBaseUrl}/api/cases/${caseId}/stage`,
-    {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        ...authorizationHeader()
-      },
-      body: JSON.stringify({ stage })
-    }
-  );
-
-  throwIfRefused(response);
-
-  if (!response.ok) {
-    throw new Error("Failed to update case stage.");
-  }
 }
 
 // Adds an arriving pet to the triage queue (build plan 4.1a). A 400 brings the
