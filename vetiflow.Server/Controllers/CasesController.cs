@@ -127,6 +127,7 @@ public class CasesController : ControllerBase
 						.Select(painScore => new PainScoreSummaryDto
 						{
 							Score = painScore.Score,
+							OccurredAt = painScore.OccurredAt,
 							RecordedAt = painScore.RecordedAt
 						})
 						.FirstOrDefault(),
@@ -225,6 +226,7 @@ public class CasesController : ControllerBase
 							Id = triage.Id,
 							Acuity = triage.Acuity,
 							RawIntakeNotes = triage.RawIntakeNotes,
+							OccurredAt = triage.OccurredAt,
 							AssessedAt = triage.AssessedAt,
 							AssessedBy = triage.AssessedByStaff == null
 								? null
@@ -247,6 +249,7 @@ public class CasesController : ControllerBase
 							MucousMembraneColor = vitals.MucousMembraneColor,
 							CapillaryRefillTime = vitals.CapillaryRefillTime,
 							Mentation = vitals.Mentation,
+							OccurredAt = vitals.OccurredAt,
 							RecordedAt = vitals.RecordedAt,
 							RecordedBy = vitals.RecordedByStaff == null
 								? null
@@ -264,6 +267,7 @@ public class CasesController : ControllerBase
 							Id = painScore.Id,
 							Score = painScore.Score,
 							Notes = painScore.Notes,
+							OccurredAt = painScore.OccurredAt,
 							RecordedAt = painScore.RecordedAt,
 							RecordedBy = painScore.RecordedByStaff == null
 								? null

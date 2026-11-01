@@ -7,6 +7,10 @@ namespace vetiflow.Server.Contracts.Cases;
 // never log them, and errors name the field, never its value.
 public class TriageRequest
 {
+	// Optional reported event time with an explicit offset; never entry time.
+	[StringLength(33)]
+	public string? OccurredAt { get; set; }
+
 	private string? _notes;
 
 	[Required]

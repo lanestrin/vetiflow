@@ -479,7 +479,8 @@ public class CasesEndpointTests(VetiFlowApiFactory factory)
 
 		var latest = item.GetProperty("latestPainScore");
 		Assert.Equal(6, latest.GetProperty("score").GetInt32());
-		Assert.Equal(["score", "recordedAt"], latest.EnumerateObject().Select(property => property.Name));
+		Assert.Equal(["score", "occurredAt", "recordedAt"], latest.EnumerateObject().Select(property => property.Name));
+		Assert.Equal(JsonValueKind.Null, latest.GetProperty("occurredAt").ValueKind);
 	}
 
 	[Fact]
@@ -844,6 +845,56 @@ public class CasesEndpointTests(VetiFlowApiFactory factory)
 	}
 
 	// This test's case from the board list; other tests add cases in parallel.
+	[Theory]
+	[InlineData(false)]
+	[InlineData(true)]
+	public async Task GetById_AssessmentEventTimesAreNullableAndPreserveEntryOrder(bool unknownEventTime)
+	{
+		var emergencyCase = TestData.Case(TestData.Patient());
+		var enteredAt = DateTimeOffset.FromUnixTimeSeconds(DateTimeOffset.UtcNow.AddMinutes(-1).ToUnixTimeSeconds());
+		DateTimeOffset? retrospective = unknownEventTime ? null : enteredAt.AddHours(-1);
+		var oldVitals = new VitalsRecord { HeartRate = 100, RecordedAt = enteredAt.AddMinutes(-1), OccurredAt = enteredAt.AddMinutes(-2) };
+		var latestVitals = new VitalsRecord { HeartRate = 140, RecordedAt = enteredAt, OccurredAt = retrospective };
+		emergencyCase.RecordVitals(oldVitals);
+		emergencyCase.RecordVitals(latestVitals);
+		var oldTriage = new TriageAssessment { Acuity = AcuityLevel.Stable, AssessedAt = enteredAt.AddMinutes(-1), OccurredAt = enteredAt.AddMinutes(-2) };
+		var latestTriage = new TriageAssessment { Acuity = AcuityLevel.Urgent, AssessedAt = enteredAt, OccurredAt = retrospective };
+		emergencyCase.RecordTriage(oldTriage);
+		emergencyCase.RecordTriage(latestTriage);
+		emergencyCase.RecordPainScore(new PainScore { Score = 1, RecordedAt = enteredAt.AddMinutes(-1), OccurredAt = enteredAt.AddMinutes(-2) });
+		var latestPain = new PainScore { Score = 3, Notes = "Legacy note", RecordedAt = enteredAt, OccurredAt = retrospective };
+		emergencyCase.RecordPainScore(latestPain);
+		await SaveAsync(emergencyCase);
+		using var client = await factory.CreateSignedInClientAsync(DemoAccounts.TeamEmail);
+
+		var detail = await GetCaseAsync(client, emergencyCase.Id);
+		var vitals = detail.GetProperty("vitals").EnumerateArray().ToArray();
+		var triage = detail.GetProperty("triageAssessments").EnumerateArray().ToArray();
+		Assert.Equal(new[] { latestVitals.Id, oldVitals.Id }, vitals.Select(row => row.GetProperty("id").GetGuid()));
+		Assert.Equal(new[] { latestTriage.Id, oldTriage.Id }, triage.Select(row => row.GetProperty("id").GetGuid()));
+		var pain = detail.GetProperty("latestPainScore");
+		Assert.Equal(latestPain.Id, pain.GetProperty("id").GetGuid());
+		foreach (var (row, timeField, actorField) in new[]
+		{
+			(vitals[0], "recordedAt", "recordedBy"), (triage[0], "assessedAt", "assessedBy"), (pain, "recordedAt", "recordedBy")
+		})
+		{
+			Assert.Equal(enteredAt, row.GetProperty(timeField).GetDateTimeOffset());
+			Assert.Equal(JsonValueKind.Null, row.GetProperty(actorField).ValueKind);
+			Assert.Equal(retrospective, row.GetProperty("occurredAt").ValueKind == JsonValueKind.Null
+				? (DateTimeOffset?)null : row.GetProperty("occurredAt").GetDateTimeOffset());
+		}
+		Assert.Equal(oldVitals.OccurredAt, vitals[1].GetProperty("occurredAt").GetDateTimeOffset());
+		Assert.Equal(oldTriage.OccurredAt, triage[1].GetProperty("occurredAt").GetDateTimeOffset());
+
+		var summary = (await GetBoardItemAsync(client, emergencyCase.Id)).GetProperty("latestPainScore");
+		Assert.Equal(3, summary.GetProperty("score").GetInt32());
+		Assert.Equal(enteredAt, summary.GetProperty("recordedAt").GetDateTimeOffset());
+		Assert.Equal(retrospective, summary.GetProperty("occurredAt").ValueKind == JsonValueKind.Null
+			? (DateTimeOffset?)null : summary.GetProperty("occurredAt").GetDateTimeOffset());
+		Assert.False(summary.TryGetProperty("notes", out _));
+	}
+
 	private async Task<JsonElement> GetBoardItemAsync(HttpClient client, Guid caseId)
 	{
 		var cases = await client.GetFromJsonAsync<JsonElement[]>("/api/cases", _cancellationToken);
