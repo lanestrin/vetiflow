@@ -13,7 +13,9 @@ public enum CaseEventType
 	DiagnosticCompleted,
 	TreatmentStarted,
 	TreatmentCompleted,
-	Discharged
+	Discharged,
+	TagAdded,
+	TagRemoved
 }
 
 public class CaseEvent

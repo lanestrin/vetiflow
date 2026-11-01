@@ -36,6 +36,8 @@ public class VetiFlowDbContext : DbContext
 
 	public DbSet<CaseTask> CaseTasks => Set<CaseTask>();
 
+	public DbSet<CaseTag> CaseTags => Set<CaseTag>();
+
 	public DbSet<AiSummary> AiSummaries => Set<AiSummary>();
 
 	public DbSet<Handoff> Handoffs => Set<Handoff>();
@@ -122,6 +124,15 @@ public class VetiFlowDbContext : DbContext
 			account.HasIndex(a => a.PhoneNumber).IsUnique();
 			account.HasIndex(a => a.StaffMemberId).IsUnique();
 			account.HasIndex(a => a.OwnerId).IsUnique();
+		});
+
+		modelBuilder.Entity<CaseTag>(tag =>
+		{
+			tag.Property(t => t.Text).HasMaxLength(CaseTagRules.MaxTextLength);
+			tag.ToTable(table => table.HasCheckConstraint(
+				"CK_CaseTags_TextNotBlank",
+				"length(btrim(\"Text\")) > 0"));
+			tag.HasIndex(t => t.EmergencyCaseId);
 		});
 
 		// Never cascade deletes: case history, assessments, AI output and

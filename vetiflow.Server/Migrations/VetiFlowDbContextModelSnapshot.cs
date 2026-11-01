@@ -157,6 +157,42 @@ namespace vetiflow.Server.Migrations
                     b.ToTable("CaseEvents");
                 });
 
+            modelBuilder.Entity("vetiflow.Server.Models.CaseTag", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("CreatedByStaffId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("EmergencyCaseId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<string>("Tone")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedByStaffId");
+
+                    b.HasIndex("EmergencyCaseId");
+
+                    b.ToTable("CaseTags", t =>
+                        {
+                            t.HasCheckConstraint("CK_CaseTags_TextNotBlank", "length(btrim(\"Text\")) > 0");
+                        });
+                });
+
             modelBuilder.Entity("vetiflow.Server.Models.CaseTask", b =>
                 {
                     b.Property<Guid>("Id")
@@ -639,6 +675,24 @@ namespace vetiflow.Server.Migrations
                     b.Navigation("EmergencyCase");
                 });
 
+            modelBuilder.Entity("vetiflow.Server.Models.CaseTag", b =>
+                {
+                    b.HasOne("vetiflow.Server.Models.StaffMember", "CreatedByStaff")
+                        .WithMany()
+                        .HasForeignKey("CreatedByStaffId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("vetiflow.Server.Models.EmergencyCase", "EmergencyCase")
+                        .WithMany("Tags")
+                        .HasForeignKey("EmergencyCaseId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("CreatedByStaff");
+
+                    b.Navigation("EmergencyCase");
+                });
+
             modelBuilder.Entity("vetiflow.Server.Models.CaseTask", b =>
                 {
                     b.HasOne("vetiflow.Server.Models.StaffMember", "AssignedToStaff")
@@ -797,6 +851,8 @@ namespace vetiflow.Server.Migrations
                     b.Navigation("Events");
 
                     b.Navigation("PainScores");
+
+                    b.Navigation("Tags");
 
                     b.Navigation("Tasks");
 
