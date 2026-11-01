@@ -49,6 +49,13 @@ public class CaseVitalsController : ControllerBase
 			return refusal;
 		}
 
+		var now = DateTimeOffset.UtcNow;
+		if (!AssessmentEventTime.TryParse(request.OccurredAt, now, out var occurredAt))
+		{
+			ModelState.AddModelError(nameof(request.OccurredAt), "Use a valid timestamp with an explicit timezone offset that is not in the future.");
+			return ValidationProblem();
+		}
+
 		var recorder = await SignedInStaffMemberAsync(cancellationToken);
 		var vitals = new VitalsRecord
 		{
@@ -59,7 +66,8 @@ public class CaseVitalsController : ControllerBase
 			MucousMembraneColor = request.MucousMembraneColor,
 			CapillaryRefillTime = request.CapillaryRefillTime,
 			Mentation = request.Mentation,
-			RecordedAt = DateTimeOffset.UtcNow,
+			RecordedAt = now,
+			OccurredAt = occurredAt,
 			RecordedByStaffId = recorder?.Id
 		};
 		emergencyCase!.RecordVitals(vitals);
@@ -82,6 +90,7 @@ public class CaseVitalsController : ControllerBase
 			CapillaryRefillTime = vitals.CapillaryRefillTime,
 			Mentation = vitals.Mentation,
 			RecordedAt = vitals.RecordedAt,
+			OccurredAt = vitals.OccurredAt,
 			RecordedBy = Reference(recorder)
 		};
 		recorded.FlagOutOfRange(emergencyCase.Patient.Species);
@@ -103,12 +112,20 @@ public class CaseVitalsController : ControllerBase
 			return refusal;
 		}
 
+		var now = DateTimeOffset.UtcNow;
+		if (!AssessmentEventTime.TryParse(request.OccurredAt, now, out var occurredAt))
+		{
+			ModelState.AddModelError(nameof(request.OccurredAt), "Use a valid timestamp with an explicit timezone offset that is not in the future.");
+			return ValidationProblem();
+		}
+
 		var recorder = await SignedInStaffMemberAsync(cancellationToken);
 		var painScore = new PainScore
 		{
 			Score = request.Score!.Value,
 			Notes = request.Notes,
-			RecordedAt = DateTimeOffset.UtcNow,
+			RecordedAt = now,
+			OccurredAt = occurredAt,
 			RecordedByStaffId = recorder?.Id
 		};
 		emergencyCase!.RecordPainScore(painScore);
@@ -123,6 +140,7 @@ public class CaseVitalsController : ControllerBase
 			Score = painScore.Score,
 			Notes = painScore.Notes,
 			RecordedAt = painScore.RecordedAt,
+			OccurredAt = painScore.OccurredAt,
 			RecordedBy = Reference(recorder)
 		});
 	}

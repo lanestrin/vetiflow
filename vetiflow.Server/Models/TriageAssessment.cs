@@ -16,9 +16,13 @@ public class TriageAssessment
 
 	public string? RawIntakeNotes { get; set; }
 
+	// The reported measurement/event time; null when unknown. Entry time stays separate.
+	public DateTimeOffset? OccurredAt { get; set; }
+
+	// Server entry time, never backdated from OccurredAt.
 	public DateTimeOffset AssessedAt { get; set; } = DateTimeOffset.UtcNow;
 
 	public Guid? AssessedByStaffId { get; set; }
 
 	public StaffMember? AssessedByStaff { get; set; }
-}
+}

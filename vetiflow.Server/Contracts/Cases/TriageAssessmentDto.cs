@@ -12,6 +12,10 @@ public class TriageAssessmentDto
 
 	public string? RawIntakeNotes { get; set; }
 
+	// Reported measurement/event time; null means unknown.
+	public DateTimeOffset? OccurredAt { get; set; }
+
+	// Entry time, preserved for existing clients.
 	public DateTimeOffset AssessedAt { get; set; }
 
 	public CaseReferenceDto? AssessedBy { get; set; }

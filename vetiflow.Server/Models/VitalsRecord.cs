@@ -25,6 +25,10 @@ public class VitalsRecord
 
 	public string? Mentation { get; set; }
 
+	// The reported measurement/event time; null when unknown. Entry time stays separate.
+	public DateTimeOffset? OccurredAt { get; set; }
+
+	// Server entry time, never backdated from OccurredAt.
 	public DateTimeOffset RecordedAt { get; set; } = DateTimeOffset.UtcNow;
 
 	public Guid? RecordedByStaffId { get; set; }

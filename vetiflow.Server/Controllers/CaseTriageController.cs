@@ -50,6 +50,13 @@ public class CaseTriageController : ControllerBase
 					title: "This case has been discharged");
 		}
 
+		var now = DateTimeOffset.UtcNow;
+		if (!AssessmentEventTime.TryParse(request.OccurredAt, now, out var occurredAt))
+		{
+			ModelState.AddModelError(nameof(request.OccurredAt), "Use a valid timestamp with an explicit timezone offset that is not in the future.");
+			return ValidationProblem();
+		}
+
 		var priority = request.Priority!.Value;
 		var completesTriage = emergencyCase.Stage == CaseStage.Incoming;
 		var description = completesTriage || emergencyCase.Acuity is null
@@ -58,13 +65,13 @@ public class CaseTriageController : ControllerBase
 					? $"Re-triaged · {priority} confirmed"
 					: $"Re-triaged · {emergencyCase.Acuity} → {priority}";
 		var staffMemberId = await SignedInStaffMemberIdAsync(cancellationToken);
-		var now = DateTimeOffset.UtcNow;
 
 		var assessment = new TriageAssessment
 		{
 			Acuity = priority,
 			RawIntakeNotes = request.Notes,
 			AssessedAt = now,
+			OccurredAt = occurredAt,
 			AssessedByStaffId = staffMemberId
 		};
 		emergencyCase.RecordTriage(assessment);

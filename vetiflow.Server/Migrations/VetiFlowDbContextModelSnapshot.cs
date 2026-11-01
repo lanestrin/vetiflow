@@ -386,6 +386,9 @@ namespace vetiflow.Server.Migrations
                     b.Property<string>("Notes")
                         .HasColumnType("text");
 
+                    b.Property<DateTimeOffset?>("OccurredAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<DateTimeOffset>("RecordedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -517,6 +520,9 @@ namespace vetiflow.Server.Migrations
                     b.Property<Guid>("EmergencyCaseId")
                         .HasColumnType("uuid");
 
+                    b.Property<DateTimeOffset?>("OccurredAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("RawIntakeNotes")
                         .HasColumnType("text");
 
@@ -549,6 +555,9 @@ namespace vetiflow.Server.Migrations
 
                     b.Property<string>("MucousMembraneColor")
                         .HasColumnType("text");
+
+                    b.Property<DateTimeOffset?>("OccurredAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTimeOffset>("RecordedAt")
                         .HasColumnType("timestamp with time zone");

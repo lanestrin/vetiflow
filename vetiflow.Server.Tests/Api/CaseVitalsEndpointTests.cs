@@ -216,7 +216,8 @@ public class CaseVitalsEndpointTests(VetiFlowApiFactory factory)
 		var item = Assert.Single(board!, item => item.GetProperty("id").GetGuid() == emergencyCase.Id);
 		var summary = item.GetProperty("latestPainScore");
 		Assert.Equal(7, summary.GetProperty("score").GetInt32());
-		Assert.Equal(["score", "recordedAt"], summary.EnumerateObject().Select(property => property.Name));
+		Assert.Equal(["score", "occurredAt", "recordedAt"], summary.EnumerateObject().Select(property => property.Name));
+		Assert.Equal(JsonValueKind.Null, summary.GetProperty("occurredAt").ValueKind);
 	}
 
 	[Theory]
@@ -316,6 +317,135 @@ public class CaseVitalsEndpointTests(VetiFlowApiFactory factory)
 		Assert.Empty((await LoadCaseAsync(emergencyCase.Id)).PainScores);
 	}
 
+	public static IEnumerable<object?[]> EventTimeCases()
+	{
+		foreach (var route in new[] { "vitals", "pain-scores", "triage" })
+		{
+			yield return [route, null, false, true];
+			yield return [route, null, true, true];
+			foreach (var value in new[] { "2020-01-02T09:30:00Z", "2020-01-02T14:30:00+05:00", "2020-01-02T04:30:00-05:00", "2020-01-02T09:30:00.1234567Z" })
+			{
+				yield return [route, value, true, true];
+			}
+			foreach (var value in new[] { "", "not-a-time", "2020-01-02", "2020-01-02T09:30:00", "2020-01-02T09:30:00+15:00", "2020-02-31T09:30:00Z", "2099-01-01T00:00:00Z" })
+			{
+				yield return [route, value, true, false];
+			}
+		}
+	}
+
+	[Theory]
+	[MemberData(nameof(EventTimeCases))]
+	public async Task AssessmentEventTime_ValidatesAndPreservesEntryMetadata(
+		string route, string? input, bool includeTimestamp, bool valid)
+	{
+		var emergencyCase = await SaveCaseAsync();
+		var original = await LoadCaseAsync(emergencyCase.Id);
+		using var client = await factory.CreateSignedInClientAsync(DemoAccounts.TeamEmail);
+		var spoofedId = Guid.NewGuid();
+		var request = new Dictionary<string, object?>
+		{
+			["heartRate"] = 140, ["score"] = 3, ["priority"] = "urgent",
+			["recordedAt"] = "1990-01-01T00:00:00Z", ["assessedAt"] = "1990-01-01T00:00:00Z",
+			["recordedByStaffId"] = spoofedId, ["assessedByStaffId"] = spoofedId,
+			["performedByStaffId"] = spoofedId
+		};
+		if (includeTimestamp) request["occurredAt"] = input;
+		var before = DateTimeOffset.UtcNow;
+
+		var response = await client.PostAsJsonAsync($"/api/cases/{emergencyCase.Id}/{route}", request, _cancellationToken);
+
+		var saved = await LoadCaseAsync(emergencyCase.Id);
+		if (!valid)
+		{
+			AssertProblemStatus(response, HttpStatusCode.BadRequest);
+			var problem = await response.Content.ReadFromJsonAsync<JsonElement>(_cancellationToken);
+			Assert.Contains(problem.GetProperty("errors").EnumerateObject(), error =>
+				error.Name.EndsWith("occurredAt", StringComparison.OrdinalIgnoreCase));
+			Assert.Empty(saved.VitalsRecords);
+			Assert.Empty(saved.PainScores);
+			Assert.Empty(saved.TriageAssessments);
+			Assert.Empty(saved.Events);
+			Assert.Equal(original.LastUpdated, saved.LastUpdated);
+			Assert.Equal(original.StageEnteredAt, saved.StageEnteredAt);
+			Assert.Equal(original.Stage, saved.Stage);
+			Assert.Equal(original.Acuity, saved.Acuity);
+			if (!string.IsNullOrEmpty(input))
+			{
+				Assert.DoesNotContain(input, await response.Content.ReadAsStringAsync(_cancellationToken), StringComparison.OrdinalIgnoreCase);
+			}
+			return;
+		}
+
+		Assert.Equal(route == "triage" ? HttpStatusCode.NoContent : HttpStatusCode.Created, response.StatusCode);
+		var (occurredAt, enteredAt, recorder) = route switch
+		{
+			"vitals" => (Assert.Single(saved.VitalsRecords).OccurredAt, saved.VitalsRecords[0].RecordedAt, saved.VitalsRecords[0].RecordedByStaffId),
+			"pain-scores" => (Assert.Single(saved.PainScores).OccurredAt, saved.PainScores[0].RecordedAt, saved.PainScores[0].RecordedByStaffId),
+			_ => (Assert.Single(saved.TriageAssessments).OccurredAt, saved.TriageAssessments[0].AssessedAt, saved.TriageAssessments[0].AssessedByStaffId)
+		};
+		DateTimeOffset? expectedTime = input is null ? null : new DateTimeOffset(2020, 1, 2, 9, 30, 0, TimeSpan.Zero);
+		if (input?.Contains('.') == true) expectedTime = expectedTime!.Value.AddTicks(1234560);
+		Assert.Equal(expectedTime, occurredAt);
+		if (occurredAt is not null) Assert.Equal(TimeSpan.Zero, occurredAt.Value.Offset);
+		Assert.InRange(enteredAt, before, DateTimeOffset.UtcNow);
+		if (route != "triage")
+		{
+			var body = await response.Content.ReadFromJsonAsync<JsonElement>(_cancellationToken);
+			Assert.Equal(occurredAt, body.GetProperty("occurredAt").ValueKind == JsonValueKind.Null
+				? (DateTimeOffset?)null : body.GetProperty("occurredAt").GetDateTimeOffset());
+			// Existing entry responses carry .NET ticks; Postgres truncates below a microsecond.
+			Assert.InRange(body.GetProperty("recordedAt").GetDateTimeOffset(), enteredAt, enteredAt.AddTicks(9));
+		}
+		await using var dbContext = factory.CreateDbContext();
+		var expectedRecorder = await dbContext.Accounts.Where(account => account.Email == DemoAccounts.TeamEmail)
+			.Select(account => account.StaffMemberId).SingleAsync(_cancellationToken);
+		Assert.Equal(expectedRecorder, recorder);
+		Assert.NotEqual(spoofedId, recorder);
+		Assert.InRange(saved.LastUpdated, before, DateTimeOffset.UtcNow);
+		if (route == "triage")
+		{
+			Assert.Equal(AcuityLevel.Urgent, saved.Acuity);
+			Assert.Equal(CaseStage.Triage, saved.Stage);
+			Assert.InRange(saved.StageEnteredAt, before, DateTimeOffset.UtcNow);
+			Assert.Equal(enteredAt, Assert.Single(saved.Events).CreatedAt);
+		}
+		else
+		{
+			Assert.Null(saved.Acuity);
+			Assert.Equal(original.Stage, saved.Stage);
+			Assert.Equal(original.StageEnteredAt, saved.StageEnteredAt);
+		}
+	}
+
+	[Theory]
+	[InlineData("vitals")]
+	[InlineData("pain-scores")]
+	[InlineData("triage")]
+	public async Task InvalidEventTime_DoesNotBroadcast(string route)
+	{
+		var emergencyCase = await SaveCaseAsync();
+		var otherCase = await SaveCaseAsync();
+		using var client = await factory.CreateSignedInClientAsync(DemoAccounts.TeamEmail);
+		await using var listener = await ConnectHubAsync();
+		var response = await client.PostAsJsonAsync($"/api/cases/{emergencyCase.Id}/{route}",
+			new { heartRate = 140, score = 3, priority = "urgent", occurredAt = "2099-01-01T00:00:00Z" }, _cancellationToken);
+		Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+		Assert.Equal(HttpStatusCode.Created, (await PostVitalsAsync(client, otherCase.Id, new { heartRate = 140 })).StatusCode);
+		await listener.AssertNotifiedAsync(otherCase.Id, _cancellationToken);
+		Assert.False(listener.WasNotified(emergencyCase.Id));
+	}
+
+	[Fact]
+	public async Task RecordVitals_EventTimeAloneDoesNotSatisfyReadingRequirement()
+	{
+		var emergencyCase = await SaveCaseAsync();
+		using var client = await factory.CreateSignedInClientAsync(DemoAccounts.TeamEmail);
+		var response = await PostVitalsAsync(client, emergencyCase.Id, new { occurredAt = "2020-01-02T09:30:00Z" });
+		Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+		Assert.Empty((await LoadCaseAsync(emergencyCase.Id)).VitalsRecords);
+	}
+
 	private Task<HttpResponseMessage> PostPainScoreAsync(HttpClient client, Guid caseId, object body) =>
 		client.PostAsJsonAsync($"/api/cases/{caseId}/pain-scores", body, _cancellationToken);
 
@@ -340,6 +470,8 @@ public class CaseVitalsEndpointTests(VetiFlowApiFactory factory)
 	{
 		await using var dbContext = factory.CreateDbContext();
 		return await dbContext.EmergencyCases
+			.Include(emergencyCase => emergencyCase.TriageAssessments)
+			.Include(emergencyCase => emergencyCase.Events)
 			.Include(emergencyCase => emergencyCase.VitalsRecords)
 				.ThenInclude(vitals => vitals.RecordedByStaff)
 			.Include(emergencyCase => emergencyCase.PainScores)
@@ -397,5 +529,7 @@ public class CaseVitalsEndpointTests(VetiFlowApiFactory factory)
 		}
 
 		public ValueTask DisposeAsync() => _hub.DisposeAsync();
+
+		public bool WasNotified(Guid caseId) => _notified.ContainsKey(caseId);
 	}
 }

@@ -5,5 +5,9 @@ public class PainScoreSummaryDto
 {
 	public int Score { get; set; }
 
+	// Reported measurement/event time; null means unknown.
+	public DateTimeOffset? OccurredAt { get; set; }
+
+	// Entry time, preserved for existing clients.
 	public DateTimeOffset RecordedAt { get; set; }
 }

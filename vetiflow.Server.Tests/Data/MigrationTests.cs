@@ -427,6 +427,56 @@ public class MigrationTests(VetiFlowApiFactory factory)
 		return (caseId, withVitalsId, staffId, assessedAt);
 	}
 
+	[Fact]
+	public async Task AddAssessmentOccurredAt_PreservesHistoricalRowsWithUnknownEventTime()
+	{
+		await using var dbContext = await CreateEmptyDatabaseAsync();
+		var migrator = dbContext.GetService<IMigrator>();
+		await migrator.MigrateAsync("20261029212524_AddPainScores", _cancellationToken);
+		var staff = TestData.StaffMember(StaffRole.Veterinarian);
+		var emergencyCase = TestData.Case(TestData.Patient());
+		dbContext.AddRange(staff, emergencyCase);
+		await dbContext.SaveChangesAsync(_cancellationToken);
+		var enteredAt = new DateTimeOffset(2026, 10, 20, 14, 30, 0, TimeSpan.Zero);
+		var vitalsId = Guid.NewGuid();
+		var triageId = Guid.NewGuid();
+		var painId = Guid.NewGuid();
+		await dbContext.Database.ExecuteSqlAsync($"""
+			INSERT INTO "VitalsRecords" ("Id", "EmergencyCaseId", "HeartRate", "RecordedAt", "RecordedByStaffId")
+			VALUES ({vitalsId}, {emergencyCase.Id}, 140, {enteredAt}, {staff.Id});
+			INSERT INTO "TriageAssessments" ("Id", "EmergencyCaseId", "Acuity", "RawIntakeNotes", "AssessedAt", "AssessedByStaffId")
+			VALUES ({triageId}, {emergencyCase.Id}, 'Urgent', 'Historical intake', {enteredAt}, {staff.Id});
+			INSERT INTO "PainScores" ("Id", "EmergencyCaseId", "Score", "Notes", "RecordedAt", "RecordedByStaffId")
+			VALUES ({painId}, {emergencyCase.Id}, 3, 'Historical pain', {enteredAt}, {staff.Id});
+			""", _cancellationToken);
+		var before = await ReadHistoricalAssessmentsAsync(dbContext);
+
+		await migrator.MigrateAsync(cancellationToken: _cancellationToken);
+
+		var columnCount = await dbContext.Database.SqlQuery<int>($"""
+			SELECT COUNT(*)::int AS "Value" FROM information_schema.columns
+			WHERE table_schema = 'public' AND column_name = 'OccurredAt'
+			AND table_name IN ('VitalsRecords', 'TriageAssessments', 'PainScores')
+			AND is_nullable = 'YES' AND column_default IS NULL
+			""").SingleAsync(_cancellationToken);
+		Assert.Equal(3, columnCount);
+		Assert.Equal(before, await ReadHistoricalAssessmentsAsync(dbContext));
+		var knownTimes = await dbContext.Database.SqlQuery<int>($"""
+			SELECT (SELECT COUNT(*) FROM "VitalsRecords" WHERE "OccurredAt" IS NOT NULL)::int
+			+ (SELECT COUNT(*) FROM "TriageAssessments" WHERE "OccurredAt" IS NOT NULL)::int
+			+ (SELECT COUNT(*) FROM "PainScores" WHERE "OccurredAt" IS NOT NULL)::int AS "Value"
+			""").SingleAsync(_cancellationToken);
+		Assert.Equal(0, knownTimes);
+	}
+
+	private async Task<string[]> ReadHistoricalAssessmentsAsync(VetiFlowDbContext dbContext) =>
+		await dbContext.Database.SqlQuery<string>($"""
+			SELECT (to_jsonb(v) - 'OccurredAt')::text AS "Value" FROM "VitalsRecords" v
+			UNION ALL SELECT (to_jsonb(t) - 'OccurredAt')::text FROM "TriageAssessments" t
+			UNION ALL SELECT (to_jsonb(p) - 'OccurredAt')::text FROM "PainScores" p
+			ORDER BY "Value"
+			""").ToArrayAsync(_cancellationToken);
+
 	private async Task<VetiFlowDbContext> CreateEmptyDatabaseAsync() =>
 		VetiFlowApiFactory.CreateDbContext(await factory.Postgres.CreateDatabaseAsync());
 }
