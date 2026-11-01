@@ -12,7 +12,8 @@ import type { BoardSummary } from "../types/BoardSummary";
 import type { EmergencyCaseListItem } from "../types/EmergencyCaseListItem";
 import { AppShell } from "../components/shell/AppShell";
 import { ToastProvider } from "../components/shell/Toast";
-import { ErBoardPage } from "./ErBoardPage";
+import { ErBoardPage, type ErBoardRouteState } from "./ErBoardPage";
+import { PatientProfilePage } from "./PatientProfilePage";
 import { ClinicalDraftProvider } from "../components/forms/ClinicalDraftProvider";
 
 vi.mock("../services/caseHub", () => ({
@@ -63,12 +64,13 @@ function SignInStub() {
   return <p>Sign-in page{state?.sessionEnded ? " (session ended)" : ""}</p>;
 }
 
-function renderBoard() {
+function renderBoard(routeState?: ErBoardRouteState) {
   return render(
-    <MemoryRouter initialEntries={["/er"]}>
+    <MemoryRouter initialEntries={[{ pathname: "/er", state: routeState }]}>
       <ClinicalDraftProvider>
       <Routes>
         <Route path="/er" element={<ToastProvider><ErBoardPage /></ToastProvider>} />
+        <Route path="/records/:patientId" element={<PatientProfilePage />} />
         <Route path="/sign-in" element={<SignInStub />} />
       </Routes>
       </ClinicalDraftProvider>
@@ -244,6 +246,66 @@ describe("ErBoardPage", () => {
     hub.emit("caseUpdated", buddy.id);
 
     expect(await within(overview).findByText("Select a patient on the board to see their overview.")).toBeInTheDocument();
+  });
+
+  // Back from the patient profile's "ER board" link (build plan 4.21c).
+  it("selects the case named on arrival once the board shows it", async () => {
+    serveCases([buildCase({ id: "case-buddy", patientName: "Buddy" }), buildCase({ patientName: "Max" })]);
+    server.use(http.get(apiUrl("/api/cases/case-buddy"), () =>
+      HttpResponse.json(buildCaseDetail({ id: "case-buddy", caseNumber: "ER-2481" }))));
+
+    renderBoard({ selectedCaseId: "case-buddy" });
+
+    expect(await screen.findByRole("button", { name: "Buddy" })).toHaveAttribute("aria-pressed", "true");
+    const overview = screen.getByRole("complementary", { name: "Patient overview" });
+    expect(await within(overview).findByText(/Case ER-2481/)).toBeInTheDocument();
+  });
+
+  it("selects nothing on arrival when the named case is not on the board", async () => {
+    serveCases([buildCase({ patientName: "Buddy" })]);
+    let goneRequests = 0;
+    server.use(http.get(apiUrl("/api/cases/case-gone"), () => {
+      goneRequests += 1;
+      return new HttpResponse(null, { status: 404 });
+    }));
+
+    renderBoard({ selectedCaseId: "case-gone" });
+
+    expect(await screen.findByRole("button", { name: "Buddy" })).toHaveAttribute("aria-pressed", "false");
+    const overview = screen.getByRole("complementary", { name: "Patient overview" });
+    expect(within(overview).getByText("Select a patient on the board to see their overview.")).toBeInTheDocument();
+    expect(goneRequests).toBe(0);
+  });
+
+  it("opens the patient's history from the overview and comes back to the same case", async () => {
+    saveAccessToken("token-team");
+    serveCases([buildCase({ id: "case-buddy", patientId: "patient-buddy", patientName: "Buddy" }), buildCase({ patientName: "Max" })]);
+    const detail = buildCaseDetail({ id: "case-buddy", caseNumber: "ER-2481" });
+    server.use(
+      http.get(apiUrl("/api/cases/case-buddy"), () =>
+        HttpResponse.json({ ...detail, patient: { ...detail.patient, id: "patient-buddy", name: "Buddy" } })),
+      http.get(apiUrl("/api/patients/patient-buddy/visits"), () => HttpResponse.json({
+        patient: { id: "patient-buddy", name: "Buddy", species: "Dog", breed: "Beagle" },
+        visits: [{
+          caseId: "case-buddy", caseNumber: "ER-2481", arrivalTime: "2026-10-30T12:00:00Z",
+          presentingComplaint: "Respiratory distress", dischargedAt: null, attendingDoctor: null
+        }]
+      }))
+    );
+    renderBoard();
+    fireEvent.click(await screen.findByRole("button", { name: "Buddy" }));
+
+    fireEvent.click(await screen.findByRole("link", { name: "View Patient History" }));
+
+    expect(await screen.findByRole("heading", { level: 1, name: "Buddy" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Visit History" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByText("Active")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("link", { name: "ER board" }));
+
+    expect(await screen.findByRole("button", { name: "Buddy" })).toHaveAttribute("aria-pressed", "true");
+    const overview = screen.getByRole("complementary", { name: "Patient overview" });
+    expect(await within(overview).findByText(/Case ER-2481/)).toBeInTheDocument();
   });
 
   // Triage from the panel (build plan 4.2b).

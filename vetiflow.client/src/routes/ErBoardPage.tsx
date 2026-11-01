@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import type { SignInRouteState } from "../components/auth/experienceHome";
 import { BoardHeading } from "../components/board/BoardHeading";
 import { BoardStats, type BoardFilter } from "../components/board/BoardStats";
@@ -39,8 +39,20 @@ async function loadSummary(): Promise<BoardSummary | null> {
   }
 }
 
+// Router state that selects a case on arrival, as the patient profile's
+// "ER board" link sends it (4.21c).
+export interface ErBoardRouteState {
+  selectedCaseId?: string;
+}
+
+function selectedOnArrival(state: unknown): string | null {
+  const caseId = (state as ErBoardRouteState | null)?.selectedCaseId;
+  return typeof caseId === "string" ? caseId : null;
+}
+
 export function ErBoardPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const drafts = useClinicalDraftNavigation();
   const [cases, setCases] = useState<EmergencyCaseListItem[]>([]);
   const [summary, setSummary] = useState<BoardSummary | null>(null);
@@ -49,6 +61,8 @@ export function ErBoardPage() {
   const [error, setError] = useState<string | null>(null);
   const [updatedAt, setUpdatedAt] = useState(() => new Date());
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
+  // Selected once the first load shows the case is still on the board.
+  const arrivalCaseId = useRef(selectedOnArrival(location.state));
   const [isIntakeOpen, setIsIntakeOpen] = useState(false);
   const showToast = useToast();
   const now = useNow();
@@ -71,9 +85,13 @@ export function ErBoardPage() {
 
         setCases(emergencyCases);
         setSummary(boardSummary);
+        const arrival = arrivalCaseId.current;
+        arrivalCaseId.current = null;
         // A case that left the board (discharged) is no longer selected.
-        setSelectedCaseId((selected) =>
-          drafts.hasDraft() || emergencyCases.some((emergencyCase) => emergencyCase.id === selected) ? selected : null);
+        setSelectedCaseId((selected) => {
+          const wanted = selected ?? arrival;
+          return drafts.hasDraft() || emergencyCases.some((emergencyCase) => emergencyCase.id === wanted) ? wanted : null;
+        });
         setUpdatedAt(new Date());
         setError(null);
       } catch (loadError) {

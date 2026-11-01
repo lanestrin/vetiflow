@@ -6,7 +6,8 @@ import type { SignInRouteState } from "../components/auth/experienceHome";
 import { saveAccessToken } from "../services/session";
 import { apiUrl, server } from "../test/server";
 import type { PatientVisit, PatientVisitHistory } from "../types/PatientVisitHistory";
-import { PatientProfilePage } from "./PatientProfilePage";
+import type { ErBoardRouteState } from "./ErBoardPage";
+import { PatientProfilePage, type PatientProfileRouteState } from "./PatientProfilePage";
 
 afterEach(() => {
   sessionStorage.clear();
@@ -40,13 +41,20 @@ function SignInStub() {
   return <p>Sign-in page{state?.sessionEnded ? " (session ended)" : ""}</p>;
 }
 
-function renderProfile() {
+// Stands in for the board and shows the case it was asked to select.
+function BoardStub() {
+  const state = useLocation().state as ErBoardRouteState | null;
+  return <p>ER board selecting {state?.selectedCaseId ?? "nothing"}</p>;
+}
+
+function renderProfile(routeState?: PatientProfileRouteState) {
   saveAccessToken("token-team");
   render(
-    <MemoryRouter initialEntries={["/records/patient-1"]}>
+    <MemoryRouter initialEntries={[{ pathname: "/records/patient-1", state: routeState }]}>
       <Routes>
         <Route path="/records/:patientId" element={<PatientProfilePage />} />
         <Route path="/records" element={<p>Patients page</p>} />
+        <Route path="/er" element={<BoardStub />} />
         <Route path="/sign-in" element={<SignInStub />} />
         <Route path="/pet-parent" element={<p>Pet parent home</p>} />
       </Routes>
@@ -143,6 +151,17 @@ describe("PatientProfilePage", () => {
 
     fireEvent.click(await screen.findByRole("link", { name: "Patients" }));
     expect(screen.getByText("Patients page")).toBeInTheDocument();
+  });
+
+  it("links back to the ER board with the same case when opened from the board", async () => {
+    serveHistory(history([visit()]));
+
+    renderProfile({ fromErBoard: { caseId: "case-1" } });
+
+    expect(await screen.findByRole("heading", { level: 1, name: "Milo" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Patients" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("link", { name: "ER board" }));
+    expect(screen.getByText("ER board selecting case-1")).toBeInTheDocument();
   });
 
   it("sends the person to sign in when the session has ended", async () => {

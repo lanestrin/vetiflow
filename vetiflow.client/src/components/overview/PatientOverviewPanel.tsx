@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState, type RefObject } from "react";
+import { Link } from "react-router-dom";
 import { useLeaveWhenRefused } from "../auth/useLeaveWhenRefused";
 import { AcuityBadge } from "../clinical/AcuityBadge";
 import { stageLabel } from "../board/boardFormat";
@@ -14,6 +15,7 @@ import { getCase, removeCaseTag } from "../../services/casesApi";
 import { CaseGoneError, ChangeRefusedError } from "../../services/apiErrors";
 import type { CaseDetail, VitalName } from "../../types/CaseDetail";
 import type { CaseTag } from "../../types/CaseTag";
+import type { PatientProfileRouteState } from "../../routes/PatientProfilePage";
 import { useToast } from "../shell/toastContext";
 import { MoreActionsMenu } from "./MoreActionsMenu";
 import { CaseTasksDialog } from "./CaseTasksDialog";
@@ -474,6 +476,16 @@ function Overview({
             Timeline
           </button>
         </div>
+        {/* Earlier visits open on the patient's profile (4.21c); the tiles stay on this visit. */}
+        <Link
+          to={`/records/${patient.id}`}
+          state={{ fromErBoard: { caseId: detail.id } } satisfies PatientProfileRouteState}
+          className={styles.historyLink}
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 18V6a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v2" /><circle cx="16" cy="16" r="5" /><path d="M16 13.5V16l1.5 1.5" /></svg>
+          View Patient History
+          <svg className={styles.historyArrow} viewBox="0 0 24 24" aria-hidden="true"><path d="M8 16 16 8M9 8h7v7" /></svg>
+        </Link>
       </section>
 
       <section className={styles.nextAction} aria-label="Next care action">

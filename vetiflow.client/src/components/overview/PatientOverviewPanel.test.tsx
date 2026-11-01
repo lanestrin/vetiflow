@@ -1,13 +1,14 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import * as casesApi from "../../services/casesApi";
 import { http, HttpResponse } from "msw";
-import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { MemoryRouter, Route, Routes, useLocation, useParams } from "react-router-dom";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { readAccessToken, saveAccessToken } from "../../services/session";
 import { buildCaseDetail, buildCaseTask } from "../../test/builders";
 import { apiUrl, server } from "../../test/server";
 import type { CaseDetail, CaseTask } from "../../types/CaseDetail";
 import type { CaseTag } from "../../types/CaseTag";
+import type { PatientProfileRouteState } from "../../routes/PatientProfilePage";
 import { ToastProvider } from "../shell/Toast";
 import { PatientOverviewPanel } from "./PatientOverviewPanel";
 
@@ -89,6 +90,13 @@ function serveCase(detail: CaseDetail) {
   return () => requests;
 }
 
+// Stands in for the patient profile and shows what the link sent.
+function ProfileStub() {
+  const { patientId } = useParams();
+  const state = useLocation().state as PatientProfileRouteState | null;
+  return <p>Profile of {patientId} from case {state?.fromErBoard?.caseId ?? "none"}</p>;
+}
+
 function renderPanel(
   caseId: string | null,
   refreshedAt = new Date(2026, 0, 1),
@@ -104,6 +112,7 @@ function renderPanel(
             path="/er"
             element={<PatientOverviewPanel caseId={id} refreshedAt={refreshed} onTriaged={onTriaged} onTaskSaved={onTaskSaved} onVitalsSaved={onVitalsSaved} />}
           />
+          <Route path="/records/:patientId" element={<ProfileStub />} />
           <Route path="/sign-in" element={<p>Sign-in page</p>} />
           <Route path="/pet-parent" element={<p>Pet parent home</p>} />
         </Routes>
@@ -285,6 +294,21 @@ describe("PatientOverviewPanel", () => {
     expect(tiles.getAllByRole("definition").map((value) => value.textContent)).toEqual([
       "148 bpm", "48 /min", "38.9 °C", "91%"
     ]);
+  });
+
+  it("links to the patient's history beneath the three record tiles", async () => {
+    const detail = buildMilo();
+    serveCase(detail);
+    renderPanel("case-milo");
+
+    const record = within(await screen.findByRole("region", { name: "Patient record" }));
+    const link = record.getByRole("link", { name: "View Patient History" });
+    const timeline = record.getByRole("button", { name: "Timeline" });
+    expect(timeline.compareDocumentPosition(link) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(record.getAllByRole("button").map(button => button.textContent?.trim())).toEqual(["Clinical", "Medications", "Timeline"]);
+
+    fireEvent.click(link);
+    expect(screen.getByText(`Profile of ${detail.patient.id} from case case-milo`)).toBeInTheDocument();
   });
 
   it("keeps detailed observations in the Clinical review drawer", async () => {
