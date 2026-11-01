@@ -537,7 +537,8 @@ describe("record vitals from the ER board", () => {
     const clinical = within(screen.getByRole("dialog", { name: "Clinical" }));
     const observations = within(clinical.getByRole("region", { name: "Clinical assessment" }));
     expect(observations.getAllByRole("definition").map(value => value.textContent)).toEqual(["Pink", "2 s", "Alert"]);
-    expect(clinical.getByText(/^Entered/)).toHaveTextContent(/Entered .* · Jordan Lee/);
+    expect(clinical.getByText("Entered")).toHaveTextContent(/^Entered \S/);
+    expect(clinical.getByText("Entered by Jordan Lee")).toBeInTheDocument();
     expect(payload).toEqual({ heartRate: 100, respiratoryRate: 24, temperatureF: 101.5, spO2: 91,
       mucousMembraneColor: "Pink", capillaryRefillTime: "2 s", mentation: "Alert" });
     expect(within(await findLane("Urgent")).getByRole("button", { name: "Buddy" })).toHaveAttribute("aria-pressed", "true");
@@ -586,16 +587,19 @@ describe("Clinical review on the ER board", () => {
     fireEvent.click(action);
     let drawer = within(screen.getByRole("dialog", { name: "Clinical" }));
     expect(drawer.getByText("100 bpm")).toBeInTheDocument();
+    expect(drawer.getByText("Measurement time unknown")).toBeInTheDocument();
     expect(detailReads).toBe(readsBeforeReview);
     fireEvent.click(screen.getByRole("button", { name: "Close Clinical" }));
     expect(detailReads).toBe(readsBeforeReview);
     fireEvent.click(action);
     drawer = within(screen.getByRole("dialog"));
-    newest = buildVitalsRecord({ heartRate: 95, mentation: "Not assessed", recordedBy: { id: "s1", name: "Jordan Lee" } });
+    newest = buildVitalsRecord({ heartRate: 95, mentation: "Not assessed", recordedBy: { id: "s1", name: "Jordan Lee" },
+      occurredAt: new Date(Date.now() - 210 * 60_000).toISOString() });
     hub.emit("caseUpdated", buddy.id);
     expect(await drawer.findByText("95 bpm")).toBeInTheDocument();
     expect(drawer.getByText("Not assessed")).toBeInTheDocument();
-    expect(drawer.getByText(/^Entered/)).toHaveTextContent(/Jordan Lee/);
+    expect(drawer.getByText("Entered by Jordan Lee")).toBeInTheDocument();
+    expect(drawer.getByText(/^Measured/)).toHaveTextContent(/^Measured 3 hours ago · /);
     expect(screen.getByRole("button", { name: "Close Clinical" })).toHaveFocus();
     expect(writes).toBe(0);
   });
@@ -651,7 +655,7 @@ describe("Timeline review on the ER board", () => {
     expect(await drawer.findByText("Moved to Treatment 2")).toBeInTheDocument();
     expect(drawer.getByText("Recorded by Event Recorder")).toBeInTheDocument();
     expect(drawer.getByText("Vitals recorded")).toBeInTheDocument();
-    expect(drawer.getByText("Recorded by Vitals Recorder")).toBeInTheDocument();
+    expect(drawer.getByText("Entered by Vitals Recorder")).toBeInTheDocument();
     expect(drawer.getByText("Task · Done")).toBeInTheDocument();
     expect(drawer.getByText("Task Resolver")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Close Timeline" })).toHaveFocus();

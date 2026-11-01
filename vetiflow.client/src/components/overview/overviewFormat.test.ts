@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { buildCaseTask } from "../../test/builders";
 import type { CaseEventType } from "../../types/CaseDetail";
 import {
@@ -10,6 +10,8 @@ import {
   eventLabel,
   isOverdue,
   locationLabel,
+  measuredAgeLabel,
+  recordTimeLabel,
   longAgeLabel,
   speciesKind,
   taskMeta,
@@ -189,5 +191,71 @@ describe("dueAtFromTime", () => {
 
   it.each(["", "7:30", "noon"])("gives null for %j", (time) => {
     expect(dueAtFromTime(time, now)).toBeNull();
+  });
+});
+
+describe("measuredAgeLabel", () => {
+  const ago = (milliseconds: number) => new Date(now.getTime() - milliseconds).toISOString();
+
+  it.each([
+    [0, "Measured less than 1 min ago"],
+    [59_999, "Measured less than 1 min ago"],
+    [60_000, "Measured 1 min ago"],
+    [59 * 60_000 + 59_999, "Measured 59 min ago"],
+    [60 * 60_000, "Measured 1 hour ago"],
+    [2 * 60 * 60_000, "Measured 2 hours ago"],
+    [24 * 60 * 60_000 - 1, "Measured 23 hours ago"],
+    [24 * 60 * 60_000, "Measured 1 day ago"],
+    [3 * 24 * 60 * 60_000 + 5 * 60 * 60_000, "Measured 3 days ago"]
+  ])("rounds %i ms down to whole units", (elapsed, label) => {
+    expect(measuredAgeLabel(ago(elapsed), now)).toBe(label);
+  });
+
+  it("compares instants, not clock strings, across offsets", () => {
+    const at = new Date(now.getTime() - 5 * 60_000);
+    const utc = at.toISOString();
+    const shifted = new Date(at.getTime() + 5.5 * 60 * 60_000).toISOString().replace("Z", "+05:30");
+    expect(measuredAgeLabel(utc, now)).toBe("Measured 5 min ago");
+    expect(measuredAgeLabel(shifted, now)).toBe("Measured 5 min ago");
+  });
+
+  it("says when the measurement time is unknown, invalid or in the future", () => {
+    expect(measuredAgeLabel(null, now)).toBe("Measurement time unknown");
+    expect(measuredAgeLabel(undefined, now)).toBe("Measurement time unknown");
+    expect(measuredAgeLabel("not a time", now)).toBe("Measurement time unavailable");
+    expect(measuredAgeLabel("", now)).toBe("Measurement time unavailable");
+    expect(measuredAgeLabel(new Date(now.getTime() + 60_000).toISOString(), now)).toBe("Measurement time is in the future");
+  });
+});
+
+describe("recordTimeLabel", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("reads like timeLabel within the year", () => {
+    expect(recordTimeLabel(new Date(2026, 9, 28, 10, 42).toISOString(), now)).toBe("10:42 AM");
+    expect(recordTimeLabel(new Date(2026, 9, 27, 22, 42).toISOString(), now)).toBe("27 Oct, 10:42 PM");
+  });
+
+  it("adds the year across calendar years", () => {
+    expect(recordTimeLabel(new Date(2025, 11, 31, 23, 50).toISOString(), new Date(2026, 0, 1, 0, 10)))
+      .toBe("31 Dec 2025, 11:50 PM");
+  });
+
+  it("is null for a missing or invalid time", () => {
+    expect(recordTimeLabel(null, now)).toBeNull();
+    expect(recordTimeLabel(undefined, now)).toBeNull();
+    expect(recordTimeLabel("not a time", now)).toBeNull();
+  });
+
+  it("names the zone only for a repeated daylight-saving hour", () => {
+    vi.stubEnv("TZ", "America/New_York");
+    // 1 Nov 2026: 1:30 AM EDT, then 1:30 AM EST an hour later.
+    const first = recordTimeLabel("2026-11-01T05:30:00Z", new Date("2026-11-01T12:00:00Z"));
+    const second = recordTimeLabel("2026-11-01T06:30:00Z", new Date("2026-11-01T12:00:00Z"));
+    expect(first).toMatch(/ EDT$/);
+    expect(second).toMatch(/ EST$/);
+    expect(recordTimeLabel("2026-11-01T15:30:00Z", new Date("2026-11-01T16:00:00Z"))).not.toMatch(/E[SD]T/);
   });
 });

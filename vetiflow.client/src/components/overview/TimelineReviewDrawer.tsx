@@ -2,7 +2,8 @@ import { useId } from "react";
 import type { CaseDetail, CaseTask, CaseTaskStatus, CaseTaskType } from "../../types/CaseDetail";
 import { useNow } from "../board/useNow";
 import { CaseReviewDrawer, type ReviewDrawerProps } from "./CaseReviewDrawer";
-import { eventLabel, timeLabel } from "./overviewFormat";
+import { eventLabel, recordTimeLabel } from "./overviewFormat";
+import { EnteredTime, MeasuredTime } from "./RecordedTimes";
 import styles from "./TimelineReviewDrawer.module.scss";
 
 const taskTypes: Record<CaseTaskType, string> = {
@@ -14,11 +15,11 @@ const taskStatuses: Record<CaseTaskStatus, string> = { open: "Open", done: "Done
 function recordedHistory(detail: CaseDetail) {
   const events = detail.timeline.map(event => ({
     key: `event:${event.id}`, title: eventLabel(event.type), description: event.description,
-    timestamp: event.createdAt, timePrefix: "Recorded", actor: event.createdBy
+    timestamp: event.createdAt, actor: event.createdBy, vitals: false, occurredAt: null as string | null
   }));
   const vitals = detail.vitals.map(record => ({
     key: `vitals:${record.id}`, title: "Vitals recorded", description: null,
-    timestamp: record.recordedAt, timePrefix: "Entered", actor: record.recordedBy
+    timestamp: record.recordedAt, actor: record.recordedBy, vitals: true, occurredAt: record.occurredAt
   }));
   // Stable sorting preserves source order at equal times, with events first.
   return [...events, ...vitals].sort((first, second) => {
@@ -31,9 +32,10 @@ function recordedHistory(detail: CaseDetail) {
 }
 
 function RecordTime({ value, now }: { value: string; now: Date }) {
-  return Number.isFinite(Date.parse(value))
-    ? <time dateTime={value}>{timeLabel(value, now)}</time>
-    : <>Time not available</>;
+  const label = recordTimeLabel(value, now);
+  return label === null
+    ? <>Time not available</>
+    : <time dateTime={value}>{label}</time>;
 }
 
 export function TimelineReviewDrawer(props: ReviewDrawerProps) {
@@ -47,14 +49,20 @@ export function TimelineReviewDrawer(props: ReviewDrawerProps) {
       <section aria-labelledby={`${id}-history`}>
         <h3 id={`${id}-history`}>Recorded history</h3>
         <p className={styles.meta}>Saved case events and vitals entries, ordered by recorded or entry time.
-          Separate event or measurement times are not available in these records.</p>
+          Vitals show when they were measured where that was recorded; case event times are when they were saved.</p>
         {history.length === 0 ? <p className={styles.meta}>No history recorded</p> : (
           <ol className={styles.records}>
             {history.map(row => <li key={row.key}>
               <h4>{row.title}</h4>
               {row.description && <p>{row.description}</p>}
-              <p className={styles.meta}>{row.timePrefix} <RecordTime value={row.timestamp} now={now} /></p>
-              {row.actor && <p className={styles.meta}>Recorded by {row.actor.name}</p>}
+              {row.vitals ? <>
+                <p className={styles.meta}><MeasuredTime occurredAt={row.occurredAt} now={now} withTime /></p>
+                <p className={styles.meta}><EnteredTime recordedAt={row.timestamp} now={now} /></p>
+                {row.actor && <p className={styles.meta}>Entered by {row.actor.name}</p>}
+              </> : <>
+                <p className={styles.meta}>Recorded <RecordTime value={row.timestamp} now={now} /></p>
+                {row.actor && <p className={styles.meta}>Recorded by {row.actor.name}</p>}
+              </>}
             </li>)}
           </ol>
         )}

@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { StrictMode, useRef, useState } from "react";
-import { beforeAll, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { buildCaseDetail, buildVitalsRecord } from "../../test/builders";
 import type { CaseDetail } from "../../types/CaseDetail";
 import { ClinicalReviewDrawer } from "./ClinicalReviewDrawer";
@@ -52,8 +52,9 @@ describe("ClinicalReviewDrawer", () => {
     expect(drawer.getAllByRole("definition").map(value => value.textContent)).toEqual([
       "120 bpm", "28 /min", "38.9 °C", "97%", "<img src=x>", "2 s", "Not assessed"
     ]);
-    expect(drawer.getByText(/^Entered/)).toHaveTextContent("Entered 2 Jan, 9:03 AM · Jordan Lee");
-    expect(drawer.getByText("Measurement time is not available in this record.")).toBeInTheDocument();
+    expect(drawer.getByText("Measurement time unknown")).toBeInTheDocument();
+    expect(drawer.getByText("Entered")).toHaveTextContent(/^Entered 2 Jan 2020, 9:03 AM$/);
+    expect(drawer.getByText("Entered by Jordan Lee")).toBeInTheDocument();
     expect(drawer.queryByText("Outside range")).not.toBeInTheDocument();
     expect(drawer.queryByRole("textbox")).not.toBeInTheDocument();
     expect(drawer.getAllByRole("button")).toHaveLength(1);
@@ -67,9 +68,9 @@ describe("ClinicalReviewDrawer", () => {
     expect(drawer.getByText("0 bpm")).toBeInTheDocument();
     expect(drawer.getAllByText("Not recorded")).toHaveLength(3);
     expect(drawer.getByText("No assessment findings recorded in this set")).toBeInTheDocument();
-    expect(drawer.getByText(/^Entered/)).toHaveTextContent(/^Entered 2 Jan, 9:03 AM$/);
+    expect(drawer.getByText("Entered")).toHaveTextContent(/^Entered 2 Jan 2020, 9:03 AM$/);
     expect(drawer.queryByText("Pink")).not.toBeInTheDocument();
-    expect(drawer.queryByText("Jordan Lee")).not.toBeInTheDocument();
+    expect(drawer.queryByText(/Jordan Lee/)).not.toBeInTheDocument();
   });
 
   it("supports observation-only sets and omits blank finding rows", () => {
@@ -88,6 +89,48 @@ describe("ClinicalReviewDrawer", () => {
     expect(drawer.getAllByText("Not recorded")).toHaveLength(4);
     expect(drawer.getByText("No assessment findings recorded")).toBeInTheDocument();
     expect(drawer.queryByText(/^Entered/)).not.toBeInTheDocument();
+    expect(drawer.queryByText(/Measure/)).not.toBeInTheDocument();
+  });
+
+  describe("measurement time", () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("shows a retrospective measurement's age apart from its entry and advances with the clock", () => {
+      vi.useFakeTimers({ toFake: ["Date", "setInterval", "clearInterval"] });
+      vi.setSystemTime(new Date(2026, 9, 28, 12, 0));
+      render(<Harness detail={buildCaseDetail({ vitals: [buildVitalsRecord({ heartRate: 120,
+        occurredAt: new Date(2026, 9, 28, 9, 30).toISOString(), recordedAt: new Date(2026, 9, 28, 11, 58).toISOString(),
+        recordedBy: { id: "staff-1", name: "Jordan Lee" } })] })} />);
+      const drawer = within(screen.getByRole("dialog"));
+      expect(drawer.getByText(/^Measured/)).toHaveTextContent(/^Measured 2 hours ago · 9:30 AM$/);
+      expect(drawer.getByText("Entered")).toHaveTextContent(/^Entered 11:58 AM$/);
+      expect(drawer.getByText("Entered by Jordan Lee")).toBeInTheDocument();
+      expect(drawer.getByText("120 bpm")).toBeInTheDocument();
+      act(() => vi.advanceTimersByTime(30 * 60_000));
+      expect(drawer.getByText(/^Measured/)).toHaveTextContent(/^Measured 3 hours ago · 9:30 AM$/);
+      expect(drawer.getByText("Entered")).toHaveTextContent(/^Entered 11:58 AM$/);
+    });
+
+    it.each([
+      ["not a time", "Measurement time unavailable"],
+      [new Date(Date.now() + 60 * 60_000).toISOString(), "Measurement time is in the future"]
+    ])("is honest about an occurredAt of %s without an age or event time", (occurredAt, label) => {
+      render(<Harness detail={buildCaseDetail({ vitals: [buildVitalsRecord({ occurredAt })] })} />);
+      const drawer = within(screen.getByRole("dialog"));
+      expect(drawer.getByText(label)).toBeInTheDocument();
+      expect(drawer.queryByText(/ago/)).not.toBeInTheDocument();
+    });
+
+    it("shows an invalid entry time without a time element or a crash", () => {
+      render(<Harness detail={buildCaseDetail({ vitals: [buildVitalsRecord({ heartRate: 90, recordedAt: "garbage" })] })} />);
+      const drawer = within(screen.getByRole("dialog"));
+      expect(drawer.getByText("Entry time unavailable")).toBeInTheDocument();
+      expect(drawer.getByText("Measurement time unknown")).toBeInTheDocument();
+      expect(drawer.getByText("90 bpm")).toBeInTheDocument();
+      expect(drawer.queryByText("Entered")).not.toBeInTheDocument();
+    });
   });
 
   it.each(["close", "Escape"])("focuses Close and restores the trigger after %s", method => {

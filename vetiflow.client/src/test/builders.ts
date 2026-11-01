@@ -94,14 +94,14 @@ export function buildVitalsRecord(overrides: Partial<VitalsRecord> = {}): Vitals
   return {
     id: crypto.randomUUID(), heartRate: null, respiratoryRate: null, temperatureF: null, spO2: null,
     mucousMembraneColor: null, capillaryRefillTime: null, mentation: null, outOfRange: [],
-    recordedAt: new Date().toISOString(), recordedBy: null,
+    occurredAt: null, recordedAt: new Date().toISOString(), recordedBy: null,
     ...overrides
   };
 }
 
 export function buildPainScore(overrides: Partial<PainScore> = {}): PainScore {
   return {
-    id: crypto.randomUUID(), score: 7, notes: null, recordedAt: new Date().toISOString(), recordedBy: null,
+    id: crypto.randomUUID(), score: 7, notes: null, occurredAt: null, recordedAt: new Date().toISOString(), recordedBy: null,
     ...overrides
   };
 }
