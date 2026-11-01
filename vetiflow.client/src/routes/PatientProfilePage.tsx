@@ -1,11 +1,24 @@
 import { useEffect, useId, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import type { SignInRouteState } from "../components/auth/experienceHome";
 import { AccessDeniedError, SessionEndedError } from "../services/apiErrors";
 import { getPatientVisitHistory } from "../services/recordsApi";
 import { clearAccessToken } from "../services/session";
 import type { PatientVisit, PatientVisitHistory } from "../types/PatientVisitHistory";
+import type { ErBoardRouteState } from "./ErBoardPage";
 import styles from "./PatientProfilePage.module.scss";
+
+// Router state from the board's View Patient History link (4.21c): the case
+// to select again on the way back.
+export interface PatientProfileRouteState {
+  fromErBoard?: { caseId: string };
+}
+
+// The board case this profile was opened from, if the router state names one.
+function boardCaseId(state: unknown): string | null {
+  const caseId = (state as PatientProfileRouteState | null)?.fromErBoard?.caseId;
+  return typeof caseId === "string" ? caseId : null;
+}
 
 // What the load found. `forKey` ties it to the patient and attempt that asked,
 // so an old result never shows for another patient.
@@ -28,6 +41,7 @@ function formatDateTime(value: string): string {
 export function PatientProfilePage() {
   const { patientId = "" } = useParams();
   const navigate = useNavigate();
+  const fromCaseId = boardCaseId(useLocation().state);
   const [attempt, setAttempt] = useState(0);
   const [result, setResult] = useState<LoadResult | null>(null);
   const loadKey = `${patientId}#${attempt}`;
@@ -65,9 +79,17 @@ export function PatientProfilePage() {
   return (
     <main className={styles.page}>
       <title>{current?.kind === "found" ? `${current.history.patient.name} · VetiFlow` : "Patient record · VetiFlow"}</title>
-      <Link to="/records" className={styles.back}>
-        <span aria-hidden="true">← </span>Patients
-      </Link>
+      {fromCaseId === null
+        ? (
+          <Link to="/records" className={styles.back}>
+            <span aria-hidden="true">← </span>Patients
+          </Link>
+        )
+        : (
+          <Link to="/er" state={{ selectedCaseId: fromCaseId } satisfies ErBoardRouteState} className={styles.back}>
+            <span aria-hidden="true">← </span>ER board
+          </Link>
+        )}
 
       {current === null && <p className={styles.message} role="status">Loading the patient record…</p>}
       {current?.kind === "notFound" && (

@@ -270,6 +270,45 @@
 	}
 }
 
+.historyLink {
+	display: flex;
+	align-items: center;
+	gap: .5rem;
+	margin-top: .625rem;
+	padding: .625rem .5rem;
+	border-top: 1px solid #e6eded;
+	border-radius: .5rem;
+	color: #173b43;
+	font-size: .8125rem;
+	font-weight: 700;
+	text-decoration: none;
+	transition: background var(--motion-fast);
+
+	svg {
+		flex: none;
+		width: 1.125rem;
+		height: 1.125rem;
+		fill: none;
+		stroke: #47747a;
+		stroke-width: 1.8;
+		stroke-linecap: round;
+		stroke-linejoin: round;
+	}
+
+	&:hover {
+		background: #f0faf7;
+	}
+
+	&:focus-visible {
+		outline: var(--focus-outline-width) solid var(--color-focus-on-light);
+		outline-offset: 2px;
+	}
+}
+
+.historyArrow {
+	margin-left: auto;
+}
+
 .sectionTitle {
 	margin: 0 0 11px;
 	font-size: .875rem;
