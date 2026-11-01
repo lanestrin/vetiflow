@@ -129,6 +129,75 @@ export function dueLabel(dueAt: string | null, now: Date): string {
   return minutes < 60 ? `Due in ${minutes} min` : `Due ${timeLabel(dueAt, now)}`;
 }
 
+const hour = 60 * minute;
+const day = 24 * hour;
+const datedFormat = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric" });
+
+function validTime(isoTime: string | null | undefined): Date | null {
+  const time = new Date(isoTime ?? Number.NaN);
+  return isoTime && Number.isFinite(time.getTime()) ? time : null;
+}
+
+function wallClock(time: Date): string {
+  return `${time.toDateString()} ${time.getHours()}:${time.getMinutes()}`;
+}
+
+// The zone name only where the local clock repeats an hour (daylight saving
+// ending), so "1:30 AM EDT" and "1:30 AM EST" stay distinct.
+function repeatedHourZone(time: Date): string {
+  const repeated = [-hour, hour].some(offset => wallClock(new Date(time.getTime() + offset)) === wallClock(time));
+  if (!repeated) {
+    return "";
+  }
+
+  const zone = new Intl.DateTimeFormat("en-US", { timeZoneName: "short" })
+    .formatToParts(time).find(part => part.type === "timeZoneName");
+  return zone ? ` ${zone.value}` : "";
+}
+
+// A record's absolute local time (4.11b): timeLabel, with the year when it
+// differs from now's. Null for a missing or invalid time.
+export function recordTimeLabel(isoTime: string | null | undefined, now: Date): string | null {
+  const time = validTime(isoTime);
+  if (time === null) {
+    return null;
+  }
+
+  const label = time.getFullYear() === now.getFullYear()
+    ? timeLabel(time.toISOString(), now)
+    : `${datedFormat.format(time)}, ${timeFormat.format(time)}`;
+  return label + repeatedHourZone(time);
+}
+
+// How long ago a measurement was taken (4.11b): elapsed age only, rounded
+// down, never a clinical judgement. Entry time is never used in its place.
+export function measuredAgeLabel(occurredAt: string | null | undefined, now: Date): string {
+  if (occurredAt === null || occurredAt === undefined) {
+    return "Measurement time unknown";
+  }
+
+  const time = validTime(occurredAt);
+  if (time === null) {
+    return "Measurement time unavailable";
+  }
+
+  const elapsed = now.getTime() - time.getTime();
+  if (elapsed < 0) {
+    return "Measurement time is in the future";
+  }
+
+  if (elapsed < minute) {
+    return "Measured less than 1 min ago";
+  }
+
+  const age = elapsed < hour
+    ? `${Math.floor(elapsed / minute)} min`
+    : elapsed < day
+      ? plural(Math.floor(elapsed / hour), "hour")
+      : plural(Math.floor(elapsed / day), "day");
+  return `Measured ${age} ago`;
+}
+
 export function isOverdue(dueAt: string | null, now: Date): boolean {
   return dueAt !== null && new Date(dueAt).getTime() < now.getTime();
 }

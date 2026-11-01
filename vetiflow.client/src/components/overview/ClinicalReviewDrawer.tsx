@@ -1,6 +1,7 @@
 import { useId } from "react";
 import { useNow } from "../board/useNow";
-import { temperatureLabel, timeLabel } from "./overviewFormat";
+import { temperatureLabel } from "./overviewFormat";
+import { EnteredTime, MeasuredTime } from "./RecordedTimes";
 import styles from "./ClinicalReviewDrawer.module.scss";
 import { CaseReviewDrawer, type ReviewDrawerProps } from "./CaseReviewDrawer";
 
@@ -32,9 +33,9 @@ export function ClinicalReviewDrawer(props: ReviewDrawerProps) {
           </div>)}
         </dl>
         {latest && <>
-          <p className={styles.meta}>Entered <time dateTime={latest.recordedAt}>{timeLabel(latest.recordedAt, now)}</time>
-            {latest.recordedBy && <> · {latest.recordedBy.name}</>}</p>
-          <p className={styles.meta}>Measurement time is not available in this record.</p>
+          <p className={styles.meta}><MeasuredTime occurredAt={latest.occurredAt} now={now} withTime /></p>
+          <p className={styles.meta}><EnteredTime recordedAt={latest.recordedAt} now={now} /></p>
+          {latest.recordedBy && <p className={styles.meta}>Entered by {latest.recordedBy.name}</p>}
         </>}
       </section>
       <section aria-labelledby={`${id}-assessment`}>

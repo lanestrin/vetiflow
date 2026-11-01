@@ -97,6 +97,8 @@ export interface TriageAssessment {
   id: string;
   acuity: AcuityLevel;
   rawIntakeNotes: string | null;
+  // When the assessment happened, if known (4.11a); assessedAt is entry time.
+  occurredAt: string | null;
   assessedAt: string;
   assessedBy: CaseReference | null;
 }
@@ -114,6 +116,8 @@ export interface VitalsRecord {
   mucousMembraneColor: string | null;
   capillaryRefillTime: string | null;
   mentation: string | null;
+  // When the readings were measured, if known (4.11a); recordedAt is entry time.
+  occurredAt: string | null;
   recordedAt: string;
   recordedBy: CaseReference | null;
 }
@@ -122,6 +126,8 @@ export interface PainScore {
   id: string;
   score: number;
   notes: string | null;
+  // When the pain was scored, if known (4.11a); recordedAt is entry time.
+  occurredAt: string | null;
   recordedAt: string;
   recordedBy: CaseReference | null;
 }

@@ -48,10 +48,10 @@ describe("TimelineReviewDrawer", () => {
       "Arrived", "Vitals recorded", "Triage completed", "Vitals recorded"
     ]);
     expect(history().getAllByRole("listitem").map(row => row.textContent)).toEqual([
-      "ArrivedSaved eventRecorded 2 Jan, 8:00 AM",
-      "Vitals recordedEntered 2 Jan, 9:00 AM",
-      "Triage completedSaved eventRecorded 2 Jan, 10:00 AMRecorded by Jordan Lee",
-      "Vitals recordedEntered 2 Jan, 11:00 AMRecorded by Jordan Lee"
+      "ArrivedSaved eventRecorded 2 Jan 2020, 8:00 AM",
+      "Vitals recordedMeasurement time unknownEntered 2 Jan 2020, 9:00 AM",
+      "Triage completedSaved eventRecorded 2 Jan 2020, 10:00 AMRecorded by Jordan Lee",
+      "Vitals recordedMeasurement time unknownEntered 2 Jan 2020, 11:00 AMEntered by Jordan Lee"
     ]);
     expect(detail.vitals.map(row => row.id)).toEqual(["new", "event"]);
     expect(detail.timeline.map(row => row.id)).toEqual(["event", "triage"]);
@@ -66,23 +66,50 @@ describe("TimelineReviewDrawer", () => {
     ], vitals: [buildVitalsRecord({ recordedAt: at(8) }), buildVitalsRecord({ recordedAt: "" })] })} />);
     const rows = history().getAllByRole("listitem");
     expect(rows).toHaveLength(5);
-    expect(rows[0]).toHaveTextContent("First equal eventRecorded 2 Jan, 8:00 AM");
+    expect(rows[0]).toHaveTextContent("First equal eventRecorded 2 Jan 2020, 8:00 AM");
     expect(rows[1]).toHaveTextContent("Second equal event");
-    expect(rows[2]).toHaveTextContent("Vitals recordedEntered 2 Jan, 8:00 AM");
+    expect(rows[2]).toHaveTextContent("Vitals recordedMeasurement time unknownEntered 2 Jan 2020, 8:00 AM");
     expect(rows[3]).toHaveTextContent("Undated eventRecorded Time not available");
-    expect(rows[4]).toHaveTextContent("Vitals recordedEntered Time not available");
-    expect(history().getAllByText(/Time not available/)).toHaveLength(2);
+    expect(rows[4]).toHaveTextContent("Vitals recordedMeasurement time unknownEntry time unavailable");
   });
 
   it("shows honest empty states without inventing arrival, triage or pain history", () => {
     render(<Harness detail={buildCaseDetail({ triageAssessments: [
-      { id: "triage", acuity: "urgent", assessedAt: at(7), assessedBy: actor, rawIntakeNotes: "Private intake" }
+      { id: "triage", acuity: "urgent", occurredAt: null, assessedAt: at(7), assessedBy: actor, rawIntakeNotes: "Private intake" }
     ], latestPainScore: buildPainScore({ notes: "Private pain note" }) })} />);
     expect(history().getByText("No history recorded")).toBeInTheDocument();
     expect(tasks().getByText("No tasks recorded")).toBeInTheDocument();
-    expect(history().getByText(/Separate event or measurement times are not available/)).toBeInTheDocument();
+    expect(history().queryByText(/Separate event or measurement times are not available/)).not.toBeInTheDocument();
+    expect(history().getByText(/Vitals show when they were measured where that was recorded/)).toBeInTheDocument();
     expect(history().queryByRole("list")).not.toBeInTheDocument();
     expect(screen.queryByText(/Private intake|Private pain note|Arrived|Triage completed/)).not.toBeInTheDocument();
+  });
+
+  it("shows a retrospective measurement apart from its entry without moving the row or calling it recent", () => {
+    render(<Harness detail={buildCaseDetail({ timeline: [
+      event({ description: "Earlier event", createdAt: at(8) }), event({ id: "later", description: "Later event", createdAt: at(10) })
+    ], vitals: [
+      buildVitalsRecord({ occurredAt: new Date(2020, 0, 1, 23, 0).toISOString(), recordedAt: at(9), recordedBy: actor })
+    ] })} />);
+    const rows = history().getAllByRole("listitem");
+    expect(rows.map(row => within(row).getByRole("heading").textContent)).toEqual(["Arrived", "Vitals recorded", "Arrived"]);
+    const vitals = within(rows[1]);
+    expect(vitals.getByText(/^Measured/)).toHaveTextContent(/^Measured \d+ days? ago · 1 Jan 2020, 11:00 PM$/);
+    expect(vitals.getByText("Entered")).toHaveTextContent("Entered 2 Jan 2020, 9:00 AM");
+    expect(vitals.getByText("Entered by Jordan Lee")).toBeInTheDocument();
+    expect(rows[1]).not.toHaveTextContent(/less than|recent|normal|fresh|current/i);
+    expect(history().getAllByText(/^Measure/)).toHaveLength(1);
+  });
+
+  it.each([
+    ["bad-time", "Measurement time unavailable"],
+    [new Date(Date.now() + 60 * 60_000).toISOString(), "Measurement time is in the future"]
+  ])("is honest about a vitals occurredAt of %s", (occurredAt, label) => {
+    render(<Harness detail={buildCaseDetail({ vitals: [buildVitalsRecord({ occurredAt, recordedAt: at(9) })] })} />);
+    const row = history().getByRole("listitem");
+    expect(within(row).getByText(label)).toBeInTheDocument();
+    expect(row).not.toHaveTextContent(/ago/);
+    expect(within(row).getByText("Entered")).toHaveTextContent("Entered 2 Jan 2020, 9:00 AM");
   });
 
   it("handles event-only and vitals-only refreshes without inventing unknown actors", () => {
@@ -111,7 +138,7 @@ describe("TimelineReviewDrawer", () => {
     expect(rows).toHaveLength(4);
     expect(rows[0].getByText("Blocker · Open")).toBeInTheDocument();
     expect(rows[0].getAllByRole("definition").map(value => value.textContent)).toEqual([
-      "2 Jan, 8:00 AM", "Creator", "Jordan Lee", "2 Jan, 10:00 AM"
+      "2 Jan 2020, 8:00 AM", "Creator", "Jordan Lee", "2 Jan 2020, 10:00 AM"
     ]);
     expect(rows[0].getByText("Scheduled due")).toBeInTheDocument();
     expect(rows[0].queryByText("Completed")).not.toBeInTheDocument();

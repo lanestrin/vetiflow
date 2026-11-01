@@ -47,11 +47,11 @@ function buildMilo(overrides: Partial<CaseDetail> = {}): CaseDetail {
     vitals: [
       {
         id: "v2", heartRate: 148, respiratoryRate: 48, temperatureF: 102, spO2: null, outOfRange: [], mucousMembraneColor: null,
-        capillaryRefillTime: null, mentation: null, recordedAt: at(10, 50), recordedBy: null
+        capillaryRefillTime: null, mentation: null, occurredAt: null, recordedAt: at(10, 50), recordedBy: null
       },
       {
         id: "v1", heartRate: 160, respiratoryRate: 60, temperatureF: 103, spO2: null, outOfRange: [], mucousMembraneColor: null,
-        capillaryRefillTime: null, mentation: null, recordedAt: at(10, 45), recordedBy: null
+        capillaryRefillTime: null, mentation: null, occurredAt: null, recordedAt: at(10, 45), recordedBy: null
       }
     ],
     timeline: [
@@ -294,7 +294,9 @@ describe("PatientOverviewPanel", () => {
     expect(clinical.getByText("Pink")).toBeInTheDocument();
     expect(clinical.getByText("2 s")).toBeInTheDocument();
     expect(clinical.getByText("<script>Alert</script>")).toBeInTheDocument();
-    expect(clinical.getByText(/^Entered/)).toHaveTextContent("Entered 10:50 AM · Jordan Lee");
+    expect(clinical.getByText("Entered")).toHaveTextContent(/^Entered 10:50 AM$/);
+    expect(clinical.getByText("Entered by Jordan Lee")).toBeInTheDocument();
+    expect(clinical.getByText("Measurement time unknown")).toBeInTheDocument();
   });
 
   it("does not backfill missing observations or invent a recorder in Clinical", async () => {
@@ -306,7 +308,8 @@ describe("PatientOverviewPanel", () => {
     const clinical = within(await screen.findByRole("dialog", { name: "Clinical" }));
     expect(clinical.getAllByText("Not recorded")).toHaveLength(1);
     expect(clinical.getByText("No assessment findings recorded in this set")).toBeInTheDocument();
-    expect(clinical.getByText(/^Entered/)).toHaveTextContent(/^Entered 10:50 AM$/);
+    expect(clinical.getByText("Entered")).toHaveTextContent(/^Entered 10:50 AM$/);
+    expect(clinical.queryByText(/Entered by/)).not.toBeInTheDocument();
     expect(clinical.queryByText("Older observation")).not.toBeInTheDocument();
   });
 
@@ -346,6 +349,31 @@ describe("PatientOverviewPanel", () => {
     ]);
   });
 
+  it("shows the latest set's measured age apart from its entry time in the summary", async () => {
+    const milo = buildMilo();
+    milo.vitals[0] = { ...milo.vitals[0], occurredAt: new Date(Date.now() - 150 * 60_000).toISOString(),
+      recordedBy: { id: "s1", name: "Jordan Lee" } };
+    milo.vitals[1].occurredAt = new Date(Date.now() - 10 * 60_000).toISOString();
+    serveCase(milo);
+
+    renderPanel("case-milo");
+
+    const vitals = within(await screen.findByRole("region", { name: "Latest vitals" }));
+    expect(vitals.getByText(/^Measured/)).toHaveTextContent(/^Measured 2 hours ago · Entered 10:50 AM · Jordan Lee$/);
+    expect(vitals.getAllByRole("definition").map((value) => value.textContent)).toEqual([
+      "148 bpm", "48 /min", "38.9 °C", "Not recorded"
+    ]);
+  });
+
+  it("says the summary's measurement time is unknown when the latest set has none", async () => {
+    serveCase(buildMilo());
+
+    renderPanel("case-milo");
+
+    const vitals = within(await screen.findByRole("region", { name: "Latest vitals" }));
+    expect(vitals.getByText(/^Measurement time unknown/)).toHaveTextContent(/^Measurement time unknown · Entered 10:50 AM$/);
+  });
+
   it("neither backfills nor flags missing readings in a partial newest set", async () => {
     const milo = buildMilo();
     milo.vitals[0] = { ...milo.vitals[0], heartRate: null, temperatureF: null, outOfRange: ["heartRate", "spO2"] };
@@ -382,9 +410,9 @@ describe("PatientOverviewPanel", () => {
     const items = history.getAllByRole("listitem");
     expect(items.map((item) => item.textContent)).toEqual([
       "ArrivedRespiratory distressRecorded 10:42 AM",
-      "Vitals recordedEntered 10:45 AM",
+      "Vitals recordedMeasurement time unknownEntered 10:45 AM",
       "Triage completedCriticalRecorded 10:47 AMRecorded by Jordan Reed",
-      "Vitals recordedEntered 10:50 AM"
+      "Vitals recordedMeasurement time unknownEntered 10:50 AM"
     ]);
   });
 

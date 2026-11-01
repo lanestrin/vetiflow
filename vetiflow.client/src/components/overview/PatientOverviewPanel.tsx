@@ -15,6 +15,7 @@ import { CaseTasksDialog } from "./CaseTasksDialog";
 import { ClinicalReviewDrawer } from "./ClinicalReviewDrawer";
 import { MedicationReviewDrawer } from "./MedicationReviewDrawer";
 import { TimelineReviewDrawer } from "./TimelineReviewDrawer";
+import { EnteredTime, MeasuredTime } from "./RecordedTimes";
 import {
   checkInLabel,
   dueLabel,
@@ -428,7 +429,8 @@ function Overview({ detail, nameRef, onOpenReview, clinicalRef, medicationsRef, 
         </dl>
         <p className={styles.vitalsRecorded}>
           {vitals
-            ? <>Entered <time dateTime={vitals.recordedAt}>{timeLabel(vitals.recordedAt, now)}</time>{vitals.recordedBy && <> · {vitals.recordedBy.name}</>}</>
+            ? <><MeasuredTime occurredAt={vitals.occurredAt} now={now} /> · <EnteredTime recordedAt={vitals.recordedAt} now={now} />
+              {vitals.recordedBy && <> · {vitals.recordedBy.name}</>}</>
             : "No vitals recorded"}
         </p>
       </section>
