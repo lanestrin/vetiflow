@@ -12,7 +12,8 @@ export function BoardHeading({ summary, onIntake }: BoardHeadingProps) {
   return (
     <header className={styles.heading}>
       <div>
-        <h1 className={styles.title}>{summary?.clinicName ?? "Emergency board"}</h1>
+        {summary && <p className={styles.eyebrow}>{summary.clinicName}</p>}
+        <h1 className={styles.title}>ER Command Center</h1>
         <p className={styles.sub}>Live patient flow and care coordination</p>
       </div>
       <div className={styles.headRight}>

@@ -108,7 +108,7 @@ describe("ErBoardPage", () => {
 
     expect(screen.getByText("Loading emergency cases...")).toBeInTheDocument();
     expect(
-      await screen.findByRole("heading", { name: "Northside Veterinary Emergency" })
+      await screen.findByRole("heading", { name: "ER Command Center" })
     ).toBeInTheDocument();
   });
 
@@ -120,7 +120,7 @@ describe("ErBoardPage", () => {
 
     expect(await screen.findByText("Day shift · 4 clinicians on floor")).toBeInTheDocument();
     expect(screen.getByText("Northside Veterinary Emergency")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { level: 1, name: "Northside Veterinary Emergency" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "ER Command Center" })).toBeInTheDocument();
   });
 
   it("shows the view switch between the heading and the stats", async () => {
@@ -140,7 +140,7 @@ describe("ErBoardPage", () => {
     renderBoard();
 
     expect(document.title).toBe("ER Board · VetiFlow");
-    await screen.findByRole("heading", { level: 1, name: "Northside Veterinary Emergency" });
+    await screen.findByRole("heading", { level: 1, name: "ER Command Center" });
     expect(document.title).toBe("ER Board · VetiFlow");
   });
 

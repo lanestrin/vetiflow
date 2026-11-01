@@ -11,13 +11,29 @@
 	}
 }
 
+// The prototype's 11px eyebrow, raised to the 12px floor for compact labels.
+.eyebrow {
+	margin: 0 0 7px;
+	color: var(--color-care-teal);
+	font-size: 0.75rem;
+	font-weight: 700;
+	letter-spacing: 1.2px;
+	text-transform: uppercase;
+	overflow-wrap: anywhere;
+}
+
 .title {
 	margin: 0;
 	color: var(--color-shell-ink);
-	font-size: 1.5rem;
-	line-height: 1.3;
-	font-weight: 700;
+	font-size: 1.6875rem;
+	line-height: 1.25;
+	font-weight: 800;
+	letter-spacing: -0.7px;
 	overflow-wrap: anywhere;
+
+	@media (max-width: 650px) {
+		font-size: 1.4375rem;
+	}
 }
 
 .sub {
