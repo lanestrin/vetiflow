@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState, type RefObject } from "react";
-import { completeTask, reopenTask } from "../../services/casesApi";
-import type { CaseDetail, CaseDueItem, CaseTask } from "../../types/CaseDetail";
+import { ChangeRefusedError } from "../../services/apiErrors";
+import { completeTask, reopenTask, setNextAction, setTaskPriority } from "../../services/casesApi";
+import type { CaseDetail, CaseDueItem, CaseTask, TaskPriority } from "../../types/CaseDetail";
 import { useLeaveWhenRefused } from "../auth/useLeaveWhenRefused";
 import { useNow } from "../board/useNow";
 import { useToast } from "../shell/toastContext";
@@ -131,6 +132,8 @@ function DueItemRow({
   );
 }
 
+const priorityLabels: Record<TaskPriority, string> = { urgent: "Urgent", high: "High", routine: "Routine" };
+
 interface TaskChecklistProps {
   caseId: string;
   caseTasks: CaseTask[];
@@ -142,6 +145,7 @@ function TaskChecklist({ caseId, caseTasks, onTaskSaved }: TaskChecklistProps) {
   const showToast = useToast();
   const [ticked, setTicked] = useState<Record<string, boolean>>({});
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [refusal, setRefusal] = useState<string | null>(null);
   const [followedTasks, setFollowedTasks] = useState(caseTasks);
   if (caseTasks !== followedTasks) {
     setFollowedTasks(caseTasks);
@@ -170,7 +174,30 @@ function TaskChecklist({ caseId, caseTasks, onTaskSaved }: TaskChecklistProps) {
     onTaskSaved();
   }
 
+  // Priority and the Next Care Action are staff choices (build plan 4.13a),
+  // saved on the server; the reload shows what was saved.
+  async function coordinate(task: CaseTask, change: () => Promise<void>, message: string) {
+    if (savingId !== null) return;
+    setRefusal(null);
+    setSavingId(task.id);
+
+    try {
+      await change();
+      showToast(message);
+    } catch (saveError) {
+      if (leaveWhenRefused(saveError)) return;
+      if (saveError instanceof ChangeRefusedError) setRefusal(saveError.reason);
+      else showToast("Couldn't update the task. Try again.");
+    } finally {
+      setSavingId(null);
+    }
+
+    onTaskSaved();
+  }
+
   return (
+    <>
+    {refusal && <p className={styles.refusal} role="alert">{refusal}</p>}
     <ul className={styles.tasks}>
       {tasks.map(task => {
         const isDone = ticked[task.id] ?? task.status === "done";
@@ -186,9 +213,59 @@ function TaskChecklist({ caseId, caseTasks, onTaskSaved }: TaskChecklistProps) {
               <span>{task.description}</span>
             </label>
             <span className={styles.meta}>{task.assignedTo?.name ?? (isDone ? "Completed" : "Unassigned")}</span>
+            {task.status === "open"
+              ? (
+                <div className={styles.coordination}>
+                  <label>
+                    Priority
+                    <select
+                      aria-label={`Priority for ${task.description}`}
+                      value={task.priority ?? ""}
+                      disabled={savingId === task.id}
+                      onChange={event => {
+                        const priority = (event.target.value || null) as TaskPriority | null;
+                        void coordinate(task, () => setTaskPriority(caseId, task.id, priority), "Priority updated");
+                      }}
+                    >
+                      <option value="">Not prioritized</option>
+                      <option value="urgent">Urgent</option>
+                      <option value="high">High</option>
+                      <option value="routine">Routine</option>
+                    </select>
+                  </label>
+                  {task.isNextAction
+                    ? (
+                      <>
+                        <span className={styles.nextBadge}>Next care action</span>
+                        <button
+                          type="button"
+                          className={styles.designate}
+                          aria-label={`Clear next care action: ${task.description}`}
+                          aria-disabled={savingId === task.id || undefined}
+                          onClick={() => void coordinate(task, () => setNextAction(caseId, null), "Next care action cleared")}
+                        >
+                          Clear
+                        </button>
+                      </>
+                    )
+                    : (
+                      <button
+                        type="button"
+                        className={styles.designate}
+                        aria-label={`Make next care action: ${task.description}`}
+                        aria-disabled={savingId === task.id || undefined}
+                        onClick={() => void coordinate(task, () => setNextAction(caseId, task.id), "Next care action set")}
+                      >
+                        Make next care action
+                      </button>
+                    )}
+                </div>
+              )
+              : task.priority && <span className={styles.meta}>Priority: {priorityLabels[task.priority]}</span>}
           </li>
         );
       })}
     </ul>
+    </>
   );
 }

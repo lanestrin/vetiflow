@@ -79,6 +79,22 @@ public class DbSeederTests(VetiFlowApiFactory factory)
 		}
 	}
 
+	// Build plan 4.3b: a database backfilled from the older seed had no rooms.
+	[Fact]
+	public async Task SeedAsync_AddsTheDemoRoomsWhenNoneExist()
+	{
+		await using var dbContext = await MigratedDatabaseAsync();
+		dbContext.EmergencyCases.Add(TestData.Case(TestData.Patient()));
+		await dbContext.SaveChangesAsync(_cancellationToken);
+
+		await SeedTwiceAsync(dbContext);
+
+		var rooms = (await dbContext.Rooms.Select(room => room.Name).ToListAsync(_cancellationToken)).Order(StringComparer.Ordinal);
+		Assert.Equal(
+			["Exam 1", "Exam 2", "ICU", "Imaging", "Oxygen Cage", "Surgery", "Treatment Bay 1", "Treatment Bay 2"],
+			rooms);
+	}
+
 	[Fact]
 	public async Task SeedAsync_PreservesEditedDischargedFixturesAndUnrelatedData()
 	{

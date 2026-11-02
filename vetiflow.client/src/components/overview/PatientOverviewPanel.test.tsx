@@ -264,7 +264,7 @@ describe("PatientOverviewPanel", () => {
     expect(screen.getByText("No next action documented")).toBeInTheDocument();
     expect(screen.getByText("No room assigned")).toBeInTheDocument();
     expect(screen.getByText("Not recorded", { selector: "[data-role='allergies']" })).toBeInTheDocument();
-    expect(screen.getByText("Unassigned", { selector: "[data-role='attending-veterinarian']" })).toBeInTheDocument();
+    expect(screen.getByText("Not assigned", { selector: "[data-role='attending-veterinarian']" })).toBeInTheDocument();
     expect(screen.getByText("Not assigned", { selector: "[data-role='primary-technician']" })).toBeInTheDocument();
     const nextAction = screen.getByRole("region", { name: "Next care action" });
     expect(within(nextAction).getByText("Last owner update")).toBeInTheDocument();
@@ -555,6 +555,80 @@ describe("PatientOverviewPanel", () => {
     expect(onTaskSaved).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole("dialog", { name: "Update status" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "More actions" })).toHaveFocus();
+  });
+
+  // Quick edits (build plan 4.3b).
+  it("changes the care stage from beside it and returns focus there", async () => {
+    serveCase(buildMilo());
+    server.use(http.patch(apiUrl("/api/cases/case-milo/status"), () => new HttpResponse(null, { status: 204 })));
+    const onTaskSaved = vi.fn();
+    renderPanel("case-milo", undefined, undefined, onTaskSaved);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Change care stage" }));
+    const dialog = screen.getByRole("dialog", { name: "Update status" });
+    fireEvent.change(within(dialog).getByLabelText("Status"), { target: { value: "waiting" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Save status" }));
+
+    expect(await screen.findByText("Status updated")).toBeInTheDocument();
+    expect(onTaskSaved).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("button", { name: "Change care stage" })).toHaveFocus();
+  });
+
+  it("changes the location from the Location card, reloads and returns focus there", async () => {
+    serveCase(buildMilo());
+    server.use(
+      http.get(apiUrl("/api/rooms"), () => HttpResponse.json([
+        { id: "room-1", name: "Oxygen Cage", type: "treatment", occupiedBy: { id: "case-milo", caseNumber: "ER-2481" } },
+        { id: "room-icu", name: "ICU", type: "icu", occupiedBy: null }
+      ])),
+      http.put(apiUrl("/api/cases/case-milo/room"), () => new HttpResponse(null, { status: 204 }))
+    );
+    const onTaskSaved = vi.fn();
+    renderPanel("case-milo", undefined, undefined, onTaskSaved);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Change location" }));
+    const dialog = screen.getByRole("dialog", { name: "Change location" });
+    await within(dialog).findByRole("option", { name: "ICU · ICU" });
+    expect(within(dialog).getByLabelText("Room")).toHaveValue("room-1");
+    fireEvent.change(within(dialog).getByLabelText("Room"), { target: { value: "room-icu" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Save location" }));
+
+    expect(await screen.findByText("Location updated")).toBeInTheDocument();
+    expect(onTaskSaved).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("dialog", { name: "Change location" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Change location" })).toHaveFocus();
+  });
+
+  it("edits the care team from its section and reloads", async () => {
+    serveCase(buildMilo());
+    server.use(
+      http.get(apiUrl("/api/staff/team"), () => HttpResponse.json([
+        { id: "vet-lee", displayName: "Dr. Jordan Lee", initials: "JL", role: "veterinarian", status: "busy", activeCaseCount: 0, activeCases: [] }
+      ])),
+      http.put(apiUrl("/api/cases/case-milo/veterinarian"), () => new HttpResponse(null, { status: 204 }))
+    );
+    const onTaskSaved = vi.fn();
+    renderPanel("case-milo", undefined, undefined, onTaskSaved);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Edit care team" }));
+    const dialog = screen.getByRole("dialog", { name: "Edit care team" });
+    await within(dialog).findByRole("option", { name: "Dr. Jordan Lee" });
+    fireEvent.change(within(dialog).getByLabelText("Attending veterinarian"), { target: { value: "vet-lee" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Save care team" }));
+
+    expect(await screen.findByText("Care team updated")).toBeInTheDocument();
+    expect(onTaskSaved).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("button", { name: "Edit care team" })).toHaveFocus();
+  });
+
+  it("offers no quick edits on a discharged case", async () => {
+    serveCase(buildMilo({ dischargedAt: at(11, 0) }));
+    renderPanel("case-milo");
+
+    await screen.findByText("Milo");
+    expect(screen.queryByRole("button", { name: "Change location" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Change care stage" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Edit care team" })).not.toBeInTheDocument();
   });
 
   it("leaves the case alone and returns focus when Update status is cancelled", async () => {
