@@ -182,6 +182,18 @@ namespace vetiflow.Server.Migrations
                     b.Property<Guid>("EmergencyCaseId")
                         .HasColumnType("uuid");
 
+                    b.Property<bool>("IsNextAction")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTimeOffset?>("NextActionDesignatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("NextActionDesignatedByStaffId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Priority")
+                        .HasColumnType("text");
+
                     b.Property<DateTimeOffset?>("ResolvedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -202,11 +214,22 @@ namespace vetiflow.Server.Migrations
 
                     b.HasIndex("CreatedByStaffId");
 
-                    b.HasIndex("EmergencyCaseId");
+                    b.HasIndex("EmergencyCaseId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_CaseTasks_EmergencyCaseId_NextAction")
+                        .HasFilter("\"IsNextAction\"");
+
+                    b.HasIndex("NextActionDesignatedByStaffId");
 
                     b.HasIndex("ResolvedByStaffId");
 
-                    b.ToTable("CaseTasks");
+                    b.HasIndex("EmergencyCaseId", "Status")
+                        .HasDatabaseName("IX_CaseTasks_EmergencyCaseId_Status");
+
+                    b.ToTable("CaseTasks", t =>
+                        {
+                            t.HasCheckConstraint("CK_CaseTasks_NextActionRecorded", "NOT \"IsNextAction\" OR (\"NextActionDesignatedAt\" IS NOT NULL AND \"NextActionDesignatedByStaffId\" IS NOT NULL)");
+                        });
                 });
 
             modelBuilder.Entity("vetiflow.Server.Models.EmergencyCase", b =>
@@ -682,6 +705,11 @@ namespace vetiflow.Server.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("vetiflow.Server.Models.StaffMember", "NextActionDesignatedByStaff")
+                        .WithMany()
+                        .HasForeignKey("NextActionDesignatedByStaffId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("vetiflow.Server.Models.StaffMember", "ResolvedByStaff")
                         .WithMany()
                         .HasForeignKey("ResolvedByStaffId")
@@ -692,6 +720,8 @@ namespace vetiflow.Server.Migrations
                     b.Navigation("CreatedByStaff");
 
                     b.Navigation("EmergencyCase");
+
+                    b.Navigation("NextActionDesignatedByStaff");
 
                     b.Navigation("ResolvedByStaff");
                 });

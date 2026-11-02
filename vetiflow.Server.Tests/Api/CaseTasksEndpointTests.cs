@@ -283,6 +283,153 @@ public class CaseTasksEndpointTests(VetiFlowApiFactory factory)
 		Assert.Equal(CaseTaskStatus.Open, (await LoadTaskAsync(task.Id)).Status);
 	}
 
+	// Task priority (build plan 4.13a): staff set it; nothing defaults or ranks it.
+	[Fact]
+	public async Task CreateTask_WithPriority_StoresItAndWritesOneTimelineEntry()
+	{
+		var emergencyCase = await SaveCaseAsync();
+		using var client = await factory.CreateSignedInClientAsync(DemoAccounts.TeamEmail);
+
+		var response = await PostTaskAsync(client, emergencyCase.Id, new { type = "task", description = "Recheck breathing", priority = "high" });
+
+		Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+		var body = await response.Content.ReadFromJsonAsync<JsonElement>(_cancellationToken);
+		Assert.Equal("high", body.GetProperty("priority").GetString());
+		var saved = await LoadTaskAsync(body.GetProperty("id").GetGuid());
+		Assert.Equal(TaskPriority.High, saved.Priority);
+		Assert.False(saved.IsNextAction);
+		Assert.Equal(["Priority set to High"], await PriorityEntriesAsync(emergencyCase.Id));
+	}
+
+	[Fact]
+	public async Task CreateTask_WithoutPriority_StaysUnprioritizedWithNoTimelineEntry()
+	{
+		var emergencyCase = await SaveCaseAsync();
+		using var client = await factory.CreateSignedInClientAsync(DemoAccounts.TeamEmail);
+
+		var response = await PostTaskAsync(client, emergencyCase.Id, new { type = "task", description = "Recheck breathing" });
+
+		Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+		var body = await response.Content.ReadFromJsonAsync<JsonElement>(_cancellationToken);
+		Assert.Equal(JsonValueKind.Null, body.GetProperty("priority").ValueKind);
+		Assert.Null((await LoadTaskAsync(body.GetProperty("id").GetGuid())).Priority);
+		Assert.Empty(await PriorityEntriesAsync(emergencyCase.Id));
+	}
+
+	[Fact]
+	public async Task CreateTask_UnknownPriority_Returns400()
+	{
+		var emergencyCase = await SaveCaseAsync();
+		using var client = await factory.CreateSignedInClientAsync(DemoAccounts.TeamEmail);
+
+		var response = await PostTaskAsync(client, emergencyCase.Id, new { type = "task", description = "Recheck breathing", priority = "critical" });
+
+		Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+	}
+
+	[Fact]
+	public async Task SetPriority_SetsAndClears_AndWritesOneEntryPerChange()
+	{
+		var (emergencyCase, task) = await SaveCaseWithTaskAsync();
+		using var client = await factory.CreateSignedInClientAsync(DemoAccounts.TeamEmail);
+
+		var set = await PostPriorityAsync(client, emergencyCase.Id, task.Id, new { priority = "urgent" });
+		var cleared = await PostPriorityAsync(client, emergencyCase.Id, task.Id, new { priority = (string?)null });
+
+		Assert.Equal(HttpStatusCode.NoContent, set.StatusCode);
+		Assert.Equal(HttpStatusCode.NoContent, cleared.StatusCode);
+		Assert.Null((await LoadTaskAsync(task.Id)).Priority);
+		Assert.Equal(["Priority set to Urgent", "Priority cleared"], await PriorityEntriesAsync(emergencyCase.Id));
+	}
+
+	[Fact]
+	public async Task SetPriority_SameValueTwice_WritesOneEntry()
+	{
+		var (emergencyCase, task) = await SaveCaseWithTaskAsync();
+		using var client = await factory.CreateSignedInClientAsync(DemoAccounts.TeamEmail);
+
+		await PostPriorityAsync(client, emergencyCase.Id, task.Id, new { priority = "routine" });
+		var again = await PostPriorityAsync(client, emergencyCase.Id, task.Id, new { priority = "routine" });
+
+		Assert.Equal(HttpStatusCode.NoContent, again.StatusCode);
+		Assert.Single(await PriorityEntriesAsync(emergencyCase.Id));
+	}
+
+	[Fact]
+	public async Task SetPriority_UnknownPriority_Returns400()
+	{
+		var (emergencyCase, task) = await SaveCaseWithTaskAsync();
+		using var client = await factory.CreateSignedInClientAsync(DemoAccounts.TeamEmail);
+
+		var response = await PostPriorityAsync(client, emergencyCase.Id, task.Id, new { priority = "critical" });
+
+		Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+		Assert.Null((await LoadTaskAsync(task.Id)).Priority);
+	}
+
+	[Fact]
+	public async Task SetPriority_ClosedTask_Returns409AndChangesNothing()
+	{
+		var (emergencyCase, task) = await SaveCaseWithTaskAsync(CaseTaskStatus.Done);
+		using var client = await factory.CreateSignedInClientAsync(DemoAccounts.TeamEmail);
+
+		var response = await PostPriorityAsync(client, emergencyCase.Id, task.Id, new { priority = "high" });
+
+		Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+		Assert.Null((await LoadTaskAsync(task.Id)).Priority);
+		Assert.Empty(await PriorityEntriesAsync(emergencyCase.Id));
+	}
+
+	[Fact]
+	public async Task SetPriority_DischargedCase_Returns409()
+	{
+		var (emergencyCase, task) = await SaveCaseWithTaskAsync(dischargedAt: DateTimeOffset.UtcNow);
+		using var client = await factory.CreateSignedInClientAsync(DemoAccounts.TeamEmail);
+
+		var response = await PostPriorityAsync(client, emergencyCase.Id, task.Id, new { priority = "high" });
+
+		Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+		Assert.Null((await LoadTaskAsync(task.Id)).Priority);
+	}
+
+	[Fact]
+	public async Task SetPriority_TaskOnAnotherCase_Returns404()
+	{
+		var (emergencyCase, _) = await SaveCaseWithTaskAsync();
+		var (_, otherTask) = await SaveCaseWithTaskAsync();
+		using var client = await factory.CreateSignedInClientAsync(DemoAccounts.TeamEmail);
+
+		var response = await PostPriorityAsync(client, emergencyCase.Id, otherTask.Id, new { priority = "high" });
+
+		Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+		Assert.Null((await LoadTaskAsync(otherTask.Id)).Priority);
+	}
+
+	[Fact]
+	public async Task SetPriority_PetParent_Returns403()
+	{
+		var (emergencyCase, task) = await SaveCaseWithTaskAsync();
+		using var client = await factory.CreateSignedInClientAsync(DemoAccounts.ParentEmail);
+
+		var response = await PostPriorityAsync(client, emergencyCase.Id, task.Id, new { priority = "high" });
+
+		Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+		Assert.Null((await LoadTaskAsync(task.Id)).Priority);
+	}
+
+	private Task<HttpResponseMessage> PostPriorityAsync(HttpClient client, Guid caseId, Guid taskId, object body) =>
+		client.PostAsJsonAsync($"/api/cases/{caseId}/tasks/{taskId}/priority", body, _cancellationToken);
+
+	private async Task<List<string>> PriorityEntriesAsync(Guid caseId)
+	{
+		await using var dbContext = factory.CreateDbContext();
+		return await dbContext.CaseEvents
+			.Where(caseEvent => caseEvent.EmergencyCaseId == caseId && caseEvent.Type == CaseEventType.TaskPriorityChanged)
+			.OrderBy(caseEvent => caseEvent.CreatedAt)
+			.Select(caseEvent => caseEvent.Description)
+			.ToListAsync(_cancellationToken);
+	}
+
 	private Task<HttpResponseMessage> PostTaskAsync(HttpClient client, Guid caseId, object body) =>
 		client.PostAsJsonAsync($"/api/cases/{caseId}/tasks", body, _cancellationToken);
 

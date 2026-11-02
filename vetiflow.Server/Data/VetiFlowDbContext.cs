@@ -146,6 +146,24 @@ public class VetiFlowDbContext : DbContext
 			account.HasIndex(a => a.OwnerId).IsUnique();
 		});
 
+		modelBuilder.Entity<CaseTask>(task =>
+		{
+			// A case's tasks by status (open first); also covers the case foreign key.
+			task.HasIndex(t => new { t.EmergencyCaseId, t.Status })
+					.HasDatabaseName("IX_CaseTasks_EmergencyCaseId_Status");
+
+			// At most one designated Next Care Action per case (build plan 4.13a).
+			task.HasIndex(t => t.EmergencyCaseId)
+					.IsUnique()
+					.HasFilter("\"IsNextAction\"")
+					.HasDatabaseName("IX_CaseTasks_EmergencyCaseId_NextAction");
+
+			// A designation always records who and when.
+			task.ToTable(table => table.HasCheckConstraint(
+					"CK_CaseTasks_NextActionRecorded",
+					"NOT \"IsNextAction\" OR (\"NextActionDesignatedAt\" IS NOT NULL AND \"NextActionDesignatedByStaffId\" IS NOT NULL)"));
+		});
+
 		// Never cascade deletes: case history, assessments, AI output and
 		// handoffs are the audit trail and must not disappear with a parent.
 		foreach (var foreignKey in modelBuilder.Model

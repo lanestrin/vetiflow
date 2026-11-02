@@ -16,7 +16,10 @@ public enum CaseEventType
 	Discharged,
 	// Tags were removed (build plan 3.5c); these keep past timeline entries readable.
 	TagAdded,
-	TagRemoved
+	TagRemoved,
+	TaskPriorityChanged,
+	NextActionDesignated,
+	NextActionCleared
 }
 
 public class CaseEvent

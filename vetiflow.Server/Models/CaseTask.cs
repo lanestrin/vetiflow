@@ -17,6 +17,15 @@ public enum CaseTaskStatus
 	Cancelled
 }
 
+// Set only by staff (build plan 4.13a). Nothing in the server ranks or chooses
+// a task's priority: null means "Not prioritized".
+public enum TaskPriority
+{
+	Urgent,
+	High,
+	Routine
+}
+
 public class CaseTask
 {
 	public Guid Id { get; set; } = Guid.NewGuid();
@@ -48,4 +57,17 @@ public class CaseTask
 	public StaffMember? ResolvedByStaff { get; set; }
 
 	public DateTimeOffset? ResolvedAt { get; set; }
+
+	public TaskPriority? Priority { get; set; }
+
+	// The case's documented Next Care Action, designated by staff (4.13a). At
+	// most one task per case has this set; completing, cancelling or discharging
+	// clears it in the same transaction.
+	public bool IsNextAction { get; set; }
+
+	public DateTimeOffset? NextActionDesignatedAt { get; set; }
+
+	public Guid? NextActionDesignatedByStaffId { get; set; }
+
+	public StaffMember? NextActionDesignatedByStaff { get; set; }
 }

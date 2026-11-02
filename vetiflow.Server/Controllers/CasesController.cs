@@ -291,6 +291,10 @@ public class CasesController : ControllerBase
 								}
 						})
 						.FirstOrDefault(),
+					NextActionTaskId = emergencyCase.Tasks
+						.Where(task => task.IsNextAction)
+						.Select(task => (Guid?)task.Id)
+						.FirstOrDefault(),
 					Tasks = emergencyCase.Tasks
 						.OrderBy(task => task.Status == CaseTaskStatus.Open ? 0 : 1)
 						.ThenBy(task => task.CreatedAt)
@@ -300,6 +304,8 @@ public class CasesController : ControllerBase
 							Type = task.Type,
 							Description = task.Description,
 							Status = task.Status,
+							Priority = task.Priority,
+							IsNextAction = task.IsNextAction,
 							DueAt = task.DueAt,
 							AssignedTo = task.AssignedToStaff == null
 								? null
@@ -417,6 +423,18 @@ public class CasesController : ControllerBase
 		{
 			emergencyCase.RecordDischarge(now);
 			AddEvent(emergencyCase, CaseEventType.Discharged, "Discharged", now, staffMemberId);
+
+			// Discharge clears the Next Care Action in the same save; nothing else is
+			// promoted (build plan 4.13a).
+			foreach (var designated in await _dbContext.CaseTasks
+					.Where(task => task.EmergencyCaseId == emergencyCase.Id && task.IsNextAction)
+					.ToListAsync())
+			{
+				designated.IsNextAction = false;
+				designated.NextActionDesignatedAt = null;
+				designated.NextActionDesignatedByStaffId = null;
+				AddEvent(emergencyCase, CaseEventType.NextActionCleared, "Next care action cleared: patient discharged", now, staffMemberId);
+			}
 		}
 
 		await _dbContext.SaveChangesAsync();

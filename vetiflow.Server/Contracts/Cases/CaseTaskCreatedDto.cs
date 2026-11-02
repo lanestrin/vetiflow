@@ -20,4 +20,7 @@ public class CaseTaskCreatedDto
 	public DateTimeOffset CreatedAt { get; set; }
 
 	public CaseReferenceDto? CreatedBy { get; set; }
+
+	// Null when not prioritized (4.13a).
+	public TaskPriority? Priority { get; set; }
 }

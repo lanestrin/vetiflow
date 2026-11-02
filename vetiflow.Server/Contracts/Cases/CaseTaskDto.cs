@@ -24,4 +24,10 @@ public class CaseTaskDto
 	public DateTimeOffset? ResolvedAt { get; set; }
 
 	public CaseReferenceDto? ResolvedBy { get; set; }
+
+	// Staff-set priority (4.13a); null means "Not prioritized".
+	public TaskPriority? Priority { get; set; }
+
+	// True when staff designated this open task as the Next Care Action (4.13a).
+	public bool IsNextAction { get; set; }
 }

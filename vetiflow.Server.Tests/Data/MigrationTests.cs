@@ -569,6 +569,32 @@ public class MigrationTests(VetiFlowApiFactory factory)
 			ORDER BY "Value"
 			""").ToArrayAsync(_cancellationToken);
 
+	// Task priority and designation (build plan 4.13a): existing tasks keep a null
+	// priority and are not designated; nothing is set for them automatically.
+	[Fact]
+	public async Task AddTaskPriority_LeavesExistingTasksUnchanged()
+	{
+		await using var dbContext = await CreateEmptyDatabaseAsync();
+		var migrator = dbContext.GetService<IMigrator>();
+		await migrator.MigrateAsync("20261102005258_RemoveCaseTags", _cancellationToken);
+		var caseId = await InsertCaseAsync(dbContext);
+		var taskId = Guid.NewGuid();
+		var now = DateTimeOffset.UtcNow;
+		await dbContext.Database.ExecuteSqlAsync($"""
+			INSERT INTO "CaseTasks" ("Id", "EmergencyCaseId", "Type", "Description", "Status", "CreatedAt")
+			VALUES ({taskId}, {caseId}, 'Task', 'Recheck breathing', 'Open', {now})
+			""", _cancellationToken);
+
+		await migrator.MigrateAsync(cancellationToken: _cancellationToken);
+
+		var stored = await dbContext.CaseTasks.AsNoTracking()
+			.SingleAsync(task => task.Id == taskId, _cancellationToken);
+		Assert.Null(stored.Priority);
+		Assert.False(stored.IsNextAction);
+		Assert.Null(stored.NextActionDesignatedAt);
+		Assert.Null(stored.NextActionDesignatedByStaffId);
+	}
+
 	// Rows for tests that stop at an older migration: inserted with SQL, because
 	// the current model has columns that schema does not have yet.
 	private async Task<Guid> InsertStaffAsync(VetiFlowDbContext dbContext)
