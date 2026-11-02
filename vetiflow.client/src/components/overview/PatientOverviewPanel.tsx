@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, type RefObject } from "react";
+import { useEffect, useId, useRef, useState, type KeyboardEvent, type RefObject } from "react";
 import { Link } from "react-router-dom";
 import { useLeaveWhenRefused } from "../auth/useLeaveWhenRefused";
 import { AcuityBadge } from "../clinical/AcuityBadge";
@@ -18,9 +18,9 @@ import { MoreActionsMenu } from "./MoreActionsMenu";
 import { CaseTasksDialog } from "./CaseTasksDialog";
 import { ChangeLocationDialog } from "./ChangeLocationDialog";
 import { EditCareTeamDialog } from "./EditCareTeamDialog";
-import { ClinicalReviewDrawer } from "./ClinicalReviewDrawer";
-import { MedicationReviewDrawer } from "./MedicationReviewDrawer";
-import { TimelineReviewDrawer } from "./TimelineReviewDrawer";
+import { ClinicalReview } from "./ClinicalReview";
+import { MedicationReview } from "./MedicationReview";
+import { TimelineReview } from "./TimelineReview";
 import { EnteredTime, MeasuredTime } from "./RecordedTimes";
 import {
   checkInLabel,
@@ -55,26 +55,31 @@ interface PatientOverviewPanelProps {
 }
 
 type TaskDialogKind = "addTask" | DueItemType;
-type ReviewKind = "clinical" | "medications" | "timeline";
 // The quick edits opened from the overview itself (build plan 4.3b).
 type QuickEdit = "location" | "careTeam" | "stage";
 
-const reviewDrawers = { clinical: ClinicalReviewDrawer, medications: MedicationReviewDrawer, timeline: TimelineReviewDrawer };
+// The patient record's tabs (build plan 3.2c, product rules section 4).
+type RecordTab = "overview" | "clinical" | "orders" | "timeline";
+const recordTabs: { key: RecordTab; label: string }[] = [
+  { key: "overview", label: "Overview" },
+  { key: "clinical", label: "Clinical" },
+  { key: "orders", label: "Orders & Medications" },
+  { key: "timeline", label: "Timeline" }
+];
 
 const avatars = { dog: "🐕", cat: "🐈", other: "🐾" };
 
-// The prototype's "Patient overview" (build plan 3.2b) for the card selected
-// on the board. Complete triage and Re-triage open the triage dialog (4.2b);
-// the buttons that later items wire are shown disabled.
+// The prototype's patient record (build plan 3.2b, 3.2c) for the case selected
+// on the board: a fixed header with who the patient is, their acuity, care
+// stage, location and allergies, above the Overview, Clinical, Orders &
+// Medications and Timeline tabs. Complete triage and Re-triage open the triage
+// dialog (4.2b).
 
 export function PatientOverviewPanel({ caseId, caseUnavailable = false, refreshedAt, onTriaged, onTaskSaved, onVitalsSaved }: PatientOverviewPanelProps) {
   const titleId = useId();
   const leaveWhenRefused = useLeaveWhenRefused();
   const nameRef = useRef<HTMLHeadingElement>(null);
   const moreActionsRef = useRef<HTMLButtonElement>(null);
-  const clinicalRef = useRef<HTMLButtonElement>(null);
-  const medicationsRef = useRef<HTMLButtonElement>(null);
-  const timelineRef = useRef<HTMLButtonElement>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const [attempt, setAttempt] = useState(0);
   const [assessmentRevision, setAssessmentRevision] = useState(0);
@@ -88,7 +93,8 @@ export function PatientOverviewPanel({ caseId, caseUnavailable = false, refreshe
   const [quickEdit, setQuickEdit] = useState<"location" | "careTeam" | null>(null);
   // The button a quick edit or Update status was opened from, for focus on close.
   const returnFocusRef = useRef<HTMLButtonElement | null>(null);
-  const [review, setReview] = useState<{ caseId: string; kind: ReviewKind } | null>(null);
+  // A new selection opens on Overview; a refresh of the same case keeps the tab.
+  const [tab, setTab] = useState<RecordTab>("overview");
   // A dialog for one case never carries over to the next selection.
   const [dialogCaseId, setDialogCaseId] = useState(caseId);
   if (dialogCaseId !== caseId) {
@@ -99,7 +105,7 @@ export function PatientOverviewPanel({ caseId, caseUnavailable = false, refreshe
     setTaskDialog(null);
     setIsTaskReviewOpen(false);
     setVitalsDialogCase(null);
-    setReview(null);
+    setTab("overview");
     setQuickEdit(null);
   }
   // Keyed by case and attempt, so a board reload keeps the shown case on
@@ -118,12 +124,10 @@ export function PatientOverviewPanel({ caseId, caseUnavailable = false, refreshe
       try {
         const detail = await getCase(id);
         if (isActive) {
-          if (!detail) setReview(null);
           setLoaded({ key, result: detail ? { kind: "shown", detail } : { kind: "notFound" } });
         }
       } catch (loadError) {
         if (isActive) {
-          setReview(null);
           if (!leaveWhenRefused(loadError)) setLoaded({ key, result: { kind: "failed" } });
         }
       }
@@ -140,8 +144,6 @@ export function PatientOverviewPanel({ caseId, caseUnavailable = false, refreshe
   const detail = result?.kind === "shown" ? result.detail : null;
   const draftDetail = detail ?? editingCase;
   const unavailable = caseUnavailable || result?.kind === "notFound";
-  const ReviewDrawer = reviewDrawers[review?.kind ?? "clinical"];
-  const reviewTriggers = { clinical: clinicalRef, medications: medicationsRef, timeline: timelineRef };
 
   function returnFocus() {
     const trigger = returnFocusRef.current;
@@ -167,37 +169,42 @@ export function PatientOverviewPanel({ caseId, caseUnavailable = false, refreshe
 
   return (
     <aside className={styles.panel} aria-labelledby={titleId} aria-busy={caseId !== null && result === null}>
-      <header className={styles.head}>
-        <div>
-          <h2 ref={headingRef} tabIndex={-1} id={titleId} className={styles.title}>Patient overview</h2>
-          {detail && <CaseLine detail={detail} />}
-        </div>
-        {detail && (
-          <MoreActionsMenu
-            actionButtonRef={moreActionsRef}
-            actions={[
-              {
-                label: detail.stage === "incoming" ? "Complete triage" : "Re-triage",
-                onSelect: () => { setEditingCase(detail); setIsTriaging(true); }
-              },
-              { label: "Update status", onSelect: () => { returnFocusRef.current = moreActionsRef.current; setEditingCase(detail); setIsUpdatingStatus(true); } },
-              { label: "Tasks and due items", onSelect: () => setIsTaskReviewOpen(true) },
-              ...(detail.dischargedAt === null
-                ? [
-                    { label: "Add task", onSelect: () => { setEditingCase(detail); setTaskDialog("addTask"); } },
-                    { label: "Set reassessment", onSelect: () => { setEditingCase(detail); setTaskDialog("reassessment"); } },
-                    { label: "Set client update", onSelect: () => { setEditingCase(detail); setTaskDialog("clientUpdate"); } }
-                  ]
-                : []),
-              {
-                label: "Record vitals",
-                disabled: detail.dischargedAt !== null,
-                onSelect: () => setVitalsDialogCase(detail)
-              }
-            ]}
-          />
-        )}
-      </header>
+      {/* Stays at the top while the tab content scrolls (3.2c). */}
+      <div className={styles.fixedTop}>
+        <header className={styles.head}>
+          <div>
+            <h2 ref={headingRef} tabIndex={-1} id={titleId} className={styles.title}>Patient record</h2>
+            {detail && <CaseLine detail={detail} />}
+          </div>
+          {detail && (
+            <MoreActionsMenu
+              actionButtonRef={moreActionsRef}
+              actions={[
+                {
+                  label: detail.stage === "incoming" ? "Complete triage" : "Re-triage",
+                  onSelect: () => { setEditingCase(detail); setIsTriaging(true); }
+                },
+                { label: "Update status", onSelect: () => { returnFocusRef.current = moreActionsRef.current; setEditingCase(detail); setIsUpdatingStatus(true); } },
+                { label: "Tasks and due items", onSelect: () => setIsTaskReviewOpen(true) },
+                ...(detail.dischargedAt === null
+                  ? [
+                      { label: "Add task", onSelect: () => { setEditingCase(detail); setTaskDialog("addTask"); } },
+                      { label: "Set reassessment", onSelect: () => { setEditingCase(detail); setTaskDialog("reassessment"); } },
+                      { label: "Set client update", onSelect: () => { setEditingCase(detail); setTaskDialog("clientUpdate"); } }
+                    ]
+                  : []),
+                {
+                  label: "Record vitals",
+                  disabled: detail.dischargedAt !== null,
+                  onSelect: () => setVitalsDialogCase(detail)
+                }
+              ]}
+            />
+          )}
+        </header>
+        {detail && <PatientHeader detail={detail} nameRef={nameRef} onQuickEdit={openQuickEdit} />}
+        {detail && <RecordTabs idBase={titleId} tab={tab} onChange={setTab} />}
+      </div>
 
       {caseId === null && (
         <p className={styles.message}>Select a patient on the board to see their overview.</p>
@@ -213,20 +220,18 @@ export function PatientOverviewPanel({ caseId, caseUnavailable = false, refreshe
         </div>
       )}
       {detail && (
-        <Overview
-          detail={detail}
-          nameRef={nameRef}
-          onOpenReview={kind => setReview({ caseId: detail.id, kind })}
-          onQuickEdit={openQuickEdit}
-          clinicalRef={clinicalRef}
-          medicationsRef={medicationsRef}
-          timelineRef={timelineRef}
-        />
-      )}
-      {detail && review?.caseId === detail.id && (
-        <ReviewDrawer key={`${detail.id}:${review.kind}`} detail={detail}
-          triggerRef={reviewTriggers[review.kind]} fallbackRef={headingRef}
-          onClose={() => setReview(current => current === review ? null : current)} />
+        <div
+          id={`${titleId}-${tab}-panel`}
+          role="tabpanel"
+          aria-labelledby={`${titleId}-${tab}-tab`}
+          tabIndex={0}
+          className={styles.tabPanel}
+        >
+          {tab === "overview" && <Overview detail={detail} onQuickEdit={openQuickEdit} />}
+          {tab === "clinical" && <div className={styles.review}><ClinicalReview detail={detail} /></div>}
+          {tab === "orders" && <div className={styles.review}><MedicationReview detail={detail} /></div>}
+          {tab === "timeline" && <div className={styles.review}><TimelineReview detail={detail} /></div>}
+        </div>
       )}
       {detail && isTaskReviewOpen && (
         <CaseTasksDialog
@@ -366,31 +371,124 @@ function TaskDialog({ kind, caseUnavailable, detail, onClose, onSaved }: TaskDia
     : <DueItemDialog caseUnavailable={caseUnavailable} detail={detail} type={kind} onClose={onClose} onSaved={onSaved} />;
 }
 
-interface OverviewProps {
+interface PatientHeaderProps {
   detail: CaseDetail;
   nameRef: RefObject<HTMLHeadingElement | null>;
-  onOpenReview: (kind: ReviewKind) => void;
   onQuickEdit: (kind: QuickEdit, trigger: HTMLButtonElement) => void;
-  clinicalRef: RefObject<HTMLButtonElement | null>;
-  medicationsRef: RefObject<HTMLButtonElement | null>;
-  timelineRef: RefObject<HTMLButtonElement | null>;
 }
 
-function Overview({
-  detail,
-  nameRef,
-  onOpenReview,
-  onQuickEdit,
-  clinicalRef,
-  medicationsRef,
-  timelineRef
-}: OverviewProps) {
+// The prototype's .patient-sticky: identity, acuity, care stage, location and
+// allergies stay in view on every tab (product rules section 4). Stage and
+// location open their small edit dialogs (Patient header quick edits).
+function PatientHeader({ detail, nameRef, onQuickEdit }: PatientHeaderProps) {
   const now = useNow();
-  const { patient, owner } = detail;
+  const { patient } = detail;
   const kind = speciesKind(patient.species);
   const meta = [patient.species, patient.breed, longAgeLabel(patient.dateOfBirth, now), weightLabel(detail.weightKg)]
     .filter(Boolean)
     .join(" · ");
+  // A discharged case is read-only, as for tasks.
+  const canEdit = detail.dischargedAt === null;
+  const fields: { kind: QuickEdit; label: string; value: string; name: string }[] = [
+    { kind: "stage", label: "Care stage", value: stageLabel(detail.stage), name: "Change care stage" },
+    { kind: "location", label: "Location", value: locationLabel(detail.room), name: "Change location" }
+  ];
+
+  return (
+    <div className={styles.patientHeader}>
+      <div className={styles.hero}>
+        <span className={styles.avatar} data-species={kind} aria-hidden="true">{avatars[kind]}</span>
+        <div className={styles.identity}>
+          <h3 ref={nameRef} className={styles.name} tabIndex={-1}>{patient.name}</h3>
+          <p className={styles.meta}>{meta}</p>
+        </div>
+        <span className={styles.badge}>
+          <AcuityBadge acuity={detail.acuity} isProvisional={detail.stage === "incoming"} />
+        </span>
+      </div>
+      <div className={styles.quickFields}>
+        {fields.map(field => canEdit ? (
+          <button key={field.kind} type="button" className={styles.quickField}
+            aria-label={`${field.name}, currently ${field.value}`}
+            onClick={event => onQuickEdit(field.kind, event.currentTarget)}>
+            <span className={styles.quickFieldLabel}>{field.label}</span>
+            <span className={styles.quickFieldValue}>{field.value}</span>
+          </button>
+        ) : (
+          <p key={field.kind} className={styles.quickField}>
+            <span className={styles.quickFieldLabel}>{field.label}</span>
+            <span className={styles.quickFieldValue}>{field.value}</span>
+          </p>
+        ))}
+      </div>
+      <p className={styles.allergyLine} data-status={patient.allergyStatus}>
+        <strong>Allergies:</strong> {allergySummary(detail)}
+      </p>
+    </div>
+  );
+}
+
+interface RecordTabsProps {
+  // Shared with the tab panel, so each tab names the panel it controls.
+  idBase: string;
+  tab: RecordTab;
+  onChange: (tab: RecordTab) => void;
+}
+
+// The prototype's .patient-tabs as a WAI-ARIA tablist: arrows move between
+// tabs (wrapping), Home and End go to the first and last.
+function RecordTabs({ idBase, tab, onChange }: RecordTabsProps) {
+  const tabRefs = useRef<Record<RecordTab, HTMLButtonElement | null>>({ overview: null, clinical: null, orders: null, timeline: null });
+
+  function choose(next: RecordTab) {
+    onChange(next);
+    tabRefs.current[next]?.focus();
+  }
+
+  function moveWithKeys(event: KeyboardEvent<HTMLDivElement>) {
+    const index = recordTabs.findIndex(item => item.key === tab);
+    const last = recordTabs.length - 1;
+    const next = {
+      ArrowRight: index === last ? 0 : index + 1,
+      ArrowLeft: index === 0 ? last : index - 1,
+      Home: 0,
+      End: last
+    }[event.key];
+    if (next === undefined) return;
+    event.preventDefault();
+    choose(recordTabs[next].key);
+  }
+
+  return (
+    <div className={styles.tabs} role="tablist" aria-label="Patient record sections" onKeyDown={moveWithKeys}>
+      {recordTabs.map(item => (
+        <button
+          key={item.key}
+          ref={element => { tabRefs.current[item.key] = element; }}
+          id={`${idBase}-${item.key}-tab`}
+          type="button"
+          role="tab"
+          aria-selected={tab === item.key}
+          aria-controls={`${idBase}-${item.key}-panel`}
+          tabIndex={tab === item.key ? 0 : -1}
+          className={styles.tab}
+          onClick={() => choose(item.key)}
+        >
+          {item.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+interface OverviewProps {
+  detail: CaseDetail;
+  onQuickEdit: (kind: QuickEdit, trigger: HTMLButtonElement) => void;
+}
+
+function Overview({ detail, onQuickEdit }: OverviewProps) {
+  const now = useNow();
+  const { patient, owner } = detail;
   const complaint = detail.presentingComplaint.trim() || "Not recorded";
   const vitals = detail.vitals[0];
   const tiles: { field: VitalName; label: string; value: string }[] = [
@@ -402,7 +500,7 @@ function Overview({
   const lastUpdate = detail.lastOwnerUpdateAt ? timeLabel(detail.lastOwnerUpdateAt, now) : "Not recorded";
   // A discharged case is read-only, as for tasks.
   const canEdit = detail.dischargedAt === null;
-  const quickEditButton = (kind: QuickEdit, label: string, name: string) => canEdit && (
+  const quickEditButton = (kind: "careTeam", label: string, name: string) => canEdit && (
     <button type="button" className={styles.quickEdit} aria-label={name}
       onClick={event => onQuickEdit(kind, event.currentTarget)}>
       {label}
@@ -414,17 +512,6 @@ function Overview({
 
   return (
     <>
-      <div className={styles.hero}>
-        <span className={styles.avatar} data-species={kind} aria-hidden="true">{avatars[kind]}</span>
-        <div className={styles.identity}>
-          <h3 ref={nameRef} className={styles.name} tabIndex={-1}>{patient.name}</h3>
-          <p className={styles.meta}>{meta}</p>
-        </div>
-        <span className={styles.badge}>
-          <AcuityBadge acuity={detail.acuity} isProvisional={detail.stage === "incoming"} />
-        </span>
-      </div>
-
       <section className={styles.caseContext} aria-label="Case context">
         <div className={styles.complaint}>
           <h3 className={styles.kicker}>
@@ -434,56 +521,7 @@ function Overview({
             Presenting complaint
           </h3>
           <p className={styles.complaintValue}>{complaint}</p>
-          <p className={styles.stageContext}>
-            <span>Care stage</span>
-            <strong>{stageLabel(detail.stage)}</strong>
-            {quickEditButton("stage", "Change", "Change care stage")}
-          </p>
         </div>
-
-        <div className={styles.facts}>
-          <div className={styles.factCard}>
-            <div className={styles.factHead}>
-              <h3 className={styles.factLabel}>
-                <svg className={styles.icon} viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0Z" />
-                  <circle cx="12" cy="10" r="2.5" />
-                </svg>
-                Location
-              </h3>
-              {quickEditButton("location", "Change", "Change location")}
-            </div>
-            <p className={styles.factValue}>{locationLabel(detail.room)}</p>
-          </div>
-        </div>
-      </section>
-
-      <section className={styles.reviewActions} aria-label="Patient record">
-        <h3 className={styles.sectionTitle}>Patient record</h3>
-        <div className={styles.reviewGrid}>
-          <button ref={clinicalRef} type="button" className={styles.reviewButton} onClick={() => onOpenReview("clinical")}>
-            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2" /><path d="M9 4.5h6M9 10h6M9 14h6M9 18h3" /></svg>
-            Clinical
-          </button>
-          <button ref={medicationsRef} type="button" className={styles.reviewButton} onClick={() => onOpenReview("medications")}>
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 5l9 9a5 5 0 0 1-7 7l-9-9a5 5 0 0 1 7-7ZM7 16l9-9" /></svg>
-            Medications
-          </button>
-          <button ref={timelineRef} type="button" className={styles.reviewButton} onClick={() => onOpenReview("timeline")}>
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11a8 8 0 1 1 2 6M4 5v6h6M12 7v5l3 2" /></svg>
-            Timeline
-          </button>
-        </div>
-        {/* Earlier visits open on the patient's profile (4.21c); the tiles stay on this visit. */}
-        <Link
-          to={`/records/${patient.id}`}
-          state={{ fromErBoard: { caseId: detail.id } } satisfies PatientProfileRouteState}
-          className={styles.historyLink}
-        >
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 18V6a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v2" /><circle cx="16" cy="16" r="5" /><path d="M16 13.5V16l1.5 1.5" /></svg>
-          View Patient History
-          <svg className={styles.historyArrow} viewBox="0 0 24 24" aria-hidden="true"><path d="M8 16 16 8M9 8h7v7" /></svg>
-        </Link>
       </section>
 
       <section className={styles.nextAction} aria-label="Next care action">
@@ -569,6 +607,17 @@ function Overview({
           <strong>{owner ? `${owner.firstName} ${owner.lastName}` : "No pet parent recorded"}</strong>
         </div>
       </section>
+
+      {/* Earlier visits open on the patient's profile (4.21c); the tabs stay on this visit. */}
+      <Link
+        to={`/records/${patient.id}`}
+        state={{ fromErBoard: { caseId: detail.id } } satisfies PatientProfileRouteState}
+        className={styles.historyLink}
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 18V6a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v2" /><circle cx="16" cy="16" r="5" /><path d="M16 13.5V16l1.5 1.5" /></svg>
+        View Patient History
+        <svg className={styles.historyArrow} viewBox="0 0 24 24" aria-hidden="true"><path d="M8 16 16 8M9 8h7v7" /></svg>
+      </Link>
     </>
   );
 }

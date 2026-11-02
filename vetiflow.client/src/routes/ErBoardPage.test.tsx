@@ -206,7 +206,7 @@ describe("ErBoardPage", () => {
     server.use(http.get(apiUrl("/api/cases/case-buddy"), () =>
       HttpResponse.json(buildCaseDetail({ id: "case-buddy", caseNumber: "ER-2481" }))));
     renderBoard();
-    const overview = await screen.findByRole("complementary", { name: "Patient overview" });
+    const overview = await screen.findByRole("complementary", { name: "Patient record" });
     expect(within(overview).getByText("Select a patient on the board to see their overview.")).toBeInTheDocument();
 
     fireEvent.click(await screen.findByRole("button", { name: "Buddy" }));
@@ -224,7 +224,7 @@ describe("ErBoardPage", () => {
     }));
     renderBoard();
     fireEvent.click(await screen.findByRole("button", { name: "Buddy" }));
-    const overview = screen.getByRole("complementary", { name: "Patient overview" });
+    const overview = screen.getByRole("complementary", { name: "Patient record" });
     await within(overview).findByText(/12 kg/);
 
     hub.emit("caseUpdated", buddy.id);
@@ -237,7 +237,7 @@ describe("ErBoardPage", () => {
     serveCases([buddy]);
     renderBoard();
     fireEvent.click(await screen.findByRole("button", { name: "Buddy" }));
-    const overview = screen.getByRole("complementary", { name: "Patient overview" });
+    const overview = screen.getByRole("complementary", { name: "Patient record" });
     await within(overview).findByText(/Case ER-/);
 
     serveCases([]);
@@ -255,7 +255,7 @@ describe("ErBoardPage", () => {
     renderBoard({ selectedCaseId: "case-buddy" });
 
     expect(await screen.findByRole("button", { name: "Buddy" })).toHaveAttribute("aria-pressed", "true");
-    const overview = screen.getByRole("complementary", { name: "Patient overview" });
+    const overview = screen.getByRole("complementary", { name: "Patient record" });
     expect(await within(overview).findByText(/Case ER-2481/)).toBeInTheDocument();
   });
 
@@ -270,7 +270,7 @@ describe("ErBoardPage", () => {
     renderBoard({ selectedCaseId: "case-gone" });
 
     expect(await screen.findByRole("button", { name: "Buddy" })).toHaveAttribute("aria-pressed", "false");
-    const overview = screen.getByRole("complementary", { name: "Patient overview" });
+    const overview = screen.getByRole("complementary", { name: "Patient record" });
     expect(within(overview).getByText("Select a patient on the board to see their overview.")).toBeInTheDocument();
     expect(goneRequests).toBe(0);
   });
@@ -302,7 +302,7 @@ describe("ErBoardPage", () => {
     fireEvent.click(screen.getByRole("link", { name: "ER board" }));
 
     expect(await screen.findByRole("button", { name: "Buddy" })).toHaveAttribute("aria-pressed", "true");
-    const overview = screen.getByRole("complementary", { name: "Patient overview" });
+    const overview = screen.getByRole("complementary", { name: "Patient record" });
     expect(await within(overview).findByText(/Case ER-2481/)).toBeInTheDocument();
   });
 
@@ -601,8 +601,8 @@ describe("record vitals from the ER board", () => {
     expect(latest.getByText("100 bpm")).toBeInTheDocument();
     expect(latest.getByText("24 /min")).toBeInTheDocument();
     expect(latest.getByText("38.6 °C")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Clinical" }));
-    const clinical = within(screen.getByRole("dialog", { name: "Clinical" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Clinical" }));
+    const clinical = within(screen.getByRole("tabpanel", { name: "Clinical" }));
     const observations = within(clinical.getByRole("region", { name: "Clinical assessment" }));
     expect(observations.getAllByRole("definition").map(value => value.textContent)).toEqual(["Pink", "2 s", "Alert"]);
     expect(clinical.getByText("Entered")).toHaveTextContent(/^Entered \S/);
@@ -665,29 +665,25 @@ describe("Clinical review on the ER board", () => {
     );
     renderBoard();
     fireEvent.click(await screen.findByRole("button", { name: "Buddy" }));
-    const action = await screen.findByRole("button", { name: "Clinical" });
+    const tab = await screen.findByRole("tab", { name: "Clinical" });
     const readsBeforeReview = detailReads;
-    fireEvent.click(action);
-    let drawer = within(screen.getByRole("dialog", { name: "Clinical" }));
-    expect(drawer.getByText("100 bpm")).toBeInTheDocument();
-    expect(drawer.getByText("Measurement time unknown")).toBeInTheDocument();
+    fireEvent.click(tab);
+    const clinical = within(screen.getByRole("tabpanel", { name: "Clinical" }));
+    expect(clinical.getByText("100 bpm")).toBeInTheDocument();
+    expect(clinical.getByText("Measurement time unknown")).toBeInTheDocument();
     expect(detailReads).toBe(readsBeforeReview);
-    fireEvent.click(screen.getByRole("button", { name: "Close Clinical" }));
-    expect(detailReads).toBe(readsBeforeReview);
-    fireEvent.click(action);
-    drawer = within(screen.getByRole("dialog"));
     newest = buildVitalsRecord({ heartRate: 95, mentation: "Not assessed", recordedBy: { id: "s1", name: "Jordan Lee" },
       occurredAt: new Date(Date.now() - 210 * 60_000).toISOString() });
     hub.emit("caseUpdated", buddy.id);
-    expect(await drawer.findByText("95 bpm")).toBeInTheDocument();
-    expect(drawer.getByText("Not assessed")).toBeInTheDocument();
-    expect(drawer.getByText("Entered by Jordan Lee")).toBeInTheDocument();
-    expect(drawer.getByText(/^Measured/)).toHaveTextContent(/^Measured 3 hours ago · /);
-    expect(screen.getByRole("button", { name: "Close Clinical" })).toHaveFocus();
+    expect(await clinical.findByText("95 bpm")).toBeInTheDocument();
+    expect(clinical.getByText("Not assessed")).toBeInTheDocument();
+    expect(clinical.getByText("Entered by Jordan Lee")).toBeInTheDocument();
+    expect(clinical.getByText(/^Measured/)).toHaveTextContent(/^Measured 3 hours ago · /);
+    expect(tab).toHaveAttribute("aria-selected", "true");
     expect(writes).toBe(0);
   });
 
-  it("closes the drawer when the selected patient leaves the active board", async () => {
+  it("clears Clinical when the selected patient leaves the active board", async () => {
     const buddy = buildCase({ id: "case-buddy", patientName: "Buddy" });
     serveCases([buddy]);
     server.use(http.get(apiUrl("/api/cases/case-buddy"), () => HttpResponse.json(buildCaseDetail({
@@ -695,11 +691,11 @@ describe("Clinical review on the ER board", () => {
     }))));
     renderBoard();
     fireEvent.click(await screen.findByRole("button", { name: "Buddy" }));
-    fireEvent.click(await screen.findByRole("button", { name: "Clinical" }));
+    fireEvent.click(await screen.findByRole("tab", { name: "Clinical" }));
     serveCases([]);
     hub.emit("caseUpdated", buddy.id);
     await screen.findByText("Select a patient on the board to see their overview.");
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.queryByRole("tabpanel")).not.toBeInTheDocument();
     expect(screen.queryByText("100 bpm")).not.toBeInTheDocument();
   });
 });
@@ -718,12 +714,11 @@ describe("Timeline review on the ER board", () => {
     );
     renderBoard();
     fireEvent.click(await screen.findByRole("button", { name: "Buddy" }));
-    const action = await screen.findByRole("button", { name: "Timeline" });
+    const tab = await screen.findByRole("tab", { name: "Timeline" });
     const readsBeforeReview = reads;
-    fireEvent.click(action);
-    expect(within(screen.getByRole("dialog", { name: "Timeline" })).getByText("No history recorded")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Close Timeline" }));
-    fireEvent.click(action);
+    fireEvent.click(tab);
+    const timeline = within(screen.getByRole("tabpanel", { name: "Timeline" }));
+    expect(timeline.getByText("No history recorded")).toBeInTheDocument();
     expect(reads).toBe(readsBeforeReview);
     const entered = new Date().toISOString();
     detail = { ...detail,
@@ -734,14 +729,13 @@ describe("Timeline review on the ER board", () => {
         resolvedBy: { id: "resolver", name: "Task Resolver" } })]
     };
     hub.emit("caseUpdated", buddy.id);
-    const drawer = within(screen.getByRole("dialog", { name: "Timeline" }));
-    expect(await drawer.findByText("Moved to Treatment 2")).toBeInTheDocument();
-    expect(drawer.getByText("Recorded by Event Recorder")).toBeInTheDocument();
-    expect(drawer.getByText("Vitals recorded")).toBeInTheDocument();
-    expect(drawer.getByText("Entered by Vitals Recorder")).toBeInTheDocument();
-    expect(drawer.getByText("Task · Done")).toBeInTheDocument();
-    expect(drawer.getByText("Task Resolver")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Close Timeline" })).toHaveFocus();
+    expect(await timeline.findByText("Moved to Treatment 2")).toBeInTheDocument();
+    expect(timeline.getByText("Recorded by Event Recorder")).toBeInTheDocument();
+    expect(timeline.getByText("Vitals recorded")).toBeInTheDocument();
+    expect(timeline.getByText("Entered by Vitals Recorder")).toBeInTheDocument();
+    expect(timeline.getByText("Task · Done")).toBeInTheDocument();
+    expect(timeline.getByText("Task Resolver")).toBeInTheDocument();
+    expect(tab).toHaveAttribute("aria-selected", "true");
     expect(writes).toBe(0);
   });
 
@@ -753,12 +747,12 @@ describe("Timeline review on the ER board", () => {
     }))));
     renderBoard();
     fireEvent.click(await screen.findByRole("button", { name: "Buddy" }));
-    fireEvent.click(await screen.findByRole("button", { name: "Timeline" }));
-    expect(within(screen.getByRole("dialog")).getByText("Selected encounter event")).toBeInTheDocument();
+    fireEvent.click(await screen.findByRole("tab", { name: "Timeline" }));
+    expect(within(screen.getByRole("tabpanel", { name: "Timeline" })).getByText("Selected encounter event")).toBeInTheDocument();
     serveCases([]);
     hub.emit("caseUpdated", buddy.id);
     await screen.findByText("Select a patient on the board to see their overview.");
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.queryByRole("tabpanel")).not.toBeInTheDocument();
     expect(screen.queryByText("Selected encounter event")).not.toBeInTheDocument();
   });
 });
