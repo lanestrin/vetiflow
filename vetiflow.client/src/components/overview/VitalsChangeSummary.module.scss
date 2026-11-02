@@ -1,0 +1,33 @@
+// Changes since the previous saved vitals set (build plan 4.8g): plain text,
+// no colour or direction cues.
+.summary {
+	margin-top: .5rem;
+}
+
+.compared {
+	margin: 0;
+	color: var(--color-shell-muted);
+	font-size: .8125rem;
+}
+
+.changes {
+	display: grid;
+	gap: .375rem;
+	margin: .375rem 0 0;
+	font-size: .875rem;
+
+	div {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0 .5rem;
+	}
+
+	dt {
+		font-weight: 700;
+	}
+
+	dd {
+		margin: 0;
+		overflow-wrap: anywhere;
+	}
+}

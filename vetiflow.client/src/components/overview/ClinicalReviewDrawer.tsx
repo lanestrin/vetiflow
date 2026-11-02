@@ -4,12 +4,14 @@ import { temperatureLabel } from "./overviewFormat";
 import { EnteredTime, MeasuredTime } from "./RecordedTimes";
 import styles from "./ClinicalReviewDrawer.module.scss";
 import { CaseReviewDrawer, type ReviewDrawerProps } from "./CaseReviewDrawer";
+import { VitalsChangeSummary } from "./VitalsChangeSummary";
 
 export function ClinicalReviewDrawer(props: ReviewDrawerProps) {
   const { detail } = props;
   const id = useId();
   const now = useNow();
   const latest = detail.vitals[0];
+  const previous = detail.vitals[1];
   const readings = [
     { label: "Heart rate", value: latest?.heartRate == null ? null : `${latest.heartRate} bpm` },
     { label: "Respiratory rate", value: latest?.respiratoryRate == null ? null : `${latest.respiratoryRate} /min` },
@@ -38,6 +40,12 @@ export function ClinicalReviewDrawer(props: ReviewDrawerProps) {
           {latest.recordedBy && <p className={styles.meta}>Entered by {latest.recordedBy.name}</p>}
         </>}
       </section>
+      {latest && <section aria-labelledby={`${id}-changes`}>
+        <h3 id={`${id}-changes`}>Since the previous saved set</h3>
+        {previous
+          ? <VitalsChangeSummary current={latest} previous={previous} now={now} />
+          : <p className={styles.meta}>No earlier vitals saved for this case</p>}
+      </section>}
       <section aria-labelledby={`${id}-assessment`}>
         <h3 id={`${id}-assessment`}>Clinical assessment</h3>
         {findings.length === 0

@@ -315,12 +315,14 @@ describe("PatientOverviewPanel", () => {
     renderPanel("case-milo");
     fireEvent.click(await screen.findByRole("button", { name: "Clinical" }));
     const clinical = within(await screen.findByRole("dialog", { name: "Clinical" }));
-    expect(clinical.getByText("Mucous membrane colour")).toBeInTheDocument();
-    expect(clinical.getByText("Capillary refill time")).toBeInTheDocument();
-    expect(clinical.getByText("Mentation")).toBeInTheDocument();
-    expect(clinical.getByText("Pink")).toBeInTheDocument();
-    expect(clinical.getByText("2 s")).toBeInTheDocument();
-    expect(clinical.getByText("<script>Alert</script>")).toBeInTheDocument();
+    // The findings also appear in "Since the previous saved set" (4.8g).
+    const assessment = within(clinical.getByRole("region", { name: "Clinical assessment" }));
+    expect(assessment.getByText("Mucous membrane colour")).toBeInTheDocument();
+    expect(assessment.getByText("Capillary refill time")).toBeInTheDocument();
+    expect(assessment.getByText("Mentation")).toBeInTheDocument();
+    expect(assessment.getByText("Pink")).toBeInTheDocument();
+    expect(assessment.getByText("2 s")).toBeInTheDocument();
+    expect(assessment.getByText("<script>Alert</script>")).toBeInTheDocument();
     expect(clinical.getByText("Entered")).toHaveTextContent(/^Entered 10:50 AM$/);
     expect(clinical.getByText("Entered by Jordan Lee")).toBeInTheDocument();
     expect(clinical.getByText("Measurement time unknown")).toBeInTheDocument();
@@ -437,9 +439,10 @@ describe("PatientOverviewPanel", () => {
     const items = history.getAllByRole("listitem");
     expect(items.map((item) => item.textContent)).toEqual([
       "ArrivedRespiratory distressRecorded 10:42 AM",
-      "Vitals recordedMeasurement time unknownEntered 10:45 AM",
+      "Vitals recordedMeasurement time unknownEntered 10:45 AMFirst vitals saved for this case",
       "Triage completedCriticalRecorded 10:47 AMRecorded by Jordan Reed",
-      "Vitals recordedMeasurement time unknownEntered 10:50 AM"
+      "Vitals recordedMeasurement time unknownEntered 10:50 AMCompared with the set entered 10:45 AM"
+        + "Heart rate160 bpm → 148 bpmRespiratory rate60 /min → 48 /minTemperature39.4 °C → 38.9 °C"
     ]);
   });
 
