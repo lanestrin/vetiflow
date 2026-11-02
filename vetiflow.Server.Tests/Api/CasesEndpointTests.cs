@@ -1087,6 +1087,53 @@ public class CasesEndpointTests(VetiFlowApiFactory factory)
 	}
 
 	// Sends the body exactly as written, so tests can send numbers and nulls.
+	// Task priority and the designated Next Care Action (build plan 4.13a). The
+	// existing free-text nextAction is returned unchanged and never matched to a task.
+	[Fact]
+	public async Task GetCase_ReturnsTaskPriorityAndDesignation_AndKeepsTheTextNextAction()
+	{
+		var staff = TestData.StaffMember(StaffRole.Veterinarian);
+		var emergencyCase = TestData.Case(TestData.Patient());
+		emergencyCase.NextAction = "Recheck breathing";
+		var designated = TestData.Task();
+		designated.Priority = TaskPriority.High;
+		designated.IsNextAction = true;
+		designated.NextActionDesignatedAt = DateTimeOffset.UtcNow;
+		designated.NextActionDesignatedByStaff = staff;
+		var unprioritized = TestData.Task();
+		emergencyCase.Tasks.Add(designated);
+		emergencyCase.Tasks.Add(unprioritized);
+		await using (var dbContext = factory.CreateDbContext())
+		{
+			dbContext.AddRange(staff, emergencyCase);
+			await dbContext.SaveChangesAsync(_cancellationToken);
+		}
+		using var client = await factory.CreateSignedInClientAsync(DemoAccounts.TeamEmail);
+
+		var detail = await GetCaseAsync(client, emergencyCase.Id);
+
+		Assert.Equal("Recheck breathing", detail.GetProperty("nextAction").GetString());
+		Assert.Equal(designated.Id, detail.GetProperty("nextActionTaskId").GetGuid());
+		var tasks = detail.GetProperty("tasks").EnumerateArray().ToDictionary(task => task.GetProperty("id").GetGuid());
+		Assert.Equal("high", tasks[designated.Id].GetProperty("priority").GetString());
+		Assert.True(tasks[designated.Id].GetProperty("isNextAction").GetBoolean());
+		Assert.Equal(JsonValueKind.Null, tasks[unprioritized.Id].GetProperty("priority").ValueKind);
+		Assert.False(tasks[unprioritized.Id].GetProperty("isNextAction").GetBoolean());
+	}
+
+	[Fact]
+	public async Task GetCase_WithNoDesignation_ReturnsNullNextActionTaskId()
+	{
+		var emergencyCase = TestData.Case(TestData.Patient());
+		emergencyCase.Tasks.Add(TestData.Task());
+		await SaveAsync(emergencyCase);
+		using var client = await factory.CreateSignedInClientAsync(DemoAccounts.TeamEmail);
+
+		var detail = await GetCaseAsync(client, emergencyCase.Id);
+
+		Assert.Equal(JsonValueKind.Null, detail.GetProperty("nextActionTaskId").ValueKind);
+	}
+
 	private Task<HttpResponseMessage> PatchStatusAsync(HttpClient client, Guid caseId, string body) =>
 		client.PatchAsync(
 			$"/api/cases/{caseId}/status",

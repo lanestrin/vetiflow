@@ -88,6 +88,7 @@ export function buildCaseDetail(overrides: Partial<CaseDetail> = {}): CaseDetail
     vitals: [],
     latestPainScore: null,
     tasks: [],
+    nextActionTaskId: null,
     nextReassessment: null,
     nextClientUpdate: null,
     timeline: [],
@@ -123,6 +124,8 @@ export function buildCaseTask(overrides: Partial<CaseTask> = {}): CaseTask {
     createdBy: null,
     resolvedAt: null,
     resolvedBy: null,
+    priority: null,
+    isNextAction: false,
     ...overrides
   };
 }

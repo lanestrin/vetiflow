@@ -21,6 +21,9 @@ public class CaseTaskRequest
 
 	public Guid? AssignedToStaffId { get; set; }
 
+	// Set by staff, never by the server. Omitted means not prioritized (4.13a).
+	public TaskPriority? Priority { get; set; }
+
 	public static bool NeedsDueAt(CaseTaskType type) =>
 		type is CaseTaskType.Reassessment or CaseTaskType.ClientUpdate;
 }

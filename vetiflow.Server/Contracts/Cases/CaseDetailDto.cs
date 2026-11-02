@@ -70,6 +70,10 @@ public class CaseDetailDto
 	// The newest pain score (4.8a); null when none is recorded.
 	public PainScoreDto? LatestPainScore { get; set; }
 
+	// The task staff designated as the Next Care Action (4.13a); null when none is
+	// designated. Never chosen by the server.
+	public Guid? NextActionTaskId { get; set; }
+
 	// Open first, then oldest first.
 	public required List<CaseTaskDto> Tasks { get; set; }
 

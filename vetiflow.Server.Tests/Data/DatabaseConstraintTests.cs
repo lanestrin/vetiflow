@@ -358,6 +358,53 @@ public class DatabaseConstraintTests(VetiFlowApiFactory factory)
 			"IX_EmergencyCases_CaseNumber");
 	}
 
+	// At most one designated Next Care Action per case (build plan 4.13a).
+	[Fact]
+	public async Task NextAction_SecondDesignationOnOneCase_IsRejected()
+	{
+		var staff = TestData.StaffMember(StaffRole.Veterinarian);
+		var emergencyCase = TestData.Case(TestData.Patient());
+		var first = TestData.Task();
+		var second = TestData.Task();
+		Designate(first, staff);
+		Designate(second, staff);
+		emergencyCase.Tasks.Add(first);
+		emergencyCase.Tasks.Add(second);
+
+		await using var dbContext = factory.CreateDbContext();
+		dbContext.AddRange(staff, emergencyCase);
+
+		await AssertViolatesAsync(
+			dbContext,
+			PostgresErrorCodes.UniqueViolation,
+			"IX_CaseTasks_EmergencyCaseId_NextAction");
+	}
+
+	// A designation always records who and when (build plan 4.13a).
+	[Fact]
+	public async Task NextAction_DesignationWithoutDesignator_IsRejected()
+	{
+		var emergencyCase = TestData.Case(TestData.Patient());
+		var task = TestData.Task();
+		task.IsNextAction = true;
+		emergencyCase.Tasks.Add(task);
+
+		await using var dbContext = factory.CreateDbContext();
+		dbContext.EmergencyCases.Add(emergencyCase);
+
+		await AssertViolatesAsync(
+			dbContext,
+			PostgresErrorCodes.CheckViolation,
+			"CK_CaseTasks_NextActionRecorded");
+	}
+
+	private static void Designate(CaseTask task, StaffMember staff)
+	{
+		task.IsNextAction = true;
+		task.NextActionDesignatedAt = DateTimeOffset.UtcNow;
+		task.NextActionDesignatedByStaff = staff;
+	}
+
 	private async Task SaveAsync(EmergencyCase emergencyCase)
 	{
 		await using var dbContext = factory.CreateDbContext();

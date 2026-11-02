@@ -74,6 +74,8 @@ export interface CaseDetail {
   latestPainScore: PainScore | null;
   // Open first, then oldest first.
   tasks: CaseTask[];
+  // The task staff designated as the Next Care Action; null when none (4.13a).
+  nextActionTaskId: string | null;
   // The earliest due open reassessment and client update (4.4a).
   nextReassessment: CaseDueItem | null;
   nextClientUpdate: CaseDueItem | null;
@@ -156,7 +158,14 @@ export interface CaseTask {
   createdBy: CaseReference | null;
   resolvedAt: string | null;
   resolvedBy: CaseReference | null;
+  // Staff-set priority (4.13a); null means "Not prioritized".
+  priority: TaskPriority | null;
+  // True when staff designated this open task as the Next Care Action (4.13a).
+  isNextAction: boolean;
 }
+
+// Staff-set task priority (4.13a). Never chosen by the software.
+export type TaskPriority = "urgent" | "high" | "routine";
 
 // The next due item of one type: the panel's "Next reassessment" and
 // "Client update" rows.
