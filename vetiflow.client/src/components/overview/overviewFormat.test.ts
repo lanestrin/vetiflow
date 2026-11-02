@@ -3,6 +3,8 @@ import { buildCaseTask } from "../../test/builders";
 import type { CaseEventType } from "../../types/CaseDetail";
 import {
   checkInLabel,
+  dateLabel,
+  dateTimeLabel,
   defaultDueTime,
   dueAtFromTime,
   dueLabel,
@@ -22,6 +24,14 @@ import {
 
 // Local times, so the labels read the same in any test time zone.
 const now = new Date(2026, 9, 28, 12, 0);
+
+describe("dateLabel and dateTimeLabel", () => {
+  it("always show the full date, even for today", () => {
+    const today = new Date(2026, 9, 28, 14, 5).toISOString();
+    expect(dateLabel(today)).toBe("28 Oct 2026");
+    expect(dateTimeLabel(today)).toBe("28 Oct 2026, 2:05 PM");
+  });
+});
 
 describe("checkInLabel", () => {
   it("shows the time for a check-in today", () => {

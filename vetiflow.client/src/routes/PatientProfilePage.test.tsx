@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
-import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
+import { MemoryRouter, Route, Routes, useLocation, useParams } from "react-router-dom";
 import { afterEach, describe, expect, it } from "vitest";
 import type { SignInRouteState } from "../components/auth/experienceHome";
 import { saveAccessToken } from "../services/session";
@@ -47,6 +47,13 @@ function BoardStub() {
   return <p>ER board selecting {state?.selectedCaseId ?? "nothing"}</p>;
 }
 
+// Stands in for a visit record and shows which visit and router state it got.
+function VisitStub() {
+  const { patientId, caseId } = useParams();
+  const state = useLocation().state as PatientProfileRouteState | null;
+  return <p>Visit {caseId} of {patientId} from board case {state?.fromErBoard?.caseId ?? "none"}</p>;
+}
+
 function renderProfile(routeState?: PatientProfileRouteState) {
   saveAccessToken("token-team");
   render(
@@ -55,6 +62,7 @@ function renderProfile(routeState?: PatientProfileRouteState) {
         <Route path="/records/:patientId" element={<PatientProfilePage />} />
         <Route path="/records" element={<p>Patients page</p>} />
         <Route path="/er" element={<BoardStub />} />
+        <Route path="/records/:patientId/visits/:caseId" element={<VisitStub />} />
         <Route path="/sign-in" element={<SignInStub />} />
         <Route path="/pet-parent" element={<p>Pet parent home</p>} />
       </Routes>
@@ -114,6 +122,28 @@ describe("PatientProfilePage", () => {
     expect(cards[1]).toHaveTextContent("12 Aug 2026");
     expect(cards[1]).toHaveTextContent("Discharged 13 Aug 2026");
     expect(cards[1]).toHaveTextContent("ER visit · ER-1927 · No doctor recorded");
+  });
+
+  it("opens a visit's record from its card", async () => {
+    serveHistory(history([visit({ caseId: "case-7", caseNumber: "ER-2481" })]));
+
+    renderProfile();
+
+    expect(await screen.findByText("Select a visit to open its record.")).toBeInTheDocument();
+    const card = within(screen.getByRole("listitem")).getByRole("link");
+    expect(card).toHaveAccessibleName(expect.stringContaining("Respiratory distress"));
+    expect(card).toHaveAccessibleName(expect.stringContaining("ER-2481"));
+    fireEvent.click(card);
+    expect(screen.getByText("Visit case-7 of patient-1 from board case none")).toBeInTheDocument();
+  });
+
+  it("passes the way back to the board on to a visit's record", async () => {
+    serveHistory(history([visit({ caseId: "case-7" })]));
+
+    renderProfile({ fromErBoard: { caseId: "case-1" } });
+
+    fireEvent.click(within(await screen.findByRole("listitem")).getByRole("link"));
+    expect(screen.getByText("Visit case-7 of patient-1 from board case case-1")).toBeInTheDocument();
   });
 
   it("says so when the patient has no visits", async () => {

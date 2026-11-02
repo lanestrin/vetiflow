@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { dateLabel } from "./overviewFormat";
 import { StrictMode, useRef, useState } from "react";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import { buildCaseDetail, buildCaseTask, buildPainScore, buildVitalsRecord } from "../../test/builders";
@@ -43,7 +44,7 @@ describe("TimelineReviewDrawer", () => {
     Object.freeze(detail.vitals);
     render(<Harness detail={detail} />);
 
-    expect(screen.getByRole("dialog", { name: "Timeline" })).toHaveAccessibleDescription(`${detail.patient.name} · Case ER-42`);
+    expect(screen.getByRole("dialog", { name: "Timeline" })).toHaveAccessibleDescription(`${detail.patient.name} · Case ER-42 · ${dateLabel(detail.arrivalTime)}`);
     expect(history().getAllByRole("heading", { level: 4 }).map(row => row.textContent)).toEqual([
       "Arrived", "Vitals recorded", "Triage completed", "Vitals recorded"
     ]);

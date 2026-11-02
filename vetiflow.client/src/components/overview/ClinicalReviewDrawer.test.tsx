@@ -45,10 +45,10 @@ describe("ClinicalReviewDrawer", () => {
   it("shows only recorded latest values with units, literal findings and entry metadata", () => {
     const latest = complete();
     latest.mucousMembraneColor = "<img src=x>";
-    const detail = buildCaseDetail({ caseNumber: "ER-42", vitals: [latest] });
+    const detail = buildCaseDetail({ caseNumber: "ER-42", arrivalTime: "2026-10-30T12:00:00Z", vitals: [latest] });
     render(<Harness detail={detail} />);
     const drawer = within(screen.getByRole("dialog", { name: "Clinical" }));
-    expect(screen.getByRole("dialog")).toHaveAccessibleDescription(`${detail.patient.name} · Case ER-42`);
+    expect(screen.getByRole("dialog")).toHaveAccessibleDescription(`${detail.patient.name} · Case ER-42 · 30 Oct 2026`);
     expect(drawer.getAllByRole("definition").map(value => value.textContent)).toEqual([
       "120 bpm", "28 /min", "38.9 °C", "97%", "<img src=x>", "2 s", "Not assessed"
     ]);

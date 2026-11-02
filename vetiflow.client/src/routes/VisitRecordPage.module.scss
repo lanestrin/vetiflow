@@ -1,0 +1,174 @@
+// One visit's read-only record (build plan 4.21d), in the patient profile's look.
+.page {
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+	padding: 20px 16px;
+	color: var(--color-shell-ink);
+}
+
+.back {
+	align-self: flex-start;
+	color: var(--color-care-teal);
+	font-size: 0.875rem;
+	font-weight: 700;
+	text-decoration: none;
+	overflow-wrap: anywhere;
+
+	&:hover {
+		text-decoration: underline;
+	}
+
+	&:focus-visible {
+		outline: var(--focus-outline-width) solid var(--color-focus-on-light);
+		outline-offset: 2px;
+	}
+}
+
+.message {
+	margin: 0;
+	padding: 12px 14px;
+	border: 1px solid var(--color-shell-line);
+	border-radius: 10px;
+	background: var(--color-surface);
+	font-size: 0.875rem;
+
+	&[role="alert"] {
+		border-color: transparent;
+		background: var(--color-acuity-critical-bg);
+		color: var(--color-acuity-critical);
+	}
+
+	p {
+		margin: 0;
+	}
+}
+
+.retry {
+	margin-top: 8px;
+	min-height: 2.5rem;
+	padding: 8px 14px;
+	border: 1px solid var(--color-shell-line);
+	border-radius: 8px;
+	background: var(--color-surface);
+	color: var(--color-shell-ink);
+	font: inherit;
+	font-weight: 700;
+	cursor: pointer;
+
+	&:focus-visible {
+		outline: var(--focus-outline-width) solid var(--color-focus-on-light);
+		outline-offset: 2px;
+	}
+}
+
+.card {
+	display: flex;
+	flex-direction: column;
+	gap: 18px;
+	max-width: 52rem;
+	padding: 18px;
+	border: 1px solid var(--color-shell-line);
+	border-radius: 14px;
+	background: var(--color-surface);
+}
+
+.head {
+	padding-bottom: 14px;
+	border-bottom: 1px solid var(--color-shell-line);
+}
+
+.title {
+	margin: 0;
+	font-size: 1.375rem;
+	font-weight: 700;
+	overflow-wrap: anywhere;
+
+	&:focus {
+		outline: none;
+	}
+}
+
+.detail {
+	margin: 4px 0 0;
+	color: var(--color-shell-muted);
+	font-size: 0.875rem;
+	overflow-wrap: anywhere;
+}
+
+.sectionTitle {
+	margin: 0 0 10px;
+	font-size: 1rem;
+	font-weight: 700;
+}
+
+.summary {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+	gap: 12px 18px;
+	margin: 0;
+
+	div {
+		min-width: 0;
+	}
+
+	dt {
+		color: var(--color-shell-muted);
+		font-size: 0.8125rem;
+	}
+
+	dd {
+		margin: 2px 0 0;
+		font-size: 0.9375rem;
+		font-weight: 600;
+		overflow-wrap: anywhere;
+	}
+}
+
+.reviewGrid {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: .5rem;
+	max-width: 24rem;
+}
+
+.reviewButton {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: .375rem;
+	min-width: 0;
+	min-height: 4.375rem;
+	padding: .6875rem .25rem;
+	border: 1px solid #dfe7e7;
+	border-radius: .625rem;
+	background: var(--color-surface);
+	color: #173b43;
+	font: inherit;
+	font-size: .8125rem;
+	font-weight: 700;
+	cursor: pointer;
+	box-shadow: 0 2px 7px rgb(26 55 63 / 4%);
+	transition: border-color var(--motion-fast), background var(--motion-fast);
+
+	svg {
+		width: 1.3125rem;
+		height: 1.3125rem;
+		fill: none;
+		stroke: #47747a;
+		stroke-width: 1.8;
+		stroke-linecap: round;
+		stroke-linejoin: round;
+	}
+
+	&:hover {
+		background: #f0faf7;
+		border-color: #80bdb5;
+	}
+
+	&:focus-visible {
+		outline: var(--focus-outline-width) solid var(--color-focus-on-light);
+		outline-offset: 2px;
+	}
+}

@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { dateLabel } from "./overviewFormat";
 import * as casesApi from "../../services/casesApi";
 import { http, HttpResponse } from "msw";
 import { MemoryRouter, Route, Routes, useLocation, useParams } from "react-router-dom";
@@ -1074,7 +1075,7 @@ describe.each(["Clinical", "Medications", "Timeline"] as const)("%s review in th
     view.rerender(second.id, new Date());
     fireEvent.click(await screen.findByRole("button", { name: kind }));
     await act(async () => { finishOld(milo); await oldReply; });
-    expect(screen.getByRole("dialog", { name: kind })).toHaveAccessibleDescription(`${second.patient.name} · Case ${second.caseNumber}`);
+    expect(screen.getByRole("dialog", { name: kind })).toHaveAccessibleDescription(`${second.patient.name} · Case ${second.caseNumber} · ${dateLabel(second.arrivalTime)}`);
     expect(within(screen.getByRole("dialog")).queryByText(reviewContent[kind])).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: `Close ${kind}` })).toHaveFocus();
   });
