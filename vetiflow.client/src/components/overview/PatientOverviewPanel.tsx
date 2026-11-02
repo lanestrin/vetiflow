@@ -9,7 +9,9 @@ import { DueItemDialog, type DueItemType } from "../tasks/DueItemDialog";
 import { TriageDialog } from "../triage/TriageDialog";
 import { UpdateStatusDialog } from "../status/UpdateStatusDialog";
 import { RecordVitalsDialog } from "../vitals/RecordVitalsDialog";
-import { getCase } from "../../services/casesApi";
+import { CaseGoneError, FormRejectedError } from "../../services/apiErrors";
+import { getCase, setCaseTechnician, setCaseVeterinarian } from "../../services/casesApi";
+import type { SignedInUser } from "../../types/Auth";
 import type { CaseDetail, VitalName } from "../../types/CaseDetail";
 import type { PatientProfileRouteState } from "../../routes/PatientProfilePage";
 import { useToast } from "../shell/toastContext";
@@ -42,6 +44,8 @@ type LoadResult =
 interface PatientOverviewPanelProps {
   caseId: string | null;
   caseUnavailable?: boolean;
+  // Who "Assign me" assigns (3.2d).
+  signedInUser: SignedInUser;
   // When the board last loaded; a change loads the shown case again.
   refreshedAt: Date;
   // After triage is saved, with the toast to show; the board reloads.
@@ -75,7 +79,7 @@ const avatars = { dog: "🐕", cat: "🐈", other: "🐾" };
 // Medications and Timeline tabs. Complete triage and Re-triage open the triage
 // dialog (4.2b).
 
-export function PatientOverviewPanel({ caseId, caseUnavailable = false, refreshedAt, onTriaged, onTaskSaved, onVitalsSaved }: PatientOverviewPanelProps) {
+export function PatientOverviewPanel({ caseId, caseUnavailable = false, signedInUser, refreshedAt, onTriaged, onTaskSaved, onVitalsSaved }: PatientOverviewPanelProps) {
   const titleId = useId();
   const leaveWhenRefused = useLeaveWhenRefused();
   const nameRef = useRef<HTMLHeadingElement>(null);
@@ -196,7 +200,7 @@ export function PatientOverviewPanel({ caseId, caseUnavailable = false, refreshe
                 {
                   label: "Record vitals",
                   disabled: detail.dischargedAt !== null,
-                  onSelect: () => setVitalsDialogCase(detail)
+                  onSelect: () => { returnFocusRef.current = moreActionsRef.current; setVitalsDialogCase(detail); }
                 }
               ]}
             />
@@ -227,7 +231,20 @@ export function PatientOverviewPanel({ caseId, caseUnavailable = false, refreshe
           tabIndex={0}
           className={styles.tabPanel}
         >
-          {tab === "overview" && <Overview detail={detail} onQuickEdit={openQuickEdit} />}
+          {tab === "overview" && (
+            <Overview
+              key={detail.id}
+              detail={detail}
+              signedInUser={signedInUser}
+              onQuickEdit={openQuickEdit}
+              onRecordVitals={trigger => { returnFocusRef.current = trigger; setVitalsDialogCase(detail); }}
+              onAssigned={message => {
+                showToast(message);
+                // The board reload also reloads this panel, so the assignment shows.
+                onTaskSaved();
+              }}
+            />
+          )}
           {tab === "clinical" && <div className={styles.review}><ClinicalReview detail={detail} /></div>}
           {tab === "orders" && <div className={styles.review}><MedicationReview detail={detail} /></div>}
           {tab === "timeline" && <div className={styles.review}><TimelineReview detail={detail} /></div>}
@@ -326,11 +343,11 @@ export function PatientOverviewPanel({ caseId, caseUnavailable = false, refreshe
           detail={detail ?? vitalsDialogCase}
           onClose={() => {
             setVitalsDialogCase(null);
-            moreActionsRef.current?.focus();
+            returnFocus();
           }}
           onSaved={() => {
             setVitalsDialogCase(null);
-            moreActionsRef.current?.focus();
+            returnFocus();
             showToast("Vitals recorded");
             setAssessmentRevision(count => count + 1);
             onVitalsSaved();
@@ -483,11 +500,37 @@ function RecordTabs({ idBase, tab, onChange }: RecordTabsProps) {
 
 interface OverviewProps {
   detail: CaseDetail;
+  signedInUser: SignedInUser;
   onQuickEdit: (kind: QuickEdit, trigger: HTMLButtonElement) => void;
+  onRecordVitals: (trigger: HTMLButtonElement) => void;
+  onAssigned: (message: string) => void;
 }
 
-function Overview({ detail, onQuickEdit }: OverviewProps) {
+type CareTeamRow = "technician" | "veterinarian";
+
+const assignedMessages = {
+  technician: "Assigned to you as primary technician",
+  veterinarian: "Assigned to you as attending veterinarian"
+} satisfies Record<CareTeamRow, string>;
+
+// The row "Assign me" belongs on for the signed-in team member's role (3.2d).
+// It shapes the screen only; the server checks the role (S.6).
+function assignableRow(user: SignedInUser): CareTeamRow | null {
+  if (user.staffId === null) return null;
+  if (user.role === "technician") return "technician";
+  if (user.role === "veterinarian") return "veterinarian";
+  return null;
+}
+
+// The prototype's Overview order (3.2d): latest vitals, the next care action,
+// care team and safety, the presenting complaint, then when the case was last
+// updated and by whom.
+function Overview({ detail, signedInUser, onQuickEdit, onRecordVitals, onAssigned }: OverviewProps) {
   const now = useNow();
+  const leaveWhenRefused = useLeaveWhenRefused();
+  const editCareTeamRef = useRef<HTMLButtonElement>(null);
+  const [isAssigning, setIsAssigning] = useState(false);
+  const [assignError, setAssignError] = useState<string | null>(null);
   const { patient, owner } = detail;
   const complaint = detail.presentingComplaint.trim() || "Not recorded";
   const vitals = detail.vitals[0];
@@ -500,28 +543,74 @@ function Overview({ detail, onQuickEdit }: OverviewProps) {
   const lastUpdate = detail.lastOwnerUpdateAt ? timeLabel(detail.lastOwnerUpdateAt, now) : "Not recorded";
   // A discharged case is read-only, as for tasks.
   const canEdit = detail.dischargedAt === null;
-  const quickEditButton = (kind: "careTeam", label: string, name: string) => canEdit && (
-    <button type="button" className={styles.quickEdit} aria-label={name}
-      onClick={event => onQuickEdit(kind, event.currentTarget)}>
-      {label}
-    </button>
-  );
   const nextUpdate = detail.nextClientUpdate
     ? `${detail.nextClientUpdate.description} · ${dueLabel(detail.nextClientUpdate.dueAt, now)}`
     : "Not scheduled";
+  const assigned = { technician: detail.assignedTechnician, veterinarian: detail.assignedDoctor };
+  const myRow = assignableRow(signedInUser);
+  const canAssignMe = canEdit && myRow !== null && assigned[myRow]?.id !== signedInUser.staffId;
+
+  async function assignMe(row: CareTeamRow) {
+    const staffId = signedInUser.staffId;
+    if (staffId === null) return;
+    setIsAssigning(true);
+    setAssignError(null);
+    try {
+      await (row === "technician" ? setCaseTechnician : setCaseVeterinarian)(detail.id, staffId);
+      // The button goes once the case reloads with the assignment.
+      editCareTeamRef.current?.focus();
+      onAssigned(assignedMessages[row]);
+    } catch (error) {
+      if (leaveWhenRefused(error)) return;
+      if (error instanceof CaseGoneError) setAssignError("This case is no longer on the board.");
+      else if (error instanceof FormRejectedError) setAssignError(Object.values(error.fieldErrors)[0] ?? "Unable to assign. Try again.");
+      else setAssignError("Unable to assign. Try again.");
+    } finally {
+      setIsAssigning(false);
+    }
+  }
+
+  const careTeamRow = (row: CareTeamRow, label: string, dataRole: string) => (
+    <div className={styles.contextRow}>
+      <span>{label}</span>
+      <div className={styles.contextValue}>
+        <strong data-role={dataRole}>{assigned[row]?.name ?? "Unassigned"}</strong>
+        {canAssignMe && myRow === row && (
+          <button type="button" className={styles.quickEdit} disabled={isAssigning}
+            aria-label={`Assign me as ${label.toLowerCase()}`}
+            onClick={() => void assignMe(row)}>
+            Assign me
+          </button>
+        )}
+      </div>
+    </div>
+  );
 
   return (
     <>
-      <section className={styles.caseContext} aria-label="Case context">
-        <div className={styles.complaint}>
-          <h3 className={styles.kicker}>
-            <svg className={styles.icon} viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M9 18h6M10 22h4M9 14a6 6 0 1 1 6 0c-1.2 1-1.7 2-1.7 4h-2.6c0-2-.5-3-1.7-4Z" />
-            </svg>
-            Presenting complaint
-          </h3>
-          <p className={styles.complaintValue}>{complaint}</p>
+      <section className={styles.vitalsSection} aria-label="Latest vitals">
+        <div className={styles.sectionHead}>
+          <h3 className={styles.sectionTitle}>Latest vitals</h3>
+          {canEdit && (
+            <button type="button" className={styles.quickEdit} onClick={event => onRecordVitals(event.currentTarget)}>
+<span aria-hidden="true">＋ </span>Record vitals
+            </button>
+          )}
         </div>
+        <dl className={styles.vitals} aria-label="Latest vitals">
+          {tiles.map(({ field, label, value }) => (
+            <div key={field} className={styles.vital}>
+              <dt className={styles.vitalLabel}>{label}</dt>
+              <dd className={styles.vitalValue}>{value}</dd>
+            </div>
+          ))}
+        </dl>
+        <p className={styles.vitalsRecorded}>
+          {vitals
+            ? <><MeasuredTime occurredAt={vitals.occurredAt} now={now} /> · <EnteredTime recordedAt={vitals.recordedAt} now={now} />
+              {vitals.recordedBy && <> · {vitals.recordedBy.name}</>}</>
+            : "No vitals recorded"}
+        </p>
       </section>
 
       <section className={styles.nextAction} aria-label="Next care action">
@@ -561,24 +650,6 @@ function Overview({ detail, onQuickEdit }: OverviewProps) {
         </div>
       </section>
 
-      <section className={styles.vitalsSection} aria-label="Latest vitals">
-        <h3 className={styles.sectionTitle}>Latest vitals</h3>
-        <dl className={styles.vitals} aria-label="Latest vitals">
-          {tiles.map(({ field, label, value }) => (
-            <div key={field} className={styles.vital}>
-              <dt className={styles.vitalLabel}>{label}</dt>
-              <dd className={styles.vitalValue}>{value}</dd>
-            </div>
-          ))}
-        </dl>
-        <p className={styles.vitalsRecorded}>
-          {vitals
-            ? <><MeasuredTime occurredAt={vitals.occurredAt} now={now} /> · <EnteredTime recordedAt={vitals.recordedAt} now={now} />
-              {vitals.recordedBy && <> · {vitals.recordedBy.name}</>}</>
-            : "No vitals recorded"}
-        </p>
-      </section>
-
       <section className={styles.careContext} aria-label="Care team and safety">
         <div className={styles.careContextHead}>
           <h3 className={styles.careContextTitle}>
@@ -588,25 +659,41 @@ function Overview({ detail, onQuickEdit }: OverviewProps) {
             </svg>
             Care team &amp; safety
           </h3>
-          {quickEditButton("careTeam", "Edit care team", "Edit care team")}
+          {canEdit && (
+            <button ref={editCareTeamRef} type="button" className={styles.quickEdit}
+              onClick={event => onQuickEdit("careTeam", event.currentTarget)}>
+              Edit care team
+            </button>
+          )}
         </div>
+        {/* Technician first (Assignment order decision). */}
+        {careTeamRow("technician", "Primary technician", "primary-technician")}
+        {careTeamRow("veterinarian", "Attending veterinarian", "attending-veterinarian")}
         <div className={styles.contextRow}>
           <span>Allergies</span>
           <strong data-role="allergies">{allergySummary(detail)}</strong>
         </div>
         <div className={styles.contextRow}>
-          <span>Attending veterinarian</span>
-          <strong data-role="attending-veterinarian">{detail.assignedDoctor?.name ?? "Not assigned"}</strong>
-        </div>
-        <div className={styles.contextRow}>
-          <span>Primary technician</span>
-          <strong data-role="primary-technician">{detail.assignedTechnician?.name ?? "Not assigned"}</strong>
-        </div>
-        <div className={styles.contextRow}>
           <span>Pet parent</span>
           <strong>{owner ? `${owner.firstName} ${owner.lastName}` : "No pet parent recorded"}</strong>
         </div>
+        {assignError && <p className={styles.assignError} role="alert">{assignError}</p>}
       </section>
+
+      {/* Read-only (Patient header quick edits decision). */}
+      <section className={styles.caseContext} aria-label="Presenting complaint">
+        <div className={styles.complaint}>
+          <h3 className={styles.kicker}>
+            <svg className={styles.icon} viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M9 18h6M10 22h4M9 14a6 6 0 1 1 6 0c-1.2 1-1.7 2-1.7 4h-2.6c0-2-.5-3-1.7-4Z" />
+            </svg>
+            Presenting complaint
+          </h3>
+          <p className={styles.complaintValue}>{complaint}</p>
+        </div>
+      </section>
+
+      <p className={styles.saveState}>{lastUpdatedLabel(detail, now)}</p>
 
       {/* Earlier visits open on the patient's profile (4.21c); the tabs stay on this visit. */}
       <Link
@@ -620,6 +707,17 @@ function Overview({ detail, onQuickEdit }: OverviewProps) {
       </Link>
     </>
   );
+}
+
+// "Last updated 4:32 PM by Dr. Jordan Lee". The case stores when, not who; the
+// server writes the timeline event in the same save with the same time, so a
+// name shows only on an exact match and a change is never credited to the
+// wrong person.
+function lastUpdatedLabel(detail: CaseDetail, now: Date): string {
+  const time = `Last updated ${timeLabel(detail.lastUpdated, now)}`;
+  const newest = detail.timeline.at(-1);
+  const sameSave = newest !== undefined && new Date(newest.createdAt).getTime() === new Date(detail.lastUpdated).getTime();
+  return sameSave && newest.createdBy ? `${time} by ${newest.createdBy.name}` : time;
 }
 
 function ownerUpdateLabel(status: CaseDetail["ownerUpdateStatus"]): string {

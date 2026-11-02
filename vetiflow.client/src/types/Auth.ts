@@ -7,7 +7,14 @@ export interface SignedInUser {
   // What the top bar's profile shows: "Dr. Jordan Reed" and "JR" (2.10a).
   displayName: string;
   initials: string;
+  // The team member's staff role and own staff record, for "Assign me"
+  // (3.2d); null for a pet parent.
+  role: StaffRole | null;
+  staffId: string | null;
 }
+
+// The API's StaffRole.
+export type StaffRole = "veterinarian" | "technician" | "assistant" | "receptionist" | "manager";
 
 // Why a sign-in step failed: the API's codes, plus "unavailable" when the API
 // could not answer (network error or a server error).

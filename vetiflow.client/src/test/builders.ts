@@ -155,6 +155,8 @@ export function buildTeamMember(overrides: Partial<SignedInUser> = {}): SignedIn
     experience: "teamMember",
     displayName: "Dr. Jordan Lee",
     initials: "JL",
+    role: "veterinarian",
+    staffId: "staff-jordan-lee",
     ...overrides
   };
 }
@@ -166,6 +168,8 @@ export function buildPetParent(overrides: Partial<SignedInUser> = {}): SignedInU
     experience: "petParent",
     displayName: "Morgan Hale",
     initials: "MH",
+    role: null,
+    staffId: null,
     ...overrides
   };
 }

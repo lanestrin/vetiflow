@@ -430,12 +430,21 @@
 }
 
 .vitalsSection {
-	padding: 13px 19px 15px;
-	border-top: 1px solid var(--color-shell-line);
+	margin-bottom: 13px;
+	padding: 13px 19px 0;
 
 	.sectionTitle {
-		margin-bottom: 10px;
+		margin: 0;
 	}
+}
+
+// A section title with its action on the right (the prototype's .vitals-heading).
+.sectionHead {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	margin-bottom: 10px;
 }
 
 .vitals {
@@ -523,6 +532,11 @@
 		outline: var(--focus-outline-width) solid var(--color-focus-on-light);
 		outline-offset: 2px;
 	}
+
+	&:disabled {
+		cursor: progress;
+		opacity: .6;
+	}
 }
 
 .careContextTitle .icon {
@@ -552,6 +566,39 @@
 	}
 }
 
+// A care-team name with Assign me beside it (the prototype's .team-row).
+.contextValue {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: flex-end;
+	gap: 6px 8px;
+	max-width: 65%;
+
+	// Names wrap between words, never mid-word, at phone widths.
+	.contextRow & strong {
+		max-width: none;
+		overflow-wrap: break-word;
+	}
+}
+
+.assignError {
+	margin: 0;
+	padding: 10px 12px;
+	border-top: 1px solid #edf1ef;
+	color: var(--color-field-error);
+	font-size: .75rem;
+	font-weight: 700;
+}
+
+// When the case last changed and by whom (the prototype's .save-status).
+.saveState {
+	margin: 0 19px 12px;
+	color: var(--color-shell-muted);
+	font-size: .6875rem;
+	line-height: 1.5;
+}
+
 @media (max-width: 650px) {
 	.caseContext,
 	.nextAction,
@@ -579,7 +626,8 @@
 		padding-left: 12px;
 	}
 
-	.historyLink {
+	.historyLink,
+	.saveState {
 		margin-right: 12px;
 		margin-left: 12px;
 	}
@@ -601,6 +649,12 @@
 		strong {
 			max-width: 60%;
 		}
+	}
+
+	// Touch-sized buttons on phones.
+	.quickEdit {
+		min-height: 40px;
+		padding: 6px 12px;
 	}
 }
 

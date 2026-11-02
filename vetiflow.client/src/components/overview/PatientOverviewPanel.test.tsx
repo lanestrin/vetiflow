@@ -4,7 +4,8 @@ import { http, HttpResponse } from "msw";
 import { MemoryRouter, Route, Routes, useLocation, useParams } from "react-router-dom";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { readAccessToken, saveAccessToken } from "../../services/session";
-import { buildCaseDetail, buildCaseTask } from "../../test/builders";
+import { buildCaseDetail, buildCaseTask, buildTeamMember } from "../../test/builders";
+import type { SignedInUser } from "../../types/Auth";
 import { apiUrl, server } from "../../test/server";
 import type { CaseDetail, CaseTask } from "../../types/CaseDetail";
 import type { PatientProfileRouteState } from "../../routes/PatientProfilePage";
@@ -22,7 +23,11 @@ beforeAll(() => {
   };
 });
 
+// Who is signed in for renderPanel; a test may change it before rendering.
+let signedInUser: SignedInUser = buildTeamMember();
+
 afterEach(() => {
+  signedInUser = buildTeamMember();
   sessionStorage.clear();
 });
 
@@ -105,7 +110,7 @@ function renderPanel(
         <Routes>
           <Route
             path="/er"
-            element={<PatientOverviewPanel caseId={id} refreshedAt={refreshed} onTriaged={onTriaged} onTaskSaved={onTaskSaved} onVitalsSaved={onVitalsSaved} />}
+            element={<PatientOverviewPanel caseId={id} signedInUser={signedInUser} refreshedAt={refreshed} onTriaged={onTriaged} onTaskSaved={onTaskSaved} onVitalsSaved={onVitalsSaved} />}
           />
           <Route path="/records/:patientId" element={<ProfileStub />} />
           <Route path="/sign-in" element={<p>Sign-in page</p>} />
@@ -126,7 +131,8 @@ async function openTab(name: string) {
 
 async function openMoreAction(label: string) {
   fireEvent.click(await screen.findByRole("button", { name: "More actions" }));
-  fireEvent.click(await screen.findByRole("button", { name: label }));
+  // Record vitals is also a button in the Overview's vitals section (3.2d).
+  fireEvent.click(within(await screen.findByRole("list", { name: "More actions" })).getByRole("button", { name: label }));
 }
 
 it.each([
@@ -220,16 +226,6 @@ describe("PatientOverviewPanel", () => {
     expect(screen.queryByRole("region", { name: "Care timeline" })).not.toBeInTheDocument();
     expect(screen.queryByRole("region", { name: "Next actions" })).not.toBeInTheDocument();
     expect(screen.queryByRole("region", { name: "Pain score" })).not.toBeInTheDocument();
-    const visualSections = [
-      screen.getByRole("region", { name: "Case context" }),
-      screen.getByRole("region", { name: "Next care action" }),
-      screen.getByRole("region", { name: "Latest vitals" }),
-      screen.getByRole("region", { name: "Care team and safety" })
-    ];
-    expect(visualSections.every((section, index) => {
-      const previous = visualSections[index - 1];
-      return !previous || Boolean(previous.compareDocumentPosition(section) & Node.DOCUMENT_POSITION_FOLLOWING);
-    })).toBe(true);
     // The record tiles became tabs (3.2c).
     expect(screen.queryByRole("region", { name: "Patient record" })).not.toBeInTheDocument();
     for (const name of ["Clinical", "Medications", "Timeline"]) {
@@ -270,8 +266,8 @@ describe("PatientOverviewPanel", () => {
     expect(screen.getByText("No next action documented")).toBeInTheDocument();
     expect(screen.getByText("No room assigned")).toBeInTheDocument();
     expect(screen.getByText("Not recorded", { selector: "[data-role='allergies']" })).toBeInTheDocument();
-    expect(screen.getByText("Not assigned", { selector: "[data-role='attending-veterinarian']" })).toBeInTheDocument();
-    expect(screen.getByText("Not assigned", { selector: "[data-role='primary-technician']" })).toBeInTheDocument();
+    expect(screen.getByText("Unassigned", { selector: "[data-role='attending-veterinarian']" })).toBeInTheDocument();
+    expect(screen.getByText("Unassigned", { selector: "[data-role='primary-technician']" })).toBeInTheDocument();
     const nextAction = screen.getByRole("region", { name: "Next care action" });
     expect(within(nextAction).getByText("Last owner update")).toBeInTheDocument();
     expect(within(nextAction).getByText("Next client update")).toBeInTheDocument();
@@ -284,7 +280,6 @@ describe("PatientOverviewPanel", () => {
     renderPanel("case-milo", new Date(), vi.fn(), onTaskSaved);
 
     await screen.findByRole("heading", { name: "Milo" });
-    expect(screen.queryByRole("button", { name: "Record vitals" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Add task" })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "More actions" }));
     fireEvent.click(screen.getByRole("button", { name: "Tasks and due items" }));
@@ -296,8 +291,7 @@ describe("PatientOverviewPanel", () => {
     fireEvent.click(within(taskDialog).getByRole("button", { name: "Close tasks and due items" }));
     expect(screen.queryByRole("dialog", { name: "Tasks and due items" })).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "More actions" }));
-    fireEvent.click(screen.getByRole("button", { name: "Record vitals" }));
+    await openMoreAction("Record vitals");
     expect(await screen.findByRole("dialog", { name: "Record vitals" })).toBeInTheDocument();
     expect(onTaskSaved).not.toHaveBeenCalled();
   });
@@ -1208,7 +1202,7 @@ describe("recording vitals in the overview", () => {
     serveCase(buildMilo({ dischargedAt: at(11, 0) }));
     renderPanel("case-milo");
     fireEvent.click(await screen.findByRole("button", { name: "More actions" }));
-    expect(await screen.findByRole("button", { name: "Record vitals" })).toBeDisabled();
+    expect(within(await screen.findByRole("list", { name: "More actions" })).getByRole("button", { name: "Record vitals" })).toBeDisabled();
   });
 
   it("discards a cancelled draft, restores focus and reopens the latest saved values", async () => {
@@ -1339,5 +1333,175 @@ describe("recording vitals in the overview", () => {
     expect(onRefresh).toHaveBeenCalledOnce();
     expect(screen.getByRole("button", { name: "Save vitals" })).toBeDisabled();
     expect(screen.queryByText("Vitals recorded")).not.toBeInTheDocument();
+  });
+});
+
+describe("overview tab", () => {
+  function inOrder(elements: HTMLElement[]) {
+    return elements.every((element, index) => {
+      const previous = elements[index - 1];
+      return !previous || Boolean(previous.compareDocumentPosition(element) & Node.DOCUMENT_POSITION_FOLLOWING);
+    });
+  }
+
+  it("shows the sections in the prototype's order", async () => {
+    serveCase(buildMilo());
+    renderPanel("case-milo");
+
+    await screen.findByRole("heading", { level: 3, name: "Milo" });
+    expect(inOrder([
+      screen.getByRole("region", { name: "Latest vitals" }),
+      screen.getByRole("region", { name: "Next care action" }),
+      screen.getByRole("region", { name: "Care team and safety" }),
+      screen.getByRole("region", { name: "Presenting complaint" }),
+      screen.getByText(/^Last updated/),
+      screen.getByRole("link", { name: "View Patient History" })
+    ])).toBe(true);
+  });
+
+  it("lists the technician before the veterinarian", async () => {
+    serveCase(buildMilo());
+    renderPanel("case-milo");
+
+    const careTeam = await screen.findByRole("region", { name: "Care team and safety" });
+    expect(inOrder([
+      within(careTeam).getByText("Primary technician"),
+      within(careTeam).getByText("Attending veterinarian"),
+      within(careTeam).getByText("Allergies"),
+      within(careTeam).getByText("Pet parent")
+    ])).toBe(true);
+  });
+
+  it("shows Unassigned for a missing assignment", async () => {
+    serveCase(buildMilo({ assignedTechnician: null, assignedDoctor: { id: "s1", name: "Jordan Reed" } }));
+    renderPanel("case-milo");
+
+    expect(await screen.findByText("Unassigned", { selector: "[data-role='primary-technician']" })).toBeInTheDocument();
+    expect(screen.getByText("Jordan Reed", { selector: "[data-role='attending-veterinarian']" })).toBeInTheDocument();
+  });
+
+  it("shows the presenting complaint read-only, without an Edit action", async () => {
+    serveCase(buildMilo({ presentingComplaint: "Respiratory distress" }));
+    renderPanel("case-milo");
+
+    const complaint = await screen.findByRole("region", { name: "Presenting complaint" });
+    expect(complaint).toHaveTextContent("Respiratory distress");
+    expect(within(complaint).queryByRole("button")).not.toBeInTheDocument();
+  });
+
+  it("opens Record vitals from the vitals section and returns focus to it on close", async () => {
+    serveCase(buildMilo());
+    renderPanel("case-milo");
+
+    const vitals = await screen.findByRole("region", { name: "Latest vitals" });
+    const recordVitals = within(vitals).getByRole("button", { name: "Record vitals" });
+    fireEvent.click(recordVitals);
+    expect(await screen.findByRole("dialog", { name: "Record vitals" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(recordVitals).toHaveFocus();
+  });
+
+  it("has no Record vitals button in the vitals section for a discharged case", async () => {
+    serveCase(buildMilo({ dischargedAt: at(11, 0) }));
+    renderPanel("case-milo");
+
+    const vitals = await screen.findByRole("region", { name: "Latest vitals" });
+    expect(within(vitals).queryByRole("button")).not.toBeInTheDocument();
+  });
+
+  it("offers Assign me on the veterinarian row to a signed-in veterinarian", async () => {
+    serveCase(buildMilo());
+    renderPanel("case-milo");
+
+    const careTeam = await screen.findByRole("region", { name: "Care team and safety" });
+    expect(within(careTeam).getByRole("button", { name: "Assign me as attending veterinarian" })).toBeInTheDocument();
+    expect(within(careTeam).queryByRole("button", { name: "Assign me as primary technician" })).not.toBeInTheDocument();
+  });
+
+  it("offers Assign me on the technician row to a signed-in technician", async () => {
+    signedInUser = buildTeamMember({ name: "Sam Cruz", displayName: "Sam Cruz", initials: "SC", role: "technician", staffId: "staff-sam" });
+    serveCase(buildMilo());
+    renderPanel("case-milo");
+
+    const careTeam = await screen.findByRole("region", { name: "Care team and safety" });
+    expect(within(careTeam).getByRole("button", { name: "Assign me as primary technician" })).toBeInTheDocument();
+    expect(within(careTeam).queryByRole("button", { name: "Assign me as attending veterinarian" })).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ["already assigned", buildMilo({ assignedDoctor: { id: "staff-jordan-lee", name: "Jordan Lee" } }), buildTeamMember()],
+    ["discharged", buildMilo({ dischargedAt: at(11, 0) }), buildTeamMember()],
+    ["another role", buildMilo(), buildTeamMember({ role: "receptionist" })]
+  ])("hides Assign me when %s", async (_reason, detail, user) => {
+    signedInUser = user;
+    serveCase(detail);
+    renderPanel("case-milo");
+
+    const careTeam = await screen.findByRole("region", { name: "Care team and safety" });
+    expect(within(careTeam).queryByRole("button", { name: /^Assign me/ })).not.toBeInTheDocument();
+  });
+
+  it("assigns the signed-in member, shows a toast and reloads", async () => {
+    let body: unknown = null;
+    server.use(
+      http.put(apiUrl("/api/cases/case-milo/veterinarian"), async ({ request }) => {
+        body = await request.json();
+        return new HttpResponse(null, { status: 204 });
+      })
+    );
+    serveCase(buildMilo());
+    const onTaskSaved = vi.fn();
+    renderPanel("case-milo", new Date(), vi.fn(), onTaskSaved);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Assign me as attending veterinarian" }));
+
+    expect(await screen.findByText("Assigned to you as attending veterinarian")).toBeInTheDocument();
+    expect(body).toEqual({ id: "staff-jordan-lee" });
+    expect(onTaskSaved).toHaveBeenCalledOnce();
+    expect(screen.getByRole("button", { name: "Edit care team" })).toHaveFocus();
+  });
+
+  it("says the case is gone when assigning returns 404", async () => {
+    server.use(http.put(apiUrl("/api/cases/case-milo/veterinarian"), () => new HttpResponse(null, { status: 404 })));
+    serveCase(buildMilo());
+    const onTaskSaved = vi.fn();
+    renderPanel("case-milo", new Date(), vi.fn(), onTaskSaved);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Assign me as attending veterinarian" }));
+
+    const careTeam = screen.getByRole("region", { name: "Care team and safety" });
+    expect(await within(careTeam).findByRole("alert")).toHaveTextContent("This case is no longer on the board.");
+    expect(onTaskSaved).not.toHaveBeenCalled();
+  });
+
+  it("shows the field message when assigning returns 400", async () => {
+    server.use(http.put(apiUrl("/api/cases/case-milo/veterinarian"), () =>
+      HttpResponse.json({ errors: { id: ["Choose an active veterinarian."] } }, { status: 400 })));
+    serveCase(buildMilo());
+    renderPanel("case-milo");
+
+    fireEvent.click(await screen.findByRole("button", { name: "Assign me as attending veterinarian" }));
+
+    const careTeam = screen.getByRole("region", { name: "Care team and safety" });
+    expect(await within(careTeam).findByRole("alert")).toHaveTextContent("Choose an active veterinarian.");
+    expect(within(careTeam).getByRole("button", { name: "Assign me as attending veterinarian" })).toBeEnabled();
+  });
+
+  it("names who last updated the case when the newest event matches", async () => {
+    // buildMilo's newest event is the 10:47 triage by Jordan Reed.
+    serveCase(buildMilo({ lastUpdated: at(10, 47) }));
+    renderPanel("case-milo");
+
+    expect(await screen.findByText(/^Last updated .+ by Jordan Reed$/)).toBeInTheDocument();
+  });
+
+  it("shows only the time when no event matches the last update", async () => {
+    serveCase(buildMilo({ lastUpdated: at(11, 5) }));
+    renderPanel("case-milo");
+
+    const saveState = await screen.findByText(/^Last updated/);
+    expect(saveState).not.toHaveTextContent(" by ");
   });
 });

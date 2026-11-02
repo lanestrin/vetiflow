@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
-import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
+import { MemoryRouter, Outlet, Route, Routes, useLocation } from "react-router-dom";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { SignInRouteState } from "../components/auth/experienceHome";
 import { createCaseHubConnection } from "../services/caseHub";
@@ -79,7 +79,9 @@ function renderBoard(routeState?: ErBoardRouteState) {
     <MemoryRouter initialEntries={[{ pathname: "/er", state: routeState }]}>
       <ClinicalDraftProvider>
       <Routes>
-        <Route path="/er" element={<ToastProvider><ErBoardPage /></ToastProvider>} />
+        <Route element={<Outlet context={buildTeamMember()} />}>
+          <Route path="/er" element={<ToastProvider><ErBoardPage /></ToastProvider>} />
+        </Route>
         <Route path="/records/:patientId" element={<PatientProfilePage />} />
         <Route path="/sign-in" element={<SignInStub />} />
       </Routes>
@@ -545,7 +547,9 @@ describe("ErBoardPage", () => {
     render(
       <MemoryRouter initialEntries={["/er"]}>
         <Routes>
-          <Route path="/er" element={<AppShell user={buildTeamMember()}><ErBoardPage /></AppShell>} />
+          <Route element={<Outlet context={buildTeamMember()} />}>
+            <Route path="/er" element={<AppShell user={buildTeamMember()}><ErBoardPage /></AppShell>} />
+          </Route>
         </Routes>
       </MemoryRouter>
     );
@@ -590,7 +594,7 @@ describe("record vitals from the ER board", () => {
     expect(await screen.findByText("100 bpm")).toBeInTheDocument();
     const readsBeforeSave = boardReads;
     fireEvent.click(screen.getByRole("button", { name: "More actions" }));
-    fireEvent.click(screen.getByRole("button", { name: "Record vitals" }));
+    fireEvent.click(within(screen.getByRole("list", { name: "More actions" })).getByRole("button", { name: "Record vitals" }));
     fireEvent.change(screen.getByLabelText("SpO₂ (%)"), { target: { value: "91" } });
     fireEvent.click(screen.getByRole("button", { name: "Save vitals" }));
     expect(await screen.findByText("91%")).toBeInTheDocument();
