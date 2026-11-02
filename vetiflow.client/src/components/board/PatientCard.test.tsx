@@ -1,7 +1,6 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { buildCase } from "../../test/builders";
-import type { CaseTag, CaseTagTone } from "../../types/CaseTag";
 import type { EmergencyCaseListItem } from "../../types/EmergencyCaseListItem";
 import { PatientCard } from "./PatientCard";
 
@@ -17,10 +16,6 @@ function showCard(overrides: Partial<EmergencyCaseListItem> = {}, onSelect = vi.
     />
   );
   return onSelect;
-}
-
-function caseTag(id: string, text: string, tone: CaseTagTone): CaseTag {
-  return { id, text, tone, createdAt: "2026-10-28T11:00:00Z", createdBy: null };
 }
 
 describe("PatientCard", () => {
@@ -66,38 +61,19 @@ describe("PatientCard", () => {
     expect(screen.getByText("Unassigned")).toBeInTheDocument();
   });
 
-  it("shows case tags in their tones, between the provisional chip and the blockers", () => {
+  // Free-text tags were removed (build plan 3.5c); a tags field from an older
+  // server is ignored, and the chip row keeps the provisional chip and blockers.
+  it("shows only the provisional chip and blockers, never case tags", () => {
     showCard({
       stage: "incoming",
       acuity: "urgent",
-      tags: [
-        caseTag("t1", "O2 support", "caution"),
-        caseTag("t2", "Fresh wound", "alert"),
-        caseTag("t3", "Vet notes", "info"),
-        caseTag("t4", "Feeding", "neutral")
-      ],
-      blockers: [{ id: "b1", description: "Owner consent needed" }]
-    });
+      blockers: [{ id: "b1", description: "Owner consent needed" }],
+      tags: [{ id: "t1", text: "O2 support", tone: "caution" }]
+    } as Partial<EmergencyCaseListItem>);
 
     const items = within(screen.getByRole("list", { name: "Tags" })).getAllByRole("listitem");
-    expect(items.map((item) => item.textContent)).toEqual([
-      "Urgent · provisional",
-      "O2 support",
-      "Fresh wound",
-      "Vet notes",
-      "Feeding",
-      "Owner consent needed"
-    ]);
-    expect(screen.getByText("O2 support")).toHaveAttribute("data-tone", "caution");
-    expect(screen.getByText("Fresh wound")).toHaveAttribute("data-tone", "alert");
-    expect(screen.getByText("Vet notes")).toHaveAttribute("data-tone", "info");
-    expect(screen.getByText("Feeding")).toHaveAttribute("data-tone", "neutral");
-  });
-
-  it("shows the tag list for a case with tags and no chip or blockers", () => {
-    showCard({ stage: "treatment", acuity: "stable", tags: [caseTag("t1", "O2 support", "caution")] });
-
-    expect(within(screen.getByRole("list", { name: "Tags" })).getByText("O2 support")).toBeInTheDocument();
+    expect(items.map((item) => item.textContent)).toEqual(["Urgent · provisional", "Owner consent needed"]);
+    expect(screen.queryByText("O2 support")).not.toBeInTheDocument();
   });
 
   it("shows open blockers as alert tags", () => {

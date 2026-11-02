@@ -500,6 +500,36 @@ public class MigrationTests(VetiFlowApiFactory factory)
 		Assert.Equal(dischargedEarlier, discharged[alreadyDischarged.Id]);
 	}
 
+	// Free-text tags were removed (build plan 3.5c): the stored tags go, but the
+	// timeline keeps what happened.
+	[Fact]
+	public async Task RemoveCaseTags_DropsTagsAndKeepsTimeline()
+	{
+		await using var dbContext = await CreateEmptyDatabaseAsync();
+		var migrator = dbContext.GetService<IMigrator>();
+		await migrator.MigrateAsync("20261102002838_BackfillDischargedAt", _cancellationToken);
+		var emergencyCase = TestData.Case(TestData.Patient());
+		var tagAdded = new CaseEvent { EmergencyCase = emergencyCase, Type = CaseEventType.TagAdded, Description = "Tag added: O2 support" };
+		dbContext.AddRange(emergencyCase, tagAdded);
+		await dbContext.SaveChangesAsync(_cancellationToken);
+		await dbContext.Database.ExecuteSqlAsync($"""
+			INSERT INTO "CaseTags" ("Id", "EmergencyCaseId", "Text", "Tone", "CreatedAt")
+			VALUES ({Guid.NewGuid()}, {emergencyCase.Id}, 'O2 support', 'Caution', {DateTimeOffset.UtcNow})
+			""", _cancellationToken);
+
+		await migrator.MigrateAsync(cancellationToken: _cancellationToken);
+
+		var tagTables = await dbContext.Database.SqlQuery<int>($"""
+			SELECT COUNT(*)::int AS "Value" FROM information_schema.tables
+			WHERE table_schema = 'public' AND table_name = 'CaseTags'
+			""").SingleAsync(_cancellationToken);
+		Assert.Equal(0, tagTables);
+		var timeline = await dbContext.CaseEvents.AsNoTracking()
+			.SingleAsync(caseEvent => caseEvent.Id == tagAdded.Id, _cancellationToken);
+		Assert.Equal(CaseEventType.TagAdded, timeline.Type);
+		Assert.Equal("Tag added: O2 support", timeline.Description);
+	}
+
 	private async Task<string[]> ReadHistoricalAssessmentsAsync(VetiFlowDbContext dbContext) =>
 		await dbContext.Database.SqlQuery<string>($"""
 			SELECT (to_jsonb(v) - 'OccurredAt')::text AS "Value" FROM "VitalsRecords" v
