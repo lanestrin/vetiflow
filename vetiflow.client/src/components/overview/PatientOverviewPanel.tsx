@@ -13,6 +13,7 @@ import { getCase } from "../../services/casesApi";
 import type { CaseDetail, VitalName } from "../../types/CaseDetail";
 import type { PatientProfileRouteState } from "../../routes/PatientProfilePage";
 import { useToast } from "../shell/toastContext";
+import { allergySummary } from "./allergyStatus";
 import { MoreActionsMenu } from "./MoreActionsMenu";
 import { CaseTasksDialog } from "./CaseTasksDialog";
 import { ClinicalReviewDrawer } from "./ClinicalReviewDrawer";
@@ -342,9 +343,6 @@ function Overview({
     { field: "temperatureF", label: "Temp", value: temperatureLabel(vitals?.temperatureF ?? null) ?? "Not recorded" },
     { field: "spO2", label: "SpO₂", value: vitals?.spO2 == null ? "Not recorded" : `${vitals.spO2}%` }
   ];
-  const allergy = [...new Set([detail.allergiesAtIntake, patient.allergies]
-    .map(value => value?.trim())
-    .filter((value): value is string => Boolean(value)))];
   const lastUpdate = detail.lastOwnerUpdateAt ? timeLabel(detail.lastOwnerUpdateAt, now) : "Not recorded";
   const nextUpdate = detail.nextClientUpdate
     ? `${detail.nextClientUpdate.description} · ${dueLabel(detail.nextClientUpdate.dueAt, now)}`
@@ -485,9 +483,7 @@ function Overview({
         </h3>
         <div className={styles.contextRow}>
           <span>Allergies</span>
-          <strong>{allergy.length > 0
-            ? `${allergy.join(" · ")} · verification unknown`
-            : "Unknown / not verified"}</strong>
+          <strong data-role="allergies">{allergySummary(detail)}</strong>
         </div>
         <div className={styles.contextRow}>
           <span>Attending veterinarian</span>
