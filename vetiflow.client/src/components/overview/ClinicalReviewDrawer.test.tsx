@@ -163,3 +163,30 @@ describe("ClinicalReviewDrawer", () => {
     expect(setItem).not.toHaveBeenCalled();
   });
 });
+
+// Changes since the previous saved vitals set (build plan 4.8g).
+describe("vitals changes in Clinical", () => {
+  const since = () => screen.queryByRole("region", { name: "Since the previous saved set" });
+
+  it("lists how the latest set differs from the set saved before it", () => {
+    render(<Harness detail={buildCaseDetail({ vitals: [
+      buildVitalsRecord({ heartRate: 148, mentation: "Alert", recordedAt: new Date(2020, 0, 2, 10, 0).toISOString() }),
+      buildVitalsRecord({ heartRate: 160, mentation: "Alert", spO2: 95, recordedAt: enteredAt })
+    ] })} />);
+
+    const changes = within(since()!);
+    expect(changes.getByText(/Compared with the set entered/)).toHaveTextContent("9:03 AM");
+    expect(changes.getByText("160 bpm → 148 bpm")).toBeInTheDocument();
+    expect(changes.getByText("Not recorded in this set; previous set 95%")).toBeInTheDocument();
+    expect(changes.getByText("Mentation Alert")).toBeInTheDocument();
+  });
+
+  it("says when the latest set is the only one, and shows nothing without vitals", () => {
+    const view = render(<Harness detail={buildCaseDetail({ vitals: [complete()] })} />);
+    expect(within(since()!).getByText("No earlier vitals saved for this case")).toBeInTheDocument();
+
+    view.unmount();
+    render(<Harness detail={buildCaseDetail()} />);
+    expect(since()).not.toBeInTheDocument();
+  });
+});

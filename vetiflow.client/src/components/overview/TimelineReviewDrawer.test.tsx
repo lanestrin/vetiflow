@@ -50,9 +50,10 @@ describe("TimelineReviewDrawer", () => {
     ]);
     expect(history().getAllByRole("listitem").map(row => row.textContent)).toEqual([
       "ArrivedSaved eventRecorded 2 Jan 2020, 8:00 AM",
-      "Vitals recordedMeasurement time unknownEntered 2 Jan 2020, 9:00 AM",
+      "Vitals recordedMeasurement time unknownEntered 2 Jan 2020, 9:00 AMFirst vitals saved for this case",
       "Triage completedSaved eventRecorded 2 Jan 2020, 10:00 AMRecorded by Jordan Lee",
       "Vitals recordedMeasurement time unknownEntered 2 Jan 2020, 11:00 AMEntered by Jordan Lee"
+        + "Compared with the set entered 2 Jan 2020, 9:00 AMMentationNot recorded in this set; previous set Alert"
     ]);
     expect(detail.vitals.map(row => row.id)).toEqual(["new", "event"]);
     expect(detail.timeline.map(row => row.id)).toEqual(["event", "triage"]);
@@ -210,5 +211,35 @@ describe("TimelineReviewDrawer", () => {
     fireEvent.click(screen.getByRole("button", { name: "Close Timeline" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
     expect(screen.getByRole("button", { name: "Timeline" })).toHaveFocus();
+  });
+});
+
+// Changes since the previous saved vitals set (build plan 4.8g).
+describe("vitals changes in the Timeline", () => {
+  it("says the oldest set is the first, and compares each later set with the set saved before it", () => {
+    const detail = buildCaseDetail({ vitals: [
+      buildVitalsRecord({ id: "third", recordedAt: at(11), heartRate: 140, respiratoryRate: 40 }),
+      buildVitalsRecord({ id: "second", recordedAt: at(10), heartRate: 148, respiratoryRate: 40, spO2: 95 }),
+      buildVitalsRecord({ id: "first", recordedAt: at(9), heartRate: 160 })
+    ] });
+    render(<Harness detail={detail} />);
+
+    const rows = history().getAllByRole("listitem");
+    expect(rows).toHaveLength(3);
+    expect(rows[0]).toHaveTextContent("First vitals saved for this case");
+    expect(rows[0]).not.toHaveTextContent("Compared with");
+
+    const second = within(rows[1]);
+    expect(second.getByText(/Compared with the set entered/)).toHaveTextContent("9:00 AM");
+    expect(second.getByText("160 bpm → 148 bpm")).toBeInTheDocument();
+    expect(second.getByText("40 /min, not recorded in the previous set")).toBeInTheDocument();
+    expect(second.getByText("95%, not recorded in the previous set")).toBeInTheDocument();
+
+    const third = within(rows[2]);
+    expect(third.getByText(/Compared with the set entered/)).toHaveTextContent("10:00 AM");
+    expect(third.getByText("148 bpm → 140 bpm")).toBeInTheDocument();
+    expect(third.getByText("Not recorded in this set; previous set 95%")).toBeInTheDocument();
+    expect(third.getByText("Respiratory rate 40 /min")).toBeInTheDocument();
+    expect(rows[2]).not.toHaveTextContent(/improved|worse|increase|decrease/i);
   });
 });

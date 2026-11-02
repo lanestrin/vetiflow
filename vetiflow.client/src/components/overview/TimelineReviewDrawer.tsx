@@ -1,9 +1,10 @@
 import { useId } from "react";
-import type { CaseDetail, CaseTask, CaseTaskStatus, CaseTaskType } from "../../types/CaseDetail";
+import type { CaseDetail, CaseTask, CaseTaskStatus, CaseTaskType, VitalsRecord } from "../../types/CaseDetail";
 import { useNow } from "../board/useNow";
 import { CaseReviewDrawer, type ReviewDrawerProps } from "./CaseReviewDrawer";
 import { eventLabel, recordTimeLabel } from "./overviewFormat";
 import { EnteredTime, MeasuredTime } from "./RecordedTimes";
+import { VitalsChangeSummary } from "./VitalsChangeSummary";
 import styles from "./TimelineReviewDrawer.module.scss";
 
 const taskTypes: Record<CaseTaskType, string> = {
@@ -15,11 +16,14 @@ const taskStatuses: Record<CaseTaskStatus, string> = { open: "Open", done: "Done
 function recordedHistory(detail: CaseDetail) {
   const events = detail.timeline.map(event => ({
     key: `event:${event.id}`, title: eventLabel(event.type), description: event.description,
-    timestamp: event.createdAt, actor: event.createdBy, vitals: false, occurredAt: null as string | null
+    timestamp: event.createdAt, actor: event.createdBy, vitals: null as { record: VitalsRecord; previous: VitalsRecord | undefined } | null,
+    occurredAt: null as string | null
   }));
-  const vitals = detail.vitals.map(record => ({
+  // detail.vitals is newest entry first, so the set saved before each is the next one (4.8g).
+  const vitals = detail.vitals.map((record, index) => ({
     key: `vitals:${record.id}`, title: "Vitals recorded", description: null,
-    timestamp: record.recordedAt, actor: record.recordedBy, vitals: true, occurredAt: record.occurredAt
+    timestamp: record.recordedAt, actor: record.recordedBy, vitals: { record, previous: detail.vitals[index + 1] },
+    occurredAt: record.occurredAt
   }));
   // Stable sorting preserves source order at equal times, with events first.
   return [...events, ...vitals].sort((first, second) => {
@@ -59,6 +63,9 @@ export function TimelineReviewDrawer(props: ReviewDrawerProps) {
                 <p className={styles.meta}><MeasuredTime occurredAt={row.occurredAt} now={now} withTime /></p>
                 <p className={styles.meta}><EnteredTime recordedAt={row.timestamp} now={now} /></p>
                 {row.actor && <p className={styles.meta}>Entered by {row.actor.name}</p>}
+                {row.vitals.previous
+                  ? <VitalsChangeSummary current={row.vitals.record} previous={row.vitals.previous} now={now} />
+                  : <p className={styles.meta}>First vitals saved for this case</p>}
               </> : <>
                 <p className={styles.meta}>Recorded <RecordTime value={row.timestamp} now={now} /></p>
                 {row.actor && <p className={styles.meta}>Recorded by {row.actor.name}</p>}
