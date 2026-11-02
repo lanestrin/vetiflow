@@ -469,6 +469,37 @@ public class MigrationTests(VetiFlowApiFactory factory)
 		Assert.Equal(0, knownTimes);
 	}
 
+	// Cases moved to Discharge before 4.21a have no discharge time, so they
+	// stayed on the board; the backfill discharges them when they entered the stage.
+	[Fact]
+	public async Task BackfillDischargedAt_DischargesOldDischargeStageCases()
+	{
+		await using var dbContext = await CreateEmptyDatabaseAsync();
+		var migrator = dbContext.GetService<IMigrator>();
+		await migrator.MigrateAsync("20261101160606_AddCaseTags", _cancellationToken);
+		var enteredDischarge = new DateTimeOffset(2026, 10, 30, 19, 40, 0, TimeSpan.Zero);
+		var dischargedEarlier = new DateTimeOffset(2026, 10, 29, 9, 15, 0, TimeSpan.Zero);
+		var leftOnBoard = TestData.Case(TestData.Patient());
+		leftOnBoard.Stage = CaseStage.Discharge;
+		leftOnBoard.StageEnteredAt = enteredDischarge;
+		var active = TestData.Case(TestData.Patient());
+		active.Stage = CaseStage.Triage;
+		var alreadyDischarged = TestData.Case(TestData.Patient());
+		alreadyDischarged.Stage = CaseStage.Discharge;
+		alreadyDischarged.StageEnteredAt = enteredDischarge;
+		alreadyDischarged.DischargedAt = dischargedEarlier;
+		dbContext.AddRange(leftOnBoard, active, alreadyDischarged);
+		await dbContext.SaveChangesAsync(_cancellationToken);
+
+		await migrator.MigrateAsync(cancellationToken: _cancellationToken);
+
+		var discharged = await dbContext.EmergencyCases.AsNoTracking()
+			.ToDictionaryAsync(c => c.Id, c => c.DischargedAt, _cancellationToken);
+		Assert.Equal(enteredDischarge, discharged[leftOnBoard.Id]);
+		Assert.Null(discharged[active.Id]);
+		Assert.Equal(dischargedEarlier, discharged[alreadyDischarged.Id]);
+	}
+
 	private async Task<string[]> ReadHistoricalAssessmentsAsync(VetiFlowDbContext dbContext) =>
 		await dbContext.Database.SqlQuery<string>($"""
 			SELECT (to_jsonb(v) - 'OccurredAt')::text AS "Value" FROM "VitalsRecords" v
