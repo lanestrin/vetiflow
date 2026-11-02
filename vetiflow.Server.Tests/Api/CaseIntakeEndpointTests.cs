@@ -126,6 +126,64 @@ public class CaseIntakeEndpointTests(VetiFlowApiFactory factory)
 		Assert.Equal("Carprofen 75 mg, last dose 7 AM", saved.Patient.CurrentMedications);
 		Assert.Equal("Penicillin", saved.AllergiesAtIntake);
 		Assert.Equal("Carprofen 75 mg, last dose 7 AM", saved.MedicationsAtIntake);
+		// Typed allergies are never verified by an intake (4.12a).
+		Assert.Equal(AllergyStatus.UnknownOrUnverified, saved.Patient.AllergyStatus);
+		Assert.Null(saved.Patient.AllergiesVerifiedAt);
+		Assert.Equal(AllergyStatus.UnknownOrUnverified, saved.AllergyStatusAtIntake);
+	}
+
+	[Fact]
+	public async Task Intake_NewPatientWithoutAllergies_IsNotRecorded()
+	{
+		using var client = await factory.CreateSignedInClientAsync(DemoAccounts.TeamEmail);
+
+		var response = await client.PostAsJsonAsync(IntakeUrl, NewIntake(new { allergies = (string?)null }), _cancellationToken);
+
+		var caseId = await CreatedCaseIdAsync(response);
+		await using var dbContext = factory.CreateDbContext();
+		var saved = await dbContext.EmergencyCases.Include(c => c.Patient)
+			.SingleAsync(c => c.Id == caseId, _cancellationToken);
+		Assert.Equal(AllergyStatus.NotRecorded, saved.Patient.AllergyStatus);
+		Assert.Null(saved.Patient.Allergies);
+		Assert.Equal(AllergyStatus.NotRecorded, saved.AllergyStatusAtIntake);
+	}
+
+	// A returning patient's verified record stays when the intake leaves
+	// allergies blank, and is replaced by an unverified one when text is typed.
+	[Theory]
+	[InlineData(null, AllergyStatus.NoKnownAllergies, AllergyStatus.NotRecorded)]
+	[InlineData("Chicken", AllergyStatus.UnknownOrUnverified, AllergyStatus.UnknownOrUnverified)]
+	public async Task Intake_ReturningPatientWithVerifiedRecord(
+		string? allergies, AllergyStatus patientStatus, AllergyStatus visitStatus)
+	{
+		var verifier = TestData.StaffMember(StaffRole.Veterinarian);
+		var patient = TestData.Patient();
+		patient.AllergyStatus = AllergyStatus.NoKnownAllergies;
+		patient.AllergySource = AllergySource.ClinicRecord;
+		patient.AllergiesVerifiedAt = DateTimeOffset.UtcNow;
+		patient.AllergiesVerifiedByStaff = verifier;
+		await using (var dbContext = factory.CreateDbContext())
+		{
+			dbContext.AddRange(verifier, patient);
+			await dbContext.SaveChangesAsync(_cancellationToken);
+		}
+		using var client = await factory.CreateSignedInClientAsync(DemoAccounts.TeamEmail);
+
+		var response = await client.PostAsJsonAsync(IntakeUrl, NewIntake(new
+		{
+			patientId = patient.Id,
+			petName = (string?)null,
+			species = (string?)null,
+			allergies
+		}), _cancellationToken);
+
+		var caseId = await CreatedCaseIdAsync(response);
+		await using var check = factory.CreateDbContext();
+		var saved = await check.EmergencyCases.Include(c => c.Patient)
+			.SingleAsync(c => c.Id == caseId, _cancellationToken);
+		Assert.Equal(patientStatus, saved.Patient.AllergyStatus);
+		Assert.Equal(patientStatus == AllergyStatus.NoKnownAllergies, saved.Patient.AllergiesVerifiedByStaffId == verifier.Id);
+		Assert.Equal(visitStatus, saved.AllergyStatusAtIntake);
 	}
 
 	// A returning patient: the medicines confirmed today replace the last ones;
@@ -134,7 +192,7 @@ public class CaseIntakeEndpointTests(VetiFlowApiFactory factory)
 	public async Task Intake_ExistingPatient_CreatesCaseAndUpdatesMedications()
 	{
 		var patient = TestData.Patient();
-		patient.Allergies = "Chicken";
+		patient.RecordReportedAllergies("Chicken");
 		patient.CurrentMedications = "Old medicine";
 		await using (var dbContext = factory.CreateDbContext())
 		{

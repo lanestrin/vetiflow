@@ -433,21 +433,19 @@ public class MigrationTests(VetiFlowApiFactory factory)
 		await using var dbContext = await CreateEmptyDatabaseAsync();
 		var migrator = dbContext.GetService<IMigrator>();
 		await migrator.MigrateAsync("20261029212524_AddPainScores", _cancellationToken);
-		var staff = TestData.StaffMember(StaffRole.Veterinarian);
-		var emergencyCase = TestData.Case(TestData.Patient());
-		dbContext.AddRange(staff, emergencyCase);
-		await dbContext.SaveChangesAsync(_cancellationToken);
+		var staffId = await InsertStaffAsync(dbContext);
+		var caseId = await InsertCaseAsync(dbContext);
 		var enteredAt = new DateTimeOffset(2026, 10, 20, 14, 30, 0, TimeSpan.Zero);
 		var vitalsId = Guid.NewGuid();
 		var triageId = Guid.NewGuid();
 		var painId = Guid.NewGuid();
 		await dbContext.Database.ExecuteSqlAsync($"""
 			INSERT INTO "VitalsRecords" ("Id", "EmergencyCaseId", "HeartRate", "RecordedAt", "RecordedByStaffId")
-			VALUES ({vitalsId}, {emergencyCase.Id}, 140, {enteredAt}, {staff.Id});
+			VALUES ({vitalsId}, {caseId}, 140, {enteredAt}, {staffId});
 			INSERT INTO "TriageAssessments" ("Id", "EmergencyCaseId", "Acuity", "RawIntakeNotes", "AssessedAt", "AssessedByStaffId")
-			VALUES ({triageId}, {emergencyCase.Id}, 'Urgent', 'Historical intake', {enteredAt}, {staff.Id});
+			VALUES ({triageId}, {caseId}, 'Urgent', 'Historical intake', {enteredAt}, {staffId});
 			INSERT INTO "PainScores" ("Id", "EmergencyCaseId", "Score", "Notes", "RecordedAt", "RecordedByStaffId")
-			VALUES ({painId}, {emergencyCase.Id}, 3, 'Historical pain', {enteredAt}, {staff.Id});
+			VALUES ({painId}, {caseId}, 3, 'Historical pain', {enteredAt}, {staffId});
 			""", _cancellationToken);
 		var before = await ReadHistoricalAssessmentsAsync(dbContext);
 
@@ -479,25 +477,57 @@ public class MigrationTests(VetiFlowApiFactory factory)
 		await migrator.MigrateAsync("20261101160606_AddCaseTags", _cancellationToken);
 		var enteredDischarge = new DateTimeOffset(2026, 10, 30, 19, 40, 0, TimeSpan.Zero);
 		var dischargedEarlier = new DateTimeOffset(2026, 10, 29, 9, 15, 0, TimeSpan.Zero);
-		var leftOnBoard = TestData.Case(TestData.Patient());
-		leftOnBoard.Stage = CaseStage.Discharge;
-		leftOnBoard.StageEnteredAt = enteredDischarge;
-		var active = TestData.Case(TestData.Patient());
-		active.Stage = CaseStage.Triage;
-		var alreadyDischarged = TestData.Case(TestData.Patient());
-		alreadyDischarged.Stage = CaseStage.Discharge;
-		alreadyDischarged.StageEnteredAt = enteredDischarge;
-		alreadyDischarged.DischargedAt = dischargedEarlier;
-		dbContext.AddRange(leftOnBoard, active, alreadyDischarged);
-		await dbContext.SaveChangesAsync(_cancellationToken);
+		var leftOnBoard = await InsertCaseAsync(dbContext, "Discharge", enteredDischarge);
+		var active = await InsertCaseAsync(dbContext, "Triage");
+		var alreadyDischarged = await InsertCaseAsync(dbContext, "Discharge", enteredDischarge, dischargedEarlier);
 
 		await migrator.MigrateAsync(cancellationToken: _cancellationToken);
 
 		var discharged = await dbContext.EmergencyCases.AsNoTracking()
 			.ToDictionaryAsync(c => c.Id, c => c.DischargedAt, _cancellationToken);
-		Assert.Equal(enteredDischarge, discharged[leftOnBoard.Id]);
-		Assert.Null(discharged[active.Id]);
-		Assert.Equal(dischargedEarlier, discharged[alreadyDischarged.Id]);
+		Assert.Equal(enteredDischarge, discharged[leftOnBoard]);
+		Assert.Null(discharged[active]);
+		Assert.Equal(dischargedEarlier, discharged[alreadyDischarged]);
+	}
+
+	// Structured allergy status (4.12a): existing text is unverified, never a
+	// verified negative, and blank text is not recorded.
+	[Fact]
+	public async Task AddAllergyStatus_ConvertsExistingText()
+	{
+		await using var dbContext = await CreateEmptyDatabaseAsync();
+		var migrator = dbContext.GetService<IMigrator>();
+		await migrator.MigrateAsync("20261102005258_RemoveCaseTags", _cancellationToken);
+		var withText = Guid.NewGuid();
+		var blank = Guid.NewGuid();
+		var none = Guid.NewGuid();
+		var now = DateTimeOffset.UtcNow;
+		foreach (var (id, allergies) in new[] { (withText, " None known "), (blank, "  "), (none, (string?)null) })
+		{
+			await dbContext.Database.ExecuteSqlAsync($"""
+				INSERT INTO "Patients" ("Id", "Name", "Species", "Allergies") VALUES ({id}, 'Buddy', 'Dog', {allergies})
+				""", _cancellationToken);
+			await dbContext.Database.ExecuteSqlAsync($"""
+				INSERT INTO "EmergencyCases"
+					("Id", "PatientId", "ArrivalTime", "PresentingComplaint", "Stage", "StageEnteredAt",
+					 "Status", "LastUpdated", "OwnerUpdateStatus", "TreatmentAuthorization", "AllergiesAtIntake")
+				VALUES ({id}, {id}, {now}, 'Retching', 'Triage', {now},
+					'Unassigned', {now}, 'NotYetUpdated', 'NotDiscussed', {allergies})
+				""", _cancellationToken);
+		}
+
+		await migrator.MigrateAsync(cancellationToken: _cancellationToken);
+
+		var patients = await dbContext.Patients.AsNoTracking()
+			.ToDictionaryAsync(p => p.Id, p => (p.AllergyStatus, p.Allergies), _cancellationToken);
+		var cases = await dbContext.EmergencyCases.AsNoTracking()
+			.ToDictionaryAsync(c => c.Id, c => (c.AllergyStatusAtIntake, c.AllergiesAtIntake), _cancellationToken);
+		foreach (var records in new[] { patients, cases })
+		{
+			Assert.Equal((AllergyStatus.UnknownOrUnverified, "None known"), records[withText]);
+			Assert.Equal((AllergyStatus.NotRecorded, (string?)null), records[blank]);
+			Assert.Equal((AllergyStatus.NotRecorded, (string?)null), records[none]);
+		}
 	}
 
 	// Free-text tags were removed (build plan 3.5c): the stored tags go, but the
@@ -508,13 +538,14 @@ public class MigrationTests(VetiFlowApiFactory factory)
 		await using var dbContext = await CreateEmptyDatabaseAsync();
 		var migrator = dbContext.GetService<IMigrator>();
 		await migrator.MigrateAsync("20261102002838_BackfillDischargedAt", _cancellationToken);
-		var emergencyCase = TestData.Case(TestData.Patient());
-		var tagAdded = new CaseEvent { EmergencyCase = emergencyCase, Type = CaseEventType.TagAdded, Description = "Tag added: O2 support" };
-		dbContext.AddRange(emergencyCase, tagAdded);
-		await dbContext.SaveChangesAsync(_cancellationToken);
+		var caseId = await InsertCaseAsync(dbContext);
+		var tagAddedId = Guid.NewGuid();
+		var now = DateTimeOffset.UtcNow;
 		await dbContext.Database.ExecuteSqlAsync($"""
+			INSERT INTO "CaseEvents" ("Id", "EmergencyCaseId", "Type", "Description", "CreatedAt")
+			VALUES ({tagAddedId}, {caseId}, 'TagAdded', 'Tag added: O2 support', {now});
 			INSERT INTO "CaseTags" ("Id", "EmergencyCaseId", "Text", "Tone", "CreatedAt")
-			VALUES ({Guid.NewGuid()}, {emergencyCase.Id}, 'O2 support', 'Caution', {DateTimeOffset.UtcNow})
+			VALUES ({Guid.NewGuid()}, {caseId}, 'O2 support', 'Caution', {now});
 			""", _cancellationToken);
 
 		await migrator.MigrateAsync(cancellationToken: _cancellationToken);
@@ -525,7 +556,7 @@ public class MigrationTests(VetiFlowApiFactory factory)
 			""").SingleAsync(_cancellationToken);
 		Assert.Equal(0, tagTables);
 		var timeline = await dbContext.CaseEvents.AsNoTracking()
-			.SingleAsync(caseEvent => caseEvent.Id == tagAdded.Id, _cancellationToken);
+			.SingleAsync(caseEvent => caseEvent.Id == tagAddedId, _cancellationToken);
 		Assert.Equal(CaseEventType.TagAdded, timeline.Type);
 		Assert.Equal("Tag added: O2 support", timeline.Description);
 	}
@@ -537,6 +568,38 @@ public class MigrationTests(VetiFlowApiFactory factory)
 			UNION ALL SELECT (to_jsonb(p) - 'OccurredAt')::text FROM "PainScores" p
 			ORDER BY "Value"
 			""").ToArrayAsync(_cancellationToken);
+
+	// Rows for tests that stop at an older migration: inserted with SQL, because
+	// the current model has columns that schema does not have yet.
+	private async Task<Guid> InsertStaffAsync(VetiFlowDbContext dbContext)
+	{
+		var staffId = Guid.NewGuid();
+		await dbContext.Database.ExecuteSqlAsync($"""
+			INSERT INTO "StaffMembers" ("Id", "FirstName", "LastName", "Role", "IsActive")
+			VALUES ({staffId}, 'Jordan', 'Lee', 'Veterinarian', TRUE)
+			""", _cancellationToken);
+		return staffId;
+	}
+
+	private async Task<Guid> InsertCaseAsync(
+		VetiFlowDbContext dbContext,
+		string stage = "Triage",
+		DateTimeOffset? stageEnteredAt = null,
+		DateTimeOffset? dischargedAt = null)
+	{
+		var patientId = Guid.NewGuid();
+		var caseId = Guid.NewGuid();
+		var now = DateTimeOffset.UtcNow;
+		await dbContext.Database.ExecuteSqlAsync($"""
+			INSERT INTO "Patients" ("Id", "Name", "Species") VALUES ({patientId}, 'Buddy', 'Dog');
+			INSERT INTO "EmergencyCases"
+				("Id", "PatientId", "ArrivalTime", "PresentingComplaint", "Stage", "StageEnteredAt",
+				 "Status", "LastUpdated", "OwnerUpdateStatus", "TreatmentAuthorization", "DischargedAt")
+			VALUES ({caseId}, {patientId}, {now}, 'Vomiting', {stage}, {stageEnteredAt ?? now},
+				'Unassigned', {now}, 'NotYetUpdated', 'NotDiscussed', {dischargedAt});
+			""", _cancellationToken);
+		return caseId;
+	}
 
 	private async Task<VetiFlowDbContext> CreateEmptyDatabaseAsync() =>
 		VetiFlowApiFactory.CreateDbContext(await factory.Postgres.CreateDatabaseAsync());

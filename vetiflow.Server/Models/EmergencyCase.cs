@@ -95,6 +95,10 @@ public class EmergencyCase
 	// whether the pet is still on the same medicines and doses. Never logged.
 	public string? AllergiesAtIntake { get; set; }
 
+	// This visit's own allergy record, kept apart from the patient's history
+	// (4.12a). Set it with RecordAllergiesAtIntake.
+	public AllergyStatus AllergyStatusAtIntake { get; set; } = AllergyStatus.NotRecorded;
+
 	public string? MedicationsAtIntake { get; set; }
 
 	public TreatmentAuthorization TreatmentAuthorization { get; set; } = TreatmentAuthorization.NotDiscussed;
@@ -110,6 +114,14 @@ public class EmergencyCase
 	public List<CaseTask> Tasks { get; } = [];
 
 	public List<CaseEvent> Events { get; } = [];
+
+	// What this visit's intake recorded about allergies (4.12a): typed text is
+	// unverified, whatever it says; no text is not recorded.
+	public void RecordAllergiesAtIntake(string? text)
+	{
+		AllergiesAtIntake = string.IsNullOrWhiteSpace(text) ? null : text.Trim();
+		AllergyStatusAtIntake = AllergiesAtIntake is null ? AllergyStatus.NotRecorded : AllergyStatus.UnknownOrUnverified;
+	}
 
 	// Moving to the stage it is already in changes nothing, so the minutes in
 	// the stage keep counting.

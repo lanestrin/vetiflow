@@ -190,6 +190,73 @@ public class DatabaseConstraintTests(VetiFlowApiFactory factory)
 			"CK_VitalsRecords_SpO2Percent");
 	}
 
+	// Missing or unverified allergy information is never a verified negative (4.12a).
+	public static TheoryData<string, AllergyStatus, string?, bool> ForbiddenAllergyRecords => new()
+	{
+		{ "not recorded with text", AllergyStatus.NotRecorded, "Penicillin", false },
+		{ "not recorded but verified", AllergyStatus.NotRecorded, null, true },
+		{ "unverified with a verifier", AllergyStatus.UnknownOrUnverified, "Penicillin", true },
+		{ "no known allergies, unverified", AllergyStatus.NoKnownAllergies, null, false },
+		{ "no known allergies with text", AllergyStatus.NoKnownAllergies, "Penicillin", true },
+		{ "documented, unverified", AllergyStatus.DocumentedAllergies, "Penicillin", false },
+		{ "documented with no text", AllergyStatus.DocumentedAllergies, " ", true },
+		{ "documented with missing text", AllergyStatus.DocumentedAllergies, null, true }
+	};
+
+	[Theory]
+	[MemberData(nameof(ForbiddenAllergyRecords))]
+	public async Task Patient_AllergyStatusMustMatchItsRecord(string because, AllergyStatus status, string? text, bool verified)
+	{
+		Assert.NotEmpty(because);
+		var verifier = TestData.StaffMember(StaffRole.Veterinarian);
+		var patient = TestData.Patient();
+		patient.AllergyStatus = status;
+		patient.Allergies = text;
+		if (verified)
+		{
+			patient.AllergiesVerifiedAt = DateTimeOffset.UtcNow;
+			patient.AllergiesVerifiedByStaff = verifier;
+		}
+
+		await using var dbContext = factory.CreateDbContext();
+		dbContext.AddRange(verifier, patient);
+
+		await AssertViolatesAsync(dbContext, PostgresErrorCodes.CheckViolation, "CK_Patients_AllergyStatus");
+	}
+
+	[Fact]
+	public async Task Patient_VerifiedNoKnownAllergies_IsAccepted()
+	{
+		var verifier = TestData.StaffMember(StaffRole.Veterinarian);
+		var patient = TestData.Patient();
+		patient.AllergyStatus = AllergyStatus.NoKnownAllergies;
+		patient.AllergiesVerifiedAt = DateTimeOffset.UtcNow;
+		patient.AllergiesVerifiedByStaff = verifier;
+		patient.AllergySource = AllergySource.ClinicRecord;
+
+		await using var dbContext = factory.CreateDbContext();
+		dbContext.AddRange(verifier, patient);
+
+		await dbContext.SaveChangesAsync(_cancellationToken);
+	}
+
+	[Theory]
+	[InlineData(AllergyStatus.NotRecorded, "Penicillin")]
+	[InlineData(AllergyStatus.UnknownOrUnverified, null)]
+	[InlineData(AllergyStatus.NoKnownAllergies, null)]
+	[InlineData(AllergyStatus.DocumentedAllergies, "Penicillin")]
+	public async Task Case_IntakeAllergyStatusMustMatchItsText(AllergyStatus status, string? text)
+	{
+		var emergencyCase = TestData.Case(TestData.Patient());
+		emergencyCase.AllergyStatusAtIntake = status;
+		emergencyCase.AllergiesAtIntake = text;
+
+		await using var dbContext = factory.CreateDbContext();
+		dbContext.EmergencyCases.Add(emergencyCase);
+
+		await AssertViolatesAsync(dbContext, PostgresErrorCodes.CheckViolation, "CK_EmergencyCases_AllergyStatusAtIntake");
+	}
+
 	[Fact]
 	public async Task Enums_AreStoredByName()
 	{

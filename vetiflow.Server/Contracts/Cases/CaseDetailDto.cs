@@ -48,6 +48,9 @@ public class CaseDetailDto
 	// Allergies and CurrentMedications next time.
 	public string? AllergiesAtIntake { get; set; }
 
+	// NotRecorded or UnknownOrUnverified: an intake never verifies (4.12a).
+	public AllergyStatus AllergyStatusAtIntake { get; set; }
+
 	public string? MedicationsAtIntake { get; set; }
 
 	public TreatmentAuthorization TreatmentAuthorization { get; set; }

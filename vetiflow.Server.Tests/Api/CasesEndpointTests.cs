@@ -904,14 +904,14 @@ public class CasesEndpointTests(VetiFlowApiFactory factory)
 		var patient = TestData.Patient();
 		patient.DateOfBirth = new DateOnly(2018, 3, 1);
 		patient.DateOfBirthIsEstimated = true;
-		patient.Allergies = "Penicillin";
+		patient.RecordReportedAllergies("Penicillin");
 		patient.CurrentMedications = "Carprofen 75 mg twice daily";
 		var room = TestData.Room();
 		room.Type = RoomType.Oxygen;
 		var emergencyCase = TestData.Case(patient, room);
 		// Whole seconds, so the value survives Postgres's microsecond precision.
 		emergencyCase.StageEnteredAt = DateTimeOffset.FromUnixTimeSeconds(1_800_000_000);
-		emergencyCase.AllergiesAtIntake = "Penicillin";
+		emergencyCase.RecordAllergiesAtIntake("Penicillin");
 		emergencyCase.MedicationsAtIntake = "Carprofen, last dose 7 AM";
 		emergencyCase.TreatmentAuthorization = TreatmentAuthorization.Authorized;
 		emergencyCase.ReferringClinic = "Lakeside Animal Clinic";
@@ -933,6 +933,39 @@ public class CasesEndpointTests(VetiFlowApiFactory factory)
 		Assert.True(patientJson.GetProperty("dateOfBirthIsEstimated").GetBoolean());
 		Assert.Equal("Penicillin", patientJson.GetProperty("allergies").GetString());
 		Assert.Equal("Carprofen 75 mg twice daily", patientJson.GetProperty("currentMedications").GetString());
+		Assert.Equal("unknownOrUnverified", patientJson.GetProperty("allergyStatus").GetString());
+		Assert.Equal(JsonValueKind.Null, patientJson.GetProperty("allergySource").ValueKind);
+		Assert.Equal(JsonValueKind.Null, patientJson.GetProperty("allergiesVerifiedAt").ValueKind);
+		Assert.Equal(JsonValueKind.Null, patientJson.GetProperty("allergiesVerifiedBy").ValueKind);
+		Assert.Equal("unknownOrUnverified", detail.GetProperty("allergyStatusAtIntake").GetString());
+	}
+
+	// A verified allergy record names its verifier, time and source (4.12a).
+	[Fact]
+	public async Task GetCase_ReturnsVerifiedAllergyRecord()
+	{
+		var verifier = TestData.StaffMember(StaffRole.Veterinarian);
+		var patient = TestData.Patient();
+		patient.AllergyStatus = AllergyStatus.NoKnownAllergies;
+		patient.AllergySource = AllergySource.ReferringClinic;
+		patient.AllergiesVerifiedAt = DateTimeOffset.FromUnixTimeSeconds(1_800_000_000);
+		patient.AllergiesVerifiedByStaff = verifier;
+		var emergencyCase = TestData.Case(patient);
+		await using (var dbContext = factory.CreateDbContext())
+		{
+			dbContext.AddRange(verifier, emergencyCase);
+			await dbContext.SaveChangesAsync(_cancellationToken);
+		}
+		using var client = await factory.CreateSignedInClientAsync(DemoAccounts.TeamEmail);
+
+		var detail = await GetCaseAsync(client, emergencyCase.Id);
+
+		var patientJson = detail.GetProperty("patient");
+		Assert.Equal("noKnownAllergies", patientJson.GetProperty("allergyStatus").GetString());
+		Assert.Equal("referringClinic", patientJson.GetProperty("allergySource").GetString());
+		Assert.Equal(patient.AllergiesVerifiedAt, patientJson.GetProperty("allergiesVerifiedAt").GetDateTimeOffset());
+		AssertReference(patientJson.GetProperty("allergiesVerifiedBy"), verifier.Id, $"{verifier.FirstName} {verifier.LastName}");
+		Assert.Equal("notRecorded", detail.GetProperty("allergyStatusAtIntake").GetString());
 	}
 
 	[Fact]

@@ -57,6 +57,10 @@ export function buildCaseDetail(overrides: Partial<CaseDetail> = {}): CaseDetail
       dateOfBirth: null,
       dateOfBirthIsEstimated: false,
       allergies: null,
+      allergyStatus: "notRecorded",
+      allergySource: null,
+      allergiesVerifiedAt: null,
+      allergiesVerifiedBy: null,
       currentMedications: null
     },
     owner: null,
@@ -74,6 +78,7 @@ export function buildCaseDetail(overrides: Partial<CaseDetail> = {}): CaseDetail
     assignedTechnician: null,
     room: null,
     allergiesAtIntake: null,
+    allergyStatusAtIntake: "notRecorded",
     medicationsAtIntake: null,
     treatmentAuthorization: "notDiscussed",
     referringClinic: null,

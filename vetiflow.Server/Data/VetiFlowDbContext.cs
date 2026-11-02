@@ -77,6 +77,28 @@ public class VetiFlowDbContext : DbContext
 					.IsUnique()
 					.HasFilter("\"DischargedAt\" IS NULL AND \"RoomId\" IS NOT NULL")
 					.HasDatabaseName("IX_EmergencyCases_RoomId_Active");
+
+			// An intake records allergy text as unverified, or nothing (4.12a).
+			emergencyCase.ToTable(table => table.HasCheckConstraint(
+					"CK_EmergencyCases_AllergyStatusAtIntake",
+					"(\"AllergyStatusAtIntake\" = 'NotRecorded' AND \"AllergiesAtIntake\" IS NULL) OR " +
+					"(\"AllergyStatusAtIntake\" = 'UnknownOrUnverified' AND \"AllergiesAtIntake\" IS NOT NULL AND length(btrim(\"AllergiesAtIntake\")) > 0)"));
+		});
+
+		// Missing or unverified allergy information is never a verified
+		// negative: only the verified statuses carry a verifier and time (4.12a).
+		modelBuilder.Entity<Patient>(patient =>
+		{
+			patient.ToTable(table => table.HasCheckConstraint(
+					"CK_Patients_AllergyStatus",
+					"(\"AllergyStatus\" = 'NotRecorded' AND \"Allergies\" IS NULL AND \"AllergySource\" IS NULL " +
+					"AND \"AllergiesVerifiedAt\" IS NULL AND \"AllergiesVerifiedByStaffId\" IS NULL) OR " +
+					"(\"AllergyStatus\" = 'UnknownOrUnverified' " +
+					"AND \"AllergiesVerifiedAt\" IS NULL AND \"AllergiesVerifiedByStaffId\" IS NULL) OR " +
+					"(\"AllergyStatus\" = 'NoKnownAllergies' AND \"Allergies\" IS NULL " +
+					"AND \"AllergiesVerifiedAt\" IS NOT NULL AND \"AllergiesVerifiedByStaffId\" IS NOT NULL) OR " +
+					"(\"AllergyStatus\" = 'DocumentedAllergies' AND \"Allergies\" IS NOT NULL AND length(btrim(\"Allergies\")) > 0 " +
+					"AND \"AllergiesVerifiedAt\" IS NOT NULL AND \"AllergiesVerifiedByStaffId\" IS NOT NULL)"));
 		});
 
 		modelBuilder.Entity<VitalsRecord>(vitals =>
