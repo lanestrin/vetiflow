@@ -109,8 +109,6 @@ public class EmergencyCase
 
 	public List<CaseTask> Tasks { get; } = [];
 
-	public List<CaseTag> Tags { get; } = [];
-
 	public List<CaseEvent> Events { get; } = [];
 
 	// Moving to the stage it is already in changes nothing, so the minutes in

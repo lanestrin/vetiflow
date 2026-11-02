@@ -8,7 +8,6 @@ import { readAccessToken, saveAccessToken } from "../../services/session";
 import { buildCaseDetail, buildCaseTask } from "../../test/builders";
 import { apiUrl, server } from "../../test/server";
 import type { CaseDetail, CaseTask } from "../../types/CaseDetail";
-import type { CaseTag } from "../../types/CaseTag";
 import type { PatientProfileRouteState } from "../../routes/PatientProfilePage";
 import { ToastProvider } from "../shell/Toast";
 import { PatientOverviewPanel } from "./PatientOverviewPanel";
@@ -74,10 +73,6 @@ function buildMilo(overrides: Partial<CaseDetail> = {}): CaseDetail {
     ],
     ...overrides
   };
-}
-
-function caseTag(id: string, text: string, tone: CaseTag["tone"]): CaseTag {
-  return { id, text, tone, createdAt: "2026-10-28T11:00:00Z", createdBy: null };
 }
 
 function serveCase(detail: CaseDetail) {
@@ -493,100 +488,18 @@ describe("PatientOverviewPanel", () => {
   });
 
   // Case tags (build plan 3.5b).
-  it("lists the case's tags with their tone in words and a remove button each", async () => {
-    serveCase(buildMilo({ tags: [caseTag("t1", "O2 support", "caution"), caseTag("t2", "Fresh wound", "alert")] }));
-
+  // Free-text tags were removed (build plan 3.5c); a tags field from an older
+  // server is ignored.
+  it("shows no Tags section and no Add tag control", async () => {
+    serveCase({ ...buildMilo(), tags: [{ id: "t1", text: "O2 support", tone: "caution" }] } as unknown as CaseDetail);
     renderPanel("case-milo");
 
-    const section = await screen.findByRole("region", { name: "Tags" });
-    expect(within(section).getByText("O2 support")).toBeInTheDocument();
-    expect(within(section).getByText("Caution")).toBeInTheDocument();
-    expect(within(section).getByRole("button", { name: "Remove tag O2 support" })).toBeInTheDocument();
-    expect(within(section).getByRole("button", { name: "Add tag" })).toBeEnabled();
+    await screen.findByRole("heading", { name: "Milo" });
+    expect(screen.queryByRole("heading", { name: "Tags" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /add tag/i })).not.toBeInTheDocument();
+    expect(screen.queryByText("O2 support")).not.toBeInTheDocument();
   });
 
-  it("shows an empty Tags section when the case has none", async () => {
-    serveCase(buildMilo({ tags: [] }));
-
-    renderPanel("case-milo");
-
-    const section = await screen.findByRole("region", { name: "Tags" });
-    expect(within(section).getByText("No tags recorded")).toBeInTheDocument();
-  });
-
-  it("removes a tag, reports it removed and reloads the board", async () => {
-    serveCase(buildMilo({ tags: [caseTag("t1", "O2 support", "caution")] }));
-    let deleted = 0;
-    server.use(http.delete(apiUrl("/api/cases/case-milo/tags/t1"), () => {
-      deleted += 1;
-      return new HttpResponse(null, { status: 204 });
-    }));
-    const onTaskSaved = vi.fn();
-    renderPanel("case-milo", undefined, undefined, onTaskSaved);
-
-    fireEvent.click(await screen.findByRole("button", { name: "Remove tag O2 support" }));
-
-    expect(await screen.findByText("Tag removed")).toBeInTheDocument();
-    expect(deleted).toBe(1);
-    expect(onTaskSaved).toHaveBeenCalledTimes(1);
-  });
-
-  it("shows the server's reason when a removal is refused", async () => {
-    serveCase(buildMilo({ tags: [caseTag("t1", "O2 support", "caution")] }));
-    server.use(http.delete(apiUrl("/api/cases/case-milo/tags/t1"), () =>
-      HttpResponse.json({ title: "This case has been discharged", status: 409 }, { status: 409 })));
-    renderPanel("case-milo");
-
-    fireEvent.click(await screen.findByRole("button", { name: "Remove tag O2 support" }));
-
-    const section = screen.getByRole("region", { name: "Tags" });
-    expect(await within(section).findByRole("alert")).toHaveTextContent("This case has been discharged");
-  });
-
-  it("disables Add tag at five tags and says why", async () => {
-    serveCase(buildMilo({
-      tags: ["One", "Two", "Three", "Four", "Five"].map((text, index) => caseTag(`t${index}`, text, "info"))
-    }));
-
-    renderPanel("case-milo");
-
-    const section = await screen.findByRole("region", { name: "Tags" });
-    expect(within(section).getByRole("button", { name: "Add tag" })).toBeDisabled();
-    expect(within(section).getByText("This case has 5 tags.")).toBeInTheDocument();
-  });
-
-  it("opens Add tag, and a saved tag reloads the board and reports it added", async () => {
-    serveCase(buildMilo({ tags: [] }));
-    server.use(http.post(apiUrl("/api/cases/case-milo/tags"), () => new HttpResponse(null, { status: 201 })));
-    const onTaskSaved = vi.fn();
-    renderPanel("case-milo", undefined, undefined, onTaskSaved);
-
-    const section = await screen.findByRole("region", { name: "Tags" });
-    fireEvent.click(within(section).getByRole("button", { name: "Add tag" }));
-    const dialog = screen.getByRole("dialog", { name: "Add tag" });
-    fireEvent.change(within(dialog).getByLabelText("Tag text"), { target: { value: "O2 support" } });
-    fireEvent.click(within(dialog).getByRole("button", { name: "Add tag" }));
-
-    expect(await screen.findByText("Tag added")).toBeInTheDocument();
-    expect(onTaskSaved).toHaveBeenCalledTimes(1);
-    expect(screen.queryByRole("dialog", { name: "Add tag" })).not.toBeInTheDocument();
-  });
-
-  it("offers no add or remove in a discharged case, but still lists its tags", async () => {
-    serveCase(buildMilo({
-      dischargedAt: "2026-10-28T11:30:00Z",
-      tags: [caseTag("t1", "O2 support", "caution")]
-    }));
-
-    renderPanel("case-milo");
-
-    const section = await screen.findByRole("region", { name: "Tags" });
-    expect(within(section).getByText("O2 support")).toBeInTheDocument();
-    expect(within(section).queryByRole("button", { name: "Add tag" })).not.toBeInTheDocument();
-    expect(within(section).queryByRole("button", { name: "Remove tag O2 support" })).not.toBeInTheDocument();
-  });
-
-  // Client update merged into Next care action (build plan 3.5b, step 5).
   it("shows the owner update inside Next care action, with no separate Client update card", async () => {
     serveCase(buildMilo({ lastOwnerUpdateAt: "2026-10-28T10:00:00Z", ownerUpdateStatus: "updated" }));
 

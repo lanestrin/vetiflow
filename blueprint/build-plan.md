@@ -109,6 +109,7 @@ Decided (later items must keep these):
   all cases, Awaiting triage and Critical patients filter the board, and Avg.
   door to doctor opens its details.
 - **Discharge leaves the board** (decided 2026-11-01, by the person). Moving a case to the Discharge stage records its discharge time and removes it from the ER board, and its room is freed. This is a discharge record, not a clinical departure. It supersedes the "readiness is not departure" rule for the Discharge stage only; departure, admission, transfer and death outcomes stay with 6.2e.
+- **Case tags removed for now** (decided 2026-11-02, by the person). Free-text tags drift: each person words a situation their own way until there are dozens of near-duplicate tags that mean nothing. Tags come back only as a clinic-approved list that staff select from, never type; until such a list exists, tags are removed (3.5c). Past "Tag added/removed" timeline entries stay as history.
 - **Allergies and medications:** decided 2026-10-28, kept on the patient and
   carried to the next visit; each intake also records on the case what was
   confirmed at that visit, so staff can check next time whether the pet is
@@ -354,6 +355,7 @@ the future per-role protections in S.6/3.7 are already implemented.
 
 - [x] **3.5a** `feature/case-tags-api`: short clinical tags on a case ("Respiratory distress", "O₂ support") with a tone (alert, caution, info, neutral); add and remove, with limits. Done (history/features/3.5a-case-tags-api.md).
 - [x] **3.5b** `feature/case-tags`: tags on cards in the prototype's colours, and adding or removing them from the panel. Done (history/features/3.5b-case-tags.md).
+- [x] **3.5c** `feature/remove-case-tags`: remove free-text case tags (3.5a/3.5b) per the 2026-11-02 decision: the tags endpoints, the stored tags (a migration drops them), the tags on board cards and the Patient Overview's Tags section. Past tag timeline entries stay. A selected-from-a-list version needs a clinic-approved tag list first. Done (history/features/3.5c-remove-case-tags.md).
 
 **Care team and location** (prototype: assigned clinician, location row)
 

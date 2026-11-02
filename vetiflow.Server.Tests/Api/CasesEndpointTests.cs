@@ -206,6 +206,25 @@ public class CasesEndpointTests(VetiFlowApiFactory factory)
 		Assert.DoesNotContain(owner.Email!, json);
 	}
 
+	// Free-text tags were removed (build plan 3.5c): no tags field, no tags endpoint.
+	[Fact]
+	public async Task Tags_AreGoneFromCasesAndCannotBeAdded()
+	{
+		var emergencyCase = TestData.Case(TestData.Patient());
+		await SaveAsync(emergencyCase);
+		using var client = await factory.CreateSignedInClientAsync(DemoAccounts.TeamEmail);
+
+		var cases = await client.GetFromJsonAsync<JsonElement[]>("/api/cases", _cancellationToken);
+		var detail = await client.GetFromJsonAsync<JsonElement>($"/api/cases/{emergencyCase.Id}", _cancellationToken);
+		var add = await client.PostAsJsonAsync(
+			$"/api/cases/{emergencyCase.Id}/tags", new { text = "O2 support", tone = "caution" }, _cancellationToken);
+
+		var item = Assert.Single(cases!, item => item.GetProperty("id").GetGuid() == emergencyCase.Id);
+		Assert.False(item.TryGetProperty("tags", out _));
+		Assert.False(detail.TryGetProperty("tags", out _));
+		Assert.Equal(HttpStatusCode.NotFound, add.StatusCode);
+	}
+
 	[Fact]
 	public async Task GetCases_UntriagedCase_HasNullAcuity()
 	{

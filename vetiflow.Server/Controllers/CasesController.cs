@@ -104,23 +104,6 @@ public class CasesController : ControllerBase
 									+ emergencyCase.AssignedTechnician.LastName.Substring(0, 1).ToUpper()
 							}
 							: null,
-					Tags = emergencyCase.Tags
-						.OrderBy(tag => tag.CreatedAt)
-						.Select(tag => new CaseTagDto
-						{
-							Id = tag.Id,
-							Text = tag.Text,
-							Tone = tag.Tone,
-							CreatedAt = tag.CreatedAt,
-							CreatedBy = tag.CreatedByStaff == null
-								? null
-								: new CaseReferenceDto
-								{
-									Id = tag.CreatedByStaff.Id,
-									Name = tag.CreatedByStaff.FirstName + " " + tag.CreatedByStaff.LastName
-								}
-						})
-						.ToList(),
 					Blockers = emergencyCase.Tasks
 						.Where(task => task.Type == CaseTaskType.Blocker && task.Status == CaseTaskStatus.Open)
 						.OrderBy(task => task.CreatedAt)
@@ -237,23 +220,6 @@ public class CasesController : ControllerBase
 					ReferringClinic = emergencyCase.ReferringClinic,
 					OwnerUpdateStatus = emergencyCase.OwnerUpdateStatus,
 					LastOwnerUpdateAt = emergencyCase.LastOwnerUpdateAt,
-					Tags = emergencyCase.Tags
-						.OrderBy(tag => tag.CreatedAt)
-						.Select(tag => new CaseTagDto
-						{
-							Id = tag.Id,
-							Text = tag.Text,
-							Tone = tag.Tone,
-							CreatedAt = tag.CreatedAt,
-							CreatedBy = tag.CreatedByStaff == null
-								? null
-								: new CaseReferenceDto
-								{
-									Id = tag.CreatedByStaff.Id,
-									Name = tag.CreatedByStaff.FirstName + " " + tag.CreatedByStaff.LastName
-								}
-						})
-						.ToList(),
 					TriageAssessments = emergencyCase.TriageAssessments
 						.OrderByDescending(triage => triage.AssessedAt)
 						.Select(triage => new TriageAssessmentDto

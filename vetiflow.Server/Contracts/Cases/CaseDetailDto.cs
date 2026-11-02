@@ -64,9 +64,6 @@ public class CaseDetailDto
 	// Newest first.
 	public required List<VitalsRecordDto> Vitals { get; set; }
 
-	// Oldest first (build plan 3.5a).
-	public required List<CaseTagDto> Tags { get; set; }
-
 	// The newest pain score (4.8a); null when none is recorded.
 	public PainScoreDto? LatestPainScore { get; set; }
 

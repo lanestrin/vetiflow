@@ -654,24 +654,6 @@ describe("Status changes on the ER board", () => {
   });
 });
 
-describe("Case tags on the ER board", () => {
-  it("shows a tag added on another board on the card when caseUpdated arrives", async () => {
-    const buddy = buildCase({ id: "case-buddy", patientName: "Buddy", acuity: "urgent" });
-    serveCases([buddy]);
-    renderBoard();
-    await screen.findByRole("button", { name: "Buddy" });
-    expect(screen.queryByText("O2 support")).not.toBeInTheDocument();
-
-    serveCases([{
-      ...buddy,
-      tags: [{ id: "t1", text: "O2 support", tone: "caution", createdAt: "2026-10-28T11:00:00Z", createdBy: null }]
-    }]);
-    hub.emit("caseUpdated", buddy.id);
-
-    expect(await screen.findByText("O2 support")).toBeInTheDocument();
-  });
-});
-
 describe("Clinical review on the ER board", () => {
   it("uses the selected detail without writes/duplicate reads and updates through the hub", async () => {
     const buddy = buildCase({ id: "case-buddy", patientName: "Buddy" });
