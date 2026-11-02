@@ -1,5 +1,4 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { dateLabel } from "./overviewFormat";
 import * as casesApi from "../../services/casesApi";
 import { http, HttpResponse } from "msw";
 import { MemoryRouter, Route, Routes, useLocation, useParams } from "react-router-dom";
@@ -119,6 +118,12 @@ function renderPanel(
   return { rerender: (id: string | null, refreshed: Date) => view.rerender(panel(id, refreshed)) };
 }
 
+// Opens a patient record tab and returns its panel (build plan 3.2c).
+async function openTab(name: string) {
+  fireEvent.click(await screen.findByRole("tab", { name }));
+  return screen.getByRole("tabpanel", { name });
+}
+
 async function openMoreAction(label: string) {
   fireEvent.click(await screen.findByRole("button", { name: "More actions" }));
   fireEvent.click(await screen.findByRole("button", { name: label }));
@@ -157,7 +162,7 @@ describe("PatientOverviewPanel", () => {
   it("asks for a selection when no card is selected", () => {
     renderPanel(null);
 
-    expect(screen.getByRole("complementary", { name: "Patient overview" })).toBeInTheDocument();
+    expect(screen.getByRole("complementary", { name: "Patient record" })).toBeInTheDocument();
     expect(screen.getByText("Select a patient on the board to see their overview.")).toBeInTheDocument();
   });
 
@@ -208,7 +213,7 @@ describe("PatientOverviewPanel", () => {
     expect(screen.getByText("Jordan Reed")).toBeInTheDocument();
     expect(screen.getByText("Sam Cruz")).toBeInTheDocument();
     // The stored status, never a guess from the text (4.12b).
-    expect(screen.getByText("Peanuts · not verified")).toBeInTheDocument();
+    expect(screen.getByText("Peanuts · not verified", { selector: "[data-role='allergies']" })).toBeInTheDocument();
     expect(screen.getByText("Last owner update")).toBeInTheDocument();
     expect(screen.queryByText("Approved client update")).not.toBeInTheDocument();
     expect(screen.queryByText("Outside range")).not.toBeInTheDocument();
@@ -217,7 +222,6 @@ describe("PatientOverviewPanel", () => {
     expect(screen.queryByRole("region", { name: "Pain score" })).not.toBeInTheDocument();
     const visualSections = [
       screen.getByRole("region", { name: "Case context" }),
-      screen.getByRole("region", { name: "Patient record" }),
       screen.getByRole("region", { name: "Next care action" }),
       screen.getByRole("region", { name: "Latest vitals" }),
       screen.getByRole("region", { name: "Care team and safety" })
@@ -226,8 +230,10 @@ describe("PatientOverviewPanel", () => {
       const previous = visualSections[index - 1];
       return !previous || Boolean(previous.compareDocumentPosition(section) & Node.DOCUMENT_POSITION_FOLLOWING);
     })).toBe(true);
+    // The record tiles became tabs (3.2c).
+    expect(screen.queryByRole("region", { name: "Patient record" })).not.toBeInTheDocument();
     for (const name of ["Clinical", "Medications", "Timeline"]) {
-      expect(screen.getByRole("button", { name })).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name })).not.toBeInTheDocument();
     }
   });
 
@@ -243,8 +249,8 @@ describe("PatientOverviewPanel", () => {
 
     renderPanel("case-milo");
 
-    expect(await screen.findByText("No known allergies · verified · not rechecked at this visit's intake"))
-      .toBeInTheDocument();
+    expect(await screen.findByText("No known allergies · verified · not rechecked at this visit's intake",
+      { selector: "[data-role='allergies']" })).toBeInTheDocument();
   });
 
   it("shows neutral missing states for stage context, action, allergies and care-team assignments", async () => {
@@ -311,29 +317,27 @@ describe("PatientOverviewPanel", () => {
     ]);
   });
 
-  it("links to the patient's history beneath the three record tiles", async () => {
+  it("links to the patient's history at the end of the Overview", async () => {
     const detail = buildMilo();
     serveCase(detail);
     renderPanel("case-milo");
 
-    const record = within(await screen.findByRole("region", { name: "Patient record" }));
-    const link = record.getByRole("link", { name: "View Patient History" });
-    const timeline = record.getByRole("button", { name: "Timeline" });
-    expect(timeline.compareDocumentPosition(link) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(record.getAllByRole("button").map(button => button.textContent?.trim())).toEqual(["Clinical", "Medications", "Timeline"]);
+    const overview = within(await screen.findByRole("tabpanel", { name: "Overview" }));
+    const link = overview.getByRole("link", { name: "View Patient History" });
+    const careTeam = overview.getByRole("region", { name: "Care team and safety" });
+    expect(careTeam.compareDocumentPosition(link) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 
     fireEvent.click(link);
     expect(screen.getByText(`Profile of ${detail.patient.id} from case case-milo`)).toBeInTheDocument();
   });
 
-  it("keeps detailed observations in the Clinical review drawer", async () => {
+  it("keeps detailed observations in the Clinical tab", async () => {
     const milo = buildMilo();
     milo.vitals[0] = { ...milo.vitals[0], mucousMembraneColor: "Pink", capillaryRefillTime: "2 s",
       mentation: "<script>Alert</script>", recordedBy: { id: "s1", name: "Jordan Lee" } };
     serveCase(milo);
     renderPanel("case-milo");
-    fireEvent.click(await screen.findByRole("button", { name: "Clinical" }));
-    const clinical = within(await screen.findByRole("dialog", { name: "Clinical" }));
+    const clinical = within(await openTab("Clinical"));
     // The findings also appear in "Since the previous saved set" (4.8g).
     const assessment = within(clinical.getByRole("region", { name: "Clinical assessment" }));
     expect(assessment.getByText("Mucous membrane colour")).toBeInTheDocument();
@@ -352,8 +356,7 @@ describe("PatientOverviewPanel", () => {
     milo.vitals[1].mentation = "Older observation";
     serveCase(milo);
     renderPanel("case-milo");
-    fireEvent.click(await screen.findByRole("button", { name: "Clinical" }));
-    const clinical = within(await screen.findByRole("dialog", { name: "Clinical" }));
+    const clinical = within(await openTab("Clinical"));
     // Counted in the vitals section; the Allergies section (4.12b) has its own.
     expect(within(clinical.getByRole("region", { name: "Latest recorded vitals" })).getAllByText("Not recorded")).toHaveLength(1);
     expect(clinical.getByText("No assessment findings recorded in this set")).toBeInTheDocument();
@@ -365,8 +368,7 @@ describe("PatientOverviewPanel", () => {
   it("shows missing observations without recorded metadata in Clinical when no set exists", async () => {
     serveCase(buildMilo({ vitals: [] }));
     renderPanel("case-milo");
-    fireEvent.click(await screen.findByRole("button", { name: "Clinical" }));
-    const clinical = within(await screen.findByRole("dialog", { name: "Clinical" }));
+    const clinical = within(await openTab("Clinical"));
     expect(within(clinical.getByRole("region", { name: "Latest recorded vitals" })).getAllByText("Not recorded")).toHaveLength(4);
     expect(clinical.getByText("No assessment findings recorded")).toBeInTheDocument();
     expect(clinical.queryByText(/^Entered/)).not.toBeInTheDocument();
@@ -448,13 +450,12 @@ describe("PatientOverviewPanel", () => {
     expect(tiles.getAllByText("Not recorded")).toHaveLength(4);
   });
 
-  it("lists the recorded timeline in the Timeline review drawer", async () => {
+  it("lists the recorded timeline in the Timeline tab", async () => {
     serveCase(buildMilo());
 
     renderPanel("case-milo");
 
-    fireEvent.click(await screen.findByRole("button", { name: "Timeline" }));
-    const timeline = within(await screen.findByRole("dialog", { name: "Timeline" }));
+    const timeline = within(await openTab("Timeline"));
     const history = within(timeline.getByRole("region", { name: "Recorded history" }));
     const items = history.getAllByRole("listitem");
     expect(items.map((item) => item.textContent)).toEqual([
@@ -484,9 +485,7 @@ describe("PatientOverviewPanel", () => {
 
     renderPanel("case-milo");
 
-    fireEvent.click(await screen.findByRole("button", { name: "Timeline" }));
-    expect(await screen.findByText("No history recorded")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Close Timeline" }));
+    expect(within(await openTab("Timeline")).getByText("No history recorded")).toBeInTheDocument();
     await openMoreAction("Tasks and due items");
     expect(await screen.findByText("No tasks yet.")).toBeInTheDocument();
   });
@@ -558,23 +557,23 @@ describe("PatientOverviewPanel", () => {
   });
 
   // Quick edits (build plan 4.3b).
-  it("changes the care stage from beside it and returns focus there", async () => {
+  it("changes the care stage from the patient header and returns focus there", async () => {
     serveCase(buildMilo());
     server.use(http.patch(apiUrl("/api/cases/case-milo/status"), () => new HttpResponse(null, { status: 204 })));
     const onTaskSaved = vi.fn();
     renderPanel("case-milo", undefined, undefined, onTaskSaved);
 
-    fireEvent.click(await screen.findByRole("button", { name: "Change care stage" }));
+    fireEvent.click(await screen.findByRole("button", { name: /^Change care stage/ }));
     const dialog = screen.getByRole("dialog", { name: "Update status" });
     fireEvent.change(within(dialog).getByLabelText("Status"), { target: { value: "waiting" } });
     fireEvent.click(within(dialog).getByRole("button", { name: "Save status" }));
 
     expect(await screen.findByText("Status updated")).toBeInTheDocument();
     expect(onTaskSaved).toHaveBeenCalledTimes(1);
-    expect(screen.getByRole("button", { name: "Change care stage" })).toHaveFocus();
+    expect(screen.getByRole("button", { name: /^Change care stage/ })).toHaveFocus();
   });
 
-  it("changes the location from the Location card, reloads and returns focus there", async () => {
+  it("changes the location from the patient header, reloads and returns focus there", async () => {
     serveCase(buildMilo());
     server.use(
       http.get(apiUrl("/api/rooms"), () => HttpResponse.json([
@@ -586,7 +585,7 @@ describe("PatientOverviewPanel", () => {
     const onTaskSaved = vi.fn();
     renderPanel("case-milo", undefined, undefined, onTaskSaved);
 
-    fireEvent.click(await screen.findByRole("button", { name: "Change location" }));
+    fireEvent.click(await screen.findByRole("button", { name: /^Change location/ }));
     const dialog = screen.getByRole("dialog", { name: "Change location" });
     await within(dialog).findByRole("option", { name: "ICU · ICU" });
     expect(within(dialog).getByLabelText("Room")).toHaveValue("room-1");
@@ -596,7 +595,7 @@ describe("PatientOverviewPanel", () => {
     expect(await screen.findByText("Location updated")).toBeInTheDocument();
     expect(onTaskSaved).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole("dialog", { name: "Change location" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Change location" })).toHaveFocus();
+    expect(screen.getByRole("button", { name: /^Change location/ })).toHaveFocus();
   });
 
   it("edits the care team from its section and reloads", async () => {
@@ -627,7 +626,7 @@ describe("PatientOverviewPanel", () => {
 
     await screen.findByText("Milo");
     expect(screen.queryByRole("button", { name: "Change location" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Change care stage" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Change care stage/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Edit care team" })).not.toBeInTheDocument();
   });
 
@@ -1012,147 +1011,178 @@ describe("PatientOverviewPanel", () => {
 });
 
 
-const reviewContent = { Clinical: "148 bpm", Medications: "Recorded medication history", Timeline: "Respiratory distress" };
+const reviewContent = { Clinical: "148 bpm", "Orders & Medications": "Recorded medication history", Timeline: "Respiratory distress" };
 
-describe.each(["Clinical", "Medications", "Timeline"] as const)("%s review in the overview", kind => {
-  it("offers review only after a permitted detail loads, including a discharged record", async () => {
-    serveCase(buildMilo({ dischargedAt: at(11, 0) }));
-    const view = renderPanel(null);
-    expect(screen.queryByRole("button", { name: kind })).not.toBeInTheDocument();
-    view.rerender("case-milo", new Date());
-    expect(screen.queryByRole("button", { name: kind })).not.toBeInTheDocument();
-    expect(await screen.findByRole("button", { name: kind })).toBeEnabled();
+// The patient record's header and tabs (build plan 3.2c).
+describe("patient record header", () => {
+  it("keeps identity, acuity, care stage, location and allergies above the tabs", async () => {
+    serveCase(buildMilo({ patient: { ...buildMilo().patient, allergies: "Penicillin", allergyStatus: "documentedAllergies" } }));
+    renderPanel("case-milo");
+
+    const name = await screen.findByRole("heading", { level: 3, name: "Milo" });
+    const tabs = screen.getByRole("tablist", { name: "Patient record sections" });
+    const stage = screen.getByRole("button", { name: "Change care stage, currently In treatment" });
+    const location = screen.getByRole("button", { name: "Change location, currently Treatment · Oxygen Cage" });
+    // The header's line comes first; Care team & safety repeats the summary.
+    const allergies = screen.getAllByText(/^Penicillin · verified/)[0];
+    expect(allergies).toHaveTextContent("Allergies: Penicillin · verified");
+    expect(allergies).toHaveAttribute("data-status", "documentedAllergies");
+    for (const element of [name, stage, location, allergies]) {
+      expect(element.compareDocumentPosition(tabs) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    }
   });
 
-  it("opens from current detail and closes back on the trigger without refetching", async () => {
+  it("shows care stage and location as plain text on a discharged case", async () => {
+    serveCase(buildMilo({ dischargedAt: at(11, 0) }));
+    renderPanel("case-milo");
+
+    await screen.findByRole("heading", { level: 3, name: "Milo" });
+    expect(screen.queryByRole("button", { name: /^Change care stage/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Change location/ })).not.toBeInTheDocument();
+    expect(screen.getByText("Treatment · Oxygen Cage")).toBeInTheDocument();
+  });
+});
+
+describe("patient record tabs", () => {
+  function tabNames() {
+    return screen.getAllByRole("tab").map(tab => tab.textContent);
+  }
+
+  it("shows the four tabs with Overview selected", async () => {
+    serveCase(buildMilo());
+    renderPanel("case-milo");
+
+    expect(await screen.findByRole("tab", { name: "Overview" })).toHaveAttribute("aria-selected", "true");
+    expect(tabNames()).toEqual(["Overview", "Clinical", "Orders & Medications", "Timeline"]);
+    expect(screen.getByRole("tabpanel", { name: "Overview" })).toBeInTheDocument();
+    expect(screen.getAllByRole("tab").map(tab => tab.tabIndex)).toEqual([0, -1, -1, -1]);
+  });
+
+  it.each(["Clinical", "Orders & Medications", "Timeline"] as const)("shows %s from the loaded detail without reading it again", async kind => {
     const reads = serveCase(buildMilo({ medicationsAtIntake: "Recorded medication history" }));
     renderPanel("case-milo");
-    fireEvent.click(await screen.findByRole("button", { name: kind }));
-    expect(within(screen.getByRole("dialog", { name: kind })).getByText(reviewContent[kind])).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: `Close ${kind}` }));
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    await waitFor(() => expect(screen.getByRole("button", { name: kind })).toHaveFocus());
+
+    const panel = within(await openTab(kind));
+
+    expect(panel.getByText(reviewContent[kind])).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: kind })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: "Overview" })).toHaveAttribute("aria-selected", "false");
     expect(reads()).toBe(1);
   });
 
-  it("updates an open review from a same-case refresh without resetting focus", async () => {
-    const milo = buildMilo({ medicationsAtIntake: "Recorded medication history" });
+  it("offers the tabs on a discharged record too", async () => {
+    serveCase(buildMilo({ dischargedAt: at(11, 0) }));
+    renderPanel("case-milo");
+
+    expect(within(await openTab("Timeline")).getByText("Respiratory distress")).toBeInTheDocument();
+  });
+
+  it("moves between tabs with the arrow keys, Home and End", async () => {
+    serveCase(buildMilo());
+    renderPanel("case-milo");
+    const tablist = within(await screen.findByRole("tablist", { name: "Patient record sections" }));
+    const press = (key: string) => fireEvent.keyDown(screen.getByRole("tablist", { name: "Patient record sections" }), { key });
+    tablist.getByRole("tab", { name: "Overview" }).focus();
+
+    press("ArrowRight");
+    expect(tablist.getByRole("tab", { name: "Clinical" })).toHaveFocus();
+    expect(tablist.getByRole("tab", { name: "Clinical" })).toHaveAttribute("aria-selected", "true");
+    press("End");
+    expect(tablist.getByRole("tab", { name: "Timeline" })).toHaveFocus();
+    press("ArrowRight");
+    expect(tablist.getByRole("tab", { name: "Overview" })).toHaveFocus();
+    press("ArrowLeft");
+    expect(tablist.getByRole("tab", { name: "Timeline" })).toHaveFocus();
+    press("Home");
+    expect(tablist.getByRole("tab", { name: "Overview" })).toHaveFocus();
+    expect(screen.getByRole("tabpanel", { name: "Overview" })).toBeInTheDocument();
+  });
+
+  it("updates the open tab from a same-case refresh and keeps it open", async () => {
+    const milo = buildMilo();
     serveCase(milo);
     const view = renderPanel("case-milo");
-    fireEvent.click(await screen.findByRole("button", { name: kind }));
-    const drawer = within(screen.getByRole("dialog"));
-    serveCase({ ...milo, medicationsAtIntake: "Refreshed medication history", vitals: [{ ...milo.vitals[0], heartRate: 95, mentation: "Alert", recordedBy: { id: "fresh-recorder", name: "Fresh Recorder" } }] });
+    await openTab("Clinical");
+    serveCase({ ...milo, vitals: [{ ...milo.vitals[0], heartRate: 95, recordedBy: { id: "fresh-recorder", name: "Fresh Recorder" } }] });
+
     view.rerender("case-milo", new Date());
-    expect(await drawer.findByText(kind === "Medications" ? "Refreshed medication history" : /Fresh Recorder/)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: `Close ${kind}` })).toHaveFocus();
+
+    expect(await within(screen.getByRole("tabpanel", { name: "Clinical" })).findByText(/Fresh Recorder/)).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Clinical" })).toHaveAttribute("aria-selected", "true");
   });
 
-  it("closes on deselection without leaking content", async () => {
-    serveCase(buildMilo({ medicationsAtIntake: "Recorded medication history" }));
-    const view = renderPanel("case-milo");
-    fireEvent.click(await screen.findByRole("button", { name: kind }));
-    view.rerender(null, new Date());
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    expect(screen.queryByText(reviewContent[kind])).not.toBeInTheDocument();
-  });
-
-  it("closes on patient change and ignores the old drawer's late close event", async () => {
-    serveCase(buildMilo({ medicationsAtIntake: "Recorded medication history" }));
+  it("opens a newly selected patient on Overview", async () => {
+    serveCase(buildMilo());
     serveCase(buildCaseDetail({ id: "case-second" }));
     const view = renderPanel("case-milo");
-    fireEvent.click(await screen.findByRole("button", { name: kind }));
-    const oldDrawer = screen.getByRole("dialog");
+    await openTab("Timeline");
+
     view.rerender("case-second", new Date());
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    fireEvent.click(await screen.findByRole("button", { name: kind }));
-    fireEvent(oldDrawer, new Event("close"));
-    expect(screen.getByRole("dialog")).toBeVisible();
-    expect(within(screen.getByRole("dialog")).queryByText(reviewContent[kind])).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: `Close ${kind}` })).toHaveFocus();
+
+    expect(await screen.findByRole("tab", { name: "Overview" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.queryByText("Respiratory distress")).not.toBeInTheDocument();
   });
 
-  it("ignores an old patient's late detail refresh after a new review opens", async () => {
-    const milo = buildMilo({ medicationsAtIntake: "Recorded medication history" });
+  it("shows no review content once the patient is deselected", async () => {
+    serveCase(buildMilo());
+    const view = renderPanel("case-milo");
+    await openTab("Timeline");
+
+    view.rerender(null, new Date());
+
+    expect(screen.queryByRole("tablist")).not.toBeInTheDocument();
+    expect(screen.queryByText("Respiratory distress")).not.toBeInTheDocument();
+  });
+
+  it("keeps an old patient's late reply out of the new patient's record", async () => {
+    const milo = buildMilo();
     const second = buildCaseDetail({ id: "case-second" });
     serveCase(milo);
     const view = renderPanel("case-milo");
-    fireEvent.click(await screen.findByRole("button", { name: kind }));
+    await openTab("Timeline");
     let finishOld!: (detail: CaseDetail | null) => void;
     const oldReply = new Promise<CaseDetail | null>(resolve => { finishOld = resolve; });
     const loader = vi.spyOn(casesApi, "getCase").mockReturnValueOnce(oldReply).mockResolvedValueOnce(second);
     view.rerender("case-milo", new Date());
     await waitFor(() => expect(loader).toHaveBeenCalledWith("case-milo"));
     view.rerender(second.id, new Date());
-    fireEvent.click(await screen.findByRole("button", { name: kind }));
+    const timeline = within(await openTab("Timeline"));
+
     await act(async () => { finishOld(milo); await oldReply; });
-    expect(screen.getByRole("dialog", { name: kind })).toHaveAccessibleDescription(`${second.patient.name} · Case ${second.caseNumber} · ${dateLabel(second.arrivalTime)}`);
-    expect(within(screen.getByRole("dialog")).queryByText(reviewContent[kind])).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: `Close ${kind}` })).toHaveFocus();
+
+    expect(screen.getByRole("heading", { level: 3, name: second.patient.name })).toBeInTheDocument();
+    expect(timeline.queryByText("Respiratory distress")).not.toBeInTheDocument();
   });
 
-  it.each([404, 500])("closes after refetch %s, uses heading focus and stays closed after recovery", async status => {
-    const milo = buildMilo({ medicationsAtIntake: "Recorded medication history" });
+  it.each([404, 500])("hides the record after refetch %s and shows it again after recovery", async status => {
+    const milo = buildMilo();
     serveCase(milo);
     const view = renderPanel("case-milo");
-    fireEvent.click(await screen.findByRole("button", { name: kind }));
+    await openTab("Timeline");
     server.use(http.get(apiUrl("/api/cases/case-milo"), () => new HttpResponse(null, { status })));
+
     view.rerender("case-milo", new Date());
+
     await screen.findByText(status === 404 ? "This case is no longer on the board." : "Unable to load this case.");
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: kind })).not.toBeInTheDocument();
-    await waitFor(() => expect(screen.getByRole("heading", { name: "Patient overview" })).toHaveFocus());
+    expect(screen.queryByRole("tablist")).not.toBeInTheDocument();
+    expect(screen.queryByText("Respiratory distress")).not.toBeInTheDocument();
     serveCase(milo);
     if (status === 500) fireEvent.click(screen.getByRole("button", { name: "Try again" }));
     else view.rerender("case-milo", new Date());
-    await screen.findByRole("button", { name: kind });
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(await screen.findByRole("tablist", { name: "Patient record sections" })).toBeInTheDocument();
   });
 
-  it.each([[401, "Sign-in page"], [403, "Pet parent home"]])("clears private review on refusal %s", async (status, destination) => {
+  it.each([[401, "Sign-in page"], [403, "Pet parent home"]])("clears the private record on refusal %s", async (status, destination) => {
     serveCase(buildMilo({ medicationsAtIntake: "Recorded medication history" }));
     saveAccessToken("demo-session");
     const view = renderPanel("case-milo");
-    fireEvent.click(await screen.findByRole("button", { name: kind }));
+    await openTab("Orders & Medications");
     server.use(http.get(apiUrl("/api/cases/case-milo"), () => new HttpResponse(null, { status: Number(status) })));
-    view.rerender("case-milo", new Date());
-    await screen.findByText(destination);
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    expect(screen.queryByText(reviewContent[kind])).not.toBeInTheDocument();
-  });
-});
 
-describe("switching encounter review views", () => {
-  it("keeps one view open and ignores a departed view's delayed close", async () => {
-    const reads = serveCase(buildMilo());
-    renderPanel("case-milo");
-    const record = within(await screen.findByRole("region", { name: "Patient record" }));
-    expect(record.getAllByRole("button").map(button => button.textContent?.trim())).toEqual(["Clinical", "Medications", "Timeline"]);
-    fireEvent.click(await screen.findByRole("button", { name: "Clinical" }));
-    const oldClinical = screen.getByRole("dialog", { name: "Clinical" });
-    fireEvent.click(screen.getByRole("button", { name: "Close Clinical" }));
-    await waitFor(() => expect(screen.getByRole("button", { name: "Clinical" })).toHaveFocus());
-    fireEvent.click(screen.getByRole("button", { name: "Medications" }));
-    const oldMedications = screen.getByRole("dialog", { name: "Medications" });
-    fireEvent(oldClinical, new Event("close"));
-    expect(screen.getAllByRole("dialog")).toHaveLength(1);
-    expect(screen.getByRole("dialog", { name: "Medications" })).toBeVisible();
-    expect(screen.getByRole("button", { name: "Close Medications" })).toHaveFocus();
-    fireEvent.click(screen.getByRole("button", { name: "Close Medications" }));
-    await waitFor(() => expect(screen.getByRole("button", { name: "Medications" })).toHaveFocus());
-    fireEvent.click(screen.getByRole("button", { name: "Timeline" }));
-    const oldTimeline = screen.getByRole("dialog", { name: "Timeline" });
-    fireEvent(oldMedications, new Event("close"));
-    expect(screen.getAllByRole("dialog")).toHaveLength(1);
-    expect(screen.getByRole("dialog", { name: "Timeline" })).toBeVisible();
-    expect(screen.getByRole("button", { name: "Close Timeline" })).toHaveFocus();
-    fireEvent.click(screen.getByRole("button", { name: "Close Timeline" }));
-    await waitFor(() => expect(screen.getByRole("button", { name: "Timeline" })).toHaveFocus());
-    fireEvent.click(screen.getByRole("button", { name: "Clinical" }));
-    fireEvent(oldTimeline, new Event("close"));
-    expect(screen.getAllByRole("dialog")).toHaveLength(1);
-    expect(screen.getByRole("dialog", { name: "Clinical" })).toBeVisible();
-    expect(reads()).toBe(1);
-    expect(screen.getByRole("dialog", { name: "Clinical" })).toBeInTheDocument();
+    view.rerender("case-milo", new Date());
+
+    await screen.findByText(destination);
+    expect(screen.queryByText("Recorded medication history")).not.toBeInTheDocument();
   });
 });
 

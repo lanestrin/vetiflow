@@ -1,3 +1,5 @@
+// The prototype's .detail-panel. Beside the board it stays in view and scrolls
+// on its own, so the patient header above the tabs stays fixed (3.2c).
 .panel {
 	overflow-wrap: anywhere;
 	border: 1px solid var(--color-shell-line);
@@ -67,12 +69,34 @@
 	}
 }
 
+@media (min-width: 1051px) {
+	.panel {
+		position: sticky;
+		top: var(--space-4);
+		max-height: calc(100dvh - 2 * var(--space-4));
+		overflow-y: auto;
+		overscroll-behavior: contain;
+	}
+
+	.fixedTop {
+		position: sticky;
+		top: 0;
+		z-index: 1;
+		background: var(--color-surface);
+	}
+}
+
+// The prototype's .patient-sticky: who, how urgent, where and allergies.
+.patientHeader {
+	padding: 0 19px 12px;
+}
+
 .hero {
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
 	gap: 12px;
-	padding: 17px 19px 13px;
+	padding: 15px 0 12px;
 }
 
 .avatar {
@@ -112,6 +136,151 @@
 .badge {
 	flex: none;
 	margin-left: auto;
+}
+
+// Care stage and location, each opening its small edit dialog (4.3b).
+.quickFields {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 8px;
+	margin: 0 0 10px;
+}
+
+.quickField {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 2px;
+	min-width: 0;
+	min-height: 2.75rem;
+	margin: 0;
+	padding: 7px 10px;
+	border: 1px solid var(--color-shell-line);
+	border-radius: 8px;
+	background: var(--color-surface);
+	color: var(--color-shell-ink);
+	font: inherit;
+	text-align: left;
+
+	&:is(button) {
+		cursor: pointer;
+
+		&:hover {
+			border-color: #80bdb5;
+			background: #f0faf7;
+		}
+
+		&:focus-visible {
+			outline: var(--focus-outline-width) solid var(--color-focus-on-light);
+			outline-offset: 2px;
+		}
+	}
+}
+
+.quickFieldLabel {
+	color: var(--color-shell-muted);
+	font-size: .6875rem;
+}
+
+.quickFieldValue {
+	font-size: .8125rem;
+	font-weight: 700;
+	overflow-wrap: anywhere;
+}
+
+// The prototype's .allergy-indicator; the words carry the status.
+.allergyLine {
+	margin: 0;
+	padding: 6px 9px;
+	border-radius: 6px;
+	background: var(--color-shell-field);
+	color: var(--color-text-secondary);
+	font-size: .75rem;
+
+	strong {
+		color: var(--color-shell-ink);
+	}
+
+	&[data-status="documentedAllergies"] {
+		background: var(--color-acuity-urgent-bg);
+		color: var(--color-acuity-urgent);
+
+		strong {
+			color: inherit;
+		}
+	}
+}
+
+// The prototype's .patient-tabs.
+.tabs {
+	display: grid;
+	grid-template-columns: repeat(4, minmax(0, 1fr));
+	gap: 4px;
+	padding: 0 19px;
+	border-bottom: 1px solid var(--color-shell-line);
+}
+
+.tab {
+	min-height: 2.75rem;
+	padding: 8px 2px;
+	border: 0;
+	border-bottom: 3px solid transparent;
+	background: none;
+	color: var(--color-shell-muted);
+	font: inherit;
+	font-size: .8125rem;
+	font-weight: 700;
+	line-height: 1.25;
+	cursor: pointer;
+
+	&[aria-selected="true"] {
+		border-bottom-color: var(--color-care-teal);
+		color: var(--color-care-teal);
+	}
+
+	&:hover {
+		color: var(--color-care-teal);
+	}
+
+	&:focus-visible {
+		outline: var(--focus-outline-width) solid var(--color-focus-on-light);
+		outline-offset: -2px;
+	}
+}
+
+// The selected tab's content.
+.tabPanel {
+	padding-top: 14px;
+
+	&:focus-visible {
+		outline: var(--focus-outline-width) solid var(--color-focus-on-light);
+		outline-offset: -2px;
+	}
+}
+
+// The Clinical, Orders & Medications and Timeline reviews, with the base styles
+// the drawer gives them on the visit record (4.21d).
+.review {
+	padding: 0 19px 19px;
+	font-size: .875rem;
+
+	h3 {
+		margin: 0;
+		font-size: 1rem;
+		font-weight: 700;
+	}
+
+	dt {
+		color: var(--color-shell-muted);
+	}
+
+	dd {
+		margin: .25rem 0 0;
+	}
+
+	section + section {
+		margin-top: 1.5rem;
+	}
 }
 
 .caseContext {
@@ -157,124 +326,11 @@
 	overflow-wrap: anywhere;
 }
 
-.stageContext {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 4px 8px;
-	margin: 8px 0 0;
-	color: var(--color-text-secondary);
-	font-size: .75rem;
-
-	strong {
-		color: var(--color-shell-ink);
-		font-weight: 700;
-	}
-}
-
-.facts {
-	display: grid;
-	grid-template-columns: repeat(2, minmax(0, 1fr));
-	gap: 9px;
-}
-
-.factCard {
-	min-width: 0;
-	padding: 11px 12px;
-	border: 1px solid #e8eeeb;
-	border-radius: 9px;
-	background: #f7f9f8;
-
-	small {
-		display: block;
-		margin-top: 5px;
-		color: var(--color-text-secondary);
-		font-size: .75rem;
-		line-height: 1.4;
-		overflow-wrap: anywhere;
-	}
-}
-
-.factLabel {
-	display: flex;
-	align-items: center;
-	gap: 5px;
-	margin: 0 0 6px;
-	color: var(--color-text-secondary);
-	font-size: .75rem;
-	font-weight: 500;
-}
-
-.factValue {
-	margin: 0;
-	color: var(--color-shell-ink);
-	font-size: .8125rem;
-	font-weight: 700;
-	line-height: 1.45;
-	overflow-wrap: anywhere;
-}
-
-.reviewActions {
-	margin: 0 19px 14px;
-	padding: 3px 0 14px;
-
-	h3 {
-		margin-bottom: 10px;
-	}
-}
-
-.reviewGrid {
-	display: grid;
-	grid-template-columns: repeat(3, minmax(0, 1fr));
-	gap: .5rem;
-}
-
-.reviewButton {
-	display: flex;
-	flex-direction: column;
-	align-items: center;
-	justify-content: center;
-	gap: .375rem;
-	min-width: 0;
-	min-height: 4.375rem;
-	padding: .6875rem .25rem;
-	border: 1px solid #dfe7e7;
-	border-radius: .625rem;
-	background: var(--color-surface);
-	color: #173b43;
-	font: inherit;
-	font-size: .8125rem;
-	font-weight: 700;
-	cursor: pointer;
-	overflow-wrap: anywhere;
-	box-shadow: 0 2px 7px rgb(26 55 63 / 4%);
-	transition: border-color var(--motion-fast), background var(--motion-fast);
-
-	svg {
-		width: 1.3125rem;
-		height: 1.3125rem;
-		fill: none;
-		stroke: #47747a;
-		stroke-width: 1.8;
-		stroke-linecap: round;
-		stroke-linejoin: round;
-	}
-
-	&:hover {
-		background: #f0faf7;
-		border-color: #80bdb5;
-	}
-
-	&:focus-visible {
-		outline: var(--focus-outline-width) solid var(--color-focus-on-light);
-		outline-offset: 2px;
-	}
-}
-
 .historyLink {
 	display: flex;
 	align-items: center;
 	gap: .5rem;
-	margin-top: .625rem;
+	margin: 0 19px 14px;
 	padding: .625rem .5rem;
 	border-top: 1px solid #e6eded;
 	border-radius: .5rem;
@@ -469,19 +525,6 @@
 	}
 }
 
-.factHead {
-	display: flex;
-	flex-wrap: wrap;
-	align-items: flex-start;
-	justify-content: space-between;
-	gap: 6px;
-
-	// On a narrow card the button drops below the label rather than splitting it.
-	.factLabel {
-		white-space: nowrap;
-	}
-}
-
 .careContextTitle .icon {
 	color: var(--color-care-teal);
 }
@@ -510,10 +553,6 @@
 }
 
 @media (max-width: 650px) {
-	.reviewActions {
-		margin: 0 12px 12px;
-	}
-
 	.caseContext,
 	.nextAction,
 	.careContext {
@@ -525,9 +564,33 @@
 		padding-right: 12px;
 		padding-left: 12px;
 	}
+
+	.patientHeader {
+		padding-right: 12px;
+		padding-left: 12px;
+	}
+
+	.tabs {
+		padding: 0 12px;
+	}
+
+	.review {
+		padding-right: 12px;
+		padding-left: 12px;
+	}
+
+	.historyLink {
+		margin-right: 12px;
+		margin-left: 12px;
+	}
 }
 
 @media (max-width: 480px) {
+	// Four labels in one row would wrap to three or four lines each.
+	.tabs {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+
 	.vitals {
 		grid-template-columns: repeat(2, minmax(0, 1fr));
 	}
@@ -560,7 +623,4 @@
 		margin-left: 0;
 	}
 
-	.facts {
-		grid-template-columns: 1fr;
-	}
 }
