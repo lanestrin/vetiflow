@@ -27,6 +27,10 @@ const complete = () => buildVitalsRecord({ heartRate: 120, respiratoryRate: 28, 
   spO2: 97, mucousMembraneColor: "Pink", capillaryRefillTime: "2 s", mentation: "Not assessed",
   recordedAt: enteredAt, recordedBy: { id: "staff-1", name: "Jordan Lee" }, outOfRange: ["heartRate", "spO2"] });
 
+// The vitals and assessment sections, apart from the Allergies section (4.12b).
+const vitalsSection = () => within(screen.getByRole("region", { name: "Latest recorded vitals" }));
+const assessmentSection = () => within(screen.getByRole("region", { name: "Clinical assessment" }));
+
 describe("ClinicalReviewDrawer", () => {
   it("ignores a delayed cleanup close after Strict Mode reopens the native dialog", async () => {
     vi.spyOn(HTMLDialogElement.prototype, "close").mockImplementation(function (this: HTMLDialogElement) {
@@ -49,7 +53,9 @@ describe("ClinicalReviewDrawer", () => {
     render(<Harness detail={detail} />);
     const drawer = within(screen.getByRole("dialog", { name: "Clinical" }));
     expect(screen.getByRole("dialog")).toHaveAccessibleDescription(`${detail.patient.name} · Case ER-42 · 30 Oct 2026`);
-    expect(drawer.getAllByRole("definition").map(value => value.textContent)).toEqual([
+    // The Allergies section (4.12b) has its own definitions; these are the readings and findings.
+    expect([...vitalsSection().getAllByRole("definition"), ...assessmentSection().getAllByRole("definition")]
+      .map(value => value.textContent)).toEqual([
       "120 bpm", "28 /min", "38.9 °C", "97%", "<img src=x>", "2 s", "Not assessed"
     ]);
     expect(drawer.getByText("Measurement time unknown")).toBeInTheDocument();
@@ -66,7 +72,7 @@ describe("ClinicalReviewDrawer", () => {
     ] })} />);
     const drawer = within(screen.getByRole("dialog"));
     expect(drawer.getByText("0 bpm")).toBeInTheDocument();
-    expect(drawer.getAllByText("Not recorded")).toHaveLength(3);
+    expect(vitalsSection().getAllByText("Not recorded")).toHaveLength(3);
     expect(drawer.getByText("No assessment findings recorded in this set")).toBeInTheDocument();
     expect(drawer.getByText("Entered")).toHaveTextContent(/^Entered 2 Jan 2020, 9:03 AM$/);
     expect(drawer.queryByText("Pink")).not.toBeInTheDocument();
@@ -76,7 +82,7 @@ describe("ClinicalReviewDrawer", () => {
   it("supports observation-only sets and omits blank finding rows", () => {
     render(<Harness detail={buildCaseDetail({ vitals: [buildVitalsRecord({ mentation: "Alert", mucousMembraneColor: " " })] })} />);
     const drawer = within(screen.getByRole("dialog"));
-    expect(drawer.getAllByText("Not recorded")).toHaveLength(4);
+    expect(vitalsSection().getAllByText("Not recorded")).toHaveLength(4);
     expect(drawer.getByText("Alert")).toBeInTheDocument();
     expect(drawer.queryByText("Mucous membrane colour")).not.toBeInTheDocument();
     expect(drawer.queryByText("Capillary refill time")).not.toBeInTheDocument();
@@ -86,7 +92,7 @@ describe("ClinicalReviewDrawer", () => {
     render(<Harness detail={buildCaseDetail()} />);
     const drawer = within(screen.getByRole("dialog"));
     expect(drawer.getByText("No vitals recorded")).toBeInTheDocument();
-    expect(drawer.getAllByText("Not recorded")).toHaveLength(4);
+    expect(vitalsSection().getAllByText("Not recorded")).toHaveLength(4);
     expect(drawer.getByText("No assessment findings recorded")).toBeInTheDocument();
     expect(drawer.queryByText(/^Entered/)).not.toBeInTheDocument();
     expect(drawer.queryByText(/Measure/)).not.toBeInTheDocument();
@@ -188,5 +194,53 @@ describe("vitals changes in Clinical", () => {
     view.unmount();
     render(<Harness detail={buildCaseDetail()} />);
     expect(since()).not.toBeInTheDocument();
+  });
+});
+
+// The stored allergy record (build plan 4.12b).
+describe("allergies in Clinical", () => {
+  const allergies = () => within(screen.getByRole("region", { name: "Allergies" }));
+  const value = (term: string) => allergies().getByText(term).nextElementSibling?.textContent;
+
+  it("names the verifier, time and source of a verified record", () => {
+    const base = buildCaseDetail();
+    render(<Harness detail={{
+      ...base,
+      allergyStatusAtIntake: "notRecorded",
+      allergiesAtIntake: null,
+      patient: {
+        ...base.patient, allergyStatus: "documentedAllergies", allergies: "Penicillin", allergySource: "referringClinic",
+        allergiesVerifiedAt: enteredAt, allergiesVerifiedBy: { id: "staff-1", name: "Jordan Lee" }
+      }
+    }} />);
+
+    expect(value("Status")).toBe("Documented allergies · verified");
+    expect(value("Reported allergies")).toBe("Penicillin");
+    expect(value("Source")).toBe("Referring clinic records");
+    expect(value("Verified")).toBe("Jordan Lee · 2 Jan 2020, 9:03 AM");
+    expect(value("At this visit's intake")).toBe("Not recorded at this visit's intake");
+  });
+
+  it("says not verified, and never no known allergies, for unverified text", () => {
+    const base = buildCaseDetail();
+    render(<Harness detail={{
+      ...base,
+      allergyStatusAtIntake: "unknownOrUnverified",
+      allergiesAtIntake: "None",
+      patient: { ...base.patient, allergyStatus: "unknownOrUnverified", allergies: "None" }
+    }} />);
+
+    expect(value("Status")).toBe("Unknown or not verified");
+    expect(value("Source")).toBe("Not recorded");
+    expect(value("Verified")).toBe("Not verified");
+    expect(value("At this visit's intake")).toBe("None · not verified");
+    expect(allergies().queryByText(/no known allergies/i)).not.toBeInTheDocument();
+  });
+
+  it("shows a record with nothing recorded", () => {
+    render(<Harness detail={buildCaseDetail()} />);
+
+    expect(value("Status")).toBe("Not recorded");
+    expect(value("Reported allergies")).toBe("None recorded");
   });
 });

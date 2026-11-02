@@ -184,6 +184,8 @@ describe("PatientOverviewPanel", () => {
       assignedDoctor: { id: "doctor-1", name: "Jordan Reed" },
       assignedTechnician: { id: "tech-1", name: "Sam Cruz" },
       allergiesAtIntake: "Peanuts",
+      allergyStatusAtIntake: "unknownOrUnverified",
+      patient: { ...buildMilo().patient, allergies: "Peanuts", allergyStatus: "unknownOrUnverified" },
       ownerUpdateStatus: "updated",
       lastOwnerUpdateAt: at(10, 52),
       nextReassessment: {
@@ -205,8 +207,8 @@ describe("PatientOverviewPanel", () => {
     expect(screen.getByText("Recheck respiratory status · Due in 8 min")).toBeInTheDocument();
     expect(screen.getByText("Jordan Reed")).toBeInTheDocument();
     expect(screen.getByText("Sam Cruz")).toBeInTheDocument();
-    expect(screen.getByText(/Peanuts/)).toBeInTheDocument();
-    expect(screen.getByText(/verification unknown/i)).toBeInTheDocument();
+    // The stored status, never a guess from the text (4.12b).
+    expect(screen.getByText("Peanuts · not verified")).toBeInTheDocument();
     expect(screen.getByText("Last owner update")).toBeInTheDocument();
     expect(screen.queryByText("Approved client update")).not.toBeInTheDocument();
     expect(screen.queryByText("Outside range")).not.toBeInTheDocument();
@@ -229,13 +231,30 @@ describe("PatientOverviewPanel", () => {
     }
   });
 
+  it("says no known allergies only for a verified record", async () => {
+    serveCase(buildMilo({
+      allergiesAtIntake: null,
+      allergyStatusAtIntake: "notRecorded",
+      patient: {
+        ...buildMilo().patient, allergies: null, allergyStatus: "noKnownAllergies", allergySource: "clinicRecord",
+        allergiesVerifiedAt: at(9, 0), allergiesVerifiedBy: { id: "s1", name: "Jordan Reed" }
+      }
+    }));
+
+    renderPanel("case-milo");
+
+    expect(await screen.findByText("No known allergies · verified · not rechecked at this visit's intake"))
+      .toBeInTheDocument();
+  });
+
   it("shows neutral missing states for stage context, action, allergies and care-team assignments", async () => {
     serveCase(buildMilo({
       nextAction: null,
       assignedDoctor: null,
       assignedTechnician: null,
       allergiesAtIntake: null,
-      patient: { ...buildMilo().patient, allergies: null },
+      allergyStatusAtIntake: "notRecorded",
+      patient: { ...buildMilo().patient, allergies: null, allergyStatus: "notRecorded" },
       room: null
     }));
 
@@ -244,7 +263,7 @@ describe("PatientOverviewPanel", () => {
     expect(await screen.findByText("In treatment")).toBeInTheDocument();
     expect(screen.getByText("No next action documented")).toBeInTheDocument();
     expect(screen.getByText("No room assigned")).toBeInTheDocument();
-    expect(screen.getByText("Unknown / not verified")).toBeInTheDocument();
+    expect(screen.getByText("Not recorded", { selector: "[data-role='allergies']" })).toBeInTheDocument();
     expect(screen.getByText("Unassigned", { selector: "[data-role='attending-veterinarian']" })).toBeInTheDocument();
     expect(screen.getByText("Not assigned", { selector: "[data-role='primary-technician']" })).toBeInTheDocument();
     const nextAction = screen.getByRole("region", { name: "Next care action" });
@@ -335,7 +354,8 @@ describe("PatientOverviewPanel", () => {
     renderPanel("case-milo");
     fireEvent.click(await screen.findByRole("button", { name: "Clinical" }));
     const clinical = within(await screen.findByRole("dialog", { name: "Clinical" }));
-    expect(clinical.getAllByText("Not recorded")).toHaveLength(1);
+    // Counted in the vitals section; the Allergies section (4.12b) has its own.
+    expect(within(clinical.getByRole("region", { name: "Latest recorded vitals" })).getAllByText("Not recorded")).toHaveLength(1);
     expect(clinical.getByText("No assessment findings recorded in this set")).toBeInTheDocument();
     expect(clinical.getByText("Entered")).toHaveTextContent(/^Entered 10:50 AM$/);
     expect(clinical.queryByText(/Entered by/)).not.toBeInTheDocument();
@@ -347,7 +367,7 @@ describe("PatientOverviewPanel", () => {
     renderPanel("case-milo");
     fireEvent.click(await screen.findByRole("button", { name: "Clinical" }));
     const clinical = within(await screen.findByRole("dialog", { name: "Clinical" }));
-    expect(clinical.getAllByText("Not recorded")).toHaveLength(4);
+    expect(within(clinical.getByRole("region", { name: "Latest recorded vitals" })).getAllByText("Not recorded")).toHaveLength(4);
     expect(clinical.getByText("No assessment findings recorded")).toBeInTheDocument();
     expect(clinical.queryByText(/^Entered/)).not.toBeInTheDocument();
   });

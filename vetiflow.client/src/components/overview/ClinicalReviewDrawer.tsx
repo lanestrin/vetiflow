@@ -1,6 +1,7 @@
 import { useId } from "react";
 import { useNow } from "../board/useNow";
-import { temperatureLabel } from "./overviewFormat";
+import { allergySourceLabels, allergyStatusLabels, intakeAllergyLabel } from "./allergyStatus";
+import { dateTimeLabel, temperatureLabel } from "./overviewFormat";
 import { EnteredTime, MeasuredTime } from "./RecordedTimes";
 import styles from "./ClinicalReviewDrawer.module.scss";
 import { CaseReviewDrawer, type ReviewDrawerProps } from "./CaseReviewDrawer";
@@ -54,6 +55,29 @@ export function ClinicalReviewDrawer(props: ReviewDrawerProps) {
             <dt>{finding.label}</dt><dd>{finding.value}</dd>
           </div>)}</dl>}
       </section>
+      <AllergyRecord detail={detail} headingId={`${id}-allergies`} />
     </CaseReviewDrawer>
+  );
+}
+
+// The patient's stored allergy record and this visit's intake (4.12b): the
+// status says "verified" only when a verifier and time were recorded.
+function AllergyRecord({ detail, headingId }: { detail: ReviewDrawerProps["detail"]; headingId: string }) {
+  const { allergyStatus, allergies, allergySource, allergiesVerifiedAt, allergiesVerifiedBy } = detail.patient;
+  const verified = allergiesVerifiedAt && allergiesVerifiedBy
+    ? `${allergiesVerifiedBy.name} · ${dateTimeLabel(allergiesVerifiedAt)}`
+    : "Not verified";
+
+  return (
+    <section aria-labelledby={headingId}>
+      <h3 id={headingId}>Allergies</h3>
+      <dl className={styles.findings}>
+        <div><dt>Status</dt><dd>{allergyStatusLabels[allergyStatus]}</dd></div>
+        <div><dt>Reported allergies</dt><dd>{allergies?.trim() || "None recorded"}</dd></div>
+        <div><dt>Source</dt><dd>{allergySource ? allergySourceLabels[allergySource] : "Not recorded"}</dd></div>
+        <div><dt>Verified</dt><dd>{verified}</dd></div>
+        <div><dt>At this visit's intake</dt><dd>{intakeAllergyLabel(detail)}</dd></div>
+      </dl>
+    </section>
   );
 }
