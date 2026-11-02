@@ -1,5 +1,5 @@
-// The prototype's .board, .lanes and .mobiletabs, measured from
-// blueprint/reference/vetiflow-er-dashboard.html.
+// The prototype's .board and table (build plan 2.25), from
+// blueprint/reference/er-board-poc/VetiFlow-ER-Prototype.html.
 
 .board {
 	overflow: hidden;
@@ -80,95 +80,60 @@
 	margin: 0 5px;
 }
 
-// Phone width only.
-.tabs {
-	display: none;
-	gap: 6px;
-	padding: 10px 12px;
-	overflow: auto;
-	border-bottom: 1px solid var(--color-shell-line);
+.tableWrap {
+	padding: 0.5rem 0.875rem 0;
 }
 
-.tab {
-	padding: 7px 9px;
-	border: 1px solid var(--color-shell-line);
-	border-radius: 8px;
-	background: var(--color-surface);
-	color: #64767c;
-	font: inherit;
-	font-size: .8125rem;
-	font-weight: 600;
-	white-space: nowrap;
-	cursor: pointer;
-
-	&[aria-pressed="true"] {
-		border-color: var(--color-shell-navy);
-		background: var(--color-shell-navy);
-		color: var(--color-text-inverse);
-	}
-
-	&:focus-visible {
-		outline: var(--focus-outline-width) solid var(--color-focus-on-light);
-		outline-offset: 2px;
-	}
+.table {
+	width: 100%;
+	border-collapse: collapse;
+	table-layout: fixed;
+	text-align: left;
 }
 
-.lanes {
-	display: grid;
-	grid-template-columns: repeat(var(--lane-count), minmax(0, 1fr));
-	min-height: 485px;
-}
-
-.lane {
-	padding: 14px 11px;
-	border-right: 1px solid var(--color-shell-line);
-	background: var(--color-board-lane);
-
-	&:last-child {
-		border-right: 0;
-	}
-}
-
-.laneHead {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	margin: 0 2px 11px;
-}
-
-.laneTitle {
-	margin: 0;
+.head th {
+	padding: 0.75rem 0.625rem;
+	background: var(--color-shell-paper);
 	color: var(--color-shell-muted);
-	font-size: .8125rem;
+	font-size: 0.6875rem;
 	font-weight: 700;
-	letter-spacing: 0.6px;
+	letter-spacing: 0.7px;
 	text-transform: uppercase;
-
-	[data-lane="critical"] & {
-		color: var(--color-acuity-critical);
-	}
-
-	[data-lane="urgent"] & {
-		color: var(--color-acuity-urgent);
-	}
-
-	[data-lane="stable"] & {
-		color: var(--color-acuity-stable);
-	}
 }
 
-.count {
-	padding: 3px 7px;
-	border-radius: 20px;
-	background: var(--color-board-count-bg);
-	color: var(--color-board-count);
-	font-size: .75rem;
-	font-weight: 700;
+.patientColumn {
+	width: 35%;
+	border-radius: 7px 0 0 7px;
+}
+
+.acuityColumn {
+	width: 19%;
+}
+
+.stageColumn {
+	width: 23%;
+}
+
+.teamColumn {
+	width: 19%;
+}
+
+.chevronColumn {
+	width: 4%;
+	border-radius: 0 7px 7px 0;
+}
+
+.hidden {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
 }
 
 .empty {
-	margin: 0;
-	padding: 18px 0;
+	padding: 1.5rem 0;
 	color: var(--color-shell-muted);
 	font-size: .8125rem;
 	text-align: center;
@@ -208,21 +173,26 @@
 		white-space: nowrap;
 	}
 
-	.tabs {
-		display: flex;
+	// The rows become cards; the column headings stay for screen readers.
+	.tableWrap {
+		padding: 0.75rem 0.75rem 0;
 	}
 
-	.lanes {
-		grid-template-columns: 1fr;
-		min-height: auto;
+	.table,
+	.table > tbody {
+		display: block;
 	}
 
-	.lane {
-		padding: 12px;
-		border-right: 0;
+	.head {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip-path: inset(50%);
+		white-space: nowrap;
+	}
 
-		&[data-shown="false"] {
-			display: none;
-		}
+	.empty {
+		display: block;
 	}
 }
