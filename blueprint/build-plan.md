@@ -219,6 +219,7 @@ Open (the item named in brackets needs it before its spec):
 - **Action selection** (before 4.13a): explicit clinical priority, review state,
   due-soon policy and tie-breaking. An overdue administrative task must not
   automatically outrank a documented clinical priority; no algorithmic treatment advice.
+- **Build the simplest working version first** (decided 2026-11-02, by the person): each feature implements only what its current workflow needs, reuses existing components, APIs, tables and dialogs, and adds no speculative framework or model for unapproved future requirements. Dependencies are enforced only where security, data integrity or function genuinely need them; a dashboard is not blocked because advanced features are incomplete. Patient safety, authentication and server-side authorization, data integrity and concurrency, audit history, accurate documentation, and the separation of unverified from confirmed information are never traded for simplicity. Current order: 4.3a (location and assignment), 4.13b (Care Coordination card, with priority and designation in the existing Tasks and due items dialog), S.5 and S.6 (sign-in and role permissions), then My Patients 2.22a-d (secure queue and read-only chart), with advanced clinical workflows added as their requirements and APIs are ready.
 - **Next care action and task priority** (decided 2026-11-02, by the person): clinical priority is set only by an authorized veterinarian or veterinary technician, never by VetiFlow's software. Priority is Urgent, High or Routine; an unset priority is shown as "Not prioritized". An authorized clinician explicitly designates one documented open task as the Next Care Action, and the Patient Overview shows that task with its priority, assignee, due time and status. VetiFlow never ranks tasks, chooses or changes the designated action, or changes a priority. Due-soon and overdue labels are informational only. Completing or cancelling the designated task, or discharging the patient, clears the designation without promoting another task; no action is designated until staff choose one. Priority and designation changes are recorded on the case timeline. Until server-enforced roles exist (S.6), any authenticated team member with task-management access may set priority and designate, as a temporary policy; S.6 restricts both to authorized veterinarians and veterinary technicians, enforced on the server and never by a UI check. The automatic-ranking rule proposed earlier on 2026-11-02 was rejected and is part of no item.
 - **Clinical/reception visibility** (before S.6 and 3.7a): the field/action
   permission matrix, including assistants, reception and supervisor access.
@@ -226,10 +227,10 @@ Open (the item named in brackets needs it before its spec):
 - **Freshness and retrospective entry** (before 4.11a/b): measured/event-time
   capture and validation, unknown historical times, hospital stale thresholds
   and overdue reassessment wording. Do not substitute entry time for event time.
-- **Role queue rules** (before 2.22a/b): assignment/shared-pool/cover eligibility,
-  All active versus assignment-only metrics, next action selection and review
-  counter semantics. Count distinct patients; unresolved escalations and result
-  reviews must not disappear merely because related tasks are complete.
+- **Role queue rules** (before 2.22a/b): first-version default under the 2026-11-02 simplicity decision, to be confirmed in the 2.22a spec: "Assigned to me" lists
+  active cases where the signed-in clinician is the attending veterinarian or assigned technician; "All active" lists every active case; counts are distinct
+  patients. Shared-pool and cover eligibility, review counters and escalation/result-review responsibilities are added with their workflows; when added,
+  unresolved escalations and result reviews must not disappear merely because related tasks are complete.
 - **Clinical protocols and authority** (before 4.15c, 4.18c and 4.19c): which
   actors/credentials can sign, authorize, administer, amend or discontinue each
   record/order type; required reasons and checks; approved species-specific
@@ -248,8 +249,10 @@ Open (the item named in brackets needs it before its spec):
 - **Post-departure follow-up** (before 6.8a and 6.2a/e): responsible recipients,
   acceptance, due/escalation policy, permitted updates on closed encounters and
   administrative checkout/departure roles. Clinical readiness never auto-closes work.
-- **Shared care** (before 4.3a): how clinics without a primary technician
-  represent a shared pool without assigning a fictitious person.
+- **Shared care** (decided 2026-11-02, by the person, under the simplicity decision): the
+  primary technician is optional. A case without one shows "Not assigned"; no shared-pool
+  record, placeholder person or extra model is added. A shared pool is revisited only
+  when a clinic needs it.
 
 ## M2: ER Board and Patient Overview
 
@@ -346,7 +349,7 @@ the future per-role protections in S.6/3.7 are already implemented.
 - [x] **4.12a** `feature/allergy-status-api`: model documented allergy, verified no known allergies, unknown/unverified and not recorded separately, with source/verification metadata and a migration retaining legacy text as unverified. Never infer verified negatives from null or parse free text into a medical conclusion; keep patient history and encounter reconciliation distinct. Done (history/features/4.12a-allergy-status-api.md).
 - [x] **4.12b** `feature/allergy-status-summary`: after 4.12a, show truthful safety status in care context and Clinical, including verifier/time when available. Reconciliation editing follows the approved clinical workflow and permissions. Done (history/features/4.12b-allergy-status-summary.md).
 - [x] **4.13a** `feature/documented-priority-api` (phase 1, no clinical approval needed): expose the explicitly documented coordination priority that staff set (shown as "Not prioritized" when unset, never as an assumed Routine), the actual responsible assignee, review/status/due state and source task. Extend the shared task model/history for creator, assigner, reassignment, completion and review accountability; add migrations/tests. No ranking, no automatic selection and no implied veterinarian approval. Do not equate case doctor with task assignee. Phase 1 done (history/features/4.13a-documented-priority-api.md).
-- [ ] **4.13b** `feature/documented-priority-summary` (phase 1, Patient Overview, not blocked on My Patients): the Care Coordination card shows the existing documented Next Care Action as explicitly identified by staff, its responsible assignee or "Not assigned", its state ("Overdue by 10 min" with a warning, "Due in 5 min", "Awaiting veterinarian review", "Not scheduled") and "No next action documented" when none, with Current Location and its location dropdown beneath it. A completed task does not imply clinical resolution. The full task list and editing controls stay in My Patients, and the overview never shows the whole open-task list.
+- [ ] **4.13b** `feature/documented-priority-summary` (phase 1, Patient Overview, after 4.3a): the Care Coordination card shows the staff-designated Next Care Action with its priority ("Not prioritized" when unset), its assignee or "Not assigned", and its state ("Overdue by 10 min" with a warning, "Due in 5 min", "Not scheduled"), or "No next action designated" with any legacy free-text note beneath as "Previously documented next-action note". Current Location sits beneath it with a Change dropdown that uses 4.3a's room assignment. Staff set priority and designate the Next Care Action in the existing Tasks and due items dialog (a priority selector and "Make next care action" on each open task), under the interim access policy. The overview card never shows the whole open-task list. A completed task does not imply clinical resolution.
 - [ ] **4.13e** `feature/task-assignment-history`: assigner tracking and reassignment history for tasks (deferred from 4.13a phase 1), with its own history model and migration, covering creator, assigner, reassignment, completion and review accountability on the shared task model.
 
 **Update status** (prototype: "Update status" button)
@@ -362,8 +365,8 @@ the future per-role protections in S.6/3.7 are already implemented.
 
 **Care team and location** (prototype: assigned clinician, location row)
 
-- [ ] **4.3a** `feature/assignment-api`: assign attending veterinarian, optional primary technician/shared-care representation and room according to the shared-care decision; retain current assignment time/actor where available and preserve history. A room already holding an active case returns `409` naming that case; contribution history does not require a fixed veterinarian-technician pairing.
-- [ ] **4.3b** `feature/assignment`: authorized assignment controls and a live compact care-team/location summary using 4.3a; distinguish unassigned, shared care and last confirmed location. Confirm control placement during the entry-workflow cutover; the Overview does not become a full staff-management form.
+- [ ] **4.3a** `feature/assignment-api`: assign attending veterinarian, optional primary technician (none shows "Not assigned", per the shared-care decision) and room; retain current assignment time/actor where available and preserve history. A room already holding an active case returns `409` naming that case; contribution history does not require a fixed veterinarian-technician pairing.
+- [ ] **4.3b** `feature/assignment`: authorized assignment controls and a live compact care-team/location summary using 4.3a; distinguish "Not assigned" and the last confirmed location. Confirm control placement during the entry-workflow cutover; the Overview does not become a full staff-management form.
 
 **Door to doctor** (prototype: fourth stat card and its details)
 
@@ -438,6 +441,8 @@ permitted reads/actions. The objects named in the handoffs are conceptual:
 reuse EmergencyCase, Patient, StaffMember/Account, CaseTask, Handoff and their
 history rather than creating duplicate Encounter/StaffUser tables per page.
 
+My Patients starts with a secure queue and read-only chart (2.22a-d) after S.6 and 4.3a; review requests, escalations, orders, diagnostics and drafts are added incrementally and do not block it (2026-11-02 simplicity decision).
+
 Role-restricted reads/actions require S.6 and the applicable policy decisions;
 production use also requires S.5/S.7 and the full launch gate. Incremental work
 may use the existing authenticated demo with synthetic records and honest
@@ -471,9 +476,9 @@ correcting those artifacts is a separate /fix, not an implicit product build.
 
 **Common My Patients shell, queues and role read views**
 
-- [ ] **2.22a** `feature/my-patients-api`: retain this existing ID for shared role-authorized read models after S.6, 3.7a, 4.3a, 4.13a and the review/escalation/diagnostic APIs above. Derive assigned/permitted-all-active queues, current source availability and three distinct-patient counts from canonical records and approved queue rules. Include unresolved escalations and result-review responsibilities even when ordinary tasks are done. No hardcoded clinician name or page-owned copy of status; coverage eligibility extends through 6.1c.
+- [ ] **2.22a** `feature/my-patients-api`: after S.6 and 4.3a, provide role-authorized server reads for the My Patients queue ("Assigned to me" and "All active", per the Role queue rules decision) and the read-only chart, from the existing case, task, vitals, timeline and assignment records. Counts are distinct patients. Review requests (4.16a), escalations (4.17a), orders (4.18a) and diagnostics (4.20a) join these reads when they are built; none of them blocks this item, and 3.7a (role-filtered ER overview) is not required for the clinical workspaces. No hardcoded clinician name or page-owned copy of status; coverage eligibility extends through 6.1c.
 - [ ] **2.22b** `feature/my-patients`: retain this existing ID for the common shell and one Patient Queue/wide chart scaffold using 2.22a. Share the ER header/active navigation, three neutral metric filters, acuity badges beside names, search/clear and assigned/all-active controls. Apply 4.8h protection to selection/navigation, preserve selected context when filtered, and test readable phone/tablet layouts. No fourth draft metric or extra attention sidebar; activate navigation only for authorized delivered views.
-- [ ] **2.22c** `feature/veterinarian-patient-chart`: after 2.22b, add read-only Clinical overview, Exam & plan, Orders, Tasks & reviews, Timeline and Discharge views using real permitted records. Surface documented escalation/result-review/coverage and unsigned-draft context; unsupported data/actions say unavailable rather than masquerading as an empty or complete chart. Editing/actions arrive in the features below.
+- [ ] **2.22c** `feature/veterinarian-patient-chart`: after 2.22b, add the read-only veterinarian chart from records that exist: Clinical overview, Tasks, Timeline and Discharge status. Exam & plan, Orders, review requests, escalations and diagnostics appear as their items (4.15-4.20) are delivered; until then the chart says they are not available yet rather than showing an empty or complete section. Editing and actions arrive in the features below.
 - [ ] **2.22d** `feature/technician-patient-chart`: after 2.22b, add read-only Care overview, Vitals & observations, Care tasks, Medications, Vet review requests, Handoff & escalation, Timeline and Discharge prep using the same sources. Keep role-appropriate controls and states; no technician diagnosis/prescription/medical-discharge authority or duplicate patient model.
 
 **Documentation, observations, review and escalation actions**
