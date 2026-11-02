@@ -145,22 +145,30 @@ Not part of v1. Open question.
 
 ## 7. UI/UX - How should this look and feel?
 
-- ER Board / Patient Overview requirements now come from
-  `blueprint/reference/patient-overview/VETIFLOW_ER_OVERVIEW_SPECIFICATION.md`
-  (2026-10-30). Its `VetiFlow_ER_Overview_Shared_Status_POC.html` is a behavioral proof
-  of concept, not a pixel-perfect specification or a design for other pages.
-  Preserve the existing design system and working acuity board, provisional
-  intake, stats, Filter/Priority and selection behavior while implementing
-  the new hierarchy incrementally. Test realistic panel widths, tablet/phone
-  layouts and enlarged text rather than copying tiny prototype labels.
-- The compact Overview shows the eight responsibilities in the requirements:
-  identity/acuity, complaint, stage/location, documented next action, numeric
-  vitals with meaningful times, allergy/care-team context, approved client
-  communication and Clinical/Medications/Timeline quick access. Only one
-  focused review drawer is open at once, safely bound to the selected patient.
-- The two My Patients packages are
-  `blueprint/reference/vet-my-patient/` and
-  `blueprint/reference/technician-my-patient/`. Both use one Patient Queue and
+- ER board, patient record and role requirements now come from
+  `blueprint/reference/er-board-poc/` (2026-11-02): `VetiFlow-Product-Rules.md`
+  for the rules and `VetiFlow-ER-Prototype.html` as guidance for visual
+  hierarchy and the shared patient record, not a pixel-perfect specification
+  or a design for other pages. The person's decisions in the build plan take
+  precedence. Preserve the existing design system, provisional intake and
+  selection behavior while implementing the new hierarchy incrementally. Test
+  realistic panel widths, tablet/phone layouts and enlarged text rather than
+  copying tiny prototype labels.
+- Layout (build plan 2.25-2.28, 3.2c-d): the board is a table on desktop
+  (Patient, Acuity, Care stage, Care team with Tech then Vet) and compact cards
+  on phones, under a compact stats strip and an in-board toolbar. The patient
+  panel sits beside the board on desktop, becomes a drawer on tablets and a
+  full-screen panel on phones. Its fixed header shows identity, acuity, care
+  stage and location buttons (opening small modals) and allergy status, above
+  four tabs: Overview, Clinical, Orders & Medications and Timeline. Phones use
+  a bottom bar with overflow for the app's six destinations. An app-wide
+  "Demo role — simulated access" switch changes displayed controls and My
+  patients filters; it is independent of sign-in and is not authorization.
+- The Overview tab shows latest vitals with meaningful times, the documented
+  next care action, care team and allergy status, and the read-only presenting
+  complaint, bound safely to the selected patient.
+- The My Patients rules are in the same product rules (the separate
+  veterinarian and technician packages were consolidated). Both use one Patient Queue and
   a wider selected chart, three distinct-patient metric filters, neutral white
   active cards with a thin teal outline, and acuity badges beside names. No
   extra attention sidebar, fourth draft metric or staff productivity ranking.
