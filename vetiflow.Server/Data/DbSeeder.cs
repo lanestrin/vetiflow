@@ -26,7 +26,83 @@ public static class DbSeeder
 
 		await LinkDemoPetAsync(dbContext);
 		await RefreshDemoTimesAsync(dbContext);
+		await SeedDemoStaffAsync(dbContext);
 		await SeedAdditionalCasesAsync(dbContext);
+		await SpreadDemoAssignmentsAsync(dbContext);
+	}
+
+	// More clinicians for the My Patients workspaces (build plan 2.24), so the
+	// demo cases are spread across several doctors and technicians. Fictional.
+	private sealed record DemoStaffSeed(int Index, string FirstName, string LastName, StaffRole Role, StaffStatus Status);
+
+	private static readonly DemoStaffSeed[] AdditionalStaff =
+	[
+		new(1, "Elena", "Novak", StaffRole.Veterinarian, StaffStatus.Available),
+		new(2, "Marcus", "Bell", StaffRole.Veterinarian, StaffStatus.Busy),
+		new(3, "Riley", "Chen", StaffRole.Technician, StaffStatus.Available),
+		new(4, "Dana", "Price", StaffRole.Technician, StaffStatus.Busy)
+	];
+
+	private static async Task SeedDemoStaffAsync(VetiFlowDbContext dbContext)
+	{
+		var staffIds = AdditionalStaff.Select(seed => DemoFixtureId(4, seed.Index)).ToArray();
+		var existingIds = await dbContext.StaffMembers.AsNoTracking()
+			.Where(member => staffIds.Contains(member.Id))
+			.Select(member => member.Id).ToHashSetAsync();
+		var missing = AdditionalStaff.Where(seed => !existingIds.Contains(DemoFixtureId(4, seed.Index))).ToArray();
+		if (missing.Length == 0) return;
+
+		dbContext.StaffMembers.AddRange(missing.Select(seed => new StaffMember
+		{
+			Id = DemoFixtureId(4, seed.Index), FirstName = seed.FirstName, LastName = seed.LastName,
+			Role = seed.Role, Status = seed.Status
+		}));
+		await dbContext.SaveChangesAsync();
+	}
+
+	// Active veterinarians and technicians in a fixed order, so each demo case
+	// always rotates to the same clinicians.
+	private static async Task<(Guid[] Veterinarians, Guid[] Technicians)> DemoCliniciansAsync(VetiFlowDbContext dbContext)
+	{
+		var staff = await dbContext.StaffMembers.AsNoTracking().Where(member => member.IsActive)
+			.OrderBy(member => member.LastName).ThenBy(member => member.FirstName)
+			.Select(member => new { member.Id, member.Role }).ToListAsync();
+		return (
+			staff.Where(member => member.Role == StaffRole.Veterinarian).Select(member => member.Id).ToArray(),
+			staff.Where(member => member.Role == StaffRole.Technician).Select(member => member.Id).ToArray());
+	}
+
+	private static Guid? Rotate(Guid[] clinicians, int index) =>
+		clinicians.Length == 0 ? null : clinicians[index % clinicians.Length];
+
+	// A demo database seeded before 2.24 gave every extra demo case one doctor.
+	// While that is still so, spread them by the same rotation; afterwards the
+	// condition is false, so a reassignment made in the app is never undone.
+	// Only the assignment changes; who recorded what stays as it was.
+	private static async Task SpreadDemoAssignmentsAsync(VetiFlowDbContext dbContext)
+	{
+		var indexById = AdditionalCases.ToDictionary(seed => DemoFixtureId(1, seed.Index), seed => seed.Index);
+		var caseIds = indexById.Keys.ToArray();
+		var cases = await dbContext.EmergencyCases
+			.Where(emergencyCase => caseIds.Contains(emergencyCase.Id)
+				&& emergencyCase.DischargedAt == null && emergencyCase.AssignedDoctorId != null)
+			.ToListAsync();
+		if (cases.Count < 2 || cases.Select(emergencyCase => emergencyCase.AssignedDoctorId).Distinct().Count() > 1) return;
+
+		var (veterinarians, technicians) = await DemoCliniciansAsync(dbContext);
+		if (veterinarians.Length < 2) return;
+
+		foreach (var emergencyCase in cases)
+		{
+			var index = indexById[emergencyCase.Id];
+			emergencyCase.AssignedDoctorId = Rotate(veterinarians, index);
+			if (emergencyCase.AssignedTechnicianId is not null)
+			{
+				emergencyCase.AssignedTechnicianId = Rotate(technicians, index);
+			}
+		}
+
+		await dbContext.SaveChangesAsync();
 	}
 
 	// IDs belong to these fixtures, independent of names, case counts and edits.
@@ -72,14 +148,14 @@ public static class DbSeeder
 		var activePatientIds = await dbContext.EmergencyCases.AsNoTracking()
 			.Where(emergencyCase => patientIds.Contains(emergencyCase.PatientId) && emergencyCase.DischargedAt == null)
 			.Select(emergencyCase => emergencyCase.PatientId).ToHashSetAsync();
-		var staff = await dbContext.StaffMembers.AsNoTracking().Where(member => member.IsActive)
-			.OrderBy(member => member.LastName).Select(member => new { member.Id, member.Role }).ToListAsync();
-		var doctorId = staff.FirstOrDefault(member => member.Role == StaffRole.Veterinarian)?.Id;
-		var technicianId = staff.FirstOrDefault(member => member.Role == StaffRole.Technician)?.Id;
+		var (veterinarians, technicians) = await DemoCliniciansAsync(dbContext);
 		var now = DateTimeOffset.UtcNow;
 
 		foreach (var seed in missing)
 		{
+			// Each case rotates to its own doctor and technician (2.24).
+			var doctorId = Rotate(veterinarians, seed.Index);
+			var technicianId = Rotate(technicians, seed.Index);
 			var patientId = DemoFixtureId(2, seed.Index);
 			// Preserve a fixture patient that has since been admitted to another case.
 			if (activePatientIds.Contains(patientId)) continue;
