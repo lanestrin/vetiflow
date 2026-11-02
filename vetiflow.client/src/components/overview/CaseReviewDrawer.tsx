@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, type ReactNode, type RefObject } from "react";
 import type { CaseDetail } from "../../types/CaseDetail";
+import { dateLabel } from "./overviewFormat";
 import styles from "./CaseReviewDrawer.module.scss";
 
 export interface ReviewDrawerProps {
@@ -43,7 +44,7 @@ export function CaseReviewDrawer({ detail, title, children, onClose, triggerRef,
       <header className={styles.head}>
         <div>
           <h2 id={`${id}-title`}>{title}</h2>
-          <p id={`${id}-patient`}>{detail.patient.name} · Case {detail.caseNumber}</p>
+          <p id={`${id}-patient`}>{detail.patient.name} · Case {detail.caseNumber} · {dateLabel(detail.arrivalTime)}</p>
         </div>
         <button ref={closeRef} type="button" className={styles.close} aria-label={`Close ${title}`}
           onClick={() => dialogRef.current?.close()}>Close</button>

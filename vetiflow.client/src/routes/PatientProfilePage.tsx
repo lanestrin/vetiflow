@@ -1,6 +1,7 @@
 import { useEffect, useId, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import type { SignInRouteState } from "../components/auth/experienceHome";
+import { dateTimeLabel } from "../components/overview/overviewFormat";
 import { AccessDeniedError, SessionEndedError } from "../services/apiErrors";
 import { getPatientVisitHistory } from "../services/recordsApi";
 import { clearAccessToken } from "../services/session";
@@ -26,14 +27,6 @@ type LoadResult =
   | { forKey: string; kind: "found"; history: PatientVisitHistory }
   | { forKey: string; kind: "notFound" }
   | { forKey: string; kind: "failed" };
-
-const dayFormat = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric" });
-const timeFormat = new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit" });
-
-function formatDateTime(value: string): string {
-  const date = new Date(value);
-  return `${dayFormat.format(date)}, ${timeFormat.format(date)}`;
-}
 
 // A patient's profile with Visit History (build plan 4.21b): every ER visit,
 // active and discharged, newest first. RequireExperience lets only team members
@@ -109,12 +102,23 @@ export function PatientProfilePage() {
           </div>
         </>
       )}
-      {current?.kind === "found" && <PatientProfile history={current.history} />}
+      {current?.kind === "found" && (
+        <PatientProfile
+          history={current.history}
+          routeState={fromCaseId === null ? undefined : { fromErBoard: { caseId: fromCaseId } }}
+        />
+      )}
     </main>
   );
 }
 
-function PatientProfile({ history }: { history: PatientVisitHistory }) {
+interface PatientProfileProps {
+  history: PatientVisitHistory;
+  // Handed on to a visit record, so its way back still reaches the board.
+  routeState: PatientProfileRouteState | undefined;
+}
+
+function PatientProfile({ history, routeState }: PatientProfileProps) {
   const id = useId();
   const { patient, visits } = history;
 
@@ -146,12 +150,14 @@ function PatientProfile({ history }: { history: PatientVisitHistory }) {
 
       <div id={`${id}-panel`} role="tabpanel" aria-labelledby={`${id}-tab`} className={styles.panel}>
         <h2 className={styles.panelTitle}>Previous Encounters</h2>
-        <p className={styles.hint}>Each visit lists what was recorded at the time.</p>
+        <p className={styles.hint}>Select a visit to open its record.</p>
         {visits.length === 0
           ? <p className={styles.empty}>No visits recorded for this patient.</p>
           : (
             <ul className={styles.visits}>
-              {visits.map((visit) => <VisitCard key={visit.caseId} visit={visit} />)}
+              {visits.map((visit) => (
+                <VisitCard key={visit.caseId} patientId={patient.id} visit={visit} routeState={routeState} />
+              ))}
             </ul>
           )}
       </div>
@@ -159,19 +165,24 @@ function PatientProfile({ history }: { history: PatientVisitHistory }) {
   );
 }
 
-function VisitCard({ visit }: { visit: PatientVisit }) {
+function VisitCard({ patientId, visit, routeState }: { patientId: string; visit: PatientVisit; routeState: PatientProfileRouteState | undefined }) {
   return (
-    <li className={styles.visit}>
-      <div className={styles.visitTop}>
-        <strong className={styles.visitDate}>{formatDateTime(visit.arrivalTime)}</strong>
-        {visit.dischargedAt
-          ? <span className={styles.discharged}>Discharged {formatDateTime(visit.dischargedAt)}</span>
-          : <span className={styles.active}>Active</span>}
-      </div>
-      <p className={styles.complaint}>{visit.presentingComplaint}</p>
-      <p className={styles.meta}>
-        ER visit · {visit.caseNumber} · {visit.attendingDoctor ? visit.attendingDoctor.name : "No doctor recorded"}
-      </p>
+    <li>
+      <Link to={`/records/${patientId}/visits/${visit.caseId}`} state={routeState} className={styles.visit}>
+        <span className={styles.visitBody}>
+          <span className={styles.visitTop}>
+            <strong className={styles.visitDate}>{dateTimeLabel(visit.arrivalTime)}</strong>
+            {visit.dischargedAt
+              ? <span className={styles.discharged}>Discharged {dateTimeLabel(visit.dischargedAt)}</span>
+              : <span className={styles.active}>Active</span>}
+          </span>
+          <span className={styles.complaint}>{visit.presentingComplaint}</span>
+          <span className={styles.meta}>
+            ER visit · {visit.caseNumber} · {visit.attendingDoctor ? visit.attendingDoctor.name : "No doctor recorded"}
+          </span>
+        </span>
+        <svg className={styles.chevron} viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg>
+      </Link>
     </li>
   );
 }

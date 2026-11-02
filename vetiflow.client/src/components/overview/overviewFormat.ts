@@ -133,6 +133,17 @@ const hour = 60 * minute;
 const day = 24 * hour;
 const datedFormat = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric" });
 
+// "30 Oct 2026": the day a visit began, always with its year (4.21d).
+export function dateLabel(isoTime: string): string {
+  return datedFormat.format(new Date(isoTime));
+}
+
+// "30 Oct 2026, 2:05 PM": a moment in a patient's history, never relative.
+export function dateTimeLabel(isoTime: string): string {
+  const time = new Date(isoTime);
+  return `${datedFormat.format(time)}, ${timeFormat.format(time)}`;
+}
+
 function validTime(isoTime: string | null | undefined): Date | null {
   const time = new Date(isoTime ?? Number.NaN);
   return isoTime && Number.isFinite(time.getTime()) ? time : null;

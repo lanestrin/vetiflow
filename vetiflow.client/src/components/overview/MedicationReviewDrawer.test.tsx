@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
+import { dateLabel } from "./overviewFormat";
 import { useRef, useState } from "react";
 import { beforeAll, describe, expect, it } from "vitest";
 import { buildCaseDetail } from "../../test/builders";
@@ -28,7 +29,7 @@ describe("MedicationReviewDrawer", () => {
     detail.patient.currentMedications = "Previously reported medicine";
     render(<Harness detail={detail} />);
     const drawer = within(screen.getByRole("dialog", { name: "Medications" }));
-    expect(screen.getByRole("dialog")).toHaveAccessibleDescription(`${detail.patient.name} · Case ER-42`);
+    expect(screen.getByRole("dialog")).toHaveAccessibleDescription(`${detail.patient.name} · Case ER-42 · ${dateLabel(detail.arrivalTime)}`);
     expect(drawer.getByText("Reconciliation status: Unknown (verification not recorded)")).toBeInTheDocument();
     expect(within(drawer.getByRole("region", { name: "Recorded at intake" })).getByText("Stopped reported medicine")).toBeInTheDocument();
     expect(within(drawer.getByRole("region", { name: "Patient record" })).getByText("Previously reported medicine")).toBeInTheDocument();

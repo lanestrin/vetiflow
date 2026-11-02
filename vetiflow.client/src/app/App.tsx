@@ -10,6 +10,7 @@ import { PetParentHomePage } from "../routes/PetParentHomePage";
 import { RecordsPage } from "../routes/RecordsPage";
 import { SignInPage } from "../routes/SignInPage";
 import { TeamPage } from "../routes/TeamPage";
+import { VisitRecordPage } from "../routes/VisitRecordPage";
 
 function App() {
   return (
@@ -32,6 +33,7 @@ function App() {
           <Route path="/er" element={<ErBoardPage />} />
           <Route path="/records" element={<RecordsPage />} />
           <Route path="/records/:patientId" element={<PatientProfilePage />} />
+          <Route path="/records/:patientId/visits/:caseId" element={<VisitRecordPage />} />
           <Route path="/overview" element={<ComingSoonPage name="Overview" />} />
           <Route path="/team" element={<TeamPage />} />
           <Route path="/reports" element={<ComingSoonPage name="Reports" />} />
