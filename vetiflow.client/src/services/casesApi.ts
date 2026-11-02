@@ -1,13 +1,13 @@
 import type {
   EmergencyCaseListItem
 } from "../types/EmergencyCaseListItem";
-import type { CaseDetail, CaseTaskRequest } from "../types/CaseDetail";
+import type { CaseDetail, CaseTaskRequest, TaskPriority } from "../types/CaseDetail";
 import type { CaseIntakeRequest, CaseIntakeResult } from "../types/CaseIntake";
 import type { TriageRequest } from "../types/Triage";
 import type { CaseStatusRequest } from "../types/CaseStatusRequest";
 import type { RecordVitalsRequest } from "../types/RecordVitalsRequest";
 import type { PainScoreRequest } from "../types/PainScoreRequest";
-import { CaseGoneError, FormRejectedError, ChangeRefusedError } from "./apiErrors";
+import { CaseGoneError, FormRejectedError, ChangeRefusedError, RoomInUseError } from "./apiErrors";
 import { authorizationHeader, throwIfRefused } from "./apiRequest";
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "";
@@ -261,5 +261,104 @@ export async function createTask(caseId: string, request: CaseTaskRequest): Prom
 
   if (!response.ok) {
     throw new Error("Failed to add the task.");
+  }
+}
+
+type AssignmentField = "veterinarian" | "technician" | "room";
+
+// Sets or clears (null) a case's attending veterinarian, primary technician or
+// room (build plan 4.3b, through the 4.3a endpoints). A 400 brings the field
+// message; a room held by another active case is RoomInUseError; 404 and any
+// other 409 mean the case is gone.
+export function setCaseVeterinarian(caseId: string, staffId: string | null): Promise<void> {
+  return putAssignment(caseId, "veterinarian", staffId);
+}
+
+export function setCaseTechnician(caseId: string, staffId: string | null): Promise<void> {
+  return putAssignment(caseId, "technician", staffId);
+}
+
+export function setCaseRoom(caseId: string, roomId: string | null): Promise<void> {
+  return putAssignment(caseId, "room", roomId);
+}
+
+async function putAssignment(caseId: string, field: AssignmentField, id: string | null): Promise<void> {
+  const response = await fetch(`${apiBaseUrl}/api/cases/${caseId}/${field}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      ...authorizationHeader()
+    },
+    body: JSON.stringify({ id })
+  });
+
+  throwIfRefused(response);
+
+  if (response.status === 400) {
+    throw new FormRejectedError(await readFieldErrors(response));
+  }
+
+  if (response.status === 404) {
+    throw new CaseGoneError("notFound");
+  }
+
+  if (response.status === 409) {
+    const occupyingCaseNumber = await readOccupyingCaseNumber(response);
+    throw occupyingCaseNumber === undefined ? new CaseGoneError("discharged") : new RoomInUseError(occupyingCaseNumber);
+  }
+
+  if (!response.ok) {
+    throw new Error("Failed to save the change.");
+  }
+}
+
+// The case holding the room, from a room-in-use 409; undefined for any other 409.
+async function readOccupyingCaseNumber(response: Response): Promise<string | null | undefined> {
+  try {
+    const problem: unknown = await response.json();
+    if (typeof problem === "object" && problem !== null && "occupyingCaseNumber" in problem) {
+      return typeof problem.occupyingCaseNumber === "string" ? problem.occupyingCaseNumber : null;
+    }
+  } catch {
+    // A 409 without a readable body is not a room conflict.
+  }
+
+  return undefined;
+}
+
+// Sets or clears (null) an open task's staff-set priority (build plan 4.13a).
+// A closed task or a discharged case comes back as ChangeRefusedError with the
+// server's reason.
+export function setTaskPriority(caseId: string, taskId: string, priority: TaskPriority | null): Promise<void> {
+  return sendTaskChange(`/api/cases/${caseId}/tasks/${taskId}/priority`, "POST", { priority });
+}
+
+// Designates an open task as the case's Next Care Action, or clears it (null).
+export function setNextAction(caseId: string, taskId: string | null): Promise<void> {
+  return sendTaskChange(`/api/cases/${caseId}/next-action`, "PUT", { taskId });
+}
+
+async function sendTaskChange(path: string, method: "POST" | "PUT", body: unknown): Promise<void> {
+  const response = await fetch(`${apiBaseUrl}${path}`, {
+    method,
+    headers: {
+      "Content-Type": "application/json",
+      ...authorizationHeader()
+    },
+    body: JSON.stringify(body)
+  });
+
+  throwIfRefused(response);
+
+  if (response.status === 404) {
+    throw new CaseGoneError("notFound");
+  }
+
+  if (response.status === 409) {
+    throw new ChangeRefusedError(await readRefusalReason(response));
+  }
+
+  if (!response.ok) {
+    throw new Error("Failed to update the task.");
   }
 }

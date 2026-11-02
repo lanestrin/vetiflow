@@ -50,3 +50,15 @@ export class ChangeRefusedError extends Error {
     this.reason = reason;
   }
 }
+
+// The room chosen for a case holds another active case (409, build plan 4.3a),
+// for example because someone else moved a patient there first.
+export class RoomInUseError extends Error {
+  readonly caseNumber: string | null;
+
+  constructor(caseNumber: string | null) {
+    super("The room is in use.");
+    this.name = "RoomInUseError";
+    this.caseNumber = caseNumber;
+  }
+}

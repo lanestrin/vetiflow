@@ -27,6 +27,7 @@ public static class DbSeeder
 		await LinkDemoPetAsync(dbContext);
 		await RefreshDemoTimesAsync(dbContext);
 		await SeedDemoStaffAsync(dbContext);
+		await SeedDemoRoomsAsync(dbContext);
 		await SeedAdditionalCasesAsync(dbContext);
 		await SpreadDemoAssignmentsAsync(dbContext);
 	}
@@ -42,6 +43,24 @@ public static class DbSeeder
 		new(3, "Riley", "Chen", StaffRole.Technician, StaffStatus.Available),
 		new(4, "Dana", "Price", StaffRole.Technician, StaffStatus.Busy)
 	];
+
+	// The eight rooms SeedCasesAsync creates, for a database that has none: one
+	// backfilled from the older three-case seed never got them, so Change
+	// location (build plan 4.3b) had nothing to offer.
+	private static readonly (string Name, RoomType Type)[] DemoRooms =
+	[
+		("Treatment Bay 1", RoomType.Treatment), ("Treatment Bay 2", RoomType.Treatment),
+		("Exam 1", RoomType.Exam), ("Exam 2", RoomType.Exam), ("ICU", RoomType.ICU),
+		("Oxygen Cage", RoomType.Oxygen), ("Imaging", RoomType.Imaging), ("Surgery", RoomType.Surgery)
+	];
+
+	private static async Task SeedDemoRoomsAsync(VetiFlowDbContext dbContext)
+	{
+		if (await dbContext.Rooms.AnyAsync()) return;
+
+		dbContext.Rooms.AddRange(DemoRooms.Select(room => new Room { Name = room.Name, Type = room.Type }));
+		await dbContext.SaveChangesAsync();
+	}
 
 	private static async Task SeedDemoStaffAsync(VetiFlowDbContext dbContext)
 	{

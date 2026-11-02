@@ -16,6 +16,8 @@ import { useToast } from "../shell/toastContext";
 import { allergySummary } from "./allergyStatus";
 import { MoreActionsMenu } from "./MoreActionsMenu";
 import { CaseTasksDialog } from "./CaseTasksDialog";
+import { ChangeLocationDialog } from "./ChangeLocationDialog";
+import { EditCareTeamDialog } from "./EditCareTeamDialog";
 import { ClinicalReviewDrawer } from "./ClinicalReviewDrawer";
 import { MedicationReviewDrawer } from "./MedicationReviewDrawer";
 import { TimelineReviewDrawer } from "./TimelineReviewDrawer";
@@ -54,6 +56,8 @@ interface PatientOverviewPanelProps {
 
 type TaskDialogKind = "addTask" | DueItemType;
 type ReviewKind = "clinical" | "medications" | "timeline";
+// The quick edits opened from the overview itself (build plan 4.3b).
+type QuickEdit = "location" | "careTeam" | "stage";
 
 const reviewDrawers = { clinical: ClinicalReviewDrawer, medications: MedicationReviewDrawer, timeline: TimelineReviewDrawer };
 
@@ -81,6 +85,9 @@ export function PatientOverviewPanel({ caseId, caseUnavailable = false, refreshe
   const [taskDialog, setTaskDialog] = useState<TaskDialogKind | null>(null);
   const [isTaskReviewOpen, setIsTaskReviewOpen] = useState(false);
   const [vitalsDialogCase, setVitalsDialogCase] = useState<CaseDetail | null>(null);
+  const [quickEdit, setQuickEdit] = useState<"location" | "careTeam" | null>(null);
+  // The button a quick edit or Update status was opened from, for focus on close.
+  const returnFocusRef = useRef<HTMLButtonElement | null>(null);
   const [review, setReview] = useState<{ caseId: string; kind: ReviewKind } | null>(null);
   // A dialog for one case never carries over to the next selection.
   const [dialogCaseId, setDialogCaseId] = useState(caseId);
@@ -93,6 +100,7 @@ export function PatientOverviewPanel({ caseId, caseUnavailable = false, refreshe
     setIsTaskReviewOpen(false);
     setVitalsDialogCase(null);
     setReview(null);
+    setQuickEdit(null);
   }
   // Keyed by case and attempt, so a board reload keeps the shown case on
   // screen while a new case or a retry shows "Loading case…".
@@ -135,6 +143,28 @@ export function PatientOverviewPanel({ caseId, caseUnavailable = false, refreshe
   const ReviewDrawer = reviewDrawers[review?.kind ?? "clinical"];
   const reviewTriggers = { clinical: clinicalRef, medications: medicationsRef, timeline: timelineRef };
 
+  function returnFocus() {
+    const trigger = returnFocusRef.current;
+    (trigger?.isConnected ? trigger : moreActionsRef.current)?.focus();
+  }
+
+  function openQuickEdit(kind: QuickEdit, trigger: HTMLButtonElement) {
+    if (!detail) return;
+    returnFocusRef.current = trigger;
+    setEditingCase(detail);
+    if (kind === "stage") setIsUpdatingStatus(true);
+    else setQuickEdit(kind);
+  }
+
+  function quickEditSaved(message: string) {
+    // Closed here as well as by the dialog's close event (as triage).
+    setQuickEdit(null);
+    returnFocus();
+    showToast(message);
+    // The board reload also reloads this panel, so the saved values show.
+    onTaskSaved();
+  }
+
   return (
     <aside className={styles.panel} aria-labelledby={titleId} aria-busy={caseId !== null && result === null}>
       <header className={styles.head}>
@@ -150,7 +180,7 @@ export function PatientOverviewPanel({ caseId, caseUnavailable = false, refreshe
                 label: detail.stage === "incoming" ? "Complete triage" : "Re-triage",
                 onSelect: () => { setEditingCase(detail); setIsTriaging(true); }
               },
-              { label: "Update status", onSelect: () => { setEditingCase(detail); setIsUpdatingStatus(true); } },
+              { label: "Update status", onSelect: () => { returnFocusRef.current = moreActionsRef.current; setEditingCase(detail); setIsUpdatingStatus(true); } },
               { label: "Tasks and due items", onSelect: () => setIsTaskReviewOpen(true) },
               ...(detail.dischargedAt === null
                 ? [
@@ -187,6 +217,7 @@ export function PatientOverviewPanel({ caseId, caseUnavailable = false, refreshe
           detail={detail}
           nameRef={nameRef}
           onOpenReview={kind => setReview({ caseId: detail.id, kind })}
+          onQuickEdit={openQuickEdit}
           clinicalRef={clinicalRef}
           medicationsRef={medicationsRef}
           timelineRef={timelineRef}
@@ -231,16 +262,39 @@ export function PatientOverviewPanel({ caseId, caseUnavailable = false, refreshe
           detail={draftDetail}
           onClose={() => {
             setIsUpdatingStatus(false);
-            moreActionsRef.current?.focus();
+            returnFocus();
           }}
           onSaved={(message) => {
             // Closed here as well as by the dialog's close event (as triage).
             setIsUpdatingStatus(false);
-            moreActionsRef.current?.focus();
+            returnFocus();
             showToast(message);
             // The board reload also reloads this panel, so the new stage shows.
             onTaskSaved();
           }}
+        />
+      )}
+      {draftDetail && quickEdit === "location" && (
+        <ChangeLocationDialog
+          caseUnavailable={unavailable}
+          detail={draftDetail}
+          onClose={() => {
+            setQuickEdit(null);
+            returnFocus();
+          }}
+          onSaved={quickEditSaved}
+        />
+      )}
+      {draftDetail && quickEdit === "careTeam" && (
+        <EditCareTeamDialog
+          caseUnavailable={unavailable}
+          detail={draftDetail}
+          onClose={() => {
+            setQuickEdit(null);
+            returnFocus();
+          }}
+          onSaved={quickEditSaved}
+          onPartlySaved={onTaskSaved}
         />
       )}
       {draftDetail && taskDialog !== null && (
@@ -316,6 +370,7 @@ interface OverviewProps {
   detail: CaseDetail;
   nameRef: RefObject<HTMLHeadingElement | null>;
   onOpenReview: (kind: ReviewKind) => void;
+  onQuickEdit: (kind: QuickEdit, trigger: HTMLButtonElement) => void;
   clinicalRef: RefObject<HTMLButtonElement | null>;
   medicationsRef: RefObject<HTMLButtonElement | null>;
   timelineRef: RefObject<HTMLButtonElement | null>;
@@ -325,6 +380,7 @@ function Overview({
   detail,
   nameRef,
   onOpenReview,
+  onQuickEdit,
   clinicalRef,
   medicationsRef,
   timelineRef
@@ -344,6 +400,14 @@ function Overview({
     { field: "spO2", label: "SpO₂", value: vitals?.spO2 == null ? "Not recorded" : `${vitals.spO2}%` }
   ];
   const lastUpdate = detail.lastOwnerUpdateAt ? timeLabel(detail.lastOwnerUpdateAt, now) : "Not recorded";
+  // A discharged case is read-only, as for tasks.
+  const canEdit = detail.dischargedAt === null;
+  const quickEditButton = (kind: QuickEdit, label: string, name: string) => canEdit && (
+    <button type="button" className={styles.quickEdit} aria-label={name}
+      onClick={event => onQuickEdit(kind, event.currentTarget)}>
+      {label}
+    </button>
+  );
   const nextUpdate = detail.nextClientUpdate
     ? `${detail.nextClientUpdate.description} · ${dueLabel(detail.nextClientUpdate.dueAt, now)}`
     : "Not scheduled";
@@ -373,18 +437,22 @@ function Overview({
           <p className={styles.stageContext}>
             <span>Care stage</span>
             <strong>{stageLabel(detail.stage)}</strong>
+            {quickEditButton("stage", "Change", "Change care stage")}
           </p>
         </div>
 
         <div className={styles.facts}>
           <div className={styles.factCard}>
-            <h3 className={styles.factLabel}>
-              <svg className={styles.icon} viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0Z" />
-                <circle cx="12" cy="10" r="2.5" />
-              </svg>
-              Location
-            </h3>
+            <div className={styles.factHead}>
+              <h3 className={styles.factLabel}>
+                <svg className={styles.icon} viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0Z" />
+                  <circle cx="12" cy="10" r="2.5" />
+                </svg>
+                Location
+              </h3>
+              {quickEditButton("location", "Change", "Change location")}
+            </div>
             <p className={styles.factValue}>{locationLabel(detail.room)}</p>
           </div>
         </div>
@@ -474,20 +542,23 @@ function Overview({
       </section>
 
       <section className={styles.careContext} aria-label="Care team and safety">
-        <h3 className={styles.careContextTitle}>
-          <svg className={styles.icon} viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z" />
-            <path d="M9 12h6m-3-3v6" />
-          </svg>
-          Care team &amp; safety
-        </h3>
+        <div className={styles.careContextHead}>
+          <h3 className={styles.careContextTitle}>
+            <svg className={styles.icon} viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z" />
+              <path d="M9 12h6m-3-3v6" />
+            </svg>
+            Care team &amp; safety
+          </h3>
+          {quickEditButton("careTeam", "Edit care team", "Edit care team")}
+        </div>
         <div className={styles.contextRow}>
           <span>Allergies</span>
           <strong data-role="allergies">{allergySummary(detail)}</strong>
         </div>
         <div className={styles.contextRow}>
           <span>Attending veterinarian</span>
-          <strong data-role="attending-veterinarian">{detail.assignedDoctor?.name ?? "Unassigned"}</strong>
+          <strong data-role="attending-veterinarian">{detail.assignedDoctor?.name ?? "Not assigned"}</strong>
         </div>
         <div className={styles.contextRow}>
           <span>Primary technician</span>

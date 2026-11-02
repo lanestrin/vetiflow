@@ -3,8 +3,8 @@ import { afterEach, describe, expect, it } from "vitest";
 import { buildCase, buildCaseDetail } from "../test/builders";
 import { apiUrl, server } from "../test/server";
 import type { CaseIntakeRequest } from "../types/CaseIntake";
-import { AccessDeniedError, CaseGoneError, FormRejectedError, SessionEndedError, ChangeRefusedError } from "./apiErrors";
-import { completeTask, createIntake, createTask, getCase, getEmergencyCases, recordPainScore, recordVitals, reopenTask, triageCase, updateCaseStatus } from "./casesApi";
+import { AccessDeniedError, CaseGoneError, FormRejectedError, SessionEndedError, ChangeRefusedError, RoomInUseError } from "./apiErrors";
+import { completeTask, createIntake, createTask, getCase, getEmergencyCases, recordPainScore, recordVitals, reopenTask, setCaseRoom, setCaseTechnician, setCaseVeterinarian, setNextAction, setTaskPriority, triageCase, updateCaseStatus } from "./casesApi";
 import { saveAccessToken } from "./session";
 
 afterEach(() => {
@@ -505,5 +505,131 @@ describe("createTask", () => {
     server.use(http.post(route, () => new HttpResponse(null, { status: 500 })));
 
     await expect(createTask("case-42", request)).rejects.toThrow("Failed to add the task.");
+  });
+});
+
+describe("setCaseVeterinarian, setCaseTechnician and setCaseRoom", () => {
+  it.each([
+    ["veterinarian", setCaseVeterinarian, "staff-3"],
+    ["technician", setCaseTechnician, null],
+    ["room", setCaseRoom, "room-2"]
+  ] as const)("puts the %s id with the token", async (field, call, id) => {
+    saveAccessToken("token-1");
+    let sent: { method: string; body: unknown; authorization: string | null } | null = null;
+    server.use(
+      http.put(apiUrl(`/api/cases/case-42/${field}`), async ({ request }) => {
+        sent = { method: request.method, body: await request.json(), authorization: request.headers.get("Authorization") };
+        return new HttpResponse(null, { status: 204 });
+      })
+    );
+
+    await call("case-42", id);
+
+    expect(sent).toEqual({ method: "PUT", body: { id }, authorization: "Bearer token-1" });
+  });
+
+  it("turns a room-in-use 409 into RoomInUseError naming the case", async () => {
+    server.use(
+      http.put(apiUrl("/api/cases/case-42/room"), () =>
+        HttpResponse.json({ title: "This room is in use", occupyingCaseId: "case-1", occupyingCaseNumber: "ER-2481" }, { status: 409 }))
+    );
+
+    const error = await setCaseRoom("case-42", "room-2").catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(RoomInUseError);
+    expect((error as RoomInUseError).caseNumber).toBe("ER-2481");
+  });
+
+  it.each([
+    [404, "notFound"],
+    [409, "discharged"]
+  ] as const)("turns any other %i into CaseGoneError (%s)", async (status, reason) => {
+    server.use(
+      http.put(apiUrl("/api/cases/case-42/veterinarian"), () =>
+        HttpResponse.json({ title: "This case has been discharged" }, { status }))
+    );
+
+    const error = await setCaseVeterinarian("case-42", "staff-3").catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(CaseGoneError);
+    expect((error as CaseGoneError).reason).toBe(reason);
+  });
+
+  it("brings back the field message on 400", async () => {
+    server.use(
+      http.put(apiUrl("/api/cases/case-42/technician"), () =>
+        HttpResponse.json({ errors: { id: ["No active technician has this ID."] } }, { status: 400 }))
+    );
+
+    const error = await setCaseTechnician("case-42", "staff-9").catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(FormRejectedError);
+    expect((error as FormRejectedError).fieldErrors).toEqual({ id: "No active technician has this ID." });
+  });
+
+  it.each([
+    [401, SessionEndedError],
+    [403, AccessDeniedError]
+  ])("turns %i into its error", async (status, errorType) => {
+    server.use(http.put(apiUrl("/api/cases/case-42/room"), () => new HttpResponse(null, { status })));
+
+    await expect(setCaseRoom("case-42", null)).rejects.toBeInstanceOf(errorType);
+  });
+
+  it("fails plainly on a server error", async () => {
+    server.use(http.put(apiUrl("/api/cases/case-42/room"), () => new HttpResponse(null, { status: 500 })));
+
+    await expect(setCaseRoom("case-42", null)).rejects.toThrow("Failed to save the change.");
+  });
+});
+
+describe("setTaskPriority and setNextAction", () => {
+  it("posts the task's priority", async () => {
+    saveAccessToken("token-1");
+    let sent: { method: string; body: unknown; authorization: string | null } | null = null;
+    server.use(
+      http.post(apiUrl("/api/cases/case-42/tasks/task-7/priority"), async ({ request }) => {
+        sent = { method: request.method, body: await request.json(), authorization: request.headers.get("Authorization") };
+        return new HttpResponse(null, { status: 204 });
+      })
+    );
+
+    await setTaskPriority("case-42", "task-7", "urgent");
+
+    expect(sent).toEqual({ method: "POST", body: { priority: "urgent" }, authorization: "Bearer token-1" });
+  });
+
+  it.each([["task-7"], [null]])("puts the next care action %s", async (taskId) => {
+    let sent: { method: string; body: unknown } | null = null;
+    server.use(
+      http.put(apiUrl("/api/cases/case-42/next-action"), async ({ request }) => {
+        sent = { method: request.method, body: await request.json() };
+        return new HttpResponse(null, { status: 204 });
+      })
+    );
+
+    await setNextAction("case-42", taskId);
+
+    expect(sent).toEqual({ method: "PUT", body: { taskId } });
+  });
+
+  it("brings the server's reason back on 409", async () => {
+    server.use(
+      http.post(apiUrl("/api/cases/case-42/tasks/task-7/priority"), () =>
+        HttpResponse.json({ title: "This task is closed; its priority can no longer change." }, { status: 409 }))
+    );
+
+    const error = await setTaskPriority("case-42", "task-7", null).catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(ChangeRefusedError);
+    expect((error as ChangeRefusedError).reason).toBe("This task is closed; its priority can no longer change.");
+  });
+
+  it("turns 404 into CaseGoneError and 401 into SessionEndedError", async () => {
+    server.use(http.put(apiUrl("/api/cases/case-42/next-action"), () => new HttpResponse(null, { status: 404 })));
+    await expect(setNextAction("case-42", "task-7")).rejects.toBeInstanceOf(CaseGoneError);
+
+    server.use(http.put(apiUrl("/api/cases/case-42/next-action"), () => new HttpResponse(null, { status: 401 })));
+    await expect(setNextAction("case-42", "task-7")).rejects.toBeInstanceOf(SessionEndedError);
   });
 });
