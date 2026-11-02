@@ -2,7 +2,8 @@ import type {
   Experience,
   SignedInUser,
   SignInFailure,
-  SignInResult
+  SignInResult,
+  StaffRole
 } from "../types/Auth";
 import { SessionEndedError } from "./apiErrors";
 import { clearAccessToken, saveAccessToken } from "./session";
@@ -19,6 +20,7 @@ const failureCodes: SignInFailure[] = [
 ];
 
 const experiences: Experience[] = ["teamMember", "petParent"];
+const staffRoles: StaffRole[] = ["veterinarian", "technician", "assistant", "receptionist", "manager"];
 
 // Every sign-in call takes an optional signal, so a form can cancel its
 // request when the person switches to the other sign-in method.
@@ -136,7 +138,9 @@ function readSignedInUser(user: unknown): SignedInUser {
       name: user.name,
       experience: user.experience as Experience,
       displayName: user.displayName,
-      initials: user.initials
+      initials: user.initials,
+      role: "role" in user && staffRoles.some((role) => role === user.role) ? user.role as StaffRole : null,
+      staffId: "staffId" in user && typeof user.staffId === "string" ? user.staffId : null
     };
   }
 

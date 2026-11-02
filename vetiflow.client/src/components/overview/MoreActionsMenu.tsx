@@ -66,7 +66,7 @@ export function MoreActionsMenu({ actions, actionButtonRef }: MoreActionsMenuPro
         •••
       </button>
       {isOpen && (
-        <ul id={listId} className={styles.list}>
+        <ul id={listId} className={styles.list} aria-label="More actions">
           {actions.map((action) => (
             <li key={action.label}>
               <button

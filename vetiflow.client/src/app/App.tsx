@@ -24,7 +24,7 @@ function App() {
             <RequireExperience experience="teamMember">
               {(user) => (
                 <AppShell user={user}>
-                  <Outlet />
+                  <Outlet context={user} />
                 </AppShell>
               )}
             </RequireExperience>

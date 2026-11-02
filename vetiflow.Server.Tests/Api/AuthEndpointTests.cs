@@ -5,6 +5,7 @@ using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using vetiflow.Server.Data;
 using vetiflow.Server.Models;
 using vetiflow.Server.Tests.Infrastructure;
@@ -149,6 +150,9 @@ public class AuthEndpointTests(VetiFlowApiFactory factory)
 		Assert.Equal("Dr. Jordan Lee", me.GetProperty("displayName").GetString());
 		Assert.Equal("JL", me.GetProperty("initials").GetString());
 		Assert.Equal("veterinarian", me.GetProperty("role").GetString());
+		await using var dbContext = factory.CreateDbContext();
+		var account = await dbContext.Accounts.SingleAsync(account => account.Email == TeamEmail, _cancellationToken);
+		Assert.Equal(account.StaffMemberId, me.GetProperty("staffId").GetGuid());
 	}
 
 	[Fact]
@@ -163,6 +167,7 @@ public class AuthEndpointTests(VetiFlowApiFactory factory)
 		Assert.Equal("Morgan Hale", me.GetProperty("displayName").GetString());
 		Assert.Equal("MH", me.GetProperty("initials").GetString());
 		Assert.Equal(JsonValueKind.Null, me.GetProperty("role").ValueKind);
+		Assert.Equal(JsonValueKind.Null, me.GetProperty("staffId").ValueKind);
 	}
 
 	// Only veterinarians get the "Dr." title (build plan 2.10a).
@@ -179,6 +184,7 @@ public class AuthEndpointTests(VetiFlowApiFactory factory)
 		Assert.Equal($"sam {staffMember.LastName}", me.GetProperty("displayName").GetString());
 		Assert.Equal($"S{char.ToUpperInvariant(staffMember.LastName[0])}", me.GetProperty("initials").GetString());
 		Assert.Equal("technician", me.GetProperty("role").GetString());
+		Assert.Equal(staffMember.Id, me.GetProperty("staffId").GetGuid());
 	}
 
 	// The token outlives the account: the profile can't be built, so 401.

@@ -18,6 +18,10 @@ public class SignedInUserDto
 	// The staff role; null for a pet parent.
 	public StaffRole? Role { get; set; }
 
+	// The team member's own staff record, for "Assign me" (3.2d); null for a
+	// pet parent.
+	public Guid? StaffId { get; set; }
+
 	// The account must be loaded with its StaffMember or Owner.
 	public static SignedInUserDto From(Account account)
 	{
@@ -32,7 +36,8 @@ public class SignedInUserDto
 			Experience = account.Kind,
 			DisplayName = StaffNames.DisplayName(firstName, lastName, role),
 			Initials = StaffNames.Initials(firstName, lastName),
-			Role = role
+			Role = role,
+			StaffId = account.StaffMemberId
 		};
 	}
 }

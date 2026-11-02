@@ -145,7 +145,7 @@ describe("getSignedInUser", () => {
     server.use(
       http.get(apiUrl("/api/auth/me"), ({ request }) => {
         authorization = request.headers.get("Authorization");
-        return HttpResponse.json({ ...buildTeamMember(), role: "veterinarian" });
+        return HttpResponse.json(buildTeamMember());
       })
     );
 
@@ -156,7 +156,9 @@ describe("getSignedInUser", () => {
       name: "Jordan Lee",
       experience: "teamMember",
       displayName: "Dr. Jordan Lee",
-      initials: "JL"
+      initials: "JL",
+      role: "veterinarian",
+      staffId: "staff-jordan-lee"
     });
   });
 

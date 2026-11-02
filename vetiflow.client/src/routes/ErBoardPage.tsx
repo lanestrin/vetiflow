@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, useOutletContext } from "react-router-dom";
 import type { SignInRouteState } from "../components/auth/experienceHome";
 import { BoardHeading } from "../components/board/BoardHeading";
 import { BoardStats, type BoardFilter } from "../components/board/BoardStats";
@@ -10,6 +10,7 @@ import { IntakeDialog } from "../components/intake/IntakeDialog";
 import { PatientOverviewPanel } from "../components/overview/PatientOverviewPanel";
 import { useShellSearch } from "../components/shell/shellSearchContext";
 import { useToast } from "../components/shell/toastContext";
+import type { SignedInUser } from "../types/Auth";
 import type { BoardSummary } from "../types/BoardSummary";
 import type { CaseIntakeResult } from "../types/CaseIntake";
 import type { EmergencyCaseListItem } from "../types/EmergencyCaseListItem";
@@ -53,6 +54,8 @@ function selectedOnArrival(state: unknown): string | null {
 export function ErBoardPage() {
   const navigate = useNavigate();
   const location = useLocation();
+  // From AppShell's outlet (App.tsx): who "Assign me" assigns (3.2d).
+  const signedInUser = useOutletContext<SignedInUser>();
   const drafts = useClinicalDraftNavigation();
   const [cases, setCases] = useState<EmergencyCaseListItem[]>([]);
   const [summary, setSummary] = useState<BoardSummary | null>(null);
@@ -209,6 +212,7 @@ export function ErBoardPage() {
         />
 
         <PatientOverviewPanel
+          signedInUser={signedInUser}
           caseId={selectedCaseId}
           caseUnavailable={selectedCaseId !== null && !cases.some(item => item.id === selectedCaseId)}
           refreshedAt={updatedAt}
