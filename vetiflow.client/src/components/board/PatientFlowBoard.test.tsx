@@ -12,28 +12,55 @@ function renderBoard(cases: EmergencyCaseListItem[], updatedAt = new Date(), fil
   );
 }
 
-function lane(name: string) {
-  return screen.getByRole("region", { name });
+function table() {
+  return screen.getByRole("table", { name: "Patient board" });
+}
+
+// The patients shown, top to bottom, by their name buttons.
+function shownNames() {
+  return within(table()).queryAllByRole("button").map((button) => button.textContent);
+}
+
+function rowOf(name: string) {
+  return within(table()).getByRole("button", { name }).closest("tr") as HTMLElement;
 }
 
 describe("PatientFlowBoard", () => {
-  it("counts the cases in each acuity lane", () => {
+  it("shows the prototype's columns", () => {
+    renderBoard([buildCase()]);
+
+    expect(within(table()).getAllByRole("columnheader").map((header) => header.textContent))
+      .toEqual(["Patient", "Acuity", "Care stage", "Care team", "Open"]);
+  });
+
+  // The API sorts by acuity and wait; the board must not reorder.
+  it("lists the rows in the order the API sent them, with each case's acuity", () => {
     renderBoard([
-      buildCase({ acuity: "critical" }),
-      buildCase({ acuity: "urgent" }),
-      buildCase({ acuity: "urgent" })
+      buildCase({ patientName: "Rex", acuity: null }),
+      buildCase({ patientName: "Buddy", acuity: "critical" }),
+      buildCase({ patientName: "Coco", acuity: "urgent" }),
+      buildCase({ patientName: "Mittens", acuity: "stable" })
     ]);
 
-    expect(within(lane("Critical")).getByText("1")).toBeInTheDocument();
-    expect(within(lane("Urgent")).getByText("2")).toBeInTheDocument();
-    expect(within(lane("Stable")).getByText("0")).toBeInTheDocument();
-    expect(within(lane("Stable")).getByText("No patients")).toBeInTheDocument();
+    expect(shownNames()).toEqual(["Rex", "Buddy", "Coco", "Mittens"]);
+    expect(within(rowOf("Rex")).getByText("Not triaged")).toBeInTheDocument();
+    expect(within(rowOf("Buddy")).getByText("Critical")).toBeInTheDocument();
+    expect(within(rowOf("Mittens")).getByText("Stable")).toBeInTheDocument();
+  });
+
+  it("has no acuity lanes or lane tabs", () => {
+    renderBoard([buildCase({ acuity: "critical" })]);
+
+    // The board itself is the only region.
+    expect(screen.getAllByRole("region")).toHaveLength(1);
+    expect(screen.queryByRole("heading", { level: 3 })).not.toBeInTheDocument();
+    expect(screen.queryByRole("group", { name: "Show lane" })).not.toBeInTheDocument();
   });
 
   it("says when it was updated and how many cases are active", () => {
     renderBoard([buildCase(), buildCase()]);
 
-    expect(screen.getByRole("heading", { level: 2, name: "Patient flow" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 2, name: "Patient board" })).toBeInTheDocument();
     expect(screen.getByText(/Updated just now/)).toHaveTextContent("Updated just now·2 active cases");
     expect(screen.getByText("Showing 2 of 2 active cases")).toBeInTheDocument();
   });
@@ -44,42 +71,25 @@ describe("PatientFlowBoard", () => {
     expect(screen.getByText(/Updated 5 min ago/)).toBeInTheDocument();
   });
 
-  // Only old data has no acuity; such cases must not disappear.
-  it("adds a Not triaged lane only when a case has no acuity", () => {
-    renderBoard([buildCase({ patientName: "Rex", acuity: null })]);
-
-    expect(within(lane("Not triaged")).getByRole("heading", { name: "Rex" })).toBeInTheDocument();
-  });
-
-  it("has no Not triaged lane when every case has an acuity", () => {
-    renderBoard([buildCase({ acuity: "stable" })]);
-
-    expect(screen.queryByRole("region", { name: "Not triaged" })).not.toBeInTheDocument();
-  });
-
-  it("shows the lane of a newly selected case at phone width", () => {
-    const cases = [buildCase({ acuity: "critical" }), buildCase({ id: "case-pip", acuity: "stable" })];
-    const { rerender } = render(
-      <PatientFlowBoard cases={cases} updatedAt={new Date()} selectedCaseId={null} onSelect={vi.fn()} />
+  it("marks the selected row", () => {
+    render(
+      <PatientFlowBoard
+        cases={[buildCase({ id: "case-milo", patientName: "Milo" }), buildCase({ patientName: "Pip" })]}
+        updatedAt={new Date()}
+        selectedCaseId="case-milo"
+        onSelect={vi.fn()}
+      />
     );
 
-    rerender(<PatientFlowBoard cases={cases} updatedAt={new Date()} selectedCaseId="case-pip" onSelect={vi.fn()} />);
-
-    expect(lane("Stable")).toHaveAttribute("data-shown", "true");
-    expect(lane("Critical")).toHaveAttribute("data-shown", "false");
+    expect(within(table()).getByRole("button", { name: "Milo" })).toHaveAttribute("aria-pressed", "true");
+    expect(rowOf("Milo")).toHaveAttribute("data-selected", "true");
+    expect(within(table()).getByRole("button", { name: "Pip" })).toHaveAttribute("aria-pressed", "false");
   });
 
-  it("switches the lane shown at phone width with the lane tabs", () => {
-    renderBoard([buildCase({ acuity: "critical" })]);
-    const tabs = screen.getByRole("group", { name: "Show lane" });
+  it("says so when no patients are on the board", () => {
+    renderBoard([]);
 
-    expect(within(tabs).getByRole("button", { name: "Critical" })).toHaveAttribute("aria-pressed", "true");
-    expect(lane("Critical")).toHaveAttribute("data-shown", "true");
-
-    fireEvent.click(within(tabs).getByRole("button", { name: "Stable" }));
-
-    expect(lane("Stable")).toHaveAttribute("data-shown", "true");
-    expect(lane("Critical")).toHaveAttribute("data-shown", "false");
+    expect(within(table()).getByText("No patients on the board")).toBeInTheDocument();
   });
 
   describe("with a stat card filter", () => {
@@ -90,45 +100,25 @@ describe("PatientFlowBoard", () => {
       buildCase({ patientName: "Pip", acuity: "stable", stage: "recheck" })
     ];
 
-    it("shows every card for all", () => {
+    it("shows every row for all", () => {
       renderBoard(cases(), new Date(), "all");
 
-      expect(screen.getAllByRole("article")).toHaveLength(4);
+      expect(shownNames()).toHaveLength(4);
       expect(screen.getByText("Showing 4 of 4 active cases")).toBeInTheDocument();
     });
 
-    it("shows only incoming cards, in every lane, for awaiting triage", () => {
+    it("shows only incoming rows for awaiting triage", () => {
       renderBoard(cases(), new Date(), "awaitingTriage");
 
-      expect(within(lane("Urgent")).getByRole("heading", { name: "Toby" })).toBeInTheDocument();
-      expect(within(lane("Critical")).getByRole("heading", { name: "Nori" })).toBeInTheDocument();
-      expect(screen.queryByRole("heading", { name: "Milo" })).not.toBeInTheDocument();
-      expect(screen.queryByRole("heading", { name: "Pip" })).not.toBeInTheDocument();
+      expect(shownNames()).toEqual(["Toby", "Nori"]);
       expect(screen.getByText("Showing 2 awaiting triage cases · initial priority is provisional")).toBeInTheDocument();
-      // Stacked at phone width: no lane hides behind a tab.
-      expect(screen.queryByRole("group", { name: "Show lane" })).not.toBeInTheDocument();
-      expect(lane("Stable")).toHaveAttribute("data-shown", "true");
     });
 
-    it("shows only the Critical lane for critical", () => {
+    it("shows only critical rows for critical", () => {
       renderBoard(cases(), new Date(), "critical");
 
-      expect(screen.getAllByRole("region").map((region) => region.getAttribute("data-lane")).filter(Boolean))
-        .toEqual(["critical"]);
-      expect(within(lane("Critical")).getAllByRole("article")).toHaveLength(2);
-      expect(screen.getByText("Showing 2 critical patients · other acuity lanes hidden")).toBeInTheDocument();
-    });
-
-    it("switches the phone tab to Critical when the critical filter is chosen", () => {
-      const { rerender } = renderBoard(cases(), new Date(), "all");
-      const tabs = screen.getByRole("group", { name: "Show lane" });
-      fireEvent.click(within(tabs).getByRole("button", { name: "Stable" }));
-
-      rerender(
-        <PatientFlowBoard cases={cases()} updatedAt={new Date()} selectedCaseId={null} onSelect={vi.fn()} filter="critical" />
-      );
-
-      expect(lane("Critical")).toHaveAttribute("data-shown", "true");
+      expect(shownNames()).toEqual(["Nori", "Milo"]);
+      expect(screen.getByText("Showing 2 critical patients · other acuities hidden")).toBeInTheDocument();
     });
   });
 
@@ -155,13 +145,10 @@ describe("PatientFlowBoard", () => {
       );
     }
 
-    it("shows only the matching cards, with lane counts for them", () => {
+    it("shows only the matching rows", () => {
       searchBoard("mil");
 
-      expect(within(lane("Critical")).getByRole("heading", { name: "Milo" })).toBeInTheDocument();
-      expect(within(lane("Urgent")).getByRole("heading", { name: "Mia" })).toBeInTheDocument();
-      expect(within(lane("Stable")).getByText("0")).toBeInTheDocument();
-      expect(within(lane("Stable")).getByText("No patients")).toBeInTheDocument();
+      expect(shownNames()).toEqual(["Milo", "Mia"]);
     });
 
     it("says how many match and links to the Patients search", () => {
@@ -174,7 +161,8 @@ describe("PatientFlowBoard", () => {
     it("still offers the Patients search when nothing on the board matches", () => {
       searchBoard("Rex");
 
-      expect(screen.queryAllByRole("article")).toHaveLength(0);
+      expect(shownNames()).toHaveLength(0);
+      expect(within(table()).getByText("No patients match")).toBeInTheDocument();
       expect(screen.getByText(/Showing 0 matching “Rex”/)).toBeInTheDocument();
       expect(screen.getByRole("link", { name: "Search all patients" })).toHaveAttribute("href", "/records?search=Rex");
     });
@@ -182,14 +170,13 @@ describe("PatientFlowBoard", () => {
     it("applies after the stat card filter", () => {
       searchBoard("Avery", "critical");
 
-      expect(screen.getAllByRole("article")).toHaveLength(1);
-      expect(screen.getByRole("heading", { name: "Milo" })).toBeInTheDocument();
+      expect(shownNames()).toEqual(["Milo"]);
     });
 
-    it("shows every card and the usual foot for an empty search", () => {
+    it("shows every row and the usual foot for an empty search", () => {
       searchBoard("   ");
 
-      expect(screen.getAllByRole("article")).toHaveLength(3);
+      expect(shownNames()).toHaveLength(3);
       expect(screen.getByText("Showing 3 of 3 active cases")).toBeInTheDocument();
       expect(screen.queryByRole("link", { name: "Search all patients" })).not.toBeInTheDocument();
     });
@@ -277,13 +264,12 @@ describe("PatientFlowBoard", () => {
       fireEvent.change(screen.getByRole("combobox", { name }), { target: { value } });
     }
 
-    it("leaves only the chosen clinician's cards, with lane counts and the foot to match", () => {
+    it("leaves only the chosen clinician's rows, with the foot to match", () => {
       showBoard();
 
       choose("Clinician", "staff-reed");
 
-      expect(screen.getAllByRole("article")).toHaveLength(2);
-      expect(within(lane("Urgent")).getByText("0")).toBeInTheDocument();
+      expect(shownNames()).toEqual(["Milo", "Pip"]);
       expect(screen.getByText("Showing 2 of 3 active cases")).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Filter, 1 in use" })).toHaveAttribute("aria-pressed", "true");
     });
@@ -293,7 +279,7 @@ describe("PatientFlowBoard", () => {
 
       choose("Species", "Cat");
 
-      expect(screen.queryAllByRole("article")).toHaveLength(0);
+      expect(shownNames()).toHaveLength(0);
     });
 
     it("applies with a search", () => {
@@ -301,18 +287,17 @@ describe("PatientFlowBoard", () => {
 
       choose("Species", "Cat");
 
-      expect(screen.getAllByRole("article")).toHaveLength(1);
-      expect(screen.getByRole("heading", { name: "Pip" })).toBeInTheDocument();
+      expect(shownNames()).toEqual(["Pip"]);
     });
 
-    it("restores every card with Clear filters", () => {
+    it("restores every row with Clear filters", () => {
       showBoard();
       choose("Clinician", "unassigned");
-      expect(screen.getAllByRole("article")).toHaveLength(1);
+      expect(shownNames()).toEqual(["Mia"]);
 
       fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
 
-      expect(screen.getAllByRole("article")).toHaveLength(3);
+      expect(shownNames()).toHaveLength(3);
       expect(screen.getByRole("button", { name: "Filter" })).toHaveAttribute("aria-pressed", "false");
     });
   });
@@ -337,23 +322,20 @@ describe("PatientFlowBoard", () => {
       return screen.getByRole("button", { name: "Priority, longest in stage first" });
     }
 
-    function urgentNames() {
-      return within(lane("Urgent")).getAllByRole("article").map((card) => within(card).getByRole("heading").textContent);
-    }
-
     it("keeps the API order and is not pressed by default", () => {
       showBoard();
 
-      expect(urgentNames()).toEqual(["Biscuit", "Mochi"]);
+      expect(shownNames()).toEqual(["Biscuit", "Mochi", "Pip"]);
       expect(priorityButton()).toHaveAttribute("aria-pressed", "false");
     });
 
-    it("puts the case longest in its stage first when pressed", () => {
+    // Pip has been in its stage longest, but Stable rows stay after Urgent ones.
+    it("puts the case longest in its stage first within each acuity when pressed", () => {
       showBoard();
 
       fireEvent.click(priorityButton());
 
-      expect(urgentNames()).toEqual(["Mochi", "Biscuit"]);
+      expect(shownNames()).toEqual(["Mochi", "Biscuit", "Pip"]);
       expect(priorityButton()).toHaveAttribute("aria-pressed", "true");
     });
 
@@ -363,17 +345,17 @@ describe("PatientFlowBoard", () => {
       fireEvent.click(priorityButton());
       fireEvent.click(priorityButton());
 
-      expect(urgentNames()).toEqual(["Biscuit", "Mochi"]);
+      expect(shownNames()).toEqual(["Biscuit", "Mochi", "Pip"]);
     });
 
-    it("keeps the order with a Filter menu choice, with the counts unchanged", () => {
+    it("keeps the order with a Filter menu choice", () => {
       showBoard();
       fireEvent.click(priorityButton());
       fireEvent.click(screen.getByRole("button", { name: /^Filter/ }));
 
       fireEvent.change(screen.getByRole("combobox", { name: "Species" }), { target: { value: "Cat" } });
 
-      expect(urgentNames()).toEqual(["Mochi"]);
+      expect(shownNames()).toEqual(["Mochi", "Pip"]);
       expect(screen.getByText("Showing 2 of 3 active cases")).toBeInTheDocument();
     });
 
@@ -382,8 +364,7 @@ describe("PatientFlowBoard", () => {
 
       fireEvent.click(priorityButton());
 
-      expect(urgentNames()).toEqual(["Mochi", "Biscuit"]);
-      expect(within(lane("Urgent")).getByText("2")).toBeInTheDocument();
+      expect(shownNames()).toEqual(["Mochi", "Biscuit", "Pip"]);
     });
   });
 });

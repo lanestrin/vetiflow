@@ -54,8 +54,18 @@ function statCard(name: RegExp) {
   return within(screen.getByRole("region", { name: "Board summary" })).getByRole("button", { name });
 }
 
-async function findLane(name: string) {
-  return screen.findByRole("region", { name });
+async function findBoard() {
+  return screen.findByRole("table", { name: "Patient board" });
+}
+
+// The board row of the named patient.
+async function findRow(name: string) {
+  return (await within(await findBoard()).findByRole("button", { name })).closest("tr") as HTMLElement;
+}
+
+// The patients on the board, top to bottom, by their name buttons.
+function shownNames() {
+  return within(screen.getByRole("table", { name: "Patient board" })).queryAllByRole("button").map((button) => button.textContent);
 }
 
 // Shows the router state the board leaves on /sign-in, so tests can read it.
@@ -146,7 +156,7 @@ describe("ErBoardPage", () => {
     expect(document.title).toBe("ER Board · VetiFlow");
   });
 
-  it("places each case in the lane for its acuity", async () => {
+  it("shows each case's acuity in its row", async () => {
     serveCases([
       buildCase({ patientName: "Buddy", acuity: "critical" }),
       buildCase({ patientName: "Mittens", acuity: "stable" })
@@ -154,17 +164,12 @@ describe("ErBoardPage", () => {
 
     renderBoard();
 
-    expect(
-      within(await findLane("Critical")).getByRole("heading", { name: "Buddy" })
-    ).toBeInTheDocument();
-    expect(
-      within(await findLane("Stable")).getByRole("heading", { name: "Mittens" })
-    ).toBeInTheDocument();
-    expect(within(await findLane("Urgent")).getByText("No patients")).toBeInTheDocument();
+    expect(within(await findRow("Buddy")).getByText("Critical")).toBeInTheDocument();
+    expect(within(await findRow("Mittens")).getByText("Stable")).toBeInTheDocument();
   });
 
-  // The API sorts by acuity and wait; the board must not reorder within a lane.
-  it("lists a lane's cards in the order the API sent them", async () => {
+  // The API sorts by acuity and wait; the board must not reorder.
+  it("lists the rows in the order the API sent them", async () => {
     serveCases([
       buildCase({ patientName: "Rex", acuity: "urgent" }),
       buildCase({ patientName: "Bella", acuity: "urgent" }),
@@ -173,21 +178,14 @@ describe("ErBoardPage", () => {
 
     renderBoard();
 
-    const names = within(await findLane("Urgent"))
-      .getAllByRole("heading", { level: 4 })
-      .map((heading) => heading.textContent);
-    expect(names).toEqual(["Rex", "Bella", "Coco"]);
+    await findRow("Rex");
+    expect(shownNames()).toEqual(["Rex", "Bella", "Coco"]);
   });
 
-  it("shows the three acuity lanes in order", async () => {
+  it("shows an empty board when no cases are active", async () => {
     renderBoard();
 
-    await findLane("Critical");
-    const lanes = screen
-      .getAllByRole("heading", { level: 3 })
-      .map((heading) => heading.textContent?.replace("● ", ""));
-
-    expect(lanes).toEqual(["Critical", "Urgent", "Stable"]);
+    expect(within(await findBoard()).getByText("No patients on the board")).toBeInTheDocument();
   });
 
   it("selects a card when it is pressed", async () => {
@@ -324,17 +322,17 @@ describe("ErBoardPage", () => {
       })
     );
     renderBoard();
-    const lane = await findLane("Urgent");
-    expect(within(lane).getByText("Urgent · provisional")).toBeInTheDocument();
-    fireEvent.click(within(lane).getByRole("button", { name: "Toby" }));
+    const row = await findRow("Toby");
+    expect(within(row).getByText("Urgent · provisional")).toBeInTheDocument();
+    fireEvent.click(within(row).getByRole("button", { name: "Toby" }));
 
     fireEvent.click(await screen.findByRole("button", { name: "More actions" }));
     fireEvent.click(screen.getByRole("button", { name: "Complete triage" }));
     fireEvent.click(within(screen.getByRole("dialog", { name: "Complete triage" })).getByRole("button", { name: "Complete triage" }));
 
     expect(await screen.findByRole("status")).toHaveTextContent(/triage completed/);
-    await vi.waitFor(() => expect(within(lane).queryByText("Urgent · provisional")).not.toBeInTheDocument());
-    expect(within(lane).queryByText("New")).not.toBeInTheDocument();
+    await vi.waitFor(async () => expect(within(await findRow("Toby")).queryByText("Urgent · provisional")).not.toBeInTheDocument());
+    expect(within(await findRow("Toby")).getByText("Urgent")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "More actions" }));
     expect(await screen.findByRole("button", { name: "Re-triage" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "More actions" })).toBeEnabled();
@@ -356,15 +354,12 @@ describe("ErBoardPage", () => {
     const buddy = buildCase({ patientName: "Buddy", acuity: "urgent" });
     serveCases([buddy]);
     renderBoard();
-    await within(await findLane("Urgent")).findByRole("heading", { name: "Buddy" });
+    expect(within(await findRow("Buddy")).getByText("Urgent")).toBeInTheDocument();
 
     serveCases([{ ...buddy, acuity: "critical" }]);
     hub.emit("caseUpdated", buddy.id);
 
-    expect(
-      await within(await findLane("Critical")).findByRole("heading", { name: "Buddy" })
-    ).toBeInTheDocument();
-    expect(within(await findLane("Urgent")).getByText("No patients")).toBeInTheDocument();
+    await vi.waitFor(async () => expect(within(await findRow("Buddy")).getByText("Critical")).toBeInTheDocument());
   });
 
   it("still shows the board when live updates cannot connect", async () => {
@@ -374,7 +369,7 @@ describe("ErBoardPage", () => {
 
     renderBoard();
 
-    expect(await screen.findByRole("heading", { name: "Buddy" })).toBeInTheDocument();
+    expect(await findRow("Buddy")).toBeInTheDocument();
     expect(consoleError).toHaveBeenCalledWith(
       "Unable to connect to live case updates.",
       expect.any(Error)
@@ -383,7 +378,7 @@ describe("ErBoardPage", () => {
 
   it("disconnects from live updates when the page closes", async () => {
     const { unmount } = renderBoard();
-    await findLane("Critical");
+    await findBoard();
 
     unmount();
 
@@ -410,7 +405,7 @@ describe("ErBoardPage", () => {
     serveCases([toby]);
     fireEvent.click(within(dialog).getByRole("button", { name: "Add to triage queue" }));
 
-    const card = await within(await findLane("Urgent")).findByRole("button", { name: "Toby" });
+    const card = await within(await findBoard()).findByRole("button", { name: "Toby" });
     expect(card).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("status")).toHaveTextContent("Toby added to triage queue");
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
@@ -429,7 +424,7 @@ describe("ErBoardPage", () => {
       serveSummary(buildBoardSummary({ patientsInCare: 3, awaitingTriage: 1, criticalPatients: 1 }));
       renderBoard();
 
-      await screen.findByRole("heading", { name: "Milo" });
+      await screen.findByRole("button", { name: "Milo" });
       expect(statCard(/patients in care/i)).toHaveTextContent("3");
       expect(statCard(/patients in care/i)).toHaveAttribute("aria-pressed", "true");
       expect(statCard(/awaiting triage/i)).toHaveTextContent("1");
@@ -440,36 +435,35 @@ describe("ErBoardPage", () => {
       serveCases(boardCases());
       serveSummary(buildBoardSummary({ patientsInCare: 3, awaitingTriage: 1, criticalPatients: 1 }));
       renderBoard();
-      await screen.findByRole("heading", { name: "Milo" });
+      await screen.findByRole("button", { name: "Milo" });
 
       fireEvent.click(statCard(/awaiting triage/i));
 
       expect(statCard(/awaiting triage/i)).toHaveAttribute("aria-pressed", "true");
-      expect(screen.getByRole("heading", { name: "Toby" })).toBeInTheDocument();
-      expect(screen.queryByRole("heading", { name: "Milo" })).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Toby" })).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Milo" })).not.toBeInTheDocument();
 
       fireEvent.click(statCard(/critical patients/i));
 
-      expect(screen.getByRole("heading", { name: "Milo" })).toBeInTheDocument();
-      expect(screen.queryByRole("heading", { name: "Toby" })).not.toBeInTheDocument();
-      expect(screen.queryByRole("region", { name: "Stable" })).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Milo" })).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Toby" })).not.toBeInTheDocument();
 
       fireEvent.click(statCard(/patients in care/i));
 
-      expect(screen.getAllByRole("article")).toHaveLength(3);
+      expect(shownNames()).toHaveLength(3);
     });
 
     it("keeps the board as it is when nobody awaits triage", async () => {
       serveCases(boardCases());
       serveSummary(buildBoardSummary({ patientsInCare: 3, awaitingTriage: 0 }));
       renderBoard();
-      await screen.findByRole("heading", { name: "Milo" });
+      await screen.findByRole("button", { name: "Milo" });
 
       fireEvent.click(statCard(/awaiting triage/i));
 
       expect(screen.getByRole("status")).toHaveTextContent("No patients awaiting triage");
       expect(statCard(/patients in care/i)).toHaveAttribute("aria-pressed", "true");
-      expect(screen.getAllByRole("article")).toHaveLength(3);
+      expect(shownNames()).toHaveLength(3);
     });
 
     // The Incoming toggle shares the card's filter (build plan 2.14b).
@@ -477,20 +471,20 @@ describe("ErBoardPage", () => {
       serveCases(boardCases());
       serveSummary(buildBoardSummary({ patientsInCare: 3, awaitingTriage: 1 }));
       renderBoard();
-      await screen.findByRole("heading", { name: "Milo" });
+      await screen.findByRole("button", { name: "Milo" });
       const toggle = screen.getByRole("button", { name: "Incoming, 1 awaiting triage" });
 
       fireEvent.click(toggle);
 
       expect(toggle).toHaveAttribute("aria-pressed", "true");
       expect(statCard(/awaiting triage/i)).toHaveAttribute("aria-pressed", "true");
-      expect(screen.getAllByRole("article")).toHaveLength(1);
+      expect(shownNames()).toHaveLength(1);
 
       fireEvent.click(toggle);
 
       expect(toggle).toHaveAttribute("aria-pressed", "false");
       expect(statCard(/patients in care/i)).toHaveAttribute("aria-pressed", "true");
-      expect(screen.getAllByRole("article")).toHaveLength(3);
+      expect(shownNames()).toHaveLength(3);
 
       fireEvent.click(statCard(/awaiting triage/i));
 
@@ -501,20 +495,20 @@ describe("ErBoardPage", () => {
       serveCases([buildCase({ patientName: "Milo", acuity: "critical", stage: "treatment" })]);
       serveSummary(buildBoardSummary({ patientsInCare: 1, awaitingTriage: 0 }));
       renderBoard();
-      await screen.findByRole("heading", { name: "Milo" });
+      await screen.findByRole("button", { name: "Milo" });
 
       fireEvent.click(screen.getByRole("button", { name: "Incoming, 0 awaiting triage" }));
 
       expect(screen.getByRole("status")).toHaveTextContent("No patients awaiting triage");
       expect(screen.getByRole("button", { name: "Incoming, 0 awaiting triage" })).toHaveAttribute("aria-pressed", "false");
-      expect(screen.getAllByRole("article")).toHaveLength(1);
+      expect(shownNames()).toHaveLength(1);
     });
 
     it("loads the summary again when the server reports a case update", async () => {
       serveCases(boardCases());
       serveSummary(buildBoardSummary({ patientsInCare: 3 }));
       renderBoard();
-      await screen.findByRole("heading", { name: "Milo" });
+      await screen.findByRole("button", { name: "Milo" });
 
       serveSummary(buildBoardSummary({ patientsInCare: 4 }));
       hub.emit("caseUpdated", "case-new");
@@ -527,7 +521,7 @@ describe("ErBoardPage", () => {
       server.use(http.get(apiUrl("/api/board/summary"), () => new HttpResponse(null, { status: 500 })));
       renderBoard();
 
-      expect(await screen.findByRole("heading", { name: "Milo" })).toBeInTheDocument();
+      expect(await screen.findByRole("button", { name: "Milo" })).toBeInTheDocument();
       expect(statCard(/patients in care/i)).toHaveTextContent("—");
       expect(statCard(/patients in care/i)).toHaveTextContent("Not available");
     });
@@ -555,17 +549,17 @@ describe("ErBoardPage", () => {
         </Routes>
       </MemoryRouter>
     );
-    await screen.findByRole("heading", { name: "Milo" });
+    await screen.findByRole("button", { name: "Milo" });
 
     fireEvent.change(screen.getByRole("searchbox", { name: "Search patients" }), { target: { value: "pip" } });
 
-    expect(screen.getByRole("heading", { name: "Pip" })).toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: "Milo" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Pip" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Milo" })).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Search all patients" })).toHaveAttribute("href", "/records?search=pip");
 
     fireEvent.change(screen.getByRole("searchbox", { name: "Search patients" }), { target: { value: "" } });
 
-    expect(screen.getByRole("heading", { name: "Milo" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Milo" })).toBeInTheDocument();
   });
 });
 
@@ -615,7 +609,7 @@ describe("record vitals from the ER board", () => {
     expect(clinical.getByText("Entered by Jordan Lee")).toBeInTheDocument();
     expect(payload).toEqual({ heartRate: 100, respiratoryRate: 24, temperatureF: 101.5, spO2: 91,
       mucousMembraneColor: "Pink", capillaryRefillTime: "2 s", mentation: "Alert" });
-    expect(within(await findLane("Urgent")).getByRole("button", { name: "Buddy" })).toHaveAttribute("aria-pressed", "true");
+    expect(within(await findBoard()).getByRole("button", { name: "Buddy" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("status")).toHaveTextContent("Vitals recorded");
   });
 
@@ -634,7 +628,7 @@ describe("record vitals from the ER board", () => {
     expect(await screen.findByText("160 bpm")).toBeInTheDocument();
     expect(screen.getByText("94%")).toBeInTheDocument();
     expect(within(screen.getByRole("region", { name: "Latest vitals" })).queryByText("Outside range")).not.toBeInTheDocument();
-    expect(within(await findLane("Urgent")).getByRole("button", { name: "Buddy" })).toHaveAttribute("aria-pressed", "true");
+    expect(within(await findBoard()).getByRole("button", { name: "Buddy" })).toHaveAttribute("aria-pressed", "true");
   });
 });
 
@@ -644,13 +638,13 @@ describe("Status changes on the ER board", () => {
     const buddy = buildCase({ id: "case-buddy", patientName: "Buddy", acuity: "urgent", stage: "triage" });
     serveCases([buddy]);
     renderBoard();
-    await screen.findByText(/^Triage ·/);
+    expect(within(await findRow("Buddy")).getByText("Triage")).toBeInTheDocument();
 
     serveCases([{ ...buddy, stage: "treatment" }]);
     hub.emit("caseUpdated", buddy.id);
 
-    expect(await screen.findByText(/^In treatment ·/)).toBeInTheDocument();
-    expect(screen.queryByText(/^Triage ·/)).not.toBeInTheDocument();
+    await vi.waitFor(async () => expect(within(await findRow("Buddy")).getByText("In treatment")).toBeInTheDocument());
+    expect(within(await findRow("Buddy")).queryByText("Triage")).not.toBeInTheDocument();
   });
 });
 
@@ -781,7 +775,8 @@ describe("pain-score data in the overview", () => {
     renderBoard();
     fireEvent.click(await screen.findByRole("button", { name: "Buddy" }));
 
-    await screen.findByRole("heading", { name: "Buddy" });
+    // The panel has loaded the case.
+    await screen.findByRole("button", { name: "More actions" });
     expect(screen.queryByText("7 / 10")).not.toBeInTheDocument();
     expect(screen.queryByText("Existing saved assessment")).not.toBeInTheDocument();
     fireEvent.click(await screen.findByRole("button", { name: "More actions" }));

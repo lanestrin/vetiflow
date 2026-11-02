@@ -1,0 +1,205 @@
+// The prototype's board row (`tbody tr`, `.patient`, `.assignment-line`) from
+// blueprint/reference/er-board-poc/VetiFlow-ER-Prototype.html.
+
+.row {
+	cursor: pointer;
+
+	&:hover {
+		background: var(--color-shell-paper);
+	}
+
+	// The prototype's teal edge on the selected row, inset so it never shifts
+	// the columns.
+	&[data-selected="true"] {
+		background: var(--color-care-mint);
+
+		> td:first-child {
+			box-shadow: inset 3px 0 var(--color-board-selected);
+		}
+	}
+
+	> td {
+		padding: 0.875rem 0.625rem;
+		border-bottom: 1px solid var(--color-shell-line);
+		color: var(--color-shell-ink);
+		font-size: 0.8125rem;
+		vertical-align: middle;
+		overflow-wrap: break-word;
+	}
+}
+
+.patient {
+	display: flex;
+	align-items: center;
+	gap: 0.6875rem;
+}
+
+.avatar {
+	display: grid;
+	flex: none;
+	place-items: center;
+	width: 2.25rem;
+	height: 2.375rem;
+	border-radius: 10px;
+	background: #edf3f4;
+	font-size: 1.25rem;
+
+	&[data-species="dog"] {
+		background: #fff0e5;
+	}
+}
+
+.identity {
+	min-width: 0;
+}
+
+.name {
+	padding: 0;
+	border: 0;
+	border-radius: 2px;
+	background: none;
+	color: var(--color-shell-ink);
+	font: inherit;
+	font-size: 0.9375rem;
+	font-weight: 700;
+	text-align: left;
+	overflow-wrap: break-word;
+	cursor: pointer;
+
+	&:focus-visible {
+		outline: var(--focus-outline-width) solid var(--color-focus-on-light);
+		outline-offset: 2px;
+	}
+}
+
+.kind,
+.muted {
+	margin: 0.125rem 0 0;
+	color: var(--color-shell-muted);
+	font-size: 0.75rem;
+}
+
+.stage {
+	margin: 0;
+	font-weight: 600;
+}
+
+// Open blockers: the words carry the warning, not only the colour.
+.blockers {
+	margin: 0.25rem 0 0;
+	color: var(--color-acuity-critical);
+	font-size: 0.75rem;
+	font-weight: 700;
+
+	&::before {
+		content: "⚠ ";
+	}
+}
+
+.assignment {
+	display: flex;
+	gap: 0.375rem;
+	align-items: baseline;
+	margin: 0;
+	line-height: 1.6;
+}
+
+.assignmentRole {
+	min-width: 1.875rem;
+	color: var(--color-shell-muted);
+	font-size: 0.6875rem;
+}
+
+.assignmentName {
+	min-width: 0;
+	font-weight: 600;
+
+	// "Unassigned" in words, set apart by italics as well.
+	&[data-unassigned="true"] {
+		color: var(--color-shell-muted);
+		font-style: italic;
+		font-weight: 400;
+	}
+}
+
+.chevron {
+	color: var(--color-shell-muted);
+	font-size: 1.125rem;
+	text-align: center;
+}
+
+// Cells the phone card places; the table lays them out on wider screens.
+.patientCell,
+.acuityCell,
+.stageCell,
+.teamCell {
+	min-width: 0;
+}
+
+// Phone width: each row is a card (the prototype's `@media (max-width: 700px)`
+// rows, at the app's 650 px breakpoint). Patient and acuity on top, then care
+// stage and care team side by side under visible labels.
+@media (max-width: 650px) {
+	.row {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) auto;
+		gap: 0.625rem 0.5rem;
+		margin-bottom: 0.625rem;
+		padding: 0.8125rem;
+		border: 1px solid var(--color-shell-line);
+		border-radius: 10px;
+		background: var(--color-surface);
+
+		> td {
+			display: block;
+			padding: 0;
+			border: 0;
+		}
+
+		&[data-selected="true"] {
+			border-color: var(--color-board-selected);
+			box-shadow: inset 3px 0 var(--color-board-selected);
+
+			> td:first-child {
+				box-shadow: none;
+			}
+		}
+	}
+
+	.patient {
+		align-items: flex-start;
+	}
+
+	.acuityCell {
+		align-self: start;
+	}
+
+	// `.row >` so the divider wins over the card's borderless cells.
+	.row > .stageCell,
+	.row > .teamCell {
+		padding-top: 0.5625rem;
+		border-top: 1px solid var(--color-shell-line);
+
+		&::before {
+			display: block;
+			margin-bottom: 0.125rem;
+			color: var(--color-shell-muted);
+			font-size: 0.6875rem;
+			content: attr(data-label);
+		}
+	}
+
+	.row > .chevron {
+		display: none;
+	}
+}
+
+// On the narrowest cards a long badge ("Critical · provisional") would squeeze
+// the patient's name, so the patient takes the full width and the badge moves
+// under it.
+@media (max-width: 400px) {
+	.row > .patientCell,
+	.row > .acuityCell {
+		grid-column: 1 / -1;
+	}
+}

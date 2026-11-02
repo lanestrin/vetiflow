@@ -1,4 +1,4 @@
-import { useId, useState, type CSSProperties } from "react";
+import { useId, useState } from "react";
 import { Link } from "react-router-dom";
 import type { AcuityLevel, EmergencyCaseListItem } from "../../types/EmergencyCaseListItem";
 import type { BoardFilter } from "./BoardStats";
@@ -11,17 +11,9 @@ import {
   sortByLongestInStage,
   type BoardMenuFilters
 } from "./boardFormat";
-import { PatientCard } from "./PatientCard";
+import { PatientRow } from "./PatientRow";
 import { useNow } from "./useNow";
 import styles from "./PatientFlowBoard.module.scss";
-
-type LaneKey = AcuityLevel | "untriaged";
-
-interface Lane {
-  key: LaneKey;
-  title: string;
-  cases: EmergencyCaseListItem[];
-}
 
 interface PatientFlowBoardProps {
   cases: EmergencyCaseListItem[];
@@ -37,11 +29,9 @@ interface PatientFlowBoardProps {
   onFilter?: (filter: BoardFilter) => void;
 }
 
-const acuityLanes: { key: AcuityLevel; title: string }[] = [
-  { key: "critical", title: "Critical" },
-  { key: "urgent", title: "Urgent" },
-  { key: "stable", title: "Stable" }
-];
+// The API's acuity order: cases not triaged (old data only), then Critical,
+// Urgent, Stable.
+const acuityOrder: (AcuityLevel | null)[] = [null, "critical", "urgent", "stable"];
 
 function updatedLabel(updatedAt: Date, now: Date): string {
   const minutes = minutesSince(updatedAt.toISOString(), now);
@@ -59,18 +49,16 @@ function footLabel(filter: BoardFilter, shownCount: number, totalCount: number):
   }
 
   if (filter === "critical") {
-    return `Showing ${shownCount} critical patients · other acuity lanes hidden`;
+    return `Showing ${shownCount} critical patients · other acuities hidden`;
   }
 
   return `Showing ${shownCount} of ${casesLabel(totalCount)}`;
 }
 
-// The prototype's "Patient flow" (build plan 2.11b): one lane per acuity,
-// cards in the API's order, or longest in stage first while Priority is
-// pressed (2.14d). Cases with no acuity (old data only) get their own
-// lane so none are hidden. At phone width, tabs show one lane at a time.
-// The stat cards' filter keeps only incoming cards (lanes stacked, as in the
-// prototype) or only the Critical lane.
+// The board table (build plan 2.25, the prototype's `.board`): one row per
+// case in the API's order, or longest in stage first within each acuity
+// while Priority is pressed (2.14d). The stat cards' filter keeps only
+// incoming cases or only critical ones. At phone width the rows become cards.
 export function PatientFlowBoard({
   cases,
   updatedAt,
@@ -82,62 +70,31 @@ export function PatientFlowBoard({
 }: PatientFlowBoardProps) {
   const titleId = useId();
   const now = useNow();
-  const [shownLane, setShownLane] = useState<LaneKey>("critical");
   // The Filter menu's choices (2.14c), kept while the page is open.
   const [menuFilters, setMenuFilters] = useState<BoardMenuFilters>(noMenuFilters);
   // The Priority button (2.14d): the API's priority order unless pressed.
   const [isLongestInStageFirst, setIsLongestInStageFirst] = useState(false);
 
-  const filteredCases = filter === "awaitingTriage"
-    ? cases.filter((emergencyCase) => emergencyCase.stage === "incoming")
-    : cases;
+  const filteredCases = cases.filter((emergencyCase) =>
+    filter === "awaitingTriage" ? emergencyCase.stage === "incoming"
+      : filter === "critical" ? emergencyCase.acuity === "critical"
+        : true);
   const matchingCases = filteredCases.filter((emergencyCase) =>
     matchesMenuFilters(emergencyCase, menuFilters) && matchesSearch(emergencyCase, search));
-  const shownCases = isLongestInStageFirst ? sortByLongestInStage(matchingCases) : matchingCases;
+  const shownCases = isLongestInStageFirst
+    ? sortByLongestInStage(matchingCases).sort((first, second) =>
+      acuityOrder.indexOf(first.acuity) - acuityOrder.indexOf(second.acuity))
+    : matchingCases;
   const searchText = search.trim();
   const incomingCount = cases.filter((emergencyCase) => emergencyCase.stage === "incoming").length;
   const isIncomingShown = filter === "awaitingTriage";
-  const shownAcuityLanes = filter === "critical"
-    ? acuityLanes.filter((lane) => lane.key === "critical")
-    : acuityLanes;
-
-  const lanes: Lane[] = shownAcuityLanes.map((lane) => ({
-    ...lane,
-    cases: shownCases.filter((emergencyCase) => emergencyCase.acuity === lane.key)
-  }));
-  const untriaged = shownCases.filter((emergencyCase) => emergencyCase.acuity === null);
-  if (filter !== "critical" && untriaged.length > 0) {
-    lanes.unshift({ key: "untriaged", title: "Not triaged", cases: untriaged });
-  }
-  const shownCount = lanes.reduce((count, lane) => count + lane.cases.length, 0);
-  // Every lane at phone width too, so no incoming card sits behind a tab.
-  const isStacked = filter === "awaitingTriage";
-
-  // The Critical filter shows its lane at phone width too.
-  const [followedFilter, setFollowedFilter] = useState(filter);
-  if (filter !== followedFilter) {
-    setFollowedFilter(filter);
-    if (filter === "critical") {
-      setShownLane("critical");
-    }
-  }
-
-  // At phone width, show the lane of a newly selected case (for example a new
-  // intake), as the prototype does.
-  const selectedLane = lanes.find((lane) => lane.cases.some((emergencyCase) => emergencyCase.id === selectedCaseId))?.key;
-  const [followedLane, setFollowedLane] = useState(selectedLane);
-  if (selectedLane !== followedLane) {
-    setFollowedLane(selectedLane);
-    if (selectedLane) {
-      setShownLane(selectedLane);
-    }
-  }
+  const emptyMessage = cases.length === 0 ? "No patients on the board" : "No patients match";
 
   return (
     <section className={styles.board} aria-labelledby={titleId}>
       <header className={styles.top}>
         <div>
-          <h2 id={titleId} className={styles.title}>Patient flow</h2>
+          <h2 id={titleId} className={styles.title}>Patient board</h2>
           <p className={styles.tiny}>
             <span className={styles.live} aria-hidden="true" />
             {updatedLabel(updatedAt, now)}
@@ -172,89 +129,50 @@ export function PatientFlowBoard({
         </div>
       </header>
 
-      {!isStacked && (
-        <div className={styles.tabs} aria-label="Show lane" role="group">
-          {lanes.map((lane) => (
-            <button
-              key={lane.key}
-              type="button"
-              className={styles.tab}
-              aria-pressed={shownLane === lane.key}
-              onClick={() => setShownLane(lane.key)}
-            >
-              {lane.title}
-            </button>
-          ))}
-        </div>
-      )}
-
-      <div className={styles.lanes} style={{ "--lane-count": lanes.length } as CSSProperties}>
-        {lanes.map((lane) => (
-          <AcuityLane
-            key={lane.key}
-            lane={lane}
-            isShown={isStacked || shownLane === lane.key}
-            now={now}
-            selectedCaseId={selectedCaseId}
-            onSelect={onSelect}
-          />
-        ))}
+      <div className={styles.tableWrap}>
+        <table className={styles.table} aria-labelledby={titleId}>
+          <thead className={styles.head}>
+            <tr>
+              <th scope="col" className={styles.patientColumn}>Patient</th>
+              <th scope="col" className={styles.acuityColumn}>Acuity</th>
+              <th scope="col" className={styles.stageColumn}>Care stage</th>
+              <th scope="col" className={styles.teamColumn}>Care team</th>
+              <th scope="col" className={styles.chevronColumn}><span className={styles.hidden}>Open</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            {shownCases.length === 0 ? (
+              <tr>
+                <td className={styles.empty} colSpan={5}>{emptyMessage}</td>
+              </tr>
+            ) : (
+              shownCases.map((emergencyCase) => (
+                <PatientRow
+                  key={emergencyCase.id}
+                  emergencyCase={emergencyCase}
+                  now={now}
+                  isSelected={emergencyCase.id === selectedCaseId}
+                  onSelect={onSelect}
+                />
+              ))
+            )}
+          </tbody>
+        </table>
       </div>
 
       <p className={styles.foot}>
         {searchText === "" ? (
-          footLabel(filter, shownCount, cases.length)
+          footLabel(filter, shownCases.length, cases.length)
         ) : (
           // Patients finds a pet who isn't on the board (4.6a).
           <>
-            Showing {shownCount} matching “{searchText}” ·{" "}
+            Showing {shownCases.length} matching “{searchText}” ·{" "}
             <Link className={styles.footLink} to={`/records?search=${encodeURIComponent(searchText)}`}>
               Search all patients
             </Link>
           </>
         )}
       </p>
-    </section>
-  );
-}
-
-interface AcuityLaneProps {
-  lane: Lane;
-  isShown: boolean;
-  now: Date;
-  selectedCaseId: string | null;
-  onSelect: (caseId: string) => void;
-}
-
-function AcuityLane({ lane, isShown, now, selectedCaseId, onSelect }: AcuityLaneProps) {
-  const titleId = useId();
-
-  return (
-    <section
-      className={styles.lane}
-      data-lane={lane.key}
-      data-shown={isShown}
-      aria-labelledby={titleId}
-    >
-      <div className={styles.laneHead}>
-        <h3 id={titleId} className={styles.laneTitle}>
-          <span aria-hidden="true">● </span>{lane.title}
-        </h3>
-        <span className={styles.count}>{lane.cases.length}</span>
-      </div>
-      {lane.cases.length === 0 ? (
-        <p className={styles.empty}>No patients</p>
-      ) : (
-        lane.cases.map((emergencyCase) => (
-          <PatientCard
-            key={emergencyCase.id}
-            emergencyCase={emergencyCase}
-            now={now}
-            isSelected={emergencyCase.id === selectedCaseId}
-            onSelect={onSelect}
-          />
-        ))
-      )}
     </section>
   );
 }
