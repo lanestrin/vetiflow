@@ -30,6 +30,12 @@ export type CaseTaskType = "task" | "blocker" | "reassessment" | "clientUpdate";
 
 export type CaseTaskStatus = "open" | "done" | "cancelled";
 
+// What is known about allergies (4.12a). Missing or unverified information is
+// never a verified negative; only the verified statuses carry a verifier and time.
+export type AllergyStatus = "notRecorded" | "unknownOrUnverified" | "noKnownAllergies" | "documentedAllergies";
+
+export type AllergySource = "ownerReported" | "referringClinic" | "clinicRecord";
+
 export type PatientSex = "maleIntact" | "maleNeutered" | "femaleIntact" | "femaleSpayed";
 
 // One case as GET /api/cases/{id} returns it (build plan 3.1, 3.2a). Team
@@ -54,6 +60,8 @@ export interface CaseDetail {
   assignedTechnician: CaseReference | null;
   room: CaseRoom | null;
   allergiesAtIntake: string | null;
+  // notRecorded or unknownOrUnverified: an intake never verifies.
+  allergyStatusAtIntake: AllergyStatus;
   medicationsAtIntake: string | null;
   treatmentAuthorization: TreatmentAuthorization;
   referringClinic: string | null;
@@ -83,6 +91,10 @@ export interface CasePatient {
   dateOfBirth: string | null;
   dateOfBirthIsEstimated: boolean;
   allergies: string | null;
+  allergyStatus: AllergyStatus;
+  allergySource: AllergySource | null;
+  allergiesVerifiedAt: string | null;
+  allergiesVerifiedBy: CaseReference | null;
   currentMedications: string | null;
 }
 

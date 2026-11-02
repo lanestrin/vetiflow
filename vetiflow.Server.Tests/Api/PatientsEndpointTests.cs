@@ -225,10 +225,10 @@ public class PatientsEndpointTests(VetiFlowApiFactory factory)
 		var owner = TestData.Owner();
 		var patient = TestData.Patient();
 		patient.Owner = owner;
-		patient.Allergies = "Penicillin";
+		patient.RecordReportedAllergies("Penicillin");
 		patient.CurrentMedications = "Carprofen 75 mg";
 		var emergencyCase = TestData.Case(patient);
-		emergencyCase.AllergiesAtIntake = "Penicillin";
+		emergencyCase.RecordAllergiesAtIntake("Penicillin");
 		emergencyCase.MedicationsAtIntake = "Carprofen 75 mg";
 		await SaveCasesAsync(emergencyCase);
 		using var client = await TeamClientAsync();

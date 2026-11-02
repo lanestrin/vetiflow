@@ -221,6 +221,10 @@ namespace vetiflow.Server.Migrations
                     b.Property<string>("AllergiesAtIntake")
                         .HasColumnType("text");
 
+                    b.Property<string>("AllergyStatusAtIntake")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<DateTimeOffset>("ArrivalTime")
                         .HasColumnType("timestamp with time zone");
 
@@ -304,7 +308,10 @@ namespace vetiflow.Server.Migrations
                         .HasDatabaseName("IX_EmergencyCases_RoomId_Active")
                         .HasFilter("\"DischargedAt\" IS NULL AND \"RoomId\" IS NOT NULL");
 
-                    b.ToTable("EmergencyCases");
+                    b.ToTable("EmergencyCases", t =>
+                        {
+                            t.HasCheckConstraint("CK_EmergencyCases_AllergyStatusAtIntake", "(\"AllergyStatusAtIntake\" = 'NotRecorded' AND \"AllergiesAtIntake\" IS NULL) OR (\"AllergyStatusAtIntake\" = 'UnknownOrUnverified' AND \"AllergiesAtIntake\" IS NOT NULL AND length(btrim(\"AllergiesAtIntake\")) > 0)");
+                        });
                 });
 
             modelBuilder.Entity("vetiflow.Server.Models.Handoff", b =>
@@ -419,6 +426,19 @@ namespace vetiflow.Server.Migrations
                     b.Property<string>("Allergies")
                         .HasColumnType("text");
 
+                    b.Property<DateTimeOffset?>("AllergiesVerifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("AllergiesVerifiedByStaffId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AllergySource")
+                        .HasColumnType("text");
+
+                    b.Property<string>("AllergyStatus")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<string>("Breed")
                         .HasColumnType("text");
 
@@ -447,9 +467,14 @@ namespace vetiflow.Server.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("AllergiesVerifiedByStaffId");
+
                     b.HasIndex("OwnerId");
 
-                    b.ToTable("Patients");
+                    b.ToTable("Patients", t =>
+                        {
+                            t.HasCheckConstraint("CK_Patients_AllergyStatus", "(\"AllergyStatus\" = 'NotRecorded' AND \"Allergies\" IS NULL AND \"AllergySource\" IS NULL AND \"AllergiesVerifiedAt\" IS NULL AND \"AllergiesVerifiedByStaffId\" IS NULL) OR (\"AllergyStatus\" = 'UnknownOrUnverified' AND \"AllergiesVerifiedAt\" IS NULL AND \"AllergiesVerifiedByStaffId\" IS NULL) OR (\"AllergyStatus\" = 'NoKnownAllergies' AND \"Allergies\" IS NULL AND \"AllergiesVerifiedAt\" IS NOT NULL AND \"AllergiesVerifiedByStaffId\" IS NOT NULL) OR (\"AllergyStatus\" = 'DocumentedAllergies' AND \"Allergies\" IS NOT NULL AND length(btrim(\"Allergies\")) > 0 AND \"AllergiesVerifiedAt\" IS NOT NULL AND \"AllergiesVerifiedByStaffId\" IS NOT NULL)");
+                        });
                 });
 
             modelBuilder.Entity("vetiflow.Server.Models.Room", b =>
@@ -748,10 +773,17 @@ namespace vetiflow.Server.Migrations
 
             modelBuilder.Entity("vetiflow.Server.Models.Patient", b =>
                 {
+                    b.HasOne("vetiflow.Server.Models.StaffMember", "AllergiesVerifiedByStaff")
+                        .WithMany()
+                        .HasForeignKey("AllergiesVerifiedByStaffId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("vetiflow.Server.Models.Owner", "Owner")
                         .WithMany()
                         .HasForeignKey("OwnerId")
                         .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("AllergiesVerifiedByStaff");
 
                     b.Navigation("Owner");
                 });

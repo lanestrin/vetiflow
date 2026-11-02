@@ -23,5 +23,15 @@ public class CasePatientDto
 	// Carried from visit to visit; clinical, never logged.
 	public string? Allergies { get; set; }
 
+	// What the allergy information amounts to (4.12a); only the verified
+	// statuses carry a verifier and time.
+	public AllergyStatus AllergyStatus { get; set; }
+
+	public AllergySource? AllergySource { get; set; }
+
+	public DateTimeOffset? AllergiesVerifiedAt { get; set; }
+
+	public CaseReferenceDto? AllergiesVerifiedBy { get; set; }
+
 	public string? CurrentMedications { get; set; }
 }

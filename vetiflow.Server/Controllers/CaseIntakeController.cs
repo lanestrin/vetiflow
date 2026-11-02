@@ -84,7 +84,7 @@ public class CaseIntakeController : ControllerBase
 			};
 		}
 
-		patient.Allergies = request.Allergies ?? patient.Allergies;
+		patient.RecordReportedAllergies(request.Allergies);
 		patient.CurrentMedications = request.Medications ?? patient.CurrentMedications;
 
 		var staffMemberId = await SignedInStaffMemberIdAsync(cancellationToken);
@@ -97,11 +97,11 @@ public class CaseIntakeController : ControllerBase
 			ArrivalTime = now,
 			StageEnteredAt = now,
 			LastUpdated = now,
-			AllergiesAtIntake = request.Allergies,
 			MedicationsAtIntake = request.Medications,
 			TreatmentAuthorization = request.TreatmentAuthorization ?? TreatmentAuthorization.NotDiscussed,
 			ReferringClinic = request.ReferringClinic
 		};
+		emergencyCase.RecordAllergiesAtIntake(request.Allergies);
 		emergencyCase.RecordTriage(new TriageAssessment
 		{
 			Acuity = request.Priority!.Value,

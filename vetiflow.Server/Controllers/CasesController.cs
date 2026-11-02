@@ -170,6 +170,17 @@ public class CasesController : ControllerBase
 						DateOfBirth = emergencyCase.Patient.DateOfBirth,
 						DateOfBirthIsEstimated = emergencyCase.Patient.DateOfBirthIsEstimated,
 						Allergies = emergencyCase.Patient.Allergies,
+						AllergyStatus = emergencyCase.Patient.AllergyStatus,
+						AllergySource = emergencyCase.Patient.AllergySource,
+						AllergiesVerifiedAt = emergencyCase.Patient.AllergiesVerifiedAt,
+						AllergiesVerifiedBy = emergencyCase.Patient.AllergiesVerifiedByStaff == null
+							? null
+							: new CaseReferenceDto
+							{
+								Id = emergencyCase.Patient.AllergiesVerifiedByStaff.Id,
+								Name = emergencyCase.Patient.AllergiesVerifiedByStaff.FirstName + " "
+									+ emergencyCase.Patient.AllergiesVerifiedByStaff.LastName
+							},
 						CurrentMedications = emergencyCase.Patient.CurrentMedications
 					},
 					Owner = emergencyCase.Patient.Owner == null
@@ -215,6 +226,7 @@ public class CasesController : ControllerBase
 							Type = emergencyCase.Room.Type
 						},
 					AllergiesAtIntake = emergencyCase.AllergiesAtIntake,
+					AllergyStatusAtIntake = emergencyCase.AllergyStatusAtIntake,
 					MedicationsAtIntake = emergencyCase.MedicationsAtIntake,
 					TreatmentAuthorization = emergencyCase.TreatmentAuthorization,
 					ReferringClinic = emergencyCase.ReferringClinic,
