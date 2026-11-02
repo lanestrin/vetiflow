@@ -517,6 +517,100 @@ public class DbSeederTests(VetiFlowApiFactory factory)
 		Assert.True(shift > TimeSpan.FromDays(49), $"Times should move forward by about 50 days, moved {shift}.");
 	}
 
+	// More clinicians for the My Patients workspaces (build plan 2.24).
+	[Fact]
+	public async Task SeedAsync_SpreadsDemoCasesAcrossFourVeterinariansAndTechnicians()
+	{
+		await using var dbContext = await SeededDatabaseAsync();
+		var staffAfterFirstRun = await dbContext.StaffMembers.CountAsync(_cancellationToken);
+
+		await SeedTwiceAsync(dbContext);
+
+		Assert.Equal(staffAfterFirstRun, await dbContext.StaffMembers.CountAsync(_cancellationToken));
+		var veterinarians = await ActiveStaffIdsAsync(dbContext, StaffRole.Veterinarian);
+		var technicians = await ActiveStaffIdsAsync(dbContext, StaffRole.Technician);
+		Assert.Equal(4, veterinarians.Count);
+		Assert.Equal(4, technicians.Count);
+		var demoCases = await ActiveDemoCasesAsync(dbContext);
+		var assigned = demoCases.Where(emergencyCase => emergencyCase.Stage != CaseStage.Incoming).ToList();
+		Assert.Equal(veterinarians.Order(), assigned.Select(c => c.AssignedDoctorId!.Value).Distinct().Order());
+		Assert.Equal(technicians.Order(), assigned.Select(c => c.AssignedTechnicianId!.Value).Distinct().Order());
+		Assert.All(demoCases.Where(emergencyCase => emergencyCase.Stage == CaseStage.Incoming), emergencyCase =>
+		{
+			Assert.Null(emergencyCase.AssignedDoctorId);
+			Assert.Null(emergencyCase.AssignedTechnicianId);
+		});
+	}
+
+	// A demo database seeded before 2.24 had every extra case on one doctor.
+	[Fact]
+	public async Task SeedAsync_SpreadsAnOlderDatabaseWhoseDemoCasesShareOneDoctor()
+	{
+		await using var dbContext = await SeededDatabaseAsync();
+		var drLee = await dbContext.StaffMembers.SingleAsync(member => member.LastName == "Lee", _cancellationToken);
+		var unrelated = TestData.Case(TestData.Patient());
+		unrelated.AssignedDoctorId = drLee.Id;
+		dbContext.EmergencyCases.Add(unrelated);
+		var demoCases = await TrackedActiveDemoCasesAsync(dbContext);
+		foreach (var emergencyCase in demoCases.Where(c => c.AssignedDoctorId is not null))
+		{
+			emergencyCase.AssignedDoctorId = drLee.Id;
+		}
+		await dbContext.SaveChangesAsync(_cancellationToken);
+		var recordersBefore = await TriageRecordersAsync(dbContext);
+
+		await SeedTwiceAsync(dbContext);
+
+		var assignedDoctors = (await ActiveDemoCasesAsync(dbContext))
+			.Where(c => c.AssignedDoctorId is not null).Select(c => c.AssignedDoctorId).Distinct().Count();
+		Assert.Equal(4, assignedDoctors);
+		Assert.Equal(recordersBefore, await TriageRecordersAsync(dbContext));
+		Assert.Equal(drLee.Id, (await dbContext.EmergencyCases.FindAsync([unrelated.Id], _cancellationToken))!.AssignedDoctorId);
+	}
+
+	[Fact]
+	public async Task SeedAsync_LeavesDemoCasesReassignedInTheAppAlone()
+	{
+		await using var dbContext = await SeededDatabaseAsync();
+		var doctors = await ActiveStaffIdsAsync(dbContext, StaffRole.Veterinarian);
+		var demoCases = (await TrackedActiveDemoCasesAsync(dbContext)).Where(c => c.AssignedDoctorId is not null).ToList();
+		foreach (var emergencyCase in demoCases)
+		{
+			emergencyCase.AssignedDoctorId = doctors[0];
+		}
+		demoCases[0].AssignedDoctorId = doctors[1];
+		await dbContext.SaveChangesAsync(_cancellationToken);
+		var before = demoCases.ToDictionary(c => c.Id, c => c.AssignedDoctorId);
+
+		await SeedTwiceAsync(dbContext);
+
+		var after = (await ActiveDemoCasesAsync(dbContext)).Where(c => c.AssignedDoctorId is not null)
+			.ToDictionary(c => c.Id, c => c.AssignedDoctorId);
+		Assert.Equal(before, after);
+	}
+
+	// The extra demo cases' fixed IDs share this prefix (DbSeeder.DemoFixtureId(1, n)).
+	private const string DemoCaseIdPrefix = "89dd4a01-648e-4b16-9a12-";
+
+	private static bool IsDemoCase(Guid id) => id.ToString().StartsWith(DemoCaseIdPrefix, StringComparison.Ordinal);
+
+	private async Task<List<EmergencyCase>> ActiveDemoCasesAsync(VetiFlowDbContext dbContext) =>
+		(await dbContext.EmergencyCases.AsNoTracking().Where(c => c.DischargedAt == null).ToListAsync(_cancellationToken))
+			.Where(c => IsDemoCase(c.Id)).ToList();
+
+	private async Task<List<EmergencyCase>> TrackedActiveDemoCasesAsync(VetiFlowDbContext dbContext) =>
+		(await dbContext.EmergencyCases.Where(c => c.DischargedAt == null).ToListAsync(_cancellationToken))
+			.Where(c => IsDemoCase(c.Id)).ToList();
+
+	private async Task<List<Guid>> ActiveStaffIdsAsync(VetiFlowDbContext dbContext, StaffRole role) =>
+		await dbContext.StaffMembers.AsNoTracking().Where(member => member.IsActive && member.Role == role)
+			.OrderBy(member => member.LastName).ThenBy(member => member.FirstName)
+			.Select(member => member.Id).ToListAsync(_cancellationToken);
+
+	private async Task<Dictionary<Guid, Guid?>> TriageRecordersAsync(VetiFlowDbContext dbContext) =>
+		await dbContext.TriageAssessments.AsNoTracking()
+			.ToDictionaryAsync(triage => triage.Id, triage => triage.AssessedByStaffId, _cancellationToken);
+
 	private async Task<VetiFlowDbContext> MigratedDatabaseAsync()
 	{
 		var dbContext = VetiFlowApiFactory.CreateDbContext(await factory.Postgres.CreateDatabaseAsync());
