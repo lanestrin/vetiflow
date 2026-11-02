@@ -7,21 +7,16 @@ the active feature spec describes one small implementation PR.
 
 ## Current references
 
-- [Patient Overview / ER Board](patient-overview/README.md): the current
-  2026-10-30 requirements and behavioral proof of concept. Covers shared
-  awareness and focused review only; it does not design My Patients or
-  prescribe exact pixels, clinical ranges or sample medical findings.
-- [Veterinarian My Patients](vet-my-patient/README.md): the supplied enhanced
-  clinical-workspace requirements and POC, with its shared API dependencies
-  and separate note/order/review/discharge authority.
-- [Technician My Patients](technician-my-patient/README.md): the supplied
-  care/observation/MAR/review/handoff/discharge-preparation requirements and
-  POC. It shares records with the veterinarian view, not its clinical privileges.
+- [ER board prototype](er-board-poc/README.md): the current 2026-11-02 product
+  rules and prototype for the ER board, the shared patient record and the
+  veterinarian / technician model. It replaces the earlier Patient Overview,
+  Veterinarian My Patients, Technician My Patients and patient-history
+  packages. The person's decisions in the build plan take precedence over it.
 - [Security Lab](security-poc/README.md): the isolated single-hospital portfolio
   slice (S.21a-e), with actual backend permission/audit proof planned separately
   from the browser simulation and from production clinical authorization.
-- The role designs are available; implementation and clinical-policy gates
-  remain. The hidden old workspace in the ER HTML is not a substitute for them.
+- The role rules are in the ER board prototype's product rules; implementation
+  and clinical-policy gates remain. Its browser role switch is not authorization.
 - [Original sign-in mock](login-poc/vetiflow-login-mock.html): the relocated
   S.18 reference; its content is unchanged. Later landing-page work has its
   own history and should not be reset to this old mock.

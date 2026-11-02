@@ -20,14 +20,15 @@
   requirements to these IDs. Do not maintain independent page build queues
   or duplicate shared patient, encounter, task and permission models.
 - **Requirements define behavior; prototypes declare their fidelity.** The
-  current ER source is `reference/patient-overview/VETIFLOW_ER_OVERVIEW_SPECIFICATION.md`,
-  with `VetiFlow_ER_Overview_Shared_Status_POC.html` as a behavioral proof of concept,
-  not a pixel-perfect design. Written requirements and later explicit user
-  decisions take precedence over legacy HTML, demo values and hidden scripts.
-  Retain the current design system, readable type, 1px focus and 700 bold.
-  Veterinarian and Technician My Patients now have their own specifications
-  and enhanced POCs in `reference/vet-my-patient/` and
-  `reference/technician-my-patient/`. See their READMEs for shared work mappings.
+  current ER source is `reference/er-board-poc/` (2026-11-02):
+  `VetiFlow-Product-Rules.md` holds the requirements and
+  `VetiFlow-ER-Prototype.html` guides visual hierarchy and the shared patient
+  record, not pixel-exact design. The person's decisions below take precedence
+  over the prototype where they conflict, and written requirements over legacy
+  HTML, demo values and hidden scripts. Retain the current design system,
+  readable type, 1px focus and 700 bold. The separate Veterinarian and
+  Technician My Patients packages were consolidated into the product rules on
+  2026-11-02; see that folder's README for the requirement-to-ID mapping.
 - **One component at a time, back end first.** A component that needs data is
   split into an `a` item (back end: entity, migration, endpoint, tests) and a
   `b` item (front end: the screen, tests, `/check` against the prototype), and
@@ -66,10 +67,41 @@ Decided (later items must keep these):
 - **Acuity scale:** decided 2026-10-28, three levels to match the prototype:
   Critical, Urgent, Stable (replacing Critical / Urgent / High / Low from 0.3).
   Stored `High` becomes `Urgent` and `Low` becomes `Stable` (0.4a).
-- **Board lanes:** decided 2026-10-28, the board groups cases into lanes by
-  acuity, as in the prototype. The stage shows as text on each card, and staff
-  change it with the detail panel's **Update status** (4.9). No drag and drop
-  between stage lanes.
+- **Board lanes:** superseded 2026-11-02 by **Board layout** below. Kept for
+  history: decided 2026-10-28, the board grouped cases into lanes by acuity.
+  The stage showed as text on each card, and staff change it with the detail
+  panel's **Update status** (4.9). No drag and drop between stage lanes.
+- **Board layout** (decided 2026-11-02, by the person): a table on desktop
+  (Patient, Acuity, Care stage, Care team) and compact patient cards on
+  phones (2.25). Acuity stays clearly visible as a text pill and filterable.
+  Stage changes still go through **Update status**; no drag and drop.
+- **Patient header quick edits** (decided 2026-11-02, by the person): the
+  patient header shows the current care stage and location as buttons that
+  open the small modals shipped in 4.3b (3.2c), not inline dropdowns. The
+  presenting complaint stays read-only; the prototype's Edit action is not
+  built. Amends **Patient Overview quick edits** below.
+- **Demo role switch** (decided 2026-11-02, by the person): an app-wide
+  Veterinarian / Technician switch labelled "Demo role — simulated access",
+  for development and demonstrations (2.28). It changes the displayed
+  controls and the My patients filters while preserving the selected patient
+  and the shared demo data. It is independent of sign-in: the signed-in
+  account is unchanged, and account linking or account-to-role mapping is not
+  required yet. It is never authorization; real, server-enforced permissions
+  remain part of S.6, and 3.7b's "no demo role dropdown as an authorization
+  mechanism" still holds.
+- **Navigation** (decided 2026-11-02, by the person): the app keeps its
+  destinations (Overview, ER board, Patients, Team, Reports, Settings). On
+  phones a bottom bar shows them, with an overflow menu for destinations that
+  do not fit comfortably (2.27). The standalone prototype's reduced navigation
+  does not supersede the app's navigation.
+- **Assignment order** (decided 2026-11-02, by the person): assign a primary
+  technician first when possible, then the attending veterinarian. This is a
+  default workflow, not a mandatory dependency: either may happen first in an
+  emergency, and neither blocks care. Technicians are assigned to patients,
+  never permanently paired with doctors. Tech and Vet show consistently in
+  both role views, technician first, with explicit "Unassigned" values; role
+  switching never changes a column's meaning. Intake may record either
+  assignment (4.1c).
 - **Prototype data:** revised 2026-10-30. Required fields use the shared
   encounter record, with back-end/front-end pairs where new data is needed.
   Fictional HTML values are not requirements or a source of patient facts.
@@ -85,7 +117,10 @@ Decided (later items must keep these):
   triage", a "<priority> · provisional" tag, unassigned) until a clinician
   presses **Complete triage** (4.2). Completing triage moves the case to stage
   Triage (awaiting the care team); re-triage keeps the stage; a discharged
-  case cannot be triaged (4.2a, recommended defaults).
+  case cannot be triaged (4.2a, recommended defaults). Amended 2026-11-02 by
+  **Assignment order**: intake may record a primary technician and attending
+  veterinarian (each optional); the case still waits in Incoming until
+  Complete triage.
 - **Due items are tasks:** decided 2026-10-28. The next reassessment and the
   next client update are task types with a due time and an assignee, like any
   other task. The panel rows show the next open one of each, My work queue lists
@@ -135,9 +170,12 @@ Decided (later items must keep these):
   numeric vitals, safety/care team, approved client communication and three
   read-only quick-access views. Move full chronology, assessment details and
   full task lists out of the compact panel once equivalent review access exists.
-- **My Patients role designs received** (2026-10-30): use the supplied
-  veterinarian and technician requirements/POCs, not the obsolete workspace
-  embedded in the ER HTML. Both share the shell, one patient queue, a wider
+  Updated 2026-11-02: the three quick-access drawers become the Clinical,
+  Orders & Medications and Timeline tabs of the patient record (3.2c).
+- **My Patients role designs received** (2026-10-30; source updated
+  2026-11-02): use the consolidated `reference/er-board-poc/VetiFlow-Product-Rules.md`,
+  which replaced the separate veterinarian and technician packages, not the
+  obsolete workspace embedded in older ER HTML. Both share the shell, one patient queue, a wider
   selected chart, three distinct-patient metric filters and adjacent acuity
   badges. Role-specific tabs and actions differ; no extra attention sidebar,
   fourth draft metric or staff productivity scoring. Navigation stays inactive
@@ -219,8 +257,8 @@ Open (the item named in brackets needs it before its spec):
 - **Action selection** (before 4.13a): explicit clinical priority, review state,
   due-soon policy and tie-breaking. An overdue administrative task must not
   automatically outrank a documented clinical priority; no algorithmic treatment advice.
-- **Build the simplest working version first** (decided 2026-11-02, by the person): each feature implements only what its current workflow needs, reuses existing components, APIs, tables and dialogs, and adds no speculative framework or model for unapproved future requirements. Dependencies are enforced only where security, data integrity or function genuinely need them; a dashboard is not blocked because advanced features are incomplete. Patient safety, authentication and server-side authorization, data integrity and concurrency, audit history, accurate documentation, and the separation of unverified from confirmed information are never traded for simplicity. Current order: 4.3a (location and assignment), 4.13b (Care Coordination card, with priority and designation in the existing Tasks and due items dialog), S.5 and S.6 (sign-in and role permissions), then My Patients 2.22a-d (secure queue and read-only chart), with advanced clinical workflows added as their requirements and APIs are ready.
-- **Patient Overview quick edits** (decided 2026-11-02, by the person): a quick edit is something staff finish in a few clicks without opening a full chart. Four are edited from the Patient Overview, each from the section staff expect it and each in a small modal so it works at phone width (2026-11-02): Current Location (a room dropdown) in Care Coordination; Care Stage in Patient Status, using the existing stages and Update status rules (4.9a); Attending Veterinarian and Primary Technician (including "Not assigned") in Care Team. Two use existing dialogs: Re-triage through More actions, and the Next Care Action through the Tasks and due items dialog. Care Coordination does not hold all four controls. Read-only in the overview: vitals and clinical assessments, medications, presenting complaint and medical notes, the timeline (written automatically), task completion and priority (managed in Tasks and due items until My Patients is ready) and client communication (the latest approved update is shown; new communication uses its own workflow). Editing rights: authorized staff for location and care team, authorized veterinarians and technicians for stage, re-triage and next care action; until S.6 every signed-in team member may edit, always checked on the server.
+- **Build the simplest working version first** (decided 2026-11-02, by the person): each feature implements only what its current workflow needs, reuses existing components, APIs, tables and dialogs, and adds no speculative framework or model for unapproved future requirements. Dependencies are enforced only where security, data integrity or function genuinely need them; a dashboard is not blocked because advanced features are incomplete. Patient safety, authentication and server-side authorization, data integrity and concurrency, audit history, accurate documentation, and the separation of unverified from confirmed information are never traded for simplicity. Current order: 4.3a (location and assignment), 4.13b (Care Coordination card, with priority and designation in the existing Tasks and due items dialog), the ER board prototype alignment items 2.25, 3.2c, 3.2d, 2.26, 2.27, 2.28 and 4.1c (added 2026-11-02), S.5 and S.6 (sign-in and role permissions), then My Patients 2.22a-d (secure queue and read-only chart), with advanced clinical workflows added as their requirements and APIs are ready.
+- **Patient Overview quick edits** (decided 2026-11-02, by the person; amended the same day by **Patient header quick edits**, which moves the stage and location buttons into the patient header): a quick edit is something staff finish in a few clicks without opening a full chart. Four are edited from the Patient Overview, each from the section staff expect it and each in a small modal so it works at phone width (2026-11-02): Current Location (a room dropdown) in Care Coordination; Care Stage in Patient Status, using the existing stages and Update status rules (4.9a); Attending Veterinarian and Primary Technician (including "Not assigned") in Care Team. Two use existing dialogs: Re-triage through More actions, and the Next Care Action through the Tasks and due items dialog. Care Coordination does not hold all four controls. Read-only in the overview: vitals and clinical assessments, medications, presenting complaint and medical notes, the timeline (written automatically), task completion and priority (managed in Tasks and due items until My Patients is ready) and client communication (the latest approved update is shown; new communication uses its own workflow). Editing rights: authorized staff for location and care team, authorized veterinarians and technicians for stage, re-triage and next care action; until S.6 every signed-in team member may edit, always checked on the server.
 - **Next care action and task priority** (decided 2026-11-02, by the person): clinical priority is set only by an authorized veterinarian or veterinary technician, never by VetiFlow's software. Priority is Urgent, High or Routine; an unset priority is shown as "Not prioritized". An authorized clinician explicitly designates one documented open task as the Next Care Action, and the Patient Overview shows that task with its priority, assignee, due time and status. VetiFlow never ranks tasks, chooses or changes the designated action, or changes a priority. Due-soon and overdue labels are informational only. Completing or cancelling the designated task, or discharging the patient, clears the designation without promoting another task; no action is designated until staff choose one. Priority and designation changes are recorded on the case timeline. Until server-enforced roles exist (S.6), any authenticated team member with task-management access may set priority and designate, as a temporary policy; S.6 restricts both to authorized veterinarians and veterinary technicians, enforced on the server and never by a UI check. The automatic-ranking rule proposed earlier on 2026-11-02 was rejected and is part of no item.
 - **Clinical/reception visibility** (before S.6 and 3.7a): the field/action
   permission matrix, including assistants, reception and supervisor access.
@@ -257,8 +295,8 @@ Open (the item named in brackets needs it before its spec):
 
 ## M2: ER Board and Patient Overview
 
-Continue from the delivered acuity board and 4.8e. Follow the 2026-10-30
-requirements in `reference/patient-overview/`; see that folder's README for
+Continue from the delivered board and 4.8e. Follow `reference/er-board-poc/`
+(2026-11-02) and the person's decisions above; see that folder's README for
 the source mapping and gaps. Completed rows below describe what shipped,
 not instructions to reproduce superseded UI. Demo data only. New read-only
 drawers initially reuse the current team-member demo API; they do not claim
@@ -350,7 +388,20 @@ the future per-role protections in S.6/3.7 are already implemented.
 - [x] **4.12a** `feature/allergy-status-api`: model documented allergy, verified no known allergies, unknown/unverified and not recorded separately, with source/verification metadata and a migration retaining legacy text as unverified. Never infer verified negatives from null or parse free text into a medical conclusion; keep patient history and encounter reconciliation distinct. Done (history/features/4.12a-allergy-status-api.md).
 - [x] **4.12b** `feature/allergy-status-summary`: after 4.12a, show truthful safety status in care context and Clinical, including verifier/time when available. Reconciliation editing follows the approved clinical workflow and permissions. Done (history/features/4.12b-allergy-status-summary.md).
 - [x] **4.13a** `feature/documented-priority-api` (phase 1, no clinical approval needed): expose the explicitly documented coordination priority that staff set (shown as "Not prioritized" when unset, never as an assumed Routine), the actual responsible assignee, review/status/due state and source task. Extend the shared task model/history for creator, assigner, reassignment, completion and review accountability; add migrations/tests. No ranking, no automatic selection and no implied veterinarian approval. Do not equate case doctor with task assignee. Phase 1 done (history/features/4.13a-documented-priority-api.md).
-- [ ] **4.13b** `feature/documented-priority-summary` (phase 1, Patient Overview, after 4.3a): the Care Coordination card shows the staff-designated Next Care Action with its priority ("Not prioritized" when unset), its assignee or "Not assigned", and its state ("Overdue by 10 min" with a warning, "Due in 5 min", "Not scheduled"), or "No next action designated" with any legacy free-text note beneath as "Previously documented next-action note". Current Location sits beneath it; its dropdown is delivered by 4.3b. Staff set priority and designate the Next Care Action in the Tasks and due items dialog, delivered by 4.3b. The overview card never shows the whole open-task list. A completed task does not imply clinical resolution.
+- [ ] **4.13b** `feature/documented-priority-summary` (phase 1, Patient Overview, after 4.3a): the Care Coordination card shows the staff-designated Next Care Action with its priority ("Not prioritized" when unset), its assignee or "Not assigned", and its state ("Overdue by 10 min" with a warning, "Due in 5 min", "Not scheduled"), or "No next action designated" with any legacy free-text note beneath as "Previously documented next-action note", styled as the prototype's Next care action block. Current location and care stage move to the patient header in 3.2c. Staff set priority and designate the Next Care Action in the Tasks and due items dialog, delivered by 4.3b. The overview card never shows the whole open-task list. A completed task does not imply clinical resolution.
+
+**ER board prototype alignment** (2026-11-02, `reference/er-board-poc/`; client only unless the item says otherwise)
+
+- [ ] **2.25** `feature/board-table`: the board as a table: Patient (species icon, name, breed and age), Acuity pill, Care stage, and Care team (Tech, then Vet, each "Unassigned" when missing). Selected-row state, keyboard selection and live updates. At phone width each row becomes a compact patient card. Replaces the acuity lanes and lane tabs (Board layout decision). The board list already returns both assignments.
+- [ ] **3.2c** `feature/patient-record-tabs`: a fixed patient header ("Patient record" kicker, name with acuity pill, meta and case number, care stage and location buttons opening the 4.3b modals, and the allergy line) and four tabs (Overview, Clinical, Orders & Medications, Timeline) with arrow-key tablist behaviour; a new selection opens on Overview. The existing Clinical, Medications and Timeline review content moves into the tabs; the record shortcut tiles and drawers are removed. View Patient History (4.21c) stays reachable.
+- [ ] **3.2d** `feature/overview-tab`: the Overview tab in the prototype's order: latest vitals with their measured time and **＋ Record vitals**; the Next care action (4.13b); Care team & safety (Technician, then Veterinarian, then allergies) with **Assign me** through the 4.3a endpoint; the read-only presenting complaint; and a save-state line naming who last updated the case and when. Honest missing states throughout.
+- [ ] **2.26** `feature/board-toolbar`: the compact stats strip (In care, Awaiting triage, Critical, Critical without vet, the last counting critical cases with no attending veterinarian from the board list; it replaces the Door to doctor card until 2.16b); the All patients / My patients scope (My patients active once 2.28 lands); in-board search, an **Unassigned** toggle (either assignment missing) and **Priority ↓/↑**; acuity, staff, "No technician assigned" and "No veterinarian assigned" in the existing Filter menu; and the footer count. The spec decides whether pagination is needed.
+- [ ] **2.27** `feature/responsive-er-layout`: desktop keeps the board and patient panel side by side; at 1100 px and below the panel is a right-hand drawer over a backdrop (close, Escape, focus return); at 700 px and below the panel is full screen and the rail becomes a bottom bar with an overflow menu for the six destinations (Navigation decision), replacing 2.23's phone menu. Touch-sized controls; no horizontal page scroll.
+- [ ] **2.28** `feature/demo-role-switch`: the "Demo role — simulated access" switch in the shell (Demo role switch decision). Fictional demo identities: Jordan Lee (Veterinarian) and a seeded 2.24 technician named in the spec. It drives My patients (Vet: attending veterinarian; Tech: primary technician) and the role-specific controls the app already has, per product rules section 6 (attending-vet assignment is view-only as Technician). It preserves the selected patient and is remembered per browser as a convenience. No server change; never authorization.
+- [ ] **4.1c** `feature/intake-assignments`: a "Patient assignments" fieldset in the intake dialog, Primary technician first and Attending veterinarian (optional), both defaulting to Unassigned (Assignment order decision). Saved through the existing 4.3a assignment endpoint after the case is created; a failed assignment leaves the case created and says so. No new API unless the spec shows one is needed.
+
+**Deferred task history**
+
 - [ ] **4.13e** `feature/task-assignment-history`: assigner tracking and reassignment history for tasks (deferred from 4.13a phase 1), with its own history model and migration, covering creator, assigner, reassignment, completion and review accountability on the shared task model.
 
 **Update status** (prototype: "Update status" button)
@@ -372,7 +423,7 @@ the future per-role protections in S.6/3.7 are already implemented.
 **Door to doctor** (prototype: fourth stat card and its details)
 
 - [ ] **2.16a** `feature/door-to-doctor-api`: record the moment a doctor first sees a case (per the decision) and add the shift average and the change from the last shift to the summary.
-- [ ] **2.16b** `feature/door-to-doctor`: the stat card's value and "↓ 4 min vs. last shift", the "Door to first doctor" details dialog (current and previous shift) and **Show waiting patients**, which filters the board to cases still waiting for their first doctor.
+- [ ] **2.16b** `feature/door-to-doctor`: the stats strip's door-to-doctor figure and "↓ 4 min vs. last shift", the "Door to first doctor" details dialog (current and previous shift) and **Show waiting patients**, which filters the board to cases still waiting for their first doctor.
 
 **Validated clinical alerts** (not prototype colours or fixed demo ranges)
 
@@ -507,7 +558,7 @@ correcting those artifacts is a separate /fix, not an implicit product build.
 - [ ] **4.19d** `feature/technician-medication-administration`: after 4.19c and 2.22d, block entry without suitable authority; show order/patient/authorizer and read-only authorized drug/dose/unit/route/schedule, configured checks and clarification paths. Capture permitted outcomes and event time truthfully, handle stale order/conflict/failure without automatic duplicate submission, and update the shared MAR.
 - [ ] **4.20b** `feature/diagnostic-review-views`: after 4.20a and both charts, show pending collection/process/result/interpretation states and named follow-up ownership; authorized clinician review is distinct from technician collection completion. Keep unresolved results visible after task completion and carry them into discharge/follow-up checks.
 - [x] **4.21a** `feature/discharge-stage-api`: moving a case to the Discharge stage through Update status (4.9a) records its discharge time, removes it from the ER board and frees its room; the change is written to the timeline with the actor. A discharged case is then refused for triage, tasks and vitals, as now. Per the 2026-11-01 decision in Decisions; departure outcomes stay with 6.2e. Done (history/features/4.21a-discharge-stage-api.md).
-Discharged cases are found through the patient, not a separate Discharges page (re-planned 2026-11-01 from `reference/VetiFlow_Patient_History_Access_Recommendations.md`). The 2026-11-01 discharge rule stays: the Discharge stage takes a case off the board; pickup and departure stay with 6.2e. For the demo any signed-in team member may read visit history, the same access as a case's detail today; S.6 narrows it later. Owners reach none of it.
+Discharged cases are found through the patient, not a separate Discharges page (re-planned 2026-11-01 from `reference/VetiFlow_Patient_History_Access_Recommendations.md`, since removed; the outcome is in the 4.21a-d history). The 2026-11-01 discharge rule stays: the Discharge stage takes a case off the board; pickup and departure stay with 6.2e. For the demo any signed-in team member may read visit history, the same access as a case's detail today; S.6 narrows it later. Owners reach none of it.
 
 - [x] **4.21b** `feature/patient-visit-history`: Patients search results open a patient profile (`/records/:patientId`) with Overview, Visit History and Documents tabs (Overview and Documents "coming soon"). Visit History lists the patient's ER visits newest first: date and time, presenting complaint, case number, visit type "ER visit", status (Active or Discharged) and attending doctor, with an honest empty state. New `GET /api/patients/{id}/visits`, team members only. Done (history/features/4.21b-patient-visit-history.md).
 - [x] **4.21c** `feature/view-patient-history-link`: a subtle full-width **View Patient History** row beneath the Patient Overview's Clinical, Medications and Timeline tiles opens the selected patient's profile with Visit History active, with a way back to the ER board. The tiles stay scoped to the current encounter. Done (history/features/4.21c-view-patient-history-link.md).
