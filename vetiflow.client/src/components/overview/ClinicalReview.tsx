@@ -7,9 +7,21 @@ import type { CaseDetail } from "../../types/CaseDetail";
 import styles from "./ClinicalReview.module.scss";
 import { VitalsChangeSummary } from "./VitalsChangeSummary";
 
-// The Clinical review of one case: a tab of the patient record (3.2c) and the
-// visit record's Clinical drawer (4.21d).
+// The Clinical review of one case, shown in the visit record's Clinical drawer
+// (4.21d). The patient record's Clinical tab shows the same two parts in
+// disclosures (3.2e).
 export function ClinicalReview({ detail }: { detail: CaseDetail }) {
+  return (
+    <>
+      <RecordedVitalsAndAssessment detail={detail} />
+      <AllergyRecord detail={detail} />
+    </>
+  );
+}
+
+// The latest recorded vitals, the change since the previous set and the
+// clinical assessment findings.
+export function RecordedVitalsAndAssessment({ detail }: { detail: CaseDetail }) {
   const id = useId();
   const now = useNow();
   const latest = detail.vitals[0];
@@ -56,14 +68,14 @@ export function ClinicalReview({ detail }: { detail: CaseDetail }) {
             <dt>{finding.label}</dt><dd>{finding.value}</dd>
           </div>)}</dl>}
       </section>
-      <AllergyRecord detail={detail} headingId={`${id}-allergies`} />
     </>
   );
 }
 
 // The patient's stored allergy record and this visit's intake (4.12b): the
 // status says "verified" only when a verifier and time were recorded.
-function AllergyRecord({ detail, headingId }: { detail: CaseDetail; headingId: string }) {
+export function AllergyRecord({ detail }: { detail: CaseDetail }) {
+  const headingId = `${useId()}-allergies`;
   const { allergyStatus, allergies, allergySource, allergiesVerifiedAt, allergiesVerifiedBy } = detail.patient;
   const verified = allergiesVerifiedAt && allergiesVerifiedBy
     ? `${allergiesVerifiedBy.name} · ${dateTimeLabel(allergiesVerifiedAt)}`

@@ -190,12 +190,23 @@
 
 // The prototype's .allergy-indicator; the words carry the status.
 .allergyLine {
+	display: block;
+	width: 100%;
 	margin: 0;
 	padding: 6px 9px;
+	border: 0;
 	border-radius: 6px;
 	background: var(--color-shell-field);
 	color: var(--color-text-secondary);
+	font: inherit;
 	font-size: .75rem;
+	text-align: left;
+	cursor: pointer;
+
+	&:focus-visible {
+		outline: var(--focus-outline-width) solid var(--color-focus-on-light);
+		outline-offset: 2px;
+	}
 
 	strong {
 		color: var(--color-shell-ink);

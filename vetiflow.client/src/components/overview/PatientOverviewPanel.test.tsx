@@ -1026,6 +1026,31 @@ describe("patient record header", () => {
     }
   });
 
+  it("opens allergy details on the Clinical tab from the header", async () => {
+    serveCase(buildMilo({ patient: { ...buildMilo().patient, allergies: "Penicillin", allergyStatus: "documentedAllergies" } }));
+    renderPanel("case-milo");
+
+    fireEvent.click(await screen.findByRole("button", { name: "Allergies: Penicillin · verified · not rechecked at this visit's intake. Show allergy details" }));
+
+    expect(screen.getByRole("tab", { name: "Clinical" })).toHaveAttribute("aria-selected", "true");
+    const details = within(screen.getByRole("tabpanel", { name: "Clinical" })).getByRole("group", { name: "Allergy details" });
+    expect(details).toHaveAttribute("open");
+    expect(within(details).getByText((_, element) => element?.tagName === "SUMMARY")).toHaveFocus();
+  });
+
+  it("opens allergy details from the header when Clinical is already selected", async () => {
+    serveCase(buildMilo({ dischargedAt: at(11, 0) }));
+    renderPanel("case-milo");
+    const clinical = within(await openTab("Clinical"));
+    const details = clinical.getByRole("group", { name: "Allergy details" });
+    expect(details).not.toHaveAttribute("open");
+
+    fireEvent.click(screen.getByRole("button", { name: /^Allergies: .+\. Show allergy details$/ }));
+
+    expect(details).toHaveAttribute("open");
+    expect(within(details).getByText((_, element) => element?.tagName === "SUMMARY")).toHaveFocus();
+  });
+
   it("shows care stage and location as plain text on a discharged case", async () => {
     serveCase(buildMilo({ dischargedAt: at(11, 0) }));
     renderPanel("case-milo");

@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, type KeyboardEvent, type RefObject } from "react";
+import { useCallback, useEffect, useId, useRef, useState, type KeyboardEvent, type RefObject } from "react";
 import { Link } from "react-router-dom";
 import { useLeaveWhenRefused } from "../auth/useLeaveWhenRefused";
 import { AcuityBadge } from "../clinical/AcuityBadge";
@@ -20,13 +20,14 @@ import { MoreActionsMenu } from "./MoreActionsMenu";
 import { CaseTasksDialog } from "./CaseTasksDialog";
 import { ChangeLocationDialog } from "./ChangeLocationDialog";
 import { EditCareTeamDialog } from "./EditCareTeamDialog";
-import { ClinicalReview } from "./ClinicalReview";
+import { ClinicalTab } from "./ClinicalTab";
 import { MedicationReview } from "./MedicationReview";
 import { TimelineReview } from "./TimelineReview";
 import { EnteredTime, MeasuredTime } from "./RecordedTimes";
 import {
   checkInLabel,
   dueLabel,
+  lastUpdatedLabel,
   locationLabel,
   longAgeLabel,
   speciesKind,
@@ -99,6 +100,9 @@ export function PatientOverviewPanel({ caseId, caseUnavailable = false, signedIn
   const returnFocusRef = useRef<HTMLButtonElement | null>(null);
   // A new selection opens on Overview; a refresh of the same case keeps the tab.
   const [tab, setTab] = useState<RecordTab>("overview");
+  // The header's allergy indicator opens Allergy details on the Clinical tab.
+  const [showAllergies, setShowAllergies] = useState(false);
+  const allergiesShown = useCallback(() => setShowAllergies(false), []);
   // A dialog for one case never carries over to the next selection.
   const [dialogCaseId, setDialogCaseId] = useState(caseId);
   if (dialogCaseId !== caseId) {
@@ -110,6 +114,7 @@ export function PatientOverviewPanel({ caseId, caseUnavailable = false, signedIn
     setIsTaskReviewOpen(false);
     setVitalsDialogCase(null);
     setTab("overview");
+    setShowAllergies(false);
     setQuickEdit(null);
   }
   // Keyed by case and attempt, so a board reload keeps the shown case on
@@ -206,7 +211,8 @@ export function PatientOverviewPanel({ caseId, caseUnavailable = false, signedIn
             />
           )}
         </header>
-        {detail && <PatientHeader detail={detail} nameRef={nameRef} onQuickEdit={openQuickEdit} />}
+        {detail && <PatientHeader detail={detail} nameRef={nameRef} onQuickEdit={openQuickEdit}
+          onShowAllergies={() => { setTab("clinical"); setShowAllergies(true); }} />}
         {detail && <RecordTabs idBase={titleId} tab={tab} onChange={setTab} />}
       </div>
 
@@ -245,7 +251,7 @@ export function PatientOverviewPanel({ caseId, caseUnavailable = false, signedIn
               }}
             />
           )}
-          {tab === "clinical" && <div className={styles.review}><ClinicalReview detail={detail} /></div>}
+          {tab === "clinical" && <ClinicalTab detail={detail} showAllergies={showAllergies} onAllergiesShown={allergiesShown} />}
           {tab === "orders" && <div className={styles.review}><MedicationReview detail={detail} /></div>}
           {tab === "timeline" && <div className={styles.review}><TimelineReview detail={detail} /></div>}
         </div>
@@ -392,12 +398,14 @@ interface PatientHeaderProps {
   detail: CaseDetail;
   nameRef: RefObject<HTMLHeadingElement | null>;
   onQuickEdit: (kind: QuickEdit, trigger: HTMLButtonElement) => void;
+  onShowAllergies: () => void;
 }
 
 // The prototype's .patient-sticky: identity, acuity, care stage, location and
 // allergies stay in view on every tab (product rules section 4). Stage and
-// location open their small edit dialogs (Patient header quick edits).
-function PatientHeader({ detail, nameRef, onQuickEdit }: PatientHeaderProps) {
+// location open their small edit dialogs (Patient header quick edits), and
+// allergies open Allergy details on the Clinical tab (3.2e).
+function PatientHeader({ detail, nameRef, onQuickEdit, onShowAllergies }: PatientHeaderProps) {
   const now = useNow();
   const { patient } = detail;
   const kind = speciesKind(patient.species);
@@ -438,9 +446,11 @@ function PatientHeader({ detail, nameRef, onQuickEdit }: PatientHeaderProps) {
           </p>
         ))}
       </div>
-      <p className={styles.allergyLine} data-status={patient.allergyStatus}>
+      {/* Read-only, so it works on a discharged case too (3.2e). */}
+      <button type="button" className={styles.allergyLine} data-status={patient.allergyStatus}
+        aria-label={`Allergies: ${allergySummary(detail)}. Show allergy details`} onClick={onShowAllergies}>
         <strong>Allergies:</strong> {allergySummary(detail)}
-      </p>
+      </button>
     </div>
   );
 }
@@ -707,17 +717,6 @@ function Overview({ detail, signedInUser, onQuickEdit, onRecordVitals, onAssigne
       </Link>
     </>
   );
-}
-
-// "Last updated 4:32 PM by Dr. Jordan Lee". The case stores when, not who; the
-// server writes the timeline event in the same save with the same time, so a
-// name shows only on an exact match and a change is never credited to the
-// wrong person.
-function lastUpdatedLabel(detail: CaseDetail, now: Date): string {
-  const time = `Last updated ${timeLabel(detail.lastUpdated, now)}`;
-  const newest = detail.timeline.at(-1);
-  const sameSave = newest !== undefined && new Date(newest.createdAt).getTime() === new Date(detail.lastUpdated).getTime();
-  return sameSave && newest.createdBy ? `${time} by ${newest.createdBy.name}` : time;
 }
 
 function ownerUpdateLabel(status: CaseDetail["ownerUpdateStatus"]): string {
