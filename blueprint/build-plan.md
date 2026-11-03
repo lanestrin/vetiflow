@@ -108,6 +108,8 @@ Decided (later items must keep these):
   acuity, under an explicit label such as **Time in stage ↓** with a tooltip
   that explains the sort (2.26). The prototype's Priority ↓/↑ acuity reversal
   is not built and does not replace 2.14d; the prototype was updated to match.
+  Reaffirmed 2026-11-02 when the designer's revision brought Priority ↓/↑
+  back: that was a leftover, and the canonical prototype was corrected again.
 - **Clinical tab** (decided 2026-11-02, by the person): the Clinical tab
   matches `blueprint/reference/er-board-poc/Clinical.png` now (3.2e).
   - Controls whose back end is not built yet are shown in place but disabled,
@@ -119,6 +121,28 @@ Decided (later items must keep these):
   - Allergy source, verification status, verifier and time go in a separate
     "Allergy details" disclosure, opened from the header's allergy indicator.
   - Overview keeps the quick snapshot.
+- **Record panel and page header** (decided 2026-11-02, by the person, after
+  the designer's revision of the prototype and `header.png`). These override
+  conflicting prototype behaviour.
+  - **One scrolling surface:** on desktop the patient record scrolls with the
+    page, with no scrollbar of its own. This takes precedence over 3.2c's
+    sticky record header, which may scroll away. On tablets and phones the
+    record drawer is the only thing that scrolls: background scrolling is
+    locked while it is open (2.27).
+  - **Compact patient header:** the prototype's compact header (name, acuity
+    button with ⌄, close ✕ on one row; case number inline in the meta line;
+    labelled Stage and Location buttons with ⌄; tighter allergy line, tabs and
+    Clinical spacing) (3.2f).
+  - **Close ✕:** clears the selected record and returns to the board without
+    changing its filters, search, sort or scroll position.
+  - **Acuity button:** opens the existing triage flow under the existing
+    acuity-edit rules. The new styling never broadens who can change acuity,
+    and acuity still changes only through `EmergencyCase.RecordTriage`.
+  - **Account bar:** the bell, avatar and signed-in user stay in the app's top
+    bar only; they are not repeated in the page header.
+  - **Page heading:** the compact heading (eyebrow and title) with the shift
+    status and New intake beside it, without the old subtitle (2.26b). The
+    demo-role row stays with 2.28.
 - **Prototype data:** revised 2026-10-30. Required fields use the shared
   encounter record, with back-end/front-end pairs where new data is needed.
   Fictional HTML values are not requirements or a source of patient facts.
@@ -403,11 +427,12 @@ the future per-role protections in S.6/3.7 are already implemented.
 - [x] **3.2c** `feature/patient-record-tabs`: a fixed patient header ("Patient record" kicker, name with acuity pill, meta and case number, care stage and location buttons opening the 4.3b modals, and the allergy line) and four tabs (Overview, Clinical, Orders & Medications, Timeline) with arrow-key tablist behaviour; a new selection opens on Overview. The existing Clinical, Medications and Timeline review content moves into the tabs; the record shortcut tiles and drawers are removed. View Patient History (4.21c) stays reachable. Done (history/features/3.2c-patient-record-tabs.md).
 - [x] **3.2d** `feature/overview-tab`: the Overview tab in the prototype's order: latest vitals with their measured time and **＋ Record vitals**; the Next care action (4.13b); Care team & safety (Technician, then Veterinarian, then allergies) with **Assign me** through the 4.3a endpoint; the read-only presenting complaint; and a save-state line naming who last updated the case and when. Honest missing states throughout. Done (history/features/3.2d-overview-tab.md).
 - [x] **3.2e** `feature/clinical-tab-layout` (added 2026-11-02 at the person's request, built before 2.26b): the Clinical tab in `Clinical.png`'s order (Clinical tab decision): Examination & treatment plan with the "Vet workspace" chip; Signed documentation & nursing notes; Vet review requests; Diagnostics & follow-up; Handoff & escalation; Discharge; the save-state line. Controls without a back end are shown disabled, each tooltip naming the item that enables it. Existing documented detail moves to a "Recorded vitals & assessment" disclosure, and to an "Allergy details" disclosure that the header's allergy indicator opens. The technician variant ("Nursing observations") follows with 2.28. Done (history/features/3.2e-clinical-tab-layout.md).
+- [x] **3.2f** `feature/record-panel-compact` (added 2026-11-02 at the person's request, built before 2.26b): the record panel in the designer's revision (Record panel and page header decision). On desktop the panel scrolls with the page instead of on its own. The compact patient header: name, an acuity button that opens the existing triage flow under the existing acuity-edit rules, and a close ✕ that clears the selection and returns to the board with its filters, search, sort and scroll position unchanged; the case number inline in the meta line; labelled Stage and Location buttons with ⌄; tighter allergy line, tabs and Clinical tab spacing. The tablet and phone drawer, with its background scroll lock, stays in 2.27. Done (history/features/3.2f-record-panel-compact.md).
 - [ ] **2.26** `feature/board-toolbar`: the compact stats strip (In care, Awaiting triage, Critical, Critical without vet, the last counting critical cases with no attending veterinarian from the board list; it replaces the Door to doctor card until 2.16b); the All patients / My patients scope (My patients active once 2.28 lands); in-board search, an **Unassigned** toggle (either assignment missing) and the existing 2.14d sort relabelled **Time in stage ↓** with a tooltip (Board sort decision); acuity, staff, "No technician assigned" and "No veterinarian assigned" in the existing Filter menu; and the footer count. Split into 2.26a-c (2026-11-02, by the person), one PR each. No pagination on the active ER board (decided 2026-11-02, by the person): one scrolling list in the fixed Critical → Urgent → Stable order, with Time in stage changing the order only within each acuity. Discharged visits stay off the board, under Patients → Discharged, where pagination is appropriate.
   - [x] **2.26a** `feature/board-stats-strip`: the compact stats strip (In care, Awaiting triage, Critical, Critical without vet) replacing the four large stat cards; Door to doctor is omitted until 2.16b. Each stat filters the board. The footer reads "Showing N of M", matching active patients out of all active patients, in every filter and search. Done (history/features/2.26a-board-stats-strip.md).
-  - [ ] **2.26b** `feature/board-toolbar`: the All patients / My patients scope replacing the ER board / My patients switch (My patients inactive until 2.28); an in-board search box synchronized with the top bar's while on the ER board (typing in either updates both and filters the board; Enter in the top bar still opens Patients search with that query); the **Unassigned** toggle (either assignment missing); and the 2.14d sort relabelled **Time in stage ↓** with a tooltip (Board sort decision). The 2.14b **Incoming** toggle is removed to match the prototype's toolbar; the Awaiting triage stat filters to incoming cases (decided 2026-11-02, by the person).
+  - [ ] **2.26b** `feature/board-toolbar`: the All patients / My patients scope replacing the ER board / My patients switch (My patients inactive until 2.28); an in-board search box synchronized with the top bar's while on the ER board (typing in either updates both and filters the board; Enter in the top bar still opens Patients search with that query); the **Unassigned** toggle (either assignment missing); and the 2.14d sort relabelled **Time in stage ↓** with a tooltip (Board sort decision). The 2.14b **Incoming** toggle is removed to match the prototype's toolbar; the Awaiting triage stat filters to incoming cases (decided 2026-11-02, by the person). The page heading takes `header.png`'s compact layout: eyebrow and title, with the shift status and New intake beside them, and no "Live patient flow" subtitle; the bell and user stay in the top bar (Record panel and page header decision).
   - [ ] **2.26c** `feature/board-filter-assignments`: acuity, staff, "No technician assigned" and "No veterinarian assigned" in the existing Filter menu.
-- [ ] **2.27** `feature/responsive-er-layout`: desktop keeps the board and patient panel side by side; at 1100 px and below the panel is a right-hand drawer over a backdrop (close, Escape, focus return); at 700 px and below the panel is full screen and the rail becomes a bottom bar with an overflow menu for the six destinations (Navigation decision), replacing 2.23's phone menu. Touch-sized controls; no horizontal page scroll.
+- [ ] **2.27** `feature/responsive-er-layout`: desktop keeps the board and patient panel side by side; at 1100 px and below the panel is a right-hand drawer over a backdrop (close, Escape, focus return), and background scrolling is locked while it is open so only the drawer scrolls (Record panel and page header decision); at 700 px and below the panel is full screen and the rail becomes a bottom bar with an overflow menu for the six destinations (Navigation decision), replacing 2.23's phone menu. Touch-sized controls; no horizontal page scroll.
 - [ ] **2.28** `feature/demo-role-switch`: the "Demo role — simulated access" switch in the shell (Demo role switch decision). Fictional demo identities: Jordan Lee (Veterinarian) and a seeded 2.24 technician named in the spec. It drives My patients (Vet: attending veterinarian; Tech: primary technician) and the role-specific controls the app already has, per product rules section 6 (attending-vet assignment is view-only as Technician). It preserves the selected patient and is remembered per browser as a convenience. No server change; never authorization.
 - [ ] **4.1c** `feature/intake-assignments`: a "Patient assignments" fieldset in the intake dialog, Primary technician first and Attending veterinarian (optional), both defaulting to Unassigned (Assignment order decision). Saved through the existing 4.3a assignment endpoint after the case is created; a failed assignment leaves the case created and says so. No new API unless the spec shows one is needed.
 

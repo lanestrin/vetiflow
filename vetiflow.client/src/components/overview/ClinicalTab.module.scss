@@ -2,13 +2,13 @@
 // .wf-between, .wf-status, #clinical-form, .wf-actions, .wf-disclosure,
 // .workflow-hint and .save-status.
 .clinical {
-	padding: 0 19px 19px;
+	padding: 0 18px 18px;
 	font-size: .75rem;
 }
 
 .careSection {
-	margin-top: 16px;
-	padding-top: 16px;
+	margin-top: 12px;
+	padding-top: 12px;
 	border-top: 1px solid var(--color-shell-line);
 
 	&:first-child {
@@ -26,7 +26,7 @@
 
 .sectionTitle {
 	margin: 0;
-	font-size: .875rem;
+	font-size: .8125rem;
 	font-weight: 700;
 }
 
@@ -44,8 +44,8 @@
 .form {
 	label {
 		display: block;
-		margin: 14px 0;
-		font-size: .75rem;
+		margin: 12px 0;
+		font-size: .6875rem;
 		font-weight: 600;
 	}
 
@@ -55,7 +55,7 @@
 		box-sizing: border-box;
 		width: 100%;
 		margin-top: 6px;
-		padding: 10px 12px;
+		padding: 8px 9px;
 		border: 1px solid var(--color-border);
 		border-radius: 7px;
 		background: var(--color-surface);
@@ -70,7 +70,7 @@
 	}
 
 	textarea {
-		min-height: 105px;
+		min-height: 76px;
 		font-size: .8125rem;
 		resize: vertical;
 	}
@@ -129,7 +129,7 @@
 }
 
 .disclosure {
-	margin-top: 16px;
+	margin-top: 10px;
 	border-top: 1px solid var(--color-shell-line);
 
 	> .button {
@@ -141,7 +141,7 @@
 		align-items: center;
 		justify-content: space-between;
 		gap: 10px;
-		padding: 15px 0;
+		padding: 12px 0;
 		font-size: .75rem;
 		font-weight: 650;
 		list-style: none;
@@ -201,7 +201,7 @@
 }
 
 .saveState {
-	margin: 17px 0 0;
+	margin: 12px 0 0;
 	padding: 8px 10px;
 	border-radius: 6px;
 	background: var(--color-care-mint);

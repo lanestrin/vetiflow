@@ -54,6 +54,12 @@
 	color: var(--color-shell-ink);
 	font-size: 1rem;
 	font-weight: 700;
+
+	// Focused when the record closes on a patient no longer listed (3.2f).
+	&:focus-visible {
+		outline: var(--focus-outline-width) solid var(--color-focus-on-light);
+		outline-offset: 2px;
+	}
 }
 
 // One line, so the board tools wrap below it on a narrow phone rather than

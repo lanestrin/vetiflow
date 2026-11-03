@@ -64,6 +64,8 @@ export function ErBoardPage() {
   const [error, setError] = useState<string | null>(null);
   const [updatedAt, setUpdatedAt] = useState(() => new Date());
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
+  // Where the board puts focus after the record's close ✕ (3.2f).
+  const [boardFocus, setBoardFocus] = useState<{ caseId: string } | null>(null);
   // Selected once the first load shows the case is still on the board.
   const arrivalCaseId = useRef(selectedOnArrival(location.state));
   const [isIntakeOpen, setIsIntakeOpen] = useState(false);
@@ -213,6 +215,7 @@ export function ErBoardPage() {
           filter={filter}
           search={search}
           onFilter={chooseFilter}
+          focusRequest={boardFocus}
         />
 
         <PatientOverviewPanel
@@ -223,6 +226,14 @@ export function ErBoardPage() {
           onTriaged={showTriaged}
           onTaskSaved={() => void reloadCases.current()}
           onVitalsSaved={() => void reloadCases.current()}
+          onClose={() => {
+            const closedCaseId = selectedCaseId;
+            // The same unsaved-draft guard as choosing another patient.
+            void drafts.requestLeave(() => {
+              setSelectedCaseId(null);
+              if (closedCaseId) setBoardFocus({ caseId: closedCaseId });
+            });
+          }}
         />
       </div>
 

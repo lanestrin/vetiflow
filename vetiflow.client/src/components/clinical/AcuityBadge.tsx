@@ -1,4 +1,5 @@
 import type { AcuityLevel } from "../../types/EmergencyCaseListItem";
+import { acuityBadgeLabel } from "./acuityBadgeLabel";
 import styles from "./AcuityBadge.module.scss";
 
 interface AcuityBadgeProps {
@@ -11,23 +12,17 @@ export function AcuityBadge({ acuity, isProvisional = false }: AcuityBadgeProps)
   if (acuity === null) {
     return (
       <span className={`${styles.badge} ${styles.untriaged}`}>
-        Not triaged
+        {acuityBadgeLabel(acuity)}
       </span>
     );
   }
-
-  const label = {
-    critical: "Critical",
-    urgent: "Urgent",
-    stable: "Stable"
-  }[acuity];
 
   return (
     <span
       className={styles.badge}
       data-acuity={acuity}
     >
-      {isProvisional ? `${label} · provisional` : label}
+      {acuityBadgeLabel(acuity, isProvisional)}
     </span>
   );
 }

@@ -1,4 +1,4 @@
-import { useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import type { AcuityLevel, EmergencyCaseListItem } from "../../types/EmergencyCaseListItem";
 import type { BoardFilter } from "./BoardStats";
@@ -28,6 +28,9 @@ interface PatientFlowBoardProps {
   search?: string;
   // The Incoming toggle asks for a filter (2.14b); the page decides.
   onFilter?: (filter: BoardFilter) => void;
+  // After the record closes, focus that patient's name without scrolling, or
+  // the board's heading when the patient is no longer listed (3.2f).
+  focusRequest?: { caseId: string } | null;
 }
 
 // The API's acuity order: cases not triaged (old data only), then Critical,
@@ -78,9 +81,17 @@ export function PatientFlowBoard({
   onSelect,
   filter = "all",
   search = "",
-  onFilter
+  onFilter,
+  focusRequest = null
 }: PatientFlowBoardProps) {
   const titleId = useId();
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const nameButtons = useRef(new Map<string, HTMLButtonElement>());
+
+  useEffect(() => {
+    if (!focusRequest) return;
+    (nameButtons.current.get(focusRequest.caseId) ?? headingRef.current)?.focus({ preventScroll: true });
+  }, [focusRequest]);
   const now = useNow();
   // The Filter menu's choices (2.14c), kept while the page is open.
   const [menuFilters, setMenuFilters] = useState<BoardMenuFilters>(noMenuFilters);
@@ -103,7 +114,7 @@ export function PatientFlowBoard({
     <section className={styles.board} aria-labelledby={titleId}>
       <header className={styles.top}>
         <div>
-          <h2 id={titleId} className={styles.title}>Patient board</h2>
+          <h2 ref={headingRef} id={titleId} className={styles.title} tabIndex={-1}>Patient board</h2>
           <p className={styles.tiny}>
             <span className={styles.live} aria-hidden="true" />
             {updatedLabel(updatedAt, now)}
@@ -162,6 +173,10 @@ export function PatientFlowBoard({
                   now={now}
                   isSelected={emergencyCase.id === selectedCaseId}
                   onSelect={onSelect}
+                  nameButtonRef={element => {
+                    if (element) nameButtons.current.set(emergencyCase.id, element);
+                    else nameButtons.current.delete(emergencyCase.id);
+                  }}
                 />
               ))
             )}

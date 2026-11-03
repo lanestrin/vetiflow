@@ -9,6 +9,8 @@ interface PatientRowProps {
   now: Date;
   isSelected: boolean;
   onSelect: (caseId: string) => void;
+  // Lets the board return focus here when the record closes (3.2f).
+  nameButtonRef?: (element: HTMLButtonElement | null) => void;
 }
 
 const avatars = { dog: "🐕", cat: "🐈", other: "🐾" };
@@ -28,7 +30,7 @@ function blockersLabel(count: number): string {
 // One case on the board table (build plan 2.25, the prototype's `tbody tr`).
 // The name button is the control for keyboards and screen readers; a click
 // anywhere else on the row selects it too, for the mouse.
-export function PatientRow({ emergencyCase, now, isSelected, onSelect }: PatientRowProps) {
+export function PatientRow({ emergencyCase, now, isSelected, onSelect, nameButtonRef }: PatientRowProps) {
   const {
     id,
     patientName,
@@ -52,6 +54,7 @@ export function PatientRow({ emergencyCase, now, isSelected, onSelect }: Patient
           </span>
           <div className={styles.identity}>
             <button
+              ref={nameButtonRef}
               type="button"
               className={styles.name}
               aria-pressed={isSelected}
