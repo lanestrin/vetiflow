@@ -7,6 +7,7 @@ import {
   isCriticalWithoutVet,
   matchesMenuFilters,
   matchesSearch,
+  matchesUnassigned,
   minutesSince,
   noMenuFilters,
   sortByLongestInStage,
@@ -26,8 +27,9 @@ interface PatientFlowBoardProps {
   filter?: BoardFilter;
   // The top bar's search (2.14a), applied after the filter.
   search?: string;
-  // The Incoming toggle asks for a filter (2.14b); the page decides.
-  onFilter?: (filter: BoardFilter) => void;
+  // The board's own search box changes the shared search (2.26b); without
+  // it the box is not shown.
+  onSearchChange?: (search: string) => void;
   // After the record closes, focus that patient's name without scrolling, or
   // the board's heading when the patient is no longer listed (3.2f).
   focusRequest?: { caseId: string } | null;
@@ -40,6 +42,27 @@ const acuityOrder: (AcuityLevel | null)[] = [null, "critical", "urgent", "stable
 function updatedLabel(updatedAt: Date, now: Date): string {
   const minutes = minutesSince(updatedAt.toISOString(), now);
   return minutes < 1 ? "Updated just now" : `Updated ${minutes} min ago`;
+}
+
+const sortExplanation = "Longest time in current stage first, within each acuity. Acuity order stays Critical, Urgent, Stable.";
+const myPatientsReason = "Available when the demo role switch is built (2.28).";
+
+// The prototype's .switch: All patients, and My patients once the demo role
+// switch can say whose patients they are (2.28).
+function ScopeSwitch({ count }: { count: number }) {
+  const reasonId = useId();
+  return (
+    <div className={styles.scope} role="group" aria-label="Patient scope">
+      <button type="button" className={styles.scopeButton} aria-pressed="true">
+        All patients <span className={styles.scopeCount}>{count}</span>
+      </button>
+      <button type="button" className={styles.scopeButton} aria-pressed="false" aria-disabled="true"
+        title={myPatientsReason} aria-describedby={reasonId}>
+        My patients
+      </button>
+      <span id={reasonId} hidden>{myPatientsReason}</span>
+    </div>
+  );
 }
 
 function casesLabel(count: number): string {
@@ -81,7 +104,7 @@ export function PatientFlowBoard({
   onSelect,
   filter = "all",
   search = "",
-  onFilter,
+  onSearchChange,
   focusRequest = null
 }: PatientFlowBoardProps) {
   const titleId = useId();
@@ -95,19 +118,21 @@ export function PatientFlowBoard({
   const now = useNow();
   // The Filter menu's choices (2.14c), kept while the page is open.
   const [menuFilters, setMenuFilters] = useState<BoardMenuFilters>(noMenuFilters);
-  // The Priority button (2.14d): the API's priority order unless pressed.
+  // Time in stage ↓ (2.14d, relabelled in 2.26b): the API's priority order
+  // unless pressed.
   const [isLongestInStageFirst, setIsLongestInStageFirst] = useState(false);
+  // Unassigned (2.26b): cases missing either assignment.
+  const [isUnassignedOnly, setIsUnassignedOnly] = useState(false);
 
   const filteredCases = cases.filter((emergencyCase) => matchesStatFilter(emergencyCase, filter));
   const matchingCases = filteredCases.filter((emergencyCase) =>
-    matchesMenuFilters(emergencyCase, menuFilters) && matchesSearch(emergencyCase, search));
+    matchesMenuFilters(emergencyCase, menuFilters) && matchesSearch(emergencyCase, search)
+    && (!isUnassignedOnly || matchesUnassigned(emergencyCase)));
   const shownCases = isLongestInStageFirst
     ? sortByLongestInStage(matchingCases).sort((first, second) =>
       acuityOrder.indexOf(first.acuity) - acuityOrder.indexOf(second.acuity))
     : matchingCases;
   const searchText = search.trim();
-  const incomingCount = cases.filter((emergencyCase) => emergencyCase.stage === "incoming").length;
-  const isIncomingShown = filter === "awaitingTriage";
   const emptyMessage = cases.length === 0 ? "No patients on the board" : "No patients match";
 
   return (
@@ -122,32 +147,46 @@ export function PatientFlowBoard({
             {casesLabel(cases.length)}
           </p>
         </div>
-        <div className={styles.tools}>
-          {/* The prototype's #triageToggle: the Awaiting triage filter, on and off. */}
-          <button
-            type="button"
-            className={styles.toolButton}
-            aria-pressed={isIncomingShown}
-            aria-label={`Incoming, ${incomingCount} awaiting triage`}
-            onClick={() => onFilter?.(isIncomingShown ? "all" : "awaitingTriage")}
-          >
-            <span aria-hidden="true">⇣ </span>
-            <span className={styles.toolLabel}>Incoming</span> <b>{incomingCount}</b>
-          </button>
-          <BoardFilterMenu cases={cases} filters={menuFilters} onChange={setMenuFilters} />
-          {/* The prototype's #sort. */}
-          <button
-            type="button"
-            className={styles.toolButton}
-            aria-pressed={isLongestInStageFirst}
-            aria-label="Priority, longest in stage first"
-            onClick={() => setIsLongestInStageFirst(!isLongestInStageFirst)}
-          >
-            <span aria-hidden="true">↕ </span>
-            <span className={styles.toolLabel}>Priority</span>
-          </button>
-        </div>
+        <ScopeSwitch count={cases.length} />
       </header>
+
+      {/* The prototype's .toolbar. */}
+      <div className={styles.toolbar}>
+        {onSearchChange && (
+          <div className={styles.search}>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+            <input
+              type="search"
+              className={styles.searchInput}
+              aria-label="Search the board"
+              placeholder="Search patients..."
+              value={search}
+              onChange={(event) => onSearchChange(event.target.value)}
+            />
+          </div>
+        )}
+        <button
+          type="button"
+          className={styles.toolButton}
+          aria-pressed={isUnassignedOnly}
+          onClick={() => setIsUnassignedOnly(!isUnassignedOnly)}
+        >
+          Unassigned
+        </button>
+        <BoardFilterMenu cases={cases} filters={menuFilters} onChange={setMenuFilters} />
+        <button
+          type="button"
+          className={styles.toolButton}
+          aria-pressed={isLongestInStageFirst}
+          aria-label="Time in stage"
+          aria-describedby={`${titleId}-sort`}
+          title={sortExplanation}
+          onClick={() => setIsLongestInStageFirst(!isLongestInStageFirst)}
+        >
+          Time in stage <span aria-hidden="true">↓</span>
+        </button>
+        <span id={`${titleId}-sort`} hidden>{sortExplanation}</span>
+      </div>
 
       <div className={styles.tableWrap}>
         <table className={styles.table} aria-labelledby={titleId}>

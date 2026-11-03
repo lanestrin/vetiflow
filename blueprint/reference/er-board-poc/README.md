@@ -25,6 +25,9 @@ veterinarian / technician model. It replaces the earlier `patient-overview/`,
 - [record-header.png](record-header.png): the compact patient record header, captured
   from the HTML's `.patient-sticky` at 1440 px on 2026-11-02 (3.2f), since the
   designer supplied no screenshot of it.
+- [board-toolbar.png](board-toolbar.png): the board top (title, All patients / My
+  patients) and toolbar (search, Unassigned, Filter, Time in stage ↓), captured
+  from the HTML at 1440 px on 2026-11-02 (2.26b).
 - Screenshots of the prototype's patient record, added 2026-11-02 by the
   person. Every patient record component is built and checked against them as
   well as the HTML:

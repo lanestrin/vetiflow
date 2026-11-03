@@ -6,6 +6,7 @@ import {
   isCriticalWithoutVet,
   matchesMenuFilters,
   matchesSearch,
+  matchesUnassigned,
   minutesSince,
   noMenuFilters,
   shiftChipLabel,
@@ -206,5 +207,17 @@ describe("isCriticalWithoutVet", () => {
     expect(isCriticalWithoutVet(buildCase({ acuity: "critical", assignedDoctor: null, assignedTechnician: technician }))).toBe(true);
     expect(isCriticalWithoutVet(buildCase({ acuity: "critical", assignedDoctor: veterinarian }))).toBe(false);
     expect(isCriticalWithoutVet(buildCase({ acuity: "urgent", assignedDoctor: null }))).toBe(false);
+  });
+});
+
+describe("matchesUnassigned", () => {
+  it("treats a case missing either assignment as unassigned", () => {
+    const tech = { id: "t1", name: "Sam Cruz" };
+    const vet = { id: "v1", name: "Jordan Lee" };
+
+    expect(matchesUnassigned(buildCase({ assignedTechnician: tech, assignedDoctor: vet }))).toBe(false);
+    expect(matchesUnassigned(buildCase({ assignedTechnician: null, assignedDoctor: vet }))).toBe(true);
+    expect(matchesUnassigned(buildCase({ assignedTechnician: tech, assignedDoctor: null }))).toBe(true);
+    expect(matchesUnassigned(buildCase({ assignedTechnician: null, assignedDoctor: null }))).toBe(true);
   });
 });

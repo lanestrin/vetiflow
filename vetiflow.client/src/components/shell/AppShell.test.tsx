@@ -16,9 +16,14 @@ function Where() {
   return <p data-testid="where">{location.pathname + location.search}</p>;
 }
 
-// Shows the search the shell shares with the page below it.
+// Shows the search the shell shares with the page below it, and a page box
+// that changes it, as the board's search box does (2.26b).
 function SearchReader() {
-  return <p data-testid="shared-search">{useShellSearch()}</p>;
+  const [search, setSearch] = useShellSearch() ?? ["", () => {}];
+  return <>
+    <p data-testid="shared-search">{search}</p>
+    <input aria-label="Page search" value={search} onChange={(event) => setSearch(event.target.value)} />
+  </>;
 }
 
 function HistoryControls() {
@@ -171,6 +176,18 @@ describe("AppShell", () => {
     fireEvent.change(screen.getByRole("searchbox", { name: "Search patients" }), { target: { value: "Buddy" } });
 
     expect(screen.getByTestId("shared-search")).toHaveTextContent("Buddy");
+  });
+
+  it("keeps the top bar and board search in step", () => {
+    renderShell();
+    const topBar = screen.getByRole("searchbox", { name: "Search patients" });
+    const page = screen.getByRole("textbox", { name: "Page search" });
+
+    fireEvent.change(page, { target: { value: "Pip" } });
+    expect(topBar).toHaveValue("Pip");
+
+    fireEvent.change(topBar, { target: { value: "Buddy" } });
+    expect(page).toHaveValue("Buddy");
   });
 
   it("clears the shared search when Enter opens Patients", () => {

@@ -92,6 +92,12 @@ export function caseStatusLabel(status: CaseStatus): string {
 
 // The board's Filter menu (build plan 2.14c). Null means any; "unassigned"
 // means a card with no clinician.
+// The Unassigned toggle (2.26b): a primary technician or an attending
+// veterinarian is missing, or both.
+export function matchesUnassigned(emergencyCase: EmergencyCaseListItem): boolean {
+  return emergencyCase.assignedTechnician === null || emergencyCase.assignedDoctor === null;
+}
+
 export interface BoardMenuFilters {
   clinicianId: string | null;
   species: string | null;

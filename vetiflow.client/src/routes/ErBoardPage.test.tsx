@@ -192,16 +192,15 @@ describe("ErBoardPage", () => {
     expect(screen.getByRole("heading", { level: 1, name: "ER Command Center" })).toBeInTheDocument();
   });
 
-  it("shows the view switch between the heading and the stats", async () => {
+  it("shows the Patient scope switch on the board", async () => {
+    serveCases([buildCase({ patientName: "Milo" })]);
     serveSummary(buildBoardSummary());
 
     renderBoard();
 
-    const heading = await screen.findByRole("heading", { level: 1 });
-    const viewSwitch = screen.getByRole("tablist", { name: "Dashboard view" });
-    const stats = screen.getByRole("region", { name: "Shift summary" });
-    expect(heading.compareDocumentPosition(viewSwitch) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(viewSwitch.compareDocumentPosition(stats) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const board = await screen.findByRole("region", { name: "Patient board" });
+    expect(within(board).getByRole("group", { name: "Patient scope" })).toBeInTheDocument();
+    expect(screen.queryByRole("tablist", { name: "Dashboard view" })).not.toBeInTheDocument();
   });
 
   it("names the browser tab while loading and once loaded", async () => {
@@ -556,44 +555,6 @@ describe("ErBoardPage", () => {
       expect(screen.getByRole("status")).toHaveTextContent("No patients awaiting triage");
       expect(statCard(/^In care/)).toHaveAttribute("aria-pressed", "true");
       expect(shownNames()).toHaveLength(3);
-    });
-
-    // The Incoming toggle shares the card's filter (build plan 2.14b).
-    it("presses the Incoming toggle and the Awaiting triage card together", async () => {
-      serveCases(boardCases());
-      serveSummary(buildBoardSummary({ patientsInCare: 3, awaitingTriage: 1 }));
-      renderBoard();
-      await screen.findByRole("button", { name: "Milo" });
-      const toggle = screen.getByRole("button", { name: "Incoming, 1 awaiting triage" });
-
-      fireEvent.click(toggle);
-
-      expect(toggle).toHaveAttribute("aria-pressed", "true");
-      expect(statCard(/^Awaiting triage/)).toHaveAttribute("aria-pressed", "true");
-      expect(shownNames()).toHaveLength(1);
-
-      fireEvent.click(toggle);
-
-      expect(toggle).toHaveAttribute("aria-pressed", "false");
-      expect(statCard(/^In care/)).toHaveAttribute("aria-pressed", "true");
-      expect(shownNames()).toHaveLength(3);
-
-      fireEvent.click(statCard(/^Awaiting triage/));
-
-      expect(toggle).toHaveAttribute("aria-pressed", "true");
-    });
-
-    it("keeps the board as it is when the Incoming toggle finds an empty queue", async () => {
-      serveCases([buildCase({ patientName: "Milo", acuity: "critical", stage: "treatment" })]);
-      serveSummary(buildBoardSummary({ patientsInCare: 1, awaitingTriage: 0 }));
-      renderBoard();
-      await screen.findByRole("button", { name: "Milo" });
-
-      fireEvent.click(screen.getByRole("button", { name: "Incoming, 0 awaiting triage" }));
-
-      expect(screen.getByRole("status")).toHaveTextContent("No patients awaiting triage");
-      expect(screen.getByRole("button", { name: "Incoming, 0 awaiting triage" })).toHaveAttribute("aria-pressed", "false");
-      expect(shownNames()).toHaveLength(1);
     });
 
     it("loads the summary again when the server reports a case update", async () => {
