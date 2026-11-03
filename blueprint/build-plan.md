@@ -344,7 +344,7 @@ the future per-role protections in S.6/3.7 are already implemented.
 
 **Documented assessments and safety data**
 
-- [ ] **4.13b** `feature/documented-priority-summary` (phase 1, Patient Overview, after 4.3a): the Care Coordination card shows the staff-designated Next Care Action with its priority ("Not prioritized" when unset), its assignee or "Not assigned", and its state ("Overdue by 10 min" with a warning, "Due in 5 min", "Not scheduled"), or "No next action designated" with any legacy free-text note beneath as "Previously documented next-action note", styled as the prototype's Next care action block. Current location and care stage move to the patient header in 3.2c. Staff set priority and designate the Next Care Action in the Tasks and due items dialog, delivered by 4.3b. The overview card never shows the whole open-task list. A completed task does not imply clinical resolution.
+- [x] **4.13b** `feature/documented-priority-summary` (phase 1, Patient Overview, after 4.3a): the Care Coordination card shows the staff-designated Next Care Action with its priority ("Not prioritized" when unset), its assignee or "Not assigned", and its state ("Overdue by 10 min" with a warning, "Due in 5 min", "Not scheduled"), or "No next action designated" with any legacy free-text note beneath as "Previously documented next-action note", styled as the prototype's Next care action block. Current location and care stage move to the patient header in 3.2c. Staff set priority and designate the Next Care Action in the Tasks and due items dialog, delivered by 4.3b. The overview card never shows the whole open-task list. A completed task does not imply clinical resolution. Done (history/features/4.13b-documented-priority-summary.md).
 
 **Deferred task history**
 

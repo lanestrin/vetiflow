@@ -13,7 +13,7 @@ import { RecordVitalsDialog } from "../vitals/RecordVitalsDialog";
 import { CaseGoneError, FormRejectedError } from "../../services/apiErrors";
 import { getCase, setCaseTechnician, setCaseVeterinarian } from "../../services/casesApi";
 import type { DemoIdentity } from "../board/useDemoIdentity";
-import type { CaseDetail, VitalName } from "../../types/CaseDetail";
+import type { CaseDetail, TaskPriority, VitalName } from "../../types/CaseDetail";
 import type { PatientProfileRouteState } from "../../routes/PatientProfilePage";
 import { useToast } from "../shell/toastContext";
 import { allergySummary } from "./allergyStatus";
@@ -546,6 +546,9 @@ interface OverviewProps {
 
 type CareTeamRow = "technician" | "veterinarian";
 
+// Staff-set priority (4.13a), as Tasks and due items names it.
+const priorityLabels: Record<TaskPriority, string> = { urgent: "Urgent", high: "High", routine: "Routine" };
+
 const assignedMessages = {
   technician: "Assigned to you as primary technician",
   veterinarian: "Assigned to you as attending veterinarian"
@@ -576,6 +579,13 @@ function Overview({ detail, demoIdentity, onQuickEdit, onRecordVitals, onAssigne
     { field: "spO2", label: "SpO₂", value: vitals?.spO2 == null ? "Not recorded" : `${vitals.spO2}%` }
   ];
   const lastUpdate = detail.lastOwnerUpdateAt ? timeLabel(detail.lastOwnerUpdateAt, now) : "Not recorded";
+  // Only the task staff designated (4.13a); the software never picks one.
+  const designated = detail.nextActionTaskId === null
+    ? null
+    : detail.tasks.find(task => task.id === detail.nextActionTaskId) ?? null;
+  const isOverdue = designated?.dueAt != null && new Date(designated.dueAt).getTime() < now.getTime();
+  // The free text from before designation existed, never matched to a task.
+  const legacyNote = detail.nextAction?.trim() || null;
   // A discharged case is read-only, as for tasks.
   const canEdit = detail.dischargedAt === null;
   const nextUpdate = detail.nextClientUpdate
@@ -656,11 +666,38 @@ function Overview({ detail, demoIdentity, onQuickEdit, onRecordVitals, onAssigne
           </svg>
           Next care action
         </h3>
-        <p className={styles.actionValue}>{detail.nextAction?.trim() || "No next action documented"}</p>
-        <div className={styles.actionRow}>
-          <span>Responsible</span>
-          <strong>Not recorded</strong>
-        </div>
+        {designated
+          ? <>
+            <p className={styles.actionValue}>{designated.description}</p>
+            <div className={styles.actionRow}>
+              <span>Priority</span>
+              <strong data-role="next-action-priority">{designated.priority ? priorityLabels[designated.priority] : "Not prioritized"}</strong>
+            </div>
+            <div className={styles.actionRow}>
+              <span>Responsible</span>
+              <strong data-role="next-action-responsible">{designated.assignedTo?.name ?? "Not assigned"}</strong>
+            </div>
+            <div className={styles.actionRow}>
+              <span>Due</span>
+              <strong data-role="next-action-due" data-overdue={isOverdue || undefined} className={isOverdue ? styles.overdue : undefined}>
+                {isOverdue && (
+                  <svg className={styles.overdueIcon} viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M12 3 2 21h20L12 3Z" />
+                    <path d="M12 9v5m0 3h.01" />
+                  </svg>
+                )}
+                {dueLabel(designated.dueAt, now)}
+              </strong>
+            </div>
+          </>
+          : <>
+            <p className={styles.actionValue}>No next action designated</p>
+            {legacyNote && (
+              <p className={styles.legacyNote} data-role="previous-next-action-note">
+                <span>Previously documented next-action note:</span> {legacyNote}
+              </p>
+            )}
+          </>}
         <div className={styles.actionRow}>
           <span>Next reassessment</span>
           <div>
