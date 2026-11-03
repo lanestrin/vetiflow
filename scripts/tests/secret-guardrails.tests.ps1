@@ -218,6 +218,8 @@ exit 0
 	try {
 		$operations = @(
 			@{ Switch = '-Migrate'; Expected = @('ef', 'database', 'update', '--project', $fakeRoot) },
+			# -StartApp last: the launch-profile checks below read its run.
+			@{ Switch = '-ResetLocal'; Expected = @('ef', 'database', 'drop', '--force', '--project', $fakeRoot) },
 			@{ Switch = '-StartApp'; Expected = @('run', '--project', $fakeRoot, '--no-launch-profile') }
 		)
 		foreach ($operation in $operations) {
@@ -267,7 +269,7 @@ $parameters = @{ Dotnet = $Dotnet; ProjectDir = $ProjectDir; $Operation = $true 
 & $DbTarget @parameters | Out-Null
 @{ Exit = $LASTEXITCODE; Before = $before; After = @(Get-Snapshot) } | ConvertTo-Json | Set-Content $Log
 '@
-		foreach ($operation in 'Migrate', 'StartApp') {
+		foreach ($operation in 'Migrate', 'StartApp', 'ResetLocal') {
 			Remove-Item $fakeLog, $callerLog -ErrorAction SilentlyContinue
 			$result = Invoke-Captured $powershellExe "-NoProfile -ExecutionPolicy Bypass -File `"$caller`" -DbTarget `"$dbTarget`" -Dotnet `"$fakeDotnet`" -ProjectDir `"$callerProject`" -Operation $operation -Log `"$callerLog`"" '' @{ ASPNETCORE_ConnectionStrings__VetiFlowDatabase = 'Host=db.example.invalid'; ASPNETCORE_ENVIRONMENT = 'Production'; VETIFLOW_FAKE_DOTNET_LOG = $fakeLog }
 			$received = if (Test-Path $fakeLog) { Get-Content -Raw $fakeLog | ConvertFrom-Json }
@@ -278,6 +280,9 @@ $parameters = @{ Dotnet = $Dotnet; ProjectDir = $ProjectDir; $Operation = $true 
 
 		$result = Invoke-DbTarget "-Migrate -StartApp -Dotnet `"$fakeDotnet`"" @{ ConnectionStrings__VetiFlowDatabase = $localValue; VETIFLOW_FAKE_DOTNET_LOG = $fakeLog }
 		Assert-True ($result.ExitCode -eq 3) 'db-target refuses two operations at once'
+		Remove-Item $fakeLog -ErrorAction SilentlyContinue
+		$result = Invoke-DbTarget "-Migrate -ResetLocal -Dotnet `"$fakeDotnet`"" @{ ConnectionStrings__VetiFlowDatabase = $localValue; VETIFLOW_FAKE_DOTNET_LOG = $fakeLog }
+		Assert-True ($result.ExitCode -eq 3 -and -not (Test-Path $fakeLog)) 'db-target refuses -ResetLocal with another operation and runs nothing'
 	}
 	finally {
 		Remove-Item -Recurse -Force $fakeRoot

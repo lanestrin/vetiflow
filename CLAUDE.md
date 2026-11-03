@@ -17,7 +17,7 @@ These always apply, with or without a skill.
 - **Commit and push only through `/approve`**, which only the person runs. Otherwise leave changes in the working tree. Never merge, force-push or commit to `main`.
 - **One work item per branch.** Never build on `main`. Never mix two build-plan items in one branch.
 - **Spec before code.** Planned work starts with `/feature`, unplanned work with `/fix`. Wait for the person's OK on the spec; its status then becomes `approved`. The one exception: changes asked for in review of an open PR go on the same branch without a new spec (step 7 of the loop in `blueprint/context/ai-interaction.md`). Repair steps that `/ready` adds for blocking findings from an audit the person asked for fall under the approved spec and need no new OK; any other spec change does.
-- **Never run migrations against production.** Apply migrations only with `scripts/db-target.ps1 -Migrate` and start the app (which migrates on startup) only with `scripts/db-target.ps1 -StartApp`. They run the command only for a local database and bind it to the exact connection string they checked. A plain `scripts/db-target.ps1` check authorizes nothing, and never run `dotnet ef database update` or `dotnet run --project vetiflow.Server` directly.
+- **Never run migrations against production.** Apply migrations only with `scripts/db-target.ps1 -Migrate` and start the app (which migrates on startup) only with `scripts/db-target.ps1 -StartApp`. Reset the local database only with `scripts/db-target.ps1 -ResetLocal`, which deletes everything in it, and only when the person asks. They run the command only for a local database and bind it to the exact connection string they checked. A plain `scripts/db-target.ps1` check authorizes nothing, and never run `dotnet ef database update`, `dotnet ef database drop` or `dotnet run --project vetiflow.Server` directly.
 - **Never touch secret values.** Never read, edit, create, print or copy real `.env` files or their variants, and never run commands that list secret values (`dotnet user-secrets list`, `printenv`, `env`, `Get-ChildItem env:`), not even masked. Test protections only with harmless fixtures. `.claude/settings.json` denies these to Claude's tools and a hook blocks the usual spellings of the commands, but neither stops a script that reads files or variables itself, and on native Windows there is no sandbox (see the Safety section of `blueprint/context/ai-interaction.md`).
 - **Verify before saying done.** Run `scripts/verify.ps1` and report the real output. Never say a check passed without running it.
 - **Acuity changes only through `EmergencyCase.RecordTriage`.** Never assign `Acuity` directly.
@@ -84,6 +84,8 @@ dotnet tool restore   # installs the dotnet-ef pinned in .config/dotnet-tools.js
 dotnet ef migrations add <Name> --project vetiflow.Server
 dotnet ef migrations has-pending-model-changes --project vetiflow.Server
 powershell -ExecutionPolicy Bypass -File scripts/db-target.ps1 -Migrate
+# Start the local database over (deletes everything; the next -StartApp migrates and seeds)
+powershell -ExecutionPolicy Bypass -File scripts/db-target.ps1 -ResetLocal
 
 # Run the app (db-target checks the database is local, then starts it bound to that string)
 powershell -ExecutionPolicy Bypass -File scripts/db-target.ps1 -StartApp
