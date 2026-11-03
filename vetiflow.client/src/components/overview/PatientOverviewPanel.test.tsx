@@ -102,7 +102,8 @@ function renderPanel(
   refreshedAt = new Date(2026, 0, 1),
   onTriaged = vi.fn(),
   onTaskSaved = vi.fn(),
-  onVitalsSaved = vi.fn()
+  onVitalsSaved = vi.fn(),
+  onClose = vi.fn()
 ) {
   const panel = (id: string | null, refreshed: Date) => (
     <MemoryRouter initialEntries={["/er"]}>
@@ -110,7 +111,7 @@ function renderPanel(
         <Routes>
           <Route
             path="/er"
-            element={<PatientOverviewPanel caseId={id} signedInUser={signedInUser} refreshedAt={refreshed} onTriaged={onTriaged} onTaskSaved={onTaskSaved} onVitalsSaved={onVitalsSaved} />}
+            element={<PatientOverviewPanel caseId={id} signedInUser={signedInUser} refreshedAt={refreshed} onTriaged={onTriaged} onTaskSaved={onTaskSaved} onVitalsSaved={onVitalsSaved} onClose={onClose} />}
           />
           <Route path="/records/:patientId" element={<ProfileStub />} />
           <Route path="/sign-in" element={<p>Sign-in page</p>} />
@@ -1049,6 +1050,78 @@ describe("patient record header", () => {
 
     expect(details).toHaveAttribute("open");
     expect(within(details).getByText((_, element) => element?.tagName === "SUMMARY")).toHaveFocus();
+  });
+
+  it("shows the compact header: name, acuity, More actions and the case reference in the meta line", async () => {
+    serveCase(buildMilo());
+    renderPanel("case-milo");
+
+    const name = await screen.findByRole("heading", { level: 3, name: "Milo" });
+    const acuity = screen.getByRole("button", { name: "Change acuity, currently Critical" });
+    const moreActions = screen.getByRole("button", { name: "More actions" });
+    const close = screen.getByRole("button", { name: "Back to patient board" });
+    for (const [first, second] of [[name, acuity], [acuity, moreActions], [moreActions, close]]) {
+      expect(first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    }
+    expect(screen.getByText(/^Dog · Golden Retriever/)).toHaveTextContent(/31\.4 kg Case ER-2481·Checked in 10:42 AM$/);
+  });
+
+  it("keeps the panel named Patient record and shows the heading only without a patient", async () => {
+    serveCase(buildMilo());
+    const view = renderPanel("case-milo");
+
+    await screen.findByRole("heading", { level: 3, name: "Milo" });
+    expect(screen.getByRole("complementary", { name: "Patient record" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 2, name: "Patient record" }).className).toMatch(/visuallyHidden/);
+    view.rerender(null, new Date());
+    expect(screen.getByRole("heading", { level: 2, name: "Patient record" }).className).not.toMatch(/visuallyHidden/);
+  });
+
+  it("opens triage from the acuity button and returns focus to it", async () => {
+    serveCase(buildMilo());
+    renderPanel("case-milo");
+
+    const acuity = await screen.findByRole("button", { name: "Change acuity, currently Critical" });
+    fireEvent.click(acuity);
+    const dialog = screen.getByRole("dialog", { name: "Re-triage" });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+
+    await waitFor(() => expect(acuity).toHaveFocus());
+  });
+
+  it("opens Complete triage from the acuity button on an incoming case", async () => {
+    serveCase(buildMilo({ stage: "incoming" }));
+    renderPanel("case-milo");
+
+    fireEvent.click(await screen.findByRole("button", { name: "Change acuity, currently Critical · provisional" }));
+
+    expect(screen.getByRole("dialog", { name: "Complete triage" })).toBeInTheDocument();
+  });
+
+  it("shows acuity as plain text on a discharged case", async () => {
+    serveCase(buildMilo({ dischargedAt: at(11, 0) }));
+    renderPanel("case-milo");
+
+    await screen.findByRole("heading", { level: 3, name: "Milo" });
+    expect(screen.queryByRole("button", { name: /^Change acuity/ })).not.toBeInTheDocument();
+    expect(screen.getByText("Critical")).toBeInTheDocument();
+  });
+
+  it("asks to close from the Back to patient board button", async () => {
+    serveCase(buildMilo());
+    const onClose = vi.fn();
+    render(
+      <MemoryRouter>
+        <ToastProvider>
+          <PatientOverviewPanel caseId="case-milo" signedInUser={signedInUser} refreshedAt={new Date()} onTriaged={vi.fn()}
+            onTaskSaved={vi.fn()} onVitalsSaved={vi.fn()} onClose={onClose} />
+        </ToastProvider>
+      </MemoryRouter>
+    );
+
+    fireEvent.click(await screen.findByRole("button", { name: "Back to patient board" }));
+
+    expect(onClose).toHaveBeenCalledOnce();
   });
 
   it("shows care stage and location as plain text on a discharged case", async () => {

@@ -76,3 +76,10 @@
 		opacity: .6;
 	}
 }
+
+// Touch-sized in the record header below the side-by-side layout (3.2f).
+@media (max-width: 1050px) {
+	.toggle {
+		min-height: 44px;
+	}
+}

@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useId, useRef, useState, type KeyboardEvent, type RefObject } from "react";
+import { useCallback, useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode, type RefObject } from "react";
 import { Link } from "react-router-dom";
 import { useLeaveWhenRefused } from "../auth/useLeaveWhenRefused";
 import { AcuityBadge } from "../clinical/AcuityBadge";
+import { acuityBadgeLabel } from "../clinical/acuityBadgeLabel";
 import { stageLabel } from "../board/boardFormat";
 import { useNow } from "../board/useNow";
 import { AddTaskDialog } from "../tasks/AddTaskDialog";
@@ -30,7 +31,6 @@ import {
   lastUpdatedLabel,
   locationLabel,
   longAgeLabel,
-  speciesKind,
   temperatureLabel,
   timeLabel,
   weightLabel
@@ -57,6 +57,8 @@ interface PatientOverviewPanelProps {
   onTaskSaved: () => void;
   // Reload the board after recording vitals or finding this case unavailable.
   onVitalsSaved: () => void;
+  // The close ✕: the owner clears the selection (3.2f).
+  onClose: () => void;
 }
 
 type TaskDialogKind = "addTask" | DueItemType;
@@ -72,15 +74,13 @@ const recordTabs: { key: RecordTab; label: string }[] = [
   { key: "timeline", label: "Timeline" }
 ];
 
-const avatars = { dog: "🐕", cat: "🐈", other: "🐾" };
+// The prototype's patient record (build plan 3.2b, 3.2c, 3.2f) for the case
+// selected on the board: a compact header with who the patient is, their
+// acuity, care stage, location and allergies, above the Overview, Clinical,
+// Orders & Medications and Timeline tabs. The acuity button, Complete triage
+// and Re-triage open the triage dialog (4.2b).
 
-// The prototype's patient record (build plan 3.2b, 3.2c) for the case selected
-// on the board: a fixed header with who the patient is, their acuity, care
-// stage, location and allergies, above the Overview, Clinical, Orders &
-// Medications and Timeline tabs. Complete triage and Re-triage open the triage
-// dialog (4.2b).
-
-export function PatientOverviewPanel({ caseId, caseUnavailable = false, signedInUser, refreshedAt, onTriaged, onTaskSaved, onVitalsSaved }: PatientOverviewPanelProps) {
+export function PatientOverviewPanel({ caseId, caseUnavailable = false, signedInUser, refreshedAt, onTriaged, onTaskSaved, onVitalsSaved, onClose }: PatientOverviewPanelProps) {
   const titleId = useId();
   const leaveWhenRefused = useLeaveWhenRefused();
   const nameRef = useRef<HTMLHeadingElement>(null);
@@ -167,6 +167,13 @@ export function PatientOverviewPanel({ caseId, caseUnavailable = false, signedIn
     else setQuickEdit(kind);
   }
 
+  function openTriage(trigger: HTMLButtonElement | null) {
+    if (!detail) return;
+    returnFocusRef.current = trigger;
+    setEditingCase(detail);
+    setIsTriaging(true);
+  }
+
   function quickEditSaved(message: string) {
     // Closed here as well as by the dialog's close event (as triage).
     setQuickEdit(null);
@@ -178,20 +185,29 @@ export function PatientOverviewPanel({ caseId, caseUnavailable = false, signedIn
 
   return (
     <aside className={styles.panel} aria-labelledby={titleId} aria-busy={caseId !== null && result === null}>
-      {/* Stays at the top while the tab content scrolls (3.2c). */}
-      <div className={styles.fixedTop}>
-        <header className={styles.head}>
-          <div>
+      {/* With a patient shown, the compact header carries the name and the
+          heading only names the panel (3.2f). */}
+      {detail
+        ? <h2 ref={headingRef} tabIndex={-1} id={titleId} className={styles.visuallyHidden}>Patient record</h2>
+        : (
+          <header className={styles.head}>
             <h2 ref={headingRef} tabIndex={-1} id={titleId} className={styles.title}>Patient record</h2>
-            {detail && <CaseLine detail={detail} />}
-          </div>
-          {detail && (
+          </header>
+        )}
+      {detail && (
+        <PatientHeader
+          detail={detail}
+          nameRef={nameRef}
+          onQuickEdit={openQuickEdit}
+          onTriage={openTriage}
+          onShowAllergies={() => { setTab("clinical"); setShowAllergies(true); }}
+          actions={<>
             <MoreActionsMenu
               actionButtonRef={moreActionsRef}
               actions={[
                 {
                   label: detail.stage === "incoming" ? "Complete triage" : "Re-triage",
-                  onSelect: () => { setEditingCase(detail); setIsTriaging(true); }
+                  onSelect: () => openTriage(moreActionsRef.current)
                 },
                 { label: "Update status", onSelect: () => { returnFocusRef.current = moreActionsRef.current; setEditingCase(detail); setIsUpdatingStatus(true); } },
                 { label: "Tasks and due items", onSelect: () => setIsTaskReviewOpen(true) },
@@ -209,12 +225,14 @@ export function PatientOverviewPanel({ caseId, caseUnavailable = false, signedIn
                 }
               ]}
             />
-          )}
-        </header>
-        {detail && <PatientHeader detail={detail} nameRef={nameRef} onQuickEdit={openQuickEdit}
-          onShowAllergies={() => { setTab("clinical"); setShowAllergies(true); }} />}
-        {detail && <RecordTabs idBase={titleId} tab={tab} onChange={setTab} />}
-      </div>
+            <button type="button" className={styles.close} aria-label="Back to patient board" title="Back to patient board"
+              onClick={onClose}>
+              <span aria-hidden="true">✕</span>
+            </button>
+          </>}
+        />
+      )}
+      {detail && <RecordTabs idBase={titleId} tab={tab} onChange={setTab} />}
 
       {caseId === null && (
         <p className={styles.message}>Select a patient on the board to see their overview.</p>
@@ -271,7 +289,7 @@ export function PatientOverviewPanel({ caseId, caseUnavailable = false, signedIn
           detail={draftDetail}
           onClose={() => {
             setIsTriaging(false);
-            moreActionsRef.current?.focus();
+            returnFocus();
           }}
           onSaved={(message) => {
             // Closed here as well as by the dialog's close event, which the
@@ -368,15 +386,15 @@ export function PatientOverviewPanel({ caseId, caseUnavailable = false, signedIn
   );
 }
 
-function CaseLine({ detail }: { detail: CaseDetail }) {
-  const now = useNow();
-
+// The prototype's .case-reference, inline at the end of the meta line. The
+// check-in time stays: recorded detail is never dropped for a mockup (3.2f).
+function CaseReference({ detail, now }: { detail: CaseDetail; now: Date }) {
   return (
-    <p className={styles.caseLine}>
+    <span className={styles.caseReference}>
       Case {detail.caseNumber}
       <span className={styles.separator} aria-hidden="true">·</span>
       {checkInLabel(detail.arrivalTime, now)}
-    </p>
+    </span>
   );
 }
 
@@ -398,17 +416,20 @@ interface PatientHeaderProps {
   detail: CaseDetail;
   nameRef: RefObject<HTMLHeadingElement | null>;
   onQuickEdit: (kind: QuickEdit, trigger: HTMLButtonElement) => void;
+  onTriage: (trigger: HTMLButtonElement) => void;
   onShowAllergies: () => void;
+  // More actions and the close ✕, at the end of the top row.
+  actions: ReactNode;
 }
 
-// The prototype's .patient-sticky: identity, acuity, care stage, location and
-// allergies stay in view on every tab (product rules section 4). Stage and
-// location open their small edit dialogs (Patient header quick edits), and
-// allergies open Allergy details on the Clinical tab (3.2e).
-function PatientHeader({ detail, nameRef, onQuickEdit, onShowAllergies }: PatientHeaderProps) {
+// The prototype's compact .patient-sticky (3.2f): identity, acuity, care
+// stage, location and allergies above every tab (product rules section 4).
+// Acuity opens triage, stage and location their small edit dialogs (Patient
+// header quick edits), and allergies Allergy details on Clinical (3.2e).
+function PatientHeader({ detail, nameRef, onQuickEdit, onTriage, onShowAllergies, actions }: PatientHeaderProps) {
   const now = useNow();
   const { patient } = detail;
-  const kind = speciesKind(patient.species);
+  const isProvisional = detail.stage === "incoming";
   const meta = [patient.species, patient.breed, longAgeLabel(patient.dateOfBirth, now), weightLabel(detail.weightKg)]
     .filter(Boolean)
     .join(" · ");
@@ -421,16 +442,21 @@ function PatientHeader({ detail, nameRef, onQuickEdit, onShowAllergies }: Patien
 
   return (
     <div className={styles.patientHeader}>
-      <div className={styles.hero}>
-        <span className={styles.avatar} data-species={kind} aria-hidden="true">{avatars[kind]}</span>
-        <div className={styles.identity}>
+      <div className={styles.topRow}>
+        <div className={styles.nameLine}>
           <h3 ref={nameRef} className={styles.name} tabIndex={-1}>{patient.name}</h3>
-          <p className={styles.meta}>{meta}</p>
+          {canEdit ? (
+            <button type="button" className={styles.acuityEdit}
+              aria-label={`Change acuity, currently ${acuityBadgeLabel(detail.acuity, isProvisional)}`}
+              onClick={event => onTriage(event.currentTarget)}>
+              <AcuityBadge acuity={detail.acuity} isProvisional={isProvisional} />
+              <span className={styles.chevron} aria-hidden="true">⌄</span>
+            </button>
+          ) : <AcuityBadge acuity={detail.acuity} isProvisional={isProvisional} />}
         </div>
-        <span className={styles.badge}>
-          <AcuityBadge acuity={detail.acuity} isProvisional={detail.stage === "incoming"} />
-        </span>
+        <div className={styles.topActions}>{actions}</div>
       </div>
+      <p className={styles.meta}>{meta} <CaseReference detail={detail} now={now} /></p>
       <div className={styles.quickFields}>
         {fields.map(field => canEdit ? (
           <button key={field.kind} type="button" className={styles.quickField}
@@ -438,6 +464,7 @@ function PatientHeader({ detail, nameRef, onQuickEdit, onShowAllergies }: Patien
             onClick={event => onQuickEdit(field.kind, event.currentTarget)}>
             <span className={styles.quickFieldLabel}>{field.label}</span>
             <span className={styles.quickFieldValue}>{field.value}</span>
+            <span className={styles.chevron} aria-hidden="true">⌄</span>
           </button>
         ) : (
           <p key={field.kind} className={styles.quickField}>

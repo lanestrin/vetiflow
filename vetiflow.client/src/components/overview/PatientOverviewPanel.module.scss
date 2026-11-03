@@ -1,5 +1,5 @@
-// The prototype's .detail-panel. Beside the board it stays in view and scrolls
-// on its own, so the patient header above the tabs stays fixed (3.2c).
+// The prototype's .detail-panel. It scrolls with the page, so the page is the
+// only scrolling surface (Record panel and page header decision, 3.2f).
 .panel {
 	overflow-wrap: anywhere;
 	border: 1px solid var(--color-shell-line);
@@ -31,10 +31,22 @@
 	}
 }
 
-.caseLine {
-	margin: 4px 0 0;
-	color: var(--color-shell-muted);
-	font-size: .75rem;
+// The prototype's .case-reference: muted, inline at the end of the meta line.
+.caseReference {
+	margin-left: 6px;
+	color: #85979d;
+	font-size: .6875rem;
+	white-space: nowrap;
+}
+
+// With a patient shown, the heading only names the panel (3.2f).
+.visuallyHidden {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
 }
 
 .separator {
@@ -69,95 +81,128 @@
 	}
 }
 
-@media (min-width: 1051px) {
-	.panel {
-		position: sticky;
-		top: var(--space-4);
-		max-height: calc(100dvh - 2 * var(--space-4));
-		overflow-y: auto;
-		overscroll-behavior: contain;
-	}
-
-	.fixedTop {
-		position: sticky;
-		top: 0;
-		z-index: 1;
-		background: var(--color-surface);
-	}
-}
-
 // The prototype's .patient-sticky: who, how urgent, where and allergies.
 .patientHeader {
-	padding: 0 19px 12px;
+	padding: 16px 18px 0;
 }
 
-.hero {
+// The prototype's .compact-patient-top: name and acuity, then More actions
+// and the close ✕.
+.topRow {
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
-	gap: 12px;
-	padding: 15px 0 12px;
+	justify-content: space-between;
+	gap: 8px;
 }
 
-.avatar {
-	display: grid;
-	flex: none;
-	place-items: center;
-	width: 49px;
-	height: 49px;
-	border-radius: 14px;
-	background: #edf3f4;
-	font-size: 1.5625rem;
-
-	&[data-species="dog"] {
-		background: #fff0e5;
-	}
-}
-
-.identity {
-	flex: 1 1 8rem;
+.nameLine {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 10px;
 	min-width: 0;
 }
 
 .name {
 	margin: 0;
 	outline: 0;
-	font-size: 1.25rem;
+	font-size: 1.375rem;
 	font-weight: 700;
-	letter-spacing: -.3px;
+	line-height: 1.2;
+	letter-spacing: -.5px;
+}
+
+.topActions {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	margin-left: auto;
+}
+
+// The prototype's .acuity-edit: the badge with a ⌄, opening triage.
+.acuityEdit {
+	display: inline-flex;
+	align-items: center;
+	gap: 3px;
+	min-height: 30px;
+	padding: 2px 4px;
+	border: 0;
+	border-radius: 8px;
+	background: transparent;
+	font: inherit;
+	cursor: pointer;
+
+	&:hover {
+		background: #f0faf7;
+	}
+
+	&:focus-visible {
+		outline: var(--focus-outline-width) solid var(--color-focus-on-light);
+		outline-offset: 2px;
+	}
+}
+
+.chevron {
+	flex-shrink: 0;
+	margin-left: auto;
+	color: var(--color-shell-muted);
+	font-size: .75rem;
+}
+
+// The prototype's #close-detail.
+.close {
+	display: grid;
+	place-items: center;
+	width: 36px;
+	height: 36px;
+	padding: 0;
+	border: 1px solid transparent;
+	border-radius: 8px;
+	background: transparent;
+	color: var(--color-shell-muted);
+	font: inherit;
+	font-size: 1rem;
+	cursor: pointer;
+
+	&:hover {
+		background: #eaf3f2;
+		color: var(--color-care-teal);
+	}
+
+	&:focus-visible {
+		outline: var(--focus-outline-width) solid var(--color-focus-on-light);
+		outline-offset: 2px;
+	}
 }
 
 .meta {
 	margin: 4px 0 0;
 	color: var(--color-shell-muted);
-	font-size: .8125rem;
-}
-
-.badge {
-	flex: none;
-	margin-left: auto;
+	font-size: .75rem;
+	line-height: 1.5;
 }
 
 // Care stage and location, each opening its small edit dialog (4.3b).
 .quickFields {
 	display: grid;
 	grid-template-columns: repeat(2, minmax(0, 1fr));
-	gap: 8px;
-	margin: 0 0 10px;
+	gap: 6px;
+	margin: 10px 0 7px;
 }
 
+// The prototype's .quick-edit-button: label, value and ⌄ on one line.
 .quickField {
 	display: flex;
-	flex-direction: column;
-	align-items: flex-start;
-	gap: 2px;
+	align-items: center;
+	gap: 5px;
 	min-width: 0;
-	min-height: 2.75rem;
+	min-height: 34px;
 	margin: 0;
-	padding: 7px 10px;
-	border: 1px solid var(--color-shell-line);
+	padding: 7px 8px;
+	border: 1px solid #e0e8e8;
 	border-radius: 8px;
-	background: var(--color-surface);
+	background: #fafcfc;
 	color: var(--color-shell-ink);
 	font: inherit;
 	text-align: left;
@@ -178,12 +223,14 @@
 }
 
 .quickFieldLabel {
+	flex-shrink: 0;
 	color: var(--color-shell-muted);
 	font-size: .6875rem;
 }
 
 .quickFieldValue {
-	font-size: .8125rem;
+	min-width: 0;
+	font-size: .75rem;
 	font-weight: 700;
 	overflow-wrap: anywhere;
 }
@@ -192,14 +239,15 @@
 .allergyLine {
 	display: block;
 	width: 100%;
-	margin: 0;
-	padding: 6px 9px;
+	margin: 0 0 3px;
+	padding: 5px 7px;
 	border: 0;
 	border-radius: 6px;
 	background: var(--color-shell-field);
 	color: var(--color-text-secondary);
 	font: inherit;
-	font-size: .75rem;
+	font-size: .6875rem;
+	line-height: 1.4;
 	text-align: left;
 	cursor: pointer;
 
@@ -226,20 +274,20 @@
 .tabs {
 	display: grid;
 	grid-template-columns: repeat(4, minmax(0, 1fr));
-	gap: 4px;
-	padding: 0 19px;
+	gap: 5px;
+	padding: 0 18px;
 	border-bottom: 1px solid var(--color-shell-line);
 }
 
 .tab {
-	min-height: 2.75rem;
-	padding: 8px 2px;
+	min-height: 40px;
+	padding: 8px 2px 9px;
 	border: 0;
 	border-bottom: 3px solid transparent;
 	background: none;
 	color: var(--color-shell-muted);
 	font: inherit;
-	font-size: .8125rem;
+	font-size: .75rem;
 	font-weight: 700;
 	line-height: 1.25;
 	cursor: pointer;
@@ -669,23 +717,18 @@
 	}
 }
 
-@media (max-width: 380px) {
-	.hero {
-		display: grid;
-		grid-template-columns: 49px minmax(0, 1fr);
-		align-items: start;
+// Touch-sized header controls where the board and record no longer sit side by
+// side (3.2f).
+@media (max-width: 1050px) {
+	.acuityEdit,
+	.quickField,
+	.allergyLine,
+	.tab {
+		min-height: 44px;
 	}
 
-	.identity {
-		grid-column: 2;
-		grid-row: 1;
+	.close {
+		width: 44px;
+		height: 44px;
 	}
-
-	.badge {
-		grid-column: 2;
-		grid-row: 2;
-		justify-self: start;
-		margin-left: 0;
-	}
-
 }

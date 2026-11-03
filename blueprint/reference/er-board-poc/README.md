@@ -1,4 +1,4 @@
-# ER board prototype (2026-11-02)
+# ER board prototype (2026-11-02, revised the same day)
 
 The current source for the ER board, the patient record and the shared
 veterinarian / technician model. It replaces the earlier `patient-overview/`,
@@ -13,7 +13,18 @@ veterinarian / technician model. It replaces the earlier `patient-overview/`,
 - [VetiFlow-ER-Prototype.html](VetiFlow-ER-Prototype.html): a standalone
   browser prototype with fictional data. It guides visual hierarchy and the
   shared patient record; it is not a pixel-exact design, and its demo values,
-  browser storage and JavaScript role guards are not requirements.
+  browser storage and JavaScript role guards are not requirements. Replaced
+  2026-11-02 by the designer's revision: one scrolling surface for the record,
+  the compact patient header and the compact page header. Its sort was
+  corrected to **Time in stage ↓** before it became the reference (Board sort
+  decision).
+- [header.png](header.png): the designer's compact page header, added
+  2026-11-02. The heading and the shift / New intake layout are built in
+  2.26b; the demo-role row in 2.28. Its bell and signed-in user stay in the
+  app's top bar instead (Record panel and page header decision).
+- [record-header.png](record-header.png): the compact patient record header, captured
+  from the HTML's `.patient-sticky` at 1440 px on 2026-11-02 (3.2f), since the
+  designer supplied no screenshot of it.
 - Screenshots of the prototype's patient record, added 2026-11-02 by the
   person. Every patient record component is built and checked against them as
   well as the HTML:
@@ -33,7 +44,9 @@ and compared with the screenshot and HTML before the work is reported.
 
 1. The person's decisions in [build-plan.md](../../build-plan.md) (Decisions),
    including the 2026-11-02 Board layout, Patient header quick edits, Demo role
-   switch, Navigation and Assignment order decisions.
+   switch, Navigation, Assignment order, Board sort and Record panel and page
+   header decisions. Where the prototype conflicts with a decision, the
+   decision wins.
 2. `VetiFlow-Product-Rules.md`.
 3. `VetiFlow-ER-Prototype.html`.
 
@@ -46,6 +59,7 @@ six navigation destinations and its server-side checks.
 | --- | --- |
 | Board table on desktop, cards on phones (3) | 2.25 |
 | Patient header, four tabs, stage and location buttons (4) | 3.2c |
+| One scrolling record surface, compact patient header, close ✕ | 3.2f |
 | Overview tab order: vitals, next care action, care team & safety, complaint, save state (4) | 3.2d, with 4.13b for the Next care action |
 | Compact summary strip, All / My patients, search, Unassigned, filters, time-in-stage sort within the fixed acuity order (2, 3; Board sort decision) | 2.26 |
 | Desktop / tablet drawer / phone layouts, bottom bar (14) | 2.27 |

@@ -113,6 +113,61 @@ it("guards patient selection and retains the draft on board failure or departure
   expect(screen.queryByText("Select a patient on the board to see their overview.")).not.toBeInTheDocument();
 });
 
+// The record's close ✕ (build plan 3.2f).
+describe("closing the patient record", () => {
+  function serveBoard() {
+    serveCases([
+      buildCase({ id: "case-buddy", patientName: "Buddy", acuity: "critical" }),
+      buildCase({ id: "case-max", patientName: "Max", acuity: "stable" })
+    ]);
+    server.use(http.get(apiUrl("/api/cases/case-buddy"), () => HttpResponse.json(buildCaseDetail({ id: "case-buddy", acuity: "urgent" }))));
+  }
+
+  it("closes the record and returns focus to the patient on the board", async () => {
+    serveBoard();
+    renderBoard();
+    fireEvent.click(await screen.findByRole("button", { name: "Buddy" }));
+
+    fireEvent.click(await screen.findByRole("button", { name: "Back to patient board" }));
+
+    expect(await screen.findByText("Select a patient on the board to see their overview.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Buddy" })).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByRole("button", { name: "Buddy" })).toHaveFocus();
+  });
+
+  it("keeps the board filter when the record closes", async () => {
+    serveBoard();
+    renderBoard();
+    await findBoard();
+    fireEvent.click(statCard(/^Critical,/));
+    const shownBefore = shownNames();
+    expect(shownBefore).toEqual(["Buddy"]);
+    fireEvent.click(await screen.findByRole("button", { name: "Buddy" }));
+
+    fireEvent.click(await screen.findByRole("button", { name: "Back to patient board" }));
+
+    await screen.findByText("Select a patient on the board to see their overview.");
+    expect(statCard(/^Critical,/)).toHaveAttribute("aria-pressed", "true");
+    expect(shownNames()).toEqual(shownBefore);
+  });
+
+  it("asks before closing when a draft is open", async () => {
+    serveBoard();
+    renderBoard();
+    fireEvent.click(await screen.findByRole("button", { name: "Buddy" }));
+    fireEvent.click(await screen.findByRole("button", { name: "More actions" }));
+    fireEvent.click(screen.getByRole("button", { name: "Re-triage" }));
+    fireEvent.change(within(screen.getByRole("dialog", { name: "Re-triage" })).getByLabelText("Triage notes"),
+      { target: { value: "Unsaved notes" } });
+
+    fireEvent.click(screen.getByRole("button", { name: "Back to patient board" }));
+    fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
+
+    expect(screen.getByRole("button", { name: "Buddy" })).toHaveAttribute("aria-pressed", "true");
+    expect(within(screen.getByRole("dialog", { name: "Re-triage" })).getByLabelText("Triage notes")).toHaveValue("Unsaved notes");
+  });
+});
+
 describe("ErBoardPage", () => {
   // "Sends the person to sign in when the session has ended" was removed: it
   // timed out in full Verify runs. Build plan 7.9 restores it.
