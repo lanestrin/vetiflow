@@ -230,10 +230,10 @@ describe("PatientFlowBoard", () => {
       expect(scope.getByRole("button", { name: "All patients 4" })).toHaveAttribute("aria-pressed", "true");
     });
 
-    it("keeps My patients focusable and unavailable until 2.28", () => {
+    it("keeps My patients focusable and unavailable without a demo identity", () => {
       showBoard();
       const myPatients = screen.getByRole("button", { name: "My patients" });
-      const reason = "Available when the demo role switch is built (2.28).";
+      const reason = "Available with the demo role switch on the ER board (2.28).";
 
       expect(myPatients).toHaveAttribute("aria-disabled", "true");
       expect(myPatients).not.toBeDisabled();

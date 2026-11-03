@@ -2,6 +2,7 @@ import { useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import type { SignedInUser } from "../../types/Auth";
 import { useMediaQuery } from "../auth/useMediaQuery";
+import { DemoRoleProvider } from "./DemoRoleProvider";
 import { MoreMenu } from "./MoreMenu";
 import { ProfileMenu } from "./ProfileMenu";
 import { ShellSearchContext, type ShellSearch } from "./shellSearchContext";
@@ -81,7 +82,9 @@ export function AppShell({ user, children }: AppShellProps) {
         </nav>
         <div className={styles.main}>
           <TopBar user={user} search={search} onSearchChange={setSearch} />
-          <ShellSearchContext value={shellSearch}>{children}</ShellSearchContext>
+          <ShellSearchContext value={shellSearch}>
+            <DemoRoleProvider>{children}</DemoRoleProvider>
+          </ShellSearchContext>
         </div>
       </div>
     </ToastProvider>

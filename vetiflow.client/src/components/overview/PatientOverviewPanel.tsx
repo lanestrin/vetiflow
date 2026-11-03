@@ -12,7 +12,7 @@ import { UpdateStatusDialog } from "../status/UpdateStatusDialog";
 import { RecordVitalsDialog } from "../vitals/RecordVitalsDialog";
 import { CaseGoneError, FormRejectedError } from "../../services/apiErrors";
 import { getCase, setCaseTechnician, setCaseVeterinarian } from "../../services/casesApi";
-import type { SignedInUser } from "../../types/Auth";
+import type { DemoIdentity } from "../board/useDemoIdentity";
 import type { CaseDetail, VitalName } from "../../types/CaseDetail";
 import type { PatientProfileRouteState } from "../../routes/PatientProfilePage";
 import { useToast } from "../shell/toastContext";
@@ -45,8 +45,8 @@ type LoadResult =
 interface PatientOverviewPanelProps {
   caseId: string | null;
   caseUnavailable?: boolean;
-  // Who "Assign me" assigns (3.2d).
-  signedInUser: SignedInUser;
+  // Who "Assign me" assigns (3.2d): the demo role's person (2.28).
+  demoIdentity: DemoIdentity;
   // When the board last loaded; a change loads the shown case again.
   refreshedAt: Date;
   // After triage is saved, with the toast to show; the board reloads.
@@ -80,7 +80,7 @@ const recordTabs: { key: RecordTab; label: string }[] = [
 // Orders & Medications and Timeline tabs. The acuity button, Complete triage
 // and Re-triage open the triage dialog (4.2b).
 
-export function PatientOverviewPanel({ caseId, caseUnavailable = false, signedInUser, refreshedAt, onTriaged, onTaskSaved, onVitalsSaved, onClose }: PatientOverviewPanelProps) {
+export function PatientOverviewPanel({ caseId, caseUnavailable = false, demoIdentity, refreshedAt, onTriaged, onTaskSaved, onVitalsSaved, onClose }: PatientOverviewPanelProps) {
   const titleId = useId();
   const leaveWhenRefused = useLeaveWhenRefused();
   const nameRef = useRef<HTMLHeadingElement>(null);
@@ -259,7 +259,7 @@ export function PatientOverviewPanel({ caseId, caseUnavailable = false, signedIn
             <Overview
               key={detail.id}
               detail={detail}
-              signedInUser={signedInUser}
+              demoIdentity={demoIdentity}
               onQuickEdit={openQuickEdit}
               onRecordVitals={trigger => { returnFocusRef.current = trigger; setVitalsDialogCase(detail); }}
               onAssigned={message => {
@@ -341,6 +341,7 @@ export function PatientOverviewPanel({ caseId, caseUnavailable = false, signedIn
           }}
           onSaved={quickEditSaved}
           onPartlySaved={onTaskSaved}
+          canChangeVeterinarian={demoIdentity.role === "veterinarian"}
         />
       )}
       {draftDetail && taskDialog !== null && (
@@ -537,7 +538,7 @@ function RecordTabs({ idBase, tab, onChange }: RecordTabsProps) {
 
 interface OverviewProps {
   detail: CaseDetail;
-  signedInUser: SignedInUser;
+  demoIdentity: DemoIdentity;
   onQuickEdit: (kind: QuickEdit, trigger: HTMLButtonElement) => void;
   onRecordVitals: (trigger: HTMLButtonElement) => void;
   onAssigned: (message: string) => void;
@@ -550,19 +551,16 @@ const assignedMessages = {
   veterinarian: "Assigned to you as attending veterinarian"
 } satisfies Record<CareTeamRow, string>;
 
-// The row "Assign me" belongs on for the signed-in team member's role (3.2d).
-// It shapes the screen only; the server checks the role (S.6).
-function assignableRow(user: SignedInUser): CareTeamRow | null {
-  if (user.staffId === null) return null;
-  if (user.role === "technician") return "technician";
-  if (user.role === "veterinarian") return "veterinarian";
-  return null;
+// The row "Assign me" belongs on for the demo role (3.2d, 2.28). It shapes
+// the screen only; real permissions are the server's (S.6).
+function assignableRow(identity: DemoIdentity): CareTeamRow | null {
+  return identity.staffId === null ? null : identity.role;
 }
 
 // The prototype's Overview order (3.2d): latest vitals, the next care action,
 // care team and safety, the presenting complaint, then when the case was last
 // updated and by whom.
-function Overview({ detail, signedInUser, onQuickEdit, onRecordVitals, onAssigned }: OverviewProps) {
+function Overview({ detail, demoIdentity, onQuickEdit, onRecordVitals, onAssigned }: OverviewProps) {
   const now = useNow();
   const leaveWhenRefused = useLeaveWhenRefused();
   const editCareTeamRef = useRef<HTMLButtonElement>(null);
@@ -584,11 +582,11 @@ function Overview({ detail, signedInUser, onQuickEdit, onRecordVitals, onAssigne
     ? `${detail.nextClientUpdate.description} · ${dueLabel(detail.nextClientUpdate.dueAt, now)}`
     : "Not scheduled";
   const assigned = { technician: detail.assignedTechnician, veterinarian: detail.assignedDoctor };
-  const myRow = assignableRow(signedInUser);
-  const canAssignMe = canEdit && myRow !== null && assigned[myRow]?.id !== signedInUser.staffId;
+  const myRow = assignableRow(demoIdentity);
+  const canAssignMe = canEdit && myRow !== null && assigned[myRow]?.id !== demoIdentity.staffId;
 
   async function assignMe(row: CareTeamRow) {
-    const staffId = signedInUser.staffId;
+    const staffId = demoIdentity.staffId;
     if (staffId === null) return;
     setIsAssigning(true);
     setAssignError(null);

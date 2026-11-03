@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import type { AcuityLevel, EmergencyCaseListItem } from "../../types/EmergencyCaseListItem";
+import type { DemoIdentity } from "./useDemoIdentity";
 import type { BoardFilter } from "./BoardStats";
 import { BoardFilterMenu } from "./BoardFilterMenu";
 import {
@@ -33,6 +34,8 @@ interface PatientFlowBoardProps {
   // After the record closes, focus that patient's name without scrolling, or
   // the board's heading when the patient is no longer listed (3.2f).
   focusRequest?: { caseId: string } | null;
+  // Whose patients My patients shows (2.28); unavailable when not given.
+  demoIdentity?: DemoIdentity;
 }
 
 // The API's acuity order: cases not triaged (old data only), then Critical,
@@ -45,22 +48,38 @@ function updatedLabel(updatedAt: Date, now: Date): string {
 }
 
 const sortExplanation = "Longest time in current stage first, within each acuity. Acuity order stays Critical, Urgent, Stable.";
-const myPatientsReason = "Available when the demo role switch is built (2.28).";
+const noIdentityReason = "Available with the demo role switch on the ER board (2.28).";
 
-// The prototype's .switch: All patients, and My patients once the demo role
-// switch can say whose patients they are (2.28).
-function ScopeSwitch({ count }: { count: number }) {
+// The demo identity's patients (2.28): attending veterinarian in the
+// Veterinarian view, primary technician in the Technician view.
+function isMine(emergencyCase: EmergencyCaseListItem, identity: DemoIdentity): boolean {
+  const assigned = identity.role === "technician" ? emergencyCase.assignedTechnician : emergencyCase.assignedDoctor;
+  return identity.staffId !== null && assigned?.id === identity.staffId;
+}
+
+interface ScopeSwitchProps {
+  count: number;
+  isMineOnly: boolean;
+  // Why My patients cannot be chosen yet, or null when it can.
+  unavailableReason: string | null;
+  onChange: (isMineOnly: boolean) => void;
+}
+
+// The prototype's .switch: All patients, or the demo identity's patients.
+function ScopeSwitch({ count, isMineOnly, unavailableReason, onChange }: ScopeSwitchProps) {
   const reasonId = useId();
   return (
     <div className={styles.scope} role="group" aria-label="Patient scope">
-      <button type="button" className={styles.scopeButton} aria-pressed="true">
+      <button type="button" className={styles.scopeButton} aria-pressed={!isMineOnly} onClick={() => onChange(false)}>
         All patients <span className={styles.scopeCount}>{count}</span>
       </button>
-      <button type="button" className={styles.scopeButton} aria-pressed="false" aria-disabled="true"
-        title={myPatientsReason} aria-describedby={reasonId}>
+      <button type="button" className={styles.scopeButton} aria-pressed={isMineOnly}
+        aria-disabled={unavailableReason !== null ? "true" : undefined}
+        title={unavailableReason ?? undefined} aria-describedby={unavailableReason !== null ? reasonId : undefined}
+        onClick={() => { if (unavailableReason === null) onChange(true); }}>
         My patients
       </button>
-      <span id={reasonId} hidden>{myPatientsReason}</span>
+      {unavailableReason !== null && <span id={reasonId} hidden>{unavailableReason}</span>}
     </div>
   );
 }
@@ -105,7 +124,8 @@ export function PatientFlowBoard({
   filter = "all",
   search = "",
   onSearchChange,
-  focusRequest = null
+  focusRequest = null,
+  demoIdentity
 }: PatientFlowBoardProps) {
   const titleId = useId();
   const headingRef = useRef<HTMLHeadingElement>(null);
@@ -123,8 +143,15 @@ export function PatientFlowBoard({
   const [isLongestInStageFirst, setIsLongestInStageFirst] = useState(false);
   // Unassigned (2.26b): cases missing either assignment.
   const [isUnassignedOnly, setIsUnassignedOnly] = useState(false);
+  // My patients (2.28), kept across a demo role change; All patients while
+  // the demo identity is unknown.
+  const [isMineChosen, setIsMineChosen] = useState(false);
+  const scopeUnavailable = demoIdentity ? demoIdentity.unavailableReason : noIdentityReason;
+  const mineOf = isMineChosen && demoIdentity && scopeUnavailable === null ? demoIdentity : null;
+  const isMineOnly = mineOf !== null;
 
-  const filteredCases = cases.filter((emergencyCase) => matchesStatFilter(emergencyCase, filter));
+  const filteredCases = cases.filter((emergencyCase) => matchesStatFilter(emergencyCase, filter)
+    && (mineOf === null || isMine(emergencyCase, mineOf)));
   const matchingCases = filteredCases.filter((emergencyCase) =>
     matchesMenuFilters(emergencyCase, menuFilters) && matchesSearch(emergencyCase, search)
     && (!isUnassignedOnly || matchesUnassigned(emergencyCase)));
@@ -147,7 +174,7 @@ export function PatientFlowBoard({
             {casesLabel(cases.length)}
           </p>
         </div>
-        <ScopeSwitch count={cases.length} />
+        <ScopeSwitch count={cases.length} isMineOnly={isMineOnly} unavailableReason={scopeUnavailable} onChange={setIsMineChosen} />
       </header>
 
       {/* The prototype's .toolbar. */}

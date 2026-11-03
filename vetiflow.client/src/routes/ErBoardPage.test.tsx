@@ -15,6 +15,8 @@ import { ToastProvider } from "../components/shell/Toast";
 import { ErBoardPage, type ErBoardRouteState } from "./ErBoardPage";
 import { PatientProfilePage } from "./PatientProfilePage";
 import { ClinicalDraftProvider } from "../components/forms/ClinicalDraftProvider";
+import { DemoRoleProvider } from "../components/shell/DemoRoleProvider";
+import type { TeamClinician } from "../types/Team";
 
 vi.mock("../services/caseHub", () => ({
   createCaseHubConnection: vi.fn()
@@ -40,6 +42,7 @@ beforeEach(() => {
 
 afterEach(() => {
   sessionStorage.clear();
+  localStorage.clear();
 });
 
 function serveCases(cases: EmergencyCaseListItem[]) {
@@ -80,7 +83,7 @@ function renderBoard(routeState?: ErBoardRouteState) {
       <ClinicalDraftProvider>
       <Routes>
         <Route element={<Outlet context={buildTeamMember()} />}>
-          <Route path="/er" element={<ToastProvider><ErBoardPage /></ToastProvider>} />
+          <Route path="/er" element={<ToastProvider><DemoRoleProvider><ErBoardPage /></DemoRoleProvider></ToastProvider>} />
         </Route>
         <Route path="/records/:patientId" element={<PatientProfilePage />} />
         <Route path="/sign-in" element={<SignInStub />} />
@@ -165,6 +168,139 @@ describe("closing the patient record", () => {
 
     expect(screen.getByRole("button", { name: "Buddy" })).toHaveAttribute("aria-pressed", "true");
     expect(within(screen.getByRole("dialog", { name: "Re-triage" })).getByLabelText("Triage notes")).toHaveValue("Unsaved notes");
+  });
+});
+
+// The demo identities on the team (2.24's seed), for the demo role (2.28).
+function teamClinician(id: string, displayName: string, role: string): TeamClinician {
+  return { id, displayName, initials: "", role, status: "available", activeCaseCount: 0, activeCases: [] };
+}
+
+function serveDemoTeam() {
+  server.use(http.get(apiUrl("/api/staff/team"), () => HttpResponse.json([
+    teamClinician("staff-jordan-lee", "Dr. Jordan Lee", "veterinarian"),
+    teamClinician("staff-priya-shah", "Dr. Priya Shah", "veterinarian"),
+    teamClinician("staff-riley-chen", "Riley Chen", "technician"),
+    teamClinician("staff-dana-price", "Dana Price", "technician")
+  ])));
+}
+
+const lee = { id: "staff-jordan-lee", name: "Jordan Lee" };
+const shah = { id: "staff-priya-shah", name: "Priya Shah" };
+const chen = { id: "staff-riley-chen", name: "Riley Chen" };
+const price = { id: "staff-dana-price", name: "Dana Price" };
+
+// The Demo role switch (2.28): simulated access, never authorization.
+describe("the demo role", () => {
+  function demoRole() {
+    return screen.getByRole("combobox", { name: "Demo role" });
+  }
+
+  function myPatients() {
+    return within(screen.getByRole("group", { name: "Patient scope" })).getByRole("button", { name: "My patients" });
+  }
+
+  async function findMyPatientsReady() {
+    await findBoard();
+    await waitFor(() => expect(myPatients()).not.toHaveAttribute("aria-disabled"));
+  }
+
+  beforeEach(() => {
+    serveDemoTeam();
+    serveCases([
+      buildCase({ id: "case-buddy", patientName: "Buddy", acuity: "critical", assignedDoctor: lee, assignedTechnician: price }),
+      buildCase({ id: "case-max", patientName: "Max", acuity: "urgent", assignedDoctor: lee, assignedTechnician: chen }),
+      buildCase({ id: "case-ruby", patientName: "Ruby", acuity: "critical", assignedDoctor: shah, assignedTechnician: chen })
+    ]);
+  });
+
+  it("shows the demo role, identity and simulated-access note", async () => {
+    renderBoard();
+    await findBoard();
+
+    expect(demoRole()).toHaveValue("veterinarian");
+    expect(demoRole()).toHaveAccessibleDescription("Simulated access · sign-in unchanged");
+    expect(screen.getByText("J. Lee")).toBeInTheDocument();
+  });
+
+  it("switches to the Technician view, keeping the selected patient, and says so", async () => {
+    renderBoard();
+    fireEvent.click(await screen.findByRole("button", { name: "Max" }));
+    await screen.findByRole("button", { name: "Back to patient board" });
+
+    fireEvent.change(demoRole(), { target: { value: "technician" } });
+
+    expect(demoRole()).toHaveValue("technician");
+    expect(screen.getByText("R. Chen")).toBeInTheDocument();
+    expect(screen.getByText("Demo view: Technician")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Max" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Back to patient board" })).toBeInTheDocument();
+  });
+
+  it("shows the attending veterinarian's cases under My patients", async () => {
+    renderBoard();
+    await findMyPatientsReady();
+
+    fireEvent.click(myPatients());
+
+    expect(myPatients()).toHaveAttribute("aria-pressed", "true");
+    expect(shownNames()).toEqual(["Buddy", "Max"]);
+    fireEvent.click(screen.getByRole("button", { name: /^All patients/ }));
+    expect(shownNames()).toHaveLength(3);
+  });
+
+  it("shows the primary technician's cases under My patients in the Technician view", async () => {
+    renderBoard();
+    await findMyPatientsReady();
+    fireEvent.click(myPatients());
+
+    fireEvent.change(demoRole(), { target: { value: "technician" } });
+
+    expect(myPatients()).toHaveAttribute("aria-pressed", "true");
+    expect(shownNames()).toEqual(["Max", "Ruby"]);
+  });
+
+  it("combines My patients with the Critical filter", async () => {
+    renderBoard();
+    await findMyPatientsReady();
+
+    fireEvent.click(myPatients());
+    fireEvent.click(statCard(/^Critical,/));
+
+    expect(shownNames()).toEqual(["Buddy"]);
+  });
+
+  it("keeps My patients unavailable when the team cannot be loaded", async () => {
+    server.use(http.get(apiUrl("/api/staff/team"), () => new HttpResponse(null, { status: 500 })));
+    renderBoard();
+    await findBoard();
+
+    await waitFor(() => expect(myPatients()).toHaveAccessibleDescription("The demo team could not be loaded."));
+    expect(myPatients()).toHaveAttribute("aria-disabled", "true");
+    fireEvent.click(myPatients());
+    expect(myPatients()).toHaveAttribute("aria-pressed", "false");
+    expect(shownNames()).toHaveLength(3);
+  });
+
+  it("assigns the demo technician with Assign me in the Technician view", async () => {
+    let body: unknown = null;
+    server.use(
+      http.get(apiUrl("/api/cases/case-buddy"), () => HttpResponse.json(buildCaseDetail({ id: "case-buddy", assignedDoctor: lee, assignedTechnician: price }))),
+      http.put(apiUrl("/api/cases/case-buddy/technician"), async ({ request }) => {
+        body = await request.json();
+        return new HttpResponse(null, { status: 204 });
+      })
+    );
+    renderBoard();
+    await findMyPatientsReady();
+    fireEvent.change(demoRole(), { target: { value: "technician" } });
+    fireEvent.click(screen.getByRole("button", { name: "Buddy" }));
+
+    const careTeam = await screen.findByRole("region", { name: "Care team and safety" });
+    expect(within(careTeam).queryByRole("button", { name: "Assign me as attending veterinarian" })).not.toBeInTheDocument();
+    fireEvent.click(await within(careTeam).findByRole("button", { name: "Assign me as primary technician" }));
+
+    await waitFor(() => expect(body).toEqual({ id: "staff-riley-chen" }));
   });
 });
 

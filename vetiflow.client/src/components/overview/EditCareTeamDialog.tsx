@@ -26,12 +26,15 @@ interface EditCareTeamDialogProps {
   onSaved: (message: string) => void;
   // One change saved and the other did not: the caller reloads to show it.
   onPartlySaved: () => void;
+  // False in the Technician demo view (2.28): the attending veterinarian is
+  // view-only there, as product rules section 6 suggests. Screen only (S.6).
+  canChangeVeterinarian?: boolean;
 }
 
 // The attending veterinarian and primary technician of a case (build plan
 // 4.3b), either of them "Not assigned". Only what changed is sent, the
 // veterinarian first, through the one-field 4.3a endpoints.
-export function EditCareTeamDialog({ detail, caseUnavailable = false, onClose, onSaved, onPartlySaved }: EditCareTeamDialogProps) {
+export function EditCareTeamDialog({ detail, caseUnavailable = false, onClose, onSaved, onPartlySaved, canChangeVeterinarian = true }: EditCareTeamDialogProps) {
   const id = useId();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
@@ -80,7 +83,8 @@ export function EditCareTeamDialog({ detail, caseUnavailable = false, onClose, o
     if (draft.isSaving() || !draft.isActive() || unavailable || team.kind !== "shown") return;
     const data = new FormData(event.currentTarget);
     const chosen: Record<Member, string | null> = {
-      veterinarian: String(data.get("veterinarian") ?? "") || null,
+      // A view-only field is not submitted; it keeps what the server holds.
+      veterinarian: canChangeVeterinarian ? String(data.get("veterinarian") ?? "") || null : saved.veterinarian,
       technician: String(data.get("technician") ?? "") || null
     };
     const changes = (["veterinarian", "technician"] as const).filter(member => chosen[member] !== saved[member]);
@@ -160,16 +164,18 @@ export function EditCareTeamDialog({ detail, caseUnavailable = false, onClose, o
           {(formError || unavailable) && <p className={styles.formError} role="alert">{formError ?? "This case is no longer available for changes."}</p>}
           <MemberSelect
             id={`${id}-veterinarian`}
-            selectRef={firstFieldRef}
+            selectRef={canChangeVeterinarian ? firstFieldRef : undefined}
             label="Attending veterinarian"
             name="veterinarian"
             current={target.assignedDoctor}
             team={team}
             role="veterinarian"
-            disabled={unavailable}
+            disabled={unavailable || !canChangeVeterinarian}
+            hint={canChangeVeterinarian ? undefined : "Attending veterinarian is managed in the Veterinarian view."}
           />
           <MemberSelect
             id={`${id}-technician`}
+            selectRef={canChangeVeterinarian ? undefined : firstFieldRef}
             label="Primary technician"
             name="technician"
             current={target.assignedTechnician}
@@ -209,11 +215,12 @@ interface MemberSelectProps {
   team: Team;
   role: Member;
   disabled: boolean;
+  hint?: string;
 }
 
 // The current person stays listed even when the team list leaves them out
 // (deactivated since), so opening the dialog never changes the choice.
-function MemberSelect({ id, selectRef, label, name, current, team, role, disabled }: MemberSelectProps) {
+function MemberSelect({ id, selectRef, label, name, current, team, role, disabled, hint }: MemberSelectProps) {
   const people = team.kind === "shown" ? team.list.filter(person => person.role === role) : [];
   const currentMissing = current !== null && !people.some(person => person.id === current.id);
 
@@ -227,11 +234,13 @@ function MemberSelect({ id, selectRef, label, name, current, team, role, disable
         name={name}
         defaultValue={current?.id ?? ""}
         disabled={disabled || team.kind !== "shown"}
+        aria-describedby={hint ? `${id}-hint` : undefined}
       >
         <option value="">Not assigned</option>
         {currentMissing && <option value={current.id}>{current.name}</option>}
         {people.map(person => <option key={person.id} value={person.id}>{person.displayName}</option>)}
       </select>
+      {hint && <p id={`${id}-hint`} className={styles.hint}>{hint}</p>}
     </div>
   );
 }

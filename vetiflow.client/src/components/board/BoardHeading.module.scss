@@ -37,6 +37,89 @@
 	}
 }
 
+// The prototype's .demo-role-row inside .workspace-header (header.png, 2.28).
+// Its 10-11px text is raised to the 12px floor, as the eyebrow is.
+.demoRow {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 6px 9px;
+	margin-top: 10px;
+
+	@media (max-width: 700px) {
+		gap: 3px 10px;
+	}
+}
+
+.demoBox {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 9px;
+
+	label {
+		color: var(--color-shell-muted);
+		font-size: .75rem;
+		font-weight: 500;
+	}
+
+	@media (max-width: 700px) {
+		gap: 7px;
+	}
+}
+
+.demoSelect {
+	min-height: 34px;
+	padding: 6px 27px 6px 10px;
+	border: 1px solid #dbe6e5;
+	border-radius: 7px;
+	background-color: var(--color-surface);
+	color: var(--color-shell-ink);
+	font: inherit;
+	font-size: 12px;
+	font-weight: 600;
+
+	&:focus-visible {
+		outline: var(--focus-outline-width) solid var(--color-focus-on-light);
+		outline-offset: 2px;
+	}
+
+	// Touch-sized on phones, at 16px so the browser does not zoom in.
+	@media (max-width: 700px) {
+		min-height: 44px;
+		max-width: 200px;
+		padding: 7px 25px 7px 9px;
+		font-size: 16px;
+	}
+
+	@media (max-width: 360px) {
+		max-width: 170px;
+		font-size: 15px;
+	}
+}
+
+.demoIdentity {
+	padding-left: 10px;
+	border-left: 1px solid #dbe5e5;
+	color: var(--color-shell-muted);
+	font-size: .75rem;
+	white-space: nowrap;
+
+	@media (max-width: 700px) {
+		padding-left: 8px;
+	}
+}
+
+.demoNote {
+	color: var(--color-shell-muted);
+	font-size: .75rem;
+
+	@media (max-width: 700px) {
+		flex-basis: 100%;
+		line-height: 1.5;
+	}
+}
+
 .headRight {
 	display: flex;
 	flex-wrap: wrap;

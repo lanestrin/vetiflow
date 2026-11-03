@@ -4,8 +4,8 @@ import { http, HttpResponse } from "msw";
 import { MemoryRouter, Route, Routes, useLocation, useParams } from "react-router-dom";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { readAccessToken, saveAccessToken } from "../../services/session";
-import { buildCaseDetail, buildCaseTask, buildTeamMember } from "../../test/builders";
-import type { SignedInUser } from "../../types/Auth";
+import { buildCaseDetail, buildCaseTask, buildDemoIdentity } from "../../test/builders";
+import type { DemoIdentity } from "../board/useDemoIdentity";
 import { apiUrl, server } from "../../test/server";
 import type { CaseDetail, CaseTask } from "../../types/CaseDetail";
 import type { PatientProfileRouteState } from "../../routes/PatientProfilePage";
@@ -23,11 +23,11 @@ beforeAll(() => {
   };
 });
 
-// Who is signed in for renderPanel; a test may change it before rendering.
-let signedInUser: SignedInUser = buildTeamMember();
+// Who the demo role acts as for renderPanel; a test may change it first.
+let demoIdentity: DemoIdentity = buildDemoIdentity();
 
 afterEach(() => {
-  signedInUser = buildTeamMember();
+  demoIdentity = buildDemoIdentity();
   sessionStorage.clear();
 });
 
@@ -111,7 +111,7 @@ function renderPanel(
         <Routes>
           <Route
             path="/er"
-            element={<PatientOverviewPanel caseId={id} signedInUser={signedInUser} refreshedAt={refreshed} onTriaged={onTriaged} onTaskSaved={onTaskSaved} onVitalsSaved={onVitalsSaved} onClose={onClose} />}
+            element={<PatientOverviewPanel caseId={id} demoIdentity={demoIdentity} refreshedAt={refreshed} onTriaged={onTriaged} onTaskSaved={onTaskSaved} onVitalsSaved={onVitalsSaved} onClose={onClose} />}
           />
           <Route path="/records/:patientId" element={<ProfileStub />} />
           <Route path="/sign-in" element={<p>Sign-in page</p>} />
@@ -1113,7 +1113,7 @@ describe("patient record header", () => {
     render(
       <MemoryRouter>
         <ToastProvider>
-          <PatientOverviewPanel caseId="case-milo" signedInUser={signedInUser} refreshedAt={new Date()} onTriaged={vi.fn()}
+          <PatientOverviewPanel caseId="case-milo" demoIdentity={demoIdentity} refreshedAt={new Date()} onTriaged={vi.fn()}
             onTaskSaved={vi.fn()} onVitalsSaved={vi.fn()} onClose={onClose} />
         </ToastProvider>
       </MemoryRouter>
@@ -1509,7 +1509,7 @@ describe("overview tab", () => {
     expect(within(vitals).queryByRole("button")).not.toBeInTheDocument();
   });
 
-  it("offers Assign me on the veterinarian row to a signed-in veterinarian", async () => {
+  it("offers Assign me on the veterinarian row in the Veterinarian demo view", async () => {
     serveCase(buildMilo());
     renderPanel("case-milo");
 
@@ -1518,8 +1518,8 @@ describe("overview tab", () => {
     expect(within(careTeam).queryByRole("button", { name: "Assign me as primary technician" })).not.toBeInTheDocument();
   });
 
-  it("offers Assign me on the technician row to a signed-in technician", async () => {
-    signedInUser = buildTeamMember({ name: "Sam Cruz", displayName: "Sam Cruz", initials: "SC", role: "technician", staffId: "staff-sam" });
+  it("offers Assign me on the technician row in the Technician demo view", async () => {
+    demoIdentity = buildDemoIdentity({ role: "technician", label: "R. Chen", staffId: "staff-riley-chen" });
     serveCase(buildMilo());
     renderPanel("case-milo");
 
@@ -1529,11 +1529,11 @@ describe("overview tab", () => {
   });
 
   it.each([
-    ["already assigned", buildMilo({ assignedDoctor: { id: "staff-jordan-lee", name: "Jordan Lee" } }), buildTeamMember()],
-    ["discharged", buildMilo({ dischargedAt: at(11, 0) }), buildTeamMember()],
-    ["another role", buildMilo(), buildTeamMember({ role: "receptionist" })]
-  ])("hides Assign me when %s", async (_reason, detail, user) => {
-    signedInUser = user;
+    ["already assigned", buildMilo({ assignedDoctor: { id: "staff-jordan-lee", name: "Jordan Lee" } }), buildDemoIdentity()],
+    ["discharged", buildMilo({ dischargedAt: at(11, 0) }), buildDemoIdentity()],
+    ["the demo person is not on the team", buildMilo(), buildDemoIdentity({ staffId: null, unavailableReason: "The demo team could not be loaded." })]
+  ])("hides Assign me when %s", async (_reason, detail, identity) => {
+    demoIdentity = identity;
     serveCase(detail);
     renderPanel("case-milo");
 
@@ -1541,7 +1541,7 @@ describe("overview tab", () => {
     expect(within(careTeam).queryByRole("button", { name: /^Assign me/ })).not.toBeInTheDocument();
   });
 
-  it("assigns the signed-in member, shows a toast and reloads", async () => {
+  it("assigns the demo person, shows a toast and reloads", async () => {
     let body: unknown = null;
     server.use(
       http.put(apiUrl("/api/cases/case-milo/veterinarian"), async ({ request }) => {
