@@ -69,7 +69,7 @@ six navigation destinations and its server-side checks.
 | Demo role switch and role-specific controls (5, 6) | 2.28 |
 | Technician-first assignments at intake (2) | 4.1c |
 | Clinical drafts and sign-off, nursing notes (7) | 4.15a-d, 4.11c |
-| Care tasks performance and history (8) | 4.13c, 4.13e |
+| Care tasks performance and history (8) | 4.13c |
 | Review requests and escalation (9) | 4.16a-c, 4.17a-c |
 | Orders and medication administration (10) | 4.18a-d, 4.19a-d |
 | Diagnostics and follow-up (11) | 4.20a-b, 6.8a-b |
