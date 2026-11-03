@@ -194,8 +194,10 @@ The hard rules in `CLAUDE.md` always apply. In addition:
 - Never read, edit or create real `.env` files, and never run commands that list
   secret values (`dotnet user-secrets list`, `printenv`, `env`,
   `Get-ChildItem env:`), even masked. Apply migrations with
-  `scripts/db-target.ps1 -Migrate` and start the app with
-  `scripts/db-target.ps1 -StartApp`: they act only on a local database and bind
+  `scripts/db-target.ps1 -Migrate`, start the app with
+  `scripts/db-target.ps1 -StartApp` and, only when the person asks, start the
+  local database over with `scripts/db-target.ps1 -ResetLocal` (it deletes
+  everything in it): they act only on a local database and bind
   the command to the string they checked. The plain check prints only `local`,
   `NOT local` or `not configured`, and authorizes nothing by itself. Test
   protections with harmless fixtures only (`scripts/tests/integration/`).
@@ -205,7 +207,7 @@ The hard rules in `CLAUDE.md` always apply. In addition:
   | --- | --- | --- |
   | `Read`/`Edit` deny rules in `.claude/settings.json` | Claude Code: file tools, `@` mentions, IDE context, recognised commands such as `cat` and `Get-Content`, `<`/`>` redirects | `grep -r .` from the folder; any script that opens files itself |
   | `.claude/hooks/block-secret-commands.mjs` with `onFailure: "block"` (blocks malformed events; a missing `node` or script, a crash or a timeout blocks the call) | Claude Code, by matching command text | scripts that read `process.env` or files themselves; spellings it doesn't list. It also blocks any command whose text names a blocked command, a `.env` file, a connection-string variable (`ConnectionStrings__`, `ConnectionStrings:`, `CONNSTR_`, `VETIFLOW_TEST_POSTGRES`) or `/proc/*/environ`, such as a search or a heredoc: use the Grep and Edit tools instead |
-  | `scripts/db-target.ps1 -Migrate` / `-StartApp` | the script: checks, then binds the child's connection string | `dotnet ef` or `dotnet run` started directly (advisory rule only) |
+  | `scripts/db-target.ps1 -Migrate` / `-StartApp` / `-ResetLocal` | the script: checks, then binds the child's connection string | `dotnet ef` or `dotnet run` started directly (advisory rule only) |
   | `.gitignore`, `vetiflow.Server/.dockerignore` | git, Docker | Claude's access to the files |
   | This file, `CLAUDE.md`, skills | nothing (advisory) | any boundary |
 

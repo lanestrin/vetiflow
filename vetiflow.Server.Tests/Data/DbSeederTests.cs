@@ -605,6 +605,64 @@ public class DbSeederTests(VetiFlowApiFactory factory)
 		Assert.Equal(before, after);
 	}
 
+	// The demo board shows fewer than 12 patients (fix 2026-11-03): six extra
+	// cases are seeded as past visits instead.
+	[Fact]
+	public async Task SeedAsync_LeavesElevenActiveCasesOnTheBoard()
+	{
+		await using var dbContext = await SeededDatabaseAsync();
+
+		var active = await dbContext.EmergencyCases.Where(emergencyCase => emergencyCase.DischargedAt == null)
+			.Select(emergencyCase => emergencyCase.Patient.Name).ToListAsync(_cancellationToken);
+
+		Assert.Equal(
+			["Archie", "Buddy", "Hazel", "Jasper", "Luna", "Mabel", "Max", "Olive", "Ruby", "Theodore Roosevelt", "Winston Montgomery"],
+			active.Order());
+	}
+
+	// A database seeded before the trim still has the retired cases on the board;
+	// startup discharges them once, as Update status would.
+	[Fact]
+	public async Task SeedAsync_DischargesRetiredDemoCasesInAnExistingDatabase()
+	{
+		await using var dbContext = await SeededDatabaseAsync();
+		var retiredId = Guid.Parse(DemoCaseIdPrefix + "000000000007");
+		var keptId = Guid.Parse(DemoCaseIdPrefix + "000000000005");
+		var retired = await dbContext.EmergencyCases.Include(emergencyCase => emergencyCase.Tasks)
+			.SingleAsync(emergencyCase => emergencyCase.Id == retiredId, _cancellationToken);
+		retired.DischargedAt = null;
+		retired.Stage = CaseStage.Treatment;
+		var staffId = (await dbContext.StaffMembers.FirstAsync(_cancellationToken)).Id;
+		var task = retired.Tasks.First(caseTask => caseTask.Status == CaseTaskStatus.Open);
+		task.IsNextAction = true;
+		task.NextActionDesignatedAt = DateTimeOffset.UtcNow;
+		task.NextActionDesignatedByStaffId = staffId;
+		var unrelated = TestData.Case(TestData.Patient());
+		dbContext.EmergencyCases.Add(unrelated);
+		await dbContext.SaveChangesAsync(_cancellationToken);
+		var keptBefore = await dbContext.EmergencyCases.AsNoTracking()
+			.SingleAsync(emergencyCase => emergencyCase.Id == keptId, _cancellationToken);
+
+		await SeedTwiceAsync(dbContext);
+
+		var stored = await dbContext.EmergencyCases.AsNoTracking().Include(emergencyCase => emergencyCase.Tasks)
+			.Include(emergencyCase => emergencyCase.Events)
+			.SingleAsync(emergencyCase => emergencyCase.Id == retiredId, _cancellationToken);
+		Assert.NotNull(stored.DischargedAt);
+		Assert.Equal(CaseStage.Discharge, stored.Stage);
+		Assert.DoesNotContain(stored.Tasks, caseTask => caseTask.IsNextAction);
+		Assert.Single(stored.Events, caseEvent => caseEvent.Type == CaseEventType.Discharged);
+		Assert.Single(stored.Events, caseEvent => caseEvent.Type == CaseEventType.NextActionCleared);
+		var kept = await dbContext.EmergencyCases.AsNoTracking()
+			.SingleAsync(emergencyCase => emergencyCase.Id == keptId, _cancellationToken);
+		Assert.Null(kept.DischargedAt);
+		Assert.Equal(keptBefore.Stage, kept.Stage);
+		var unrelatedStored = await dbContext.EmergencyCases.AsNoTracking()
+			.SingleAsync(emergencyCase => emergencyCase.Id == unrelated.Id, _cancellationToken);
+		Assert.Null(unrelatedStored.DischargedAt);
+		Assert.Equal(unrelated.Stage, unrelatedStored.Stage);
+	}
+
 	// The extra demo cases' fixed IDs share this prefix (DbSeeder.DemoFixtureId(1, n)).
 	private const string DemoCaseIdPrefix = "89dd4a01-648e-4b16-9a12-";
 

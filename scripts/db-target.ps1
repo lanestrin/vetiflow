@@ -14,11 +14,15 @@
 
   A plain check authorizes nothing: dotnet ef or the app could still pick another
   string from another environment, launch profile or argument. To act on a
-  database, use -Migrate or -StartApp. They run the operation only after
+  database, use -Migrate, -StartApp or -ResetLocal. They run the operation only after
   "local", with the checked string bound as its highest-precedence source:
 
-    -Migrate   dotnet ef database update --project vetiflow.Server
-    -StartApp  dotnet run --project vetiflow.Server --no-launch-profile
+    -Migrate     dotnet ef database update --project vetiflow.Server
+    -StartApp    dotnet run --project vetiflow.Server --no-launch-profile
+    -ResetLocal  dotnet ef database drop --force --project vetiflow.Server
+
+  -ResetLocal deletes everything in the local database. The next -StartApp
+  migrates and seeds a fresh one (the app does both on startup).
 
   The string goes to the child in ConnectionStrings__VetiFlowDatabase, never on
   the command line: Windows PowerShell 5.1 strips embedded quotes from native
@@ -44,11 +48,13 @@
   powershell -ExecutionPolicy Bypass -File scripts/db-target.ps1
   powershell -ExecutionPolicy Bypass -File scripts/db-target.ps1 -Migrate
   powershell -ExecutionPolicy Bypass -File scripts/db-target.ps1 -StartApp
+  powershell -ExecutionPolicy Bypass -File scripts/db-target.ps1 -ResetLocal
 #>
 param(
 	[switch]$Tests,
 	[switch]$Migrate,
 	[switch]$StartApp,
+	[switch]$ResetLocal,
 	# Only for the regression checks, which point these at fixtures.
 	[string]$ProjectDir = (Join-Path (Split-Path -Parent $PSScriptRoot) 'vetiflow.Server'),
 	[string]$Dotnet = 'dotnet'
@@ -57,8 +63,8 @@ param(
 $ErrorActionPreference = 'Stop'
 $localHosts = 'localhost', '127.0.0.1', '::1', 'host.docker.internal'
 
-if (@($Tests, $Migrate, $StartApp | Where-Object { $_ }).Count -gt 1) {
-	Write-Output 'Use only one of -Tests, -Migrate and -StartApp.'
+if (@($Tests, $Migrate, $StartApp, $ResetLocal | Where-Object { $_ }).Count -gt 1) {
+	Write-Output 'Use only one of -Tests, -Migrate, -StartApp and -ResetLocal.'
 	exit 3
 }
 
@@ -139,7 +145,7 @@ if (-not $isLocal) {
 	exit 1
 }
 Write-Output 'Database target: local'
-if (-not ($Migrate -or $StartApp)) { exit 0 }
+if (-not ($Migrate -or $StartApp -or $ResetLocal)) { exit 0 }
 
 # Bind the checked string for the child: only this name, nothing that competes.
 # Each change is undone afterwards, so a caller that ran this script with & (not
@@ -164,6 +170,7 @@ try {
 	Set-ChildVariable 'ConnectionStrings__VetiFlowDatabase' $connectionString
 
 	if ($Migrate) { & $Dotnet ef database update --project $ProjectDir }
+	elseif ($ResetLocal) { & $Dotnet ef database drop --force --project $ProjectDir }
 	else {
 		# No launch profile: dotnet run applies a profile's commandLineArgs and
 		# environmentVariables after ours, and either could name another database.

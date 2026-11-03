@@ -30,6 +30,7 @@ public static class DbSeeder
 		await SeedDemoRoomsAsync(dbContext);
 		await SeedAdditionalCasesAsync(dbContext);
 		await SpreadDemoAssignmentsAsync(dbContext);
+		await DischargeRetiredDemoCasesAsync(dbContext);
 	}
 
 	// More clinicians for the My Patients workspaces (build plan 2.24), so the
@@ -124,28 +125,69 @@ public static class DbSeeder
 		await dbContext.SaveChangesAsync();
 	}
 
+	// A database seeded before the 2026-11-03 trim still has retired fixtures on
+	// the board. Discharge them once, as Update status does: the stage, the
+	// discharge time, the timeline, and clearing a designated Next Care Action
+	// (4.13a). Seeded events have no staff member. Nothing else is touched.
+	private static async Task DischargeRetiredDemoCasesAsync(VetiFlowDbContext dbContext)
+	{
+		var retiredIds = AdditionalCases.Where(seed => seed.Stage == CaseStage.Discharge)
+			.Select(seed => DemoFixtureId(1, seed.Index)).ToArray();
+		var cases = await dbContext.EmergencyCases.Include(emergencyCase => emergencyCase.Tasks)
+			.Where(emergencyCase => retiredIds.Contains(emergencyCase.Id) && emergencyCase.DischargedAt == null)
+			.ToListAsync();
+		if (cases.Count == 0) return;
+
+		var now = DateTimeOffset.UtcNow;
+		foreach (var emergencyCase in cases)
+		{
+			var previousStage = emergencyCase.Stage;
+			emergencyCase.MoveToStage(CaseStage.Discharge);
+			if (previousStage != CaseStage.Discharge)
+			{
+				CaseTimeline.Add(dbContext, emergencyCase, CaseEventType.StageChanged,
+					$"Stage changed: {previousStage} to {CaseStage.Discharge}", now, null);
+			}
+			emergencyCase.RecordDischarge(now);
+			CaseTimeline.Add(dbContext, emergencyCase, CaseEventType.Discharged, "Discharged", now, null);
+			foreach (var designated in emergencyCase.Tasks.Where(task => task.IsNextAction))
+			{
+				designated.IsNextAction = false;
+				designated.NextActionDesignatedAt = null;
+				designated.NextActionDesignatedByStaffId = null;
+				CaseTimeline.Add(dbContext, emergencyCase, CaseEventType.NextActionCleared,
+					"Next care action cleared: patient discharged", now, null);
+			}
+		}
+
+		await dbContext.SaveChangesAsync();
+	}
+
 	// IDs belong to these fixtures, independent of names, case counts and edits.
 	// Never reuse an index for another patient: old demo databases backfill by ID.
 	private sealed record DemoCaseSeed(int Index, string Name, string Species, string Breed,
 		AcuityLevel Acuity, CaseStage Stage, int MinutesAgo, string Complaint, string NextAction);
 
+	// Discharge-stage fixtures are past visits, off the board: Poppy, and the six
+	// retired on 2026-11-03 so the demo board shows fewer than 12 patients
+	// (Pepper, Clementine, Finn, Nori, Milo, Juniper).
 	private static readonly DemoCaseSeed[] AdditionalCases =
 	[
-		new(1, "Pepper", "Cat", "Domestic Longhair", AcuityLevel.Critical, CaseStage.Treatment, 95, "Increased breathing effort and open-mouth breathing at rest.", "Recheck respiratory effort"),
+		new(1, "Pepper", "Cat", "Domestic Longhair", AcuityLevel.Critical, CaseStage.Discharge, 95, "Increased breathing effort and open-mouth breathing at rest.", "Recheck respiratory effort"),
 		new(2, "Winston Montgomery", "Dog", "Cavalier King Charles Spaniel", AcuityLevel.Critical, CaseStage.Diagnostics, 130, "Sudden collapse during a walk with continued weakness and pale gums.", "Review bedside imaging"),
 		new(3, "Olive", "Dog", "Labrador Retriever", AcuityLevel.Critical, CaseStage.Incoming, 24, "Reported ingestion of an unknown quantity of medication; arriving by car.", "Confirm intake and reassess on arrival"),
 		new(4, "Jasper", "Cat", "Siamese Mix", AcuityLevel.Critical, CaseStage.Triage, 48, "Repeated straining in the litter box without passing urine.", "Complete initial assessment"),
 		new(5, "Ruby", "Dog", "Boxer", AcuityLevel.Critical, CaseStage.Recheck, 185, "Weakness following treatment for an allergic reaction.", "Repeat perfusion assessment"),
 		new(6, "Archie", "Dog", "Miniature Australian Shepherd", AcuityLevel.Urgent, CaseStage.Diagnostics, 115, "Persistent vomiting and abdominal discomfort after chewing a toy.", "Review abdominal radiographs"),
-		new(7, "Clementine", "Cat", "Domestic Medium Hair", AcuityLevel.Urgent, CaseStage.Treatment, 78, "Painful wound on the left shoulder after an outdoor altercation.", "Reassess comfort after wound care"),
-		new(8, "Finn", "Dog", "Border Collie", AcuityLevel.Urgent, CaseStage.Incoming, 20, "Facial swelling reported after an insect sting; patient en route.", "Assess swelling on arrival"),
+		new(7, "Clementine", "Cat", "Domestic Medium Hair", AcuityLevel.Urgent, CaseStage.Discharge, 78, "Painful wound on the left shoulder after an outdoor altercation.", "Reassess comfort after wound care"),
+		new(8, "Finn", "Dog", "Border Collie", AcuityLevel.Urgent, CaseStage.Discharge, 20, "Facial swelling reported after an insect sting; patient en route.", "Assess swelling on arrival"),
 		new(9, "Mabel", "Cat", "Maine Coon", AcuityLevel.Urgent, CaseStage.Recheck, 210, "Reduced appetite and lethargy with a history of chronic kidney disease.", "Review response to supportive care"),
 		new(10, "Poppy", "Dog", "Beagle", AcuityLevel.Stable, CaseStage.Discharge, 250, "Small paw-pad cut after a walk; bleeding has stopped.", "Review home-care instructions"),
 		new(11, "Theodore Roosevelt", "Cat", "British Shorthair", AcuityLevel.Stable, CaseStage.Diagnostics, 155, "Intermittent sneezing and watery eyes while otherwise bright and eating.", "Review examination findings"),
-		new(12, "Nori", "Cat", "Domestic Shorthair", AcuityLevel.Stable, CaseStage.Triage, 38, "Mild ear irritation and head shaking since yesterday.", "Complete ear examination"),
+		new(12, "Nori", "Cat", "Domestic Shorthair", AcuityLevel.Stable, CaseStage.Discharge, 38, "Mild ear irritation and head shaking since yesterday.", "Complete ear examination"),
 		new(13, "Hazel", "Dog", "Bernese Mountain Dog and Poodle Mix", AcuityLevel.Stable, CaseStage.Treatment, 105, "Broken toenail with mild intermittent bleeding and discomfort when walking.", "Recheck bandage and comfort"),
-		new(14, "Milo", "Dog", "Dachshund", AcuityLevel.Stable, CaseStage.Recheck, 165, "One episode of vomiting; comfortable and drinking during observation.", "Confirm discharge readiness"),
-		new(15, "Juniper", "Cat", "Ragdoll", AcuityLevel.Stable, CaseStage.Incoming, 18, "Reported mild limping after play with no visible wound; arriving shortly.", "Confirm arrival and assess gait")
+		new(14, "Milo", "Dog", "Dachshund", AcuityLevel.Stable, CaseStage.Discharge, 165, "One episode of vomiting; comfortable and drinking during observation.", "Confirm discharge readiness"),
+		new(15, "Juniper", "Cat", "Ragdoll", AcuityLevel.Stable, CaseStage.Discharge, 18, "Reported mild limping after play with no visible wound; arriving shortly.", "Confirm arrival and assess gait")
 	];
 
 	private static async Task SeedAdditionalCasesAsync(VetiFlowDbContext dbContext)
