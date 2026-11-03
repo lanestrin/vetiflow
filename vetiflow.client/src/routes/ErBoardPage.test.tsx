@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { MemoryRouter, Outlet, Route, Routes, useLocation } from "react-router-dom";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -165,6 +165,107 @@ describe("closing the patient record", () => {
 
     expect(screen.getByRole("button", { name: "Buddy" })).toHaveAttribute("aria-pressed", "true");
     expect(within(screen.getByRole("dialog", { name: "Re-triage" })).getByLabelText("Triage notes")).toHaveValue("Unsaved notes");
+  });
+});
+
+// At 1100 px and below the record is a modal drawer over the board (2.27a).
+describe("the record drawer at tablet and phone widths", () => {
+  beforeEach(() => {
+    vi.stubGlobal("matchMedia", (query: string) => ({
+      matches: query === "(max-width: 1100px)",
+      media: query,
+      addEventListener: () => {},
+      removeEventListener: () => {}
+    }));
+    serveCases([buildCase({ id: "case-buddy", patientName: "Buddy" })]);
+    server.use(http.get(apiUrl("/api/cases/case-buddy"), () => HttpResponse.json(buildCaseDetail({ id: "case-buddy" }))));
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  async function openDrawer() {
+    renderBoard();
+    fireEvent.click(await screen.findByRole("button", { name: "Buddy" }));
+    return screen.findByRole("dialog", { name: "Patient record" });
+  }
+
+  it("shows no record panel until a patient is selected", async () => {
+    renderBoard();
+    await findBoard();
+
+    expect(screen.queryByRole("dialog", { name: "Patient record" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("complementary", { name: "Patient record" })).not.toBeInTheDocument();
+  });
+
+  it("opens the record in a drawer named Patient record", async () => {
+    const drawer = await openDrawer();
+
+    expect(drawer).toHaveAttribute("open");
+    expect(drawer).toHaveFocus();
+    expect(await within(drawer).findByRole("button", { name: "Back to patient board" })).toBeInTheDocument();
+  });
+
+  it("closes only a dialog opened from the drawer on Escape", async () => {
+    const drawer = await openDrawer();
+    fireEvent.click(await within(drawer).findByRole("button", { name: "More actions" }));
+    fireEvent.click(within(drawer).getByRole("button", { name: /triage/i }));
+
+    fireEvent(screen.getByRole("dialog", { name: /triage/i }), new Event("cancel", { cancelable: true }));
+    // Long enough for the draft guard's close path to finish if it ran.
+    await act(() => new Promise(resolve => setTimeout(resolve, 50)));
+
+    expect(screen.getByRole("dialog", { name: "Patient record" })).toHaveAttribute("open");
+    expect(screen.getByRole("button", { name: "Buddy" })).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("closes the drawer with Escape and returns focus to the patient", async () => {
+    const drawer = await openDrawer();
+
+    fireEvent(drawer, new Event("cancel", { cancelable: true }));
+
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Patient record" })).not.toBeInTheDocument());
+    expect(screen.getByRole("button", { name: "Buddy" })).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByRole("button", { name: "Buddy" })).toHaveFocus();
+  });
+
+  it("closes the drawer from the backdrop", async () => {
+    const drawer = await openDrawer();
+    await within(drawer).findByRole("button", { name: "Back to patient board" });
+
+    fireEvent.click(within(drawer).getByRole("complementary", { name: "Patient record" }));
+    expect(screen.getByRole("dialog", { name: "Patient record" })).toBeInTheDocument();
+
+    fireEvent.click(drawer);
+
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Patient record" })).not.toBeInTheDocument());
+    expect(screen.getByRole("button", { name: "Buddy" })).toHaveFocus();
+  });
+
+  it("keeps the drawer open when the draft guard says keep editing", async () => {
+    const drawer = await openDrawer();
+    fireEvent.click(await within(drawer).findByRole("button", { name: "More actions" }));
+    fireEvent.click(within(drawer).getByRole("button", { name: /triage/i }));
+    const notes = within(screen.getByRole("dialog", { name: /triage/i })).getByLabelText("Triage notes");
+    fireEvent.change(notes, { target: { value: "Unsaved notes" } });
+
+    fireEvent(drawer, new Event("cancel", { cancelable: true }));
+    fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
+
+    expect(screen.getByRole("dialog", { name: "Patient record" })).toHaveAttribute("open");
+    expect(notes).toHaveValue("Unsaved notes");
+  });
+
+  it("locks page scrolling while the drawer is open", async () => {
+    const drawer = await openDrawer();
+
+    expect(document.documentElement.style.overflow).toBe("hidden");
+
+    fireEvent.click(drawer);
+
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Patient record" })).not.toBeInTheDocument());
+    expect(document.documentElement.style.overflow).toBe("");
   });
 });
 

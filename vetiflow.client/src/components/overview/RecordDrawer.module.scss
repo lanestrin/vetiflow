@@ -1,0 +1,49 @@
+// The prototype's .detail-panel at 1100 px and below: fixed on the right,
+// scrolling on its own over .detail-backdrop (2.27a).
+.drawer {
+	position: fixed;
+	inset: 0 0 0 auto;
+	width: min(500px, 100vw);
+	max-width: 100vw;
+	height: 100dvh;
+	max-height: none;
+	margin: 0;
+	padding: 0;
+	border: 0;
+	border-radius: 12px 0 0 12px;
+	background: var(--color-surface);
+	box-shadow: -15px 0 70px #142f3b25;
+	overflow-y: auto;
+	overscroll-behavior: contain;
+
+	// Focused on opening so the record is announced; the panel shows no ring.
+	&:focus {
+		outline: none;
+	}
+
+	&[open] {
+		display: flex;
+		flex-direction: column;
+	}
+
+	&::backdrop {
+		background: #142f3b50;
+	}
+
+	// The record fills the drawer, so only the backdrop is outside it.
+	> aside {
+		flex: 1 0 auto;
+		border: 0;
+		border-radius: 0;
+		box-shadow: none;
+	}
+
+	@media (max-width: 700px) {
+		width: 100%;
+		border-radius: 0;
+
+		> aside {
+			padding-bottom: env(safe-area-inset-bottom);
+		}
+	}
+}

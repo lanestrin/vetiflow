@@ -712,14 +712,14 @@
 
 	// Touch-sized buttons on phones.
 	.quickEdit {
-		min-height: 40px;
+		min-height: 44px;
 		padding: 6px 12px;
 	}
 }
 
 // Touch-sized header controls where the board and record no longer sit side by
 // side (3.2f).
-@media (max-width: 1050px) {
+@media (max-width: 1100px) {
 	.acuityEdit,
 	.quickField,
 	.allergyLine,
