@@ -40,7 +40,7 @@ report the scope and whether it reused or ran. Any FAIL or SKIP is a finding.
 ## 3. Review with these lenses
 
 **Security**
-- New endpoints and hub methods: sign-in required (once S.5 exists), right role.
+- New staff endpoints: the existing team-member or pet-parent policy (demo only; role permissions are not planned).
 - Owner access: only their own pet, never by case or patient ID alone.
 - Input validation: unknown enum names and numbers rejected, lengths limited.
 - Nothing sensitive in logs, errors or hub messages: owner contact details,

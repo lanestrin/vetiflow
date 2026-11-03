@@ -12,9 +12,8 @@ the active feature spec describes one small implementation PR.
   veterinarian / technician model. It replaces the earlier Patient Overview,
   Veterinarian My Patients, Technician My Patients and patient-history
   packages. The person's decisions in the build plan take precedence over it.
-- [Security Lab](security-poc/README.md): the isolated single-hospital portfolio
-  slice (S.21a-e), with actual backend permission/audit proof planned separately
-  from the browser simulation and from production clinical authorization.
+- [Security Lab](security-poc/README.md): reference only. Its build-plan slice
+  (S.21a-e) was dropped on 2026-11-03 with all security work (demo only).
 - The role rules are in the ER board prototype's product rules; implementation
   and clinical-policy gates remain. Its browser role switch is not authorization.
 - [Original sign-in mock](login-poc/vetiflow-login-mock.html): the relocated

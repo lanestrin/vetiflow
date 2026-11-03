@@ -74,7 +74,7 @@ six navigation destinations and its server-side checks.
 | Orders and medication administration (10) | 4.18a-d, 4.19a-d |
 | Diagnostics and follow-up (11) | 4.20a-b, 6.8a-b |
 | Coverage, handoff and discharge (12) | 6.1a-d, 6.2a-f |
-| Real roles and permissions (6) | S.6, 3.7a-b |
+| Real roles and permissions (6) | Not planned (S.6 and 3.7a-b dropped 2026-11-03: demo only) |
 | My patients workspaces for each role (1, 3) | 2.22a-d |
 
 ## Deferred or not built
