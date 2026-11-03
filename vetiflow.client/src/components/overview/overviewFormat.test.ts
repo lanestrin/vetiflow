@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { buildCaseTask } from "../../test/builders";
+import { buildCaseDetail, buildCaseTask } from "../../test/builders";
 import type { CaseEventType } from "../../types/CaseDetail";
 import {
   checkInLabel,
@@ -11,6 +11,7 @@ import {
   eventDetail,
   eventLabel,
   isOverdue,
+  lastUpdatedLabel,
   locationLabel,
   measuredAgeLabel,
   recordTimeLabel,
@@ -30,6 +31,21 @@ describe("dateLabel and dateTimeLabel", () => {
     const today = new Date(2026, 9, 28, 14, 5).toISOString();
     expect(dateLabel(today)).toBe("28 Oct 2026");
     expect(dateTimeLabel(today)).toBe("28 Oct 2026, 2:05 PM");
+  });
+});
+
+describe("lastUpdatedLabel", () => {
+  const triagedAt = new Date(2026, 9, 28, 10, 47).toISOString();
+  const detail = buildCaseDetail({
+    timeline: [{ id: "e1", type: "triaged", description: "Critical", createdAt: triagedAt, createdBy: { id: "s1", name: "Jordan Reed" } }]
+  });
+
+  it("names who last updated the case when the newest event is the same save", () => {
+    expect(lastUpdatedLabel({ ...detail, lastUpdated: triagedAt }, now)).toBe("Last updated 10:47 AM by Jordan Reed");
+  });
+
+  it("shows only the time when no event matches the last update", () => {
+    expect(lastUpdatedLabel({ ...detail, lastUpdated: new Date(2026, 9, 28, 11, 5).toISOString() }, now)).toBe("Last updated 11:05 AM");
   });
 });
 

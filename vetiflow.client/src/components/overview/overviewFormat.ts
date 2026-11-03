@@ -1,4 +1,4 @@
-import type { CaseEvent, CaseEventType, CaseTask } from "../../types/CaseDetail";
+import type { CaseDetail, CaseEvent, CaseEventType, CaseTask } from "../../types/CaseDetail";
 import type { CaseRoom, RoomType } from "../../types/EmergencyCaseListItem";
 import { ageInMonths } from "../board/boardFormat";
 
@@ -18,6 +18,17 @@ export function timeLabel(isoTime: string, now: Date): string {
   return isSameLocalDay(time, now)
     ? timeFormat.format(time)
     : `${dayFormat.format(time)}, ${timeFormat.format(time)}`;
+}
+
+// "Last updated 4:32 PM by Dr. Jordan Lee". The case stores when, not who; the
+// server writes the timeline event in the same save with the same time, so a
+// name shows only on an exact match and a change is never credited to the
+// wrong person.
+export function lastUpdatedLabel(detail: CaseDetail, now: Date): string {
+  const time = `Last updated ${timeLabel(detail.lastUpdated, now)}`;
+  const newest = detail.timeline.at(-1);
+  const sameSave = newest !== undefined && new Date(newest.createdAt).getTime() === new Date(detail.lastUpdated).getTime();
+  return sameSave && newest.createdBy ? `${time} by ${newest.createdBy.name}` : time;
 }
 
 export function checkInLabel(arrivalTime: string, now: Date): string {
