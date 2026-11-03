@@ -346,10 +346,6 @@ the future per-role protections in S.6/3.7 are already implemented.
 
 - [x] **4.13b** `feature/documented-priority-summary` (phase 1, Patient Overview, after 4.3a): the Care Coordination card shows the staff-designated Next Care Action with its priority ("Not prioritized" when unset), its assignee or "Not assigned", and its state ("Overdue by 10 min" with a warning, "Due in 5 min", "Not scheduled"), or "No next action designated" with any legacy free-text note beneath as "Previously documented next-action note", styled as the prototype's Next care action block. Current location and care stage move to the patient header in 3.2c. Staff set priority and designate the Next Care Action in the Tasks and due items dialog, delivered by 4.3b. The overview card never shows the whole open-task list. A completed task does not imply clinical resolution. Done (history/features/4.13b-documented-priority-summary.md).
 
-**Deferred task history**
-
-- [ ] **4.13e** `feature/task-assignment-history`: assigner tracking and reassignment history for tasks (deferred from 4.13a phase 1), with its own history model and migration, covering creator, assigner, reassignment, completion and review accountability on the shared task model.
-
 **Door to doctor** (prototype: fourth stat card and its details)
 
 - [ ] **2.16a** `feature/door-to-doctor-api`: record the moment a doctor first sees a case (per the decision) and add the shift average and the change from the last shift to the summary.
@@ -471,7 +467,7 @@ correcting those artifacts is a separate /fix, not an implicit product build.
 - [ ] **4.16c** `feature/veterinarian-review-actions`: after 4.16a and 2.22c, acknowledge receipt, request information, document review and resolve/further-action separately according to server policy. Keep nonresolved requests in accurate patient counts and preserve the originating concern/history.
 - [ ] **4.17b** `feature/technician-escalation`: after 4.17a and 2.22d, record urgent concerns with recipient, direct-contact actions and visible unconfirmed/failed-delivery states. Guide the validated immediate escalation/fallback process rather than presenting a saved note as a delivered alert.
 - [ ] **4.17c** `feature/veterinarian-escalation-response`: after 4.17a and 2.22c, display escalations prominently, record receipt separately from clinical response/transfer/resolution, and maintain accountable ownership. Keep unresolved escalation patients in Needs my attention even if every related task is complete.
-- [ ] **4.13c** `feature/clinical-task-performance`: after 4.13a/b and both chart views, provide permitted task assignment/reassignment/performance documentation with actual performer, entered/event times and history. Task completion and a subsequent review/escalation remain separate; technician coordination tasks cannot authorize veterinarian-only care.
+- [ ] **4.13c** `feature/clinical-task-performance`: after 4.13a/b and both chart views, provide permitted task assignment/reassignment/performance documentation with actual performer, entered/event times and history, including who created, assigned and reassigned each task and when (folded in from 4.13e). Task completion and a subsequent review/escalation remain separate; technician coordination tasks cannot authorize veterinarian-only care.
 
 **Signing and authorized orders**
 
@@ -587,6 +583,7 @@ After M7. Every workflow keeps working without AI.
 
 ## Dropped
 
+- **4.13e** `feature/task-assignment-history`: merged into 4.13c (decided 2026-11-03, by the person): assignment history is built with the reassignment workflow it records, under the simplicity decision; no model is added before that workflow exists.
 - **4.13d** `feature/next-care-action-selection`: dropped 2026-11-02. Automatic ranking and selection of the next care action were rejected; clinical priority and the Next Care Action are set by authorized clinical staff (see Decisions).
 - **4.8f** `feature/inline-pain-score`: superseded before implementation by the 2026-10-30 ER Overview requirements, which explicitly exclude a generic 0-10 pain slider. Unsaved-change protection is retained as 4.8h; species-specific clinical assessment awaits the separately approved My Patients workflow. The delivered 4.8a-e history is retained.
 - **6.5** `feature/owner-updates`: split before implementation into 6.5a/b, a shared approval source plus the staff communication summary; the owner page consumes that source rather than implementing a second approval model.
