@@ -4,7 +4,7 @@ import { buildBoardSummary } from "../../test/builders";
 import { BoardHeading } from "./BoardHeading";
 
 describe("BoardHeading", () => {
-  it("shows the clinic, title, subtitle and shift chip from the summary", () => {
+  it("shows the clinic, title, shift status and New intake without a subtitle", () => {
     render(
       <BoardHeading
         summary={buildBoardSummary({ clinicName: "Northside Veterinary Emergency", cliniciansOnFloor: 4 })}
@@ -15,8 +15,9 @@ describe("BoardHeading", () => {
     expect(screen.getByText("Northside Veterinary Emergency")).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Northside Veterinary Emergency" })).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { level: 1, name: "ER Command Center" })).toBeInTheDocument();
-    expect(screen.getByText("Live patient flow and care coordination")).toBeInTheDocument();
+    expect(screen.queryByText("Live patient flow and care coordination")).not.toBeInTheDocument();
     expect(screen.getByText("Day shift · 4 clinicians on floor")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "New intake" })).toBeInTheDocument();
   });
 
   it("leaves out the clinic and chip while the summary is unavailable", () => {

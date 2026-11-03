@@ -9,24 +9,112 @@
 	box-shadow: 0 10px 32px rgb(26 55 63 / 6%);
 }
 
+// The prototype's .board-top: the title, then the scope switch.
 .top {
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
 	justify-content: space-between;
-	gap: 12px;
-	padding: 18px 20px 14px;
+	gap: 12px 15px;
+	padding: 20px 20px 16px;
+}
+
+// The prototype's .switch (2.26b).
+.scope {
+	display: flex;
+	gap: 2px;
+	padding: 3px;
+	border-radius: 8px;
+	background: #f1f5f5;
+}
+
+.scopeButton {
+	min-height: 36px;
+	padding: 7px 11px;
+	border: 0;
+	border-radius: 6px;
+	background: transparent;
+	color: var(--color-shell-muted);
+	font: inherit;
+	font-size: .75rem;
+	font-weight: 600;
+	white-space: nowrap;
+	cursor: pointer;
+
+	&[aria-pressed="true"] {
+		background: var(--color-surface);
+		box-shadow: 0 1px 4px #173c4212;
+		color: var(--color-care-teal);
+	}
+
+	&[aria-disabled="true"] {
+		cursor: not-allowed;
+	}
+
+	&:focus-visible {
+		outline: var(--focus-outline-width) solid var(--color-focus-on-light);
+		outline-offset: 2px;
+	}
+}
+
+.scopeCount {
+	font-weight: 700;
+}
+
+// The prototype's .toolbar: search, Unassigned, Filter and the sort.
+.toolbar {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 0 20px 16px;
 	border-bottom: 1px solid var(--color-shell-line);
 }
 
-// The prototype's .boardtools and .toolbtn.
-.tools {
-	display: flex;
-	gap: 7px;
+.search {
+	position: relative;
+	flex: 1;
+	min-width: 0;
+
+	svg {
+		position: absolute;
+		top: 50%;
+		left: 12px;
+		width: 17px;
+		height: 17px;
+		transform: translateY(-50%);
+		fill: none;
+		stroke: var(--color-shell-muted);
+		stroke-width: 2;
+		pointer-events: none;
+	}
 }
 
+.searchInput {
+	box-sizing: border-box;
+	width: 100%;
+	min-height: 38px;
+	padding: 8px 12px 8px 37px;
+	border: 1px solid #dce5e7;
+	border-radius: 7px;
+	background: #f8fafa;
+	color: var(--color-shell-ink);
+	font: inherit;
+	font-size: .8125rem;
+
+	&::placeholder {
+		color: var(--color-shell-placeholder);
+	}
+
+	&:focus-visible {
+		outline: var(--focus-outline-width) solid var(--color-focus-on-light);
+		outline-offset: 2px;
+	}
+}
+
+// The prototype's toolbar buttons.
 .toolButton {
-	padding: 7px 9px;
+	min-height: 38px;
+	padding: 7px 12px;
 	border: 1px solid var(--color-shell-line);
 	border-radius: 8px;
 	background: var(--color-surface);
@@ -168,17 +256,6 @@
 		padding: 14px;
 	}
 
-	// "⇣ 3" as in the prototype. Hidden from sight only; the button's name
-	// still says Incoming.
-	.toolLabel {
-		position: absolute;
-		width: 1px;
-		height: 1px;
-		overflow: hidden;
-		clip-path: inset(50%);
-		white-space: nowrap;
-	}
-
 	// The rows become cards; the column headings stay for screen readers.
 	.tableWrap {
 		padding: 0.75rem 0.75rem 0;
@@ -200,5 +277,41 @@
 
 	.empty {
 		display: block;
+	}
+}
+
+// The prototype's 700 px toolbar: search on its own row, the buttons sharing
+// the next; touch-sized controls (2.26b).
+@media (max-width: 700px) {
+	.top {
+		padding: 16px 14px 12px;
+	}
+
+	.toolbar {
+		flex-wrap: wrap;
+		padding: 0 14px 14px;
+	}
+
+	.toolbar > .search {
+		flex-basis: 100%;
+	}
+
+	.searchInput {
+		min-height: 44px;
+		font-size: 1rem;
+	}
+
+	.toolbar > .toolButton,
+	.toolbar > div {
+		flex: 1 1 auto;
+	}
+
+	.toolButton,
+	.scopeButton {
+		min-height: 44px;
+	}
+
+	.toolbar > div > .toolButton {
+		width: 100%;
 	}
 }

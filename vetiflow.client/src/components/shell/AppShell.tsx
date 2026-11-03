@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState, type FormEvent, type ReactNode, type Ref } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode, type Ref } from "react";
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import type { SignedInUser } from "../../types/Auth";
 import { ProfileMenu } from "./ProfileMenu";
-import { ShellSearchContext } from "./shellSearchContext";
+import { ShellSearchContext, type ShellSearch } from "./shellSearchContext";
 import {
   BellIcon,
   BoardIcon,
@@ -48,6 +48,7 @@ interface AppShellProps {
 // the navy rail and the top bar with breadcrumb, search, bell and profile.
 export function AppShell({ user, children }: AppShellProps) {
   const [search, setSearch] = useState("");
+  const shellSearch = useMemo<ShellSearch>(() => [search, setSearch], [search]);
   const [mobileNavigationOpen, setMobileNavigationOpen] = useState(false);
   const location = useLocation();
   const [navigationLocation, setNavigationLocation] = useState(location.key);
@@ -142,7 +143,7 @@ export function AppShell({ user, children }: AppShellProps) {
             onToggleMobileNavigation={() => setMobileNavigationOpen((open) => !open)}
             mobileNavigationToggleRef={mobileNavigationToggleRef}
           />
-          <ShellSearchContext value={search}>{children}</ShellSearchContext>
+          <ShellSearchContext value={shellSearch}>{children}</ShellSearchContext>
         </div>
       </div>
     </ToastProvider>

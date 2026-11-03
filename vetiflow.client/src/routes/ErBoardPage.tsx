@@ -3,7 +3,6 @@ import { useLocation, useNavigate, useOutletContext } from "react-router-dom";
 import type { SignInRouteState } from "../components/auth/experienceHome";
 import { BoardHeading } from "../components/board/BoardHeading";
 import { BoardStats, type BoardFilter } from "../components/board/BoardStats";
-import { BoardViewSwitch } from "../components/board/BoardViewSwitch";
 import { PatientFlowBoard } from "../components/board/PatientFlowBoard";
 import { isCriticalWithoutVet } from "../components/board/boardFormat";
 import { IntakeDialog } from "../components/intake/IntakeDialog";
@@ -70,7 +69,10 @@ export function ErBoardPage() {
   const arrivalCaseId = useRef(selectedOnArrival(location.state));
   const [isIntakeOpen, setIsIntakeOpen] = useState(false);
   const showToast = useToast();
-  const search = useShellSearch();
+  // Shared with the top bar inside the shell; the page's own outside it.
+  const shellSearch = useShellSearch();
+  const [ownSearch, setOwnSearch] = useState("");
+  const [search, setSearch] = shellSearch ?? [ownSearch, setOwnSearch];
   // Reloads the board now, without waiting for the hub's notice.
   const reloadCases = useRef<() => Promise<void>>(async () => {});
 
@@ -200,8 +202,6 @@ export function ErBoardPage() {
       {error && <p role="alert">{error}</p>}
       <BoardHeading summary={summary} onIntake={() => setIsIntakeOpen(true)} />
 
-      <BoardViewSwitch />
-
       <BoardStats summary={summary} criticalWithoutVet={cases.filter(isCriticalWithoutVet).length} filter={filter} onFilter={chooseFilter} />
 
       <div className={styles.layout}>
@@ -214,7 +214,7 @@ export function ErBoardPage() {
           }}
           filter={filter}
           search={search}
-          onFilter={chooseFilter}
+          onSearchChange={setSearch}
           focusRequest={boardFocus}
         />
 

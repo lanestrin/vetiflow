@@ -200,56 +200,94 @@ describe("PatientFlowBoard", () => {
     });
   });
 
-  // The Incoming toggle (build plan 2.14b).
-  describe("Incoming toggle", () => {
+  // The board header's scope and the toolbar (build plan 2.26b).
+  describe("scope and toolbar", () => {
+    const tech = { id: "t1", name: "Sam Cruz" };
+    const vet = { id: "v1", name: "Jordan Lee" };
     const cases = () => [
-      buildCase({ acuity: "urgent", stage: "incoming" }),
-      buildCase({ acuity: "stable", stage: "incoming" }),
-      buildCase({ acuity: "critical", stage: "treatment" })
+      buildCase({ patientName: "Milo", acuity: "critical", stage: "incoming", assignedTechnician: tech, assignedDoctor: vet }),
+      buildCase({ patientName: "Nori", acuity: "critical", stage: "treatment", assignedTechnician: tech, assignedDoctor: null }),
+      buildCase({ patientName: "Toby", acuity: "urgent", stage: "incoming", assignedTechnician: null, assignedDoctor: vet }),
+      buildCase({ patientName: "Pip", acuity: "stable", stage: "recheck", assignedTechnician: tech, assignedDoctor: vet })
     ];
 
-    function showToggle(filter: BoardFilter, onFilter = vi.fn()) {
+    function showBoard(filter?: BoardFilter, search = "", onSearchChange = vi.fn()) {
       render(
-        <PatientFlowBoard
-          cases={cases()}
-          updatedAt={new Date()}
-          selectedCaseId={null}
-          onSelect={vi.fn()}
-          filter={filter}
-          onFilter={onFilter}
-        />
+        <MemoryRouter>
+          <PatientFlowBoard cases={cases()} updatedAt={new Date()} selectedCaseId={null} onSelect={vi.fn()}
+            filter={filter} search={search} onSearchChange={onSearchChange} />
+        </MemoryRouter>
       );
-      return onFilter;
+      return onSearchChange;
     }
 
-    function toggle() {
-      return screen.getByRole("button", { name: /^Incoming/ });
-    }
+    const unassigned = () => screen.getByRole("button", { name: "Unassigned" });
 
-    it("counts the incoming cases", () => {
-      showToggle("all");
+    it("shows All patients selected with the case count", () => {
+      showBoard();
 
-      expect(toggle()).toHaveAccessibleName("Incoming, 2 awaiting triage");
-      expect(toggle()).toHaveTextContent("⇣ Incoming 2");
+      const scope = within(screen.getByRole("group", { name: "Patient scope" }));
+      expect(scope.getByRole("button", { name: "All patients 4" })).toHaveAttribute("aria-pressed", "true");
     });
 
-    it("is pressed only while the board shows the triage queue", () => {
-      showToggle("awaitingTriage");
+    it("keeps My patients focusable and unavailable until 2.28", () => {
+      showBoard();
+      const myPatients = screen.getByRole("button", { name: "My patients" });
+      const reason = "Available when the demo role switch is built (2.28).";
 
-      expect(toggle()).toHaveAttribute("aria-pressed", "true");
+      expect(myPatients).toHaveAttribute("aria-disabled", "true");
+      expect(myPatients).not.toBeDisabled();
+      expect(myPatients).toHaveAttribute("title", reason);
+      expect(myPatients).toHaveAccessibleDescription(reason);
+      myPatients.focus();
+      fireEvent.click(myPatients);
+      expect(myPatients).toHaveFocus();
+      expect(myPatients).toHaveAttribute("aria-pressed", "false");
+      expect(shownNames()).toHaveLength(4);
     });
 
-    it.each<[BoardFilter, BoardFilter]>([
-      ["all", "awaitingTriage"],
-      ["critical", "awaitingTriage"],
-      ["awaitingTriage", "all"]
-    ])("from %s asks for %s", (from, asked) => {
-      const onFilter = showToggle(from);
-      expect(toggle()).toHaveAttribute("aria-pressed", String(from === "awaitingTriage"));
+    it("filters the board from its search box", () => {
+      const onSearchChange = showBoard();
 
-      fireEvent.click(toggle());
+      fireEvent.change(screen.getByRole("searchbox", { name: "Search the board" }), { target: { value: "nori" } });
 
-      expect(onFilter).toHaveBeenCalledWith(asked);
+      expect(onSearchChange).toHaveBeenCalledWith("nori");
+    });
+
+    it("shows the shared search in its box", () => {
+      showBoard(undefined, "nori");
+
+      expect(screen.getByRole("searchbox", { name: "Search the board" })).toHaveValue("nori");
+      expect(shownNames()).toEqual(["Nori"]);
+    });
+
+    it("shows only unassigned patients while Unassigned is pressed", () => {
+      showBoard();
+      expect(unassigned()).toHaveAttribute("aria-pressed", "false");
+
+      fireEvent.click(unassigned());
+
+      expect(unassigned()).toHaveAttribute("aria-pressed", "true");
+      expect(shownNames()).toEqual(["Nori", "Toby"]);
+      expect(screen.getByText("Showing 2 of 4 active patients")).toBeInTheDocument();
+
+      fireEvent.click(unassigned());
+
+      expect(shownNames()).toHaveLength(4);
+    });
+
+    it("combines Unassigned with the stat filter and search", () => {
+      showBoard("awaitingTriage", "to");
+
+      fireEvent.click(unassigned());
+
+      expect(shownNames()).toEqual(["Toby"]);
+    });
+
+    it("has no Incoming toggle", () => {
+      showBoard();
+
+      expect(screen.queryByRole("button", { name: /^Incoming/ })).not.toBeInTheDocument();
     });
   });
 
@@ -320,8 +358,8 @@ describe("PatientFlowBoard", () => {
     });
   });
 
-  // The Priority button (build plan 2.14d).
-  describe("Priority button", () => {
+  // The 2.14d sort, labelled Time in stage ↓ (build plan 2.26b).
+  describe("Time in stage button", () => {
     const cases = () => [
       buildCase({ patientName: "Biscuit", acuity: "urgent", stageEnteredAt: "2026-10-28T11:55:00Z", species: "Dog" }),
       buildCase({ patientName: "Mochi", acuity: "urgent", stageEnteredAt: "2026-10-28T11:40:00Z", species: "Cat" }),
@@ -337,8 +375,17 @@ describe("PatientFlowBoard", () => {
     }
 
     function priorityButton() {
-      return screen.getByRole("button", { name: "Priority, longest in stage first" });
+      return screen.getByRole("button", { name: "Time in stage" });
     }
+
+    it("explains the Time in stage sort", () => {
+      showBoard();
+
+      const explanation = "Longest time in current stage first, within each acuity. Acuity order stays Critical, Urgent, Stable.";
+      expect(priorityButton()).toHaveTextContent("Time in stage ↓");
+      expect(priorityButton()).toHaveAttribute("title", explanation);
+      expect(priorityButton()).toHaveAccessibleDescription(explanation);
+    });
 
     it("keeps the API order and is not pressed by default", () => {
       showBoard();

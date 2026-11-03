@@ -104,7 +104,7 @@ export function BoardFilterMenu({ cases, filters, onChange }: BoardFilterMenuPro
         onClick={() => setIsOpen((open) => !open)}
       >
         <span aria-hidden="true">⚑ </span>
-        <span className={boardStyles.toolLabel}>Filter</span>
+        Filter
         {inUse > 0 && <> <b>{inUse}</b></>}
       </button>
       <div id={menuId} className={styles.menu} hidden={!isOpen}>
