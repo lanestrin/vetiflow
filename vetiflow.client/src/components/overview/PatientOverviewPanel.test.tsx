@@ -264,7 +264,7 @@ describe("PatientOverviewPanel", () => {
     renderPanel("case-milo");
 
     expect(await screen.findByText("In treatment")).toBeInTheDocument();
-    expect(screen.getByText("No next action documented")).toBeInTheDocument();
+    expect(screen.getByText("No next action designated")).toBeInTheDocument();
     expect(screen.getByText("No room assigned")).toBeInTheDocument();
     expect(screen.getByText("Not recorded", { selector: "[data-role='allergies']" })).toBeInTheDocument();
     expect(screen.getByText("Unassigned", { selector: "[data-role='attending-veterinarian']" })).toBeInTheDocument();
@@ -1009,6 +1009,82 @@ describe("PatientOverviewPanel", () => {
 const reviewContent = { Clinical: "148 bpm", "Orders & Medications": "Recorded medication history", Timeline: "Respiratory distress" };
 
 // The patient record's header and tabs (build plan 3.2c).
+// The staff-designated Next Care Action (4.13b): never chosen by the software.
+describe("next care action", () => {
+  const minutesFromNow = (minutes: number) => new Date(Date.now() + minutes * 60_000).toISOString();
+
+  async function findNextAction() {
+    return screen.findByRole("region", { name: "Next care action" });
+  }
+
+  it("shows the designated next care action with its priority, assignee and due time", async () => {
+    const task = buildCaseTask({ description: "Administer pain medication", priority: "high", isNextAction: true,
+      assignedTo: { id: "staff-riley", name: "Riley Chen" }, dueAt: minutesFromNow(5.5) });
+    serveCase(buildMilo({ tasks: [task], nextActionTaskId: task.id, nextAction: "Old free text" }));
+    renderPanel("case-milo");
+
+    const nextAction = await findNextAction();
+    expect(within(nextAction).getByText("Administer pain medication")).toBeInTheDocument();
+    expect(within(nextAction).getByText("Priority")).toBeInTheDocument();
+    expect(within(nextAction).getByText("High", { selector: "[data-role='next-action-priority']" })).toBeInTheDocument();
+    expect(within(nextAction).getByText("Riley Chen", { selector: "[data-role='next-action-responsible']" })).toBeInTheDocument();
+    expect(within(nextAction).getByText("Due in 5 min", { selector: "[data-role='next-action-due']" })).not.toHaveAttribute("data-overdue");
+    expect(within(nextAction).queryByText(/Previously documented/)).not.toBeInTheDocument();
+  });
+
+  it("shows Not prioritized, Not assigned and Not scheduled when they are unset", async () => {
+    const task = buildCaseTask({ description: "Recheck lactate", isNextAction: true });
+    serveCase(buildMilo({ tasks: [task], nextActionTaskId: task.id }));
+    renderPanel("case-milo");
+
+    const nextAction = await findNextAction();
+    expect(within(nextAction).getByText("Not prioritized", { selector: "[data-role='next-action-priority']" })).toBeInTheDocument();
+    expect(within(nextAction).getByText("Not assigned", { selector: "[data-role='next-action-responsible']" })).toBeInTheDocument();
+    expect(within(nextAction).getByText("Not scheduled", { selector: "[data-role='next-action-due']" })).toBeInTheDocument();
+  });
+
+  it("warns when the designated action is overdue", async () => {
+    const task = buildCaseTask({ description: "Recheck lactate", isNextAction: true, dueAt: minutesFromNow(-10.5) });
+    serveCase(buildMilo({ tasks: [task], nextActionTaskId: task.id }));
+    renderPanel("case-milo");
+
+    const due = within(await findNextAction()).getByText("Overdue by 10 min", { selector: "[data-role='next-action-due']" });
+    expect(due).toHaveAttribute("data-overdue", "true");
+  });
+
+  it("says no next action is designated and keeps the earlier note beneath", async () => {
+    serveCase(buildMilo({ tasks: [], nextActionTaskId: null, nextAction: "Recheck BP at 2 pm" }));
+    renderPanel("case-milo");
+
+    const nextAction = await findNextAction();
+    expect(within(nextAction).getByText("No next action designated")).toBeInTheDocument();
+    expect(within(nextAction).getByText(/Recheck BP at 2 pm/, { selector: "[data-role='previous-next-action-note']" }))
+      .toHaveTextContent("Previously documented next-action note: Recheck BP at 2 pm");
+    expect(within(nextAction).queryByText("Priority")).not.toBeInTheDocument();
+    expect(within(nextAction).queryByText("Responsible")).not.toBeInTheDocument();
+  });
+
+  it("never shows an undesignated open task as the next care action", async () => {
+    const urgent = buildCaseTask({ description: "Start oxygen", priority: "urgent", dueAt: minutesFromNow(-30) });
+    const soon = buildCaseTask({ description: "Call owner", dueAt: minutesFromNow(1) });
+    serveCase(buildMilo({ tasks: [urgent, soon], nextActionTaskId: null, nextAction: null }));
+    renderPanel("case-milo");
+
+    const nextAction = await findNextAction();
+    expect(within(nextAction).getByText("No next action designated")).toBeInTheDocument();
+    expect(within(nextAction).queryByText("Start oxygen")).not.toBeInTheDocument();
+    expect(within(nextAction).queryByText("Call owner")).not.toBeInTheDocument();
+    expect(within(nextAction).queryByText(/Previously documented/)).not.toBeInTheDocument();
+  });
+
+  it("falls back to no designation when the designated task is no longer listed", async () => {
+    serveCase(buildMilo({ tasks: [buildCaseTask({ description: "Start oxygen" })], nextActionTaskId: "task-gone" }));
+    renderPanel("case-milo");
+
+    expect(within(await findNextAction()).getByText("No next action designated")).toBeInTheDocument();
+  });
+});
+
 describe("patient record header", () => {
   it("keeps identity, acuity, care stage, location and allergies above the tabs", async () => {
     serveCase(buildMilo({ patient: { ...buildMilo().patient, allergies: "Penicillin", allergyStatus: "documentedAllergies" } }));

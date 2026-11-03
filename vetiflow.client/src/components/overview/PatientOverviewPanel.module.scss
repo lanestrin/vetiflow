@@ -456,6 +456,40 @@
 	overflow-wrap: anywhere;
 }
 
+// Free text from before designation (4.13b): secondary, so it does not read
+// as the current action.
+.legacyNote {
+	margin: 0 0 8px;
+	color: var(--color-text-secondary);
+	font-size: .75rem;
+	line-height: 1.5;
+	overflow-wrap: anywhere;
+
+	span {
+		font-weight: 700;
+	}
+}
+
+// A designated action past its due time: the words say so; the icon and colour
+// add emphasis.
+.overdue {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	color: var(--color-acuity-critical);
+}
+
+.overdueIcon {
+	flex: none;
+	width: 14px;
+	height: 14px;
+	fill: none;
+	stroke: currentColor;
+	stroke-width: 2;
+	stroke-linecap: round;
+	stroke-linejoin: round;
+}
+
 .actionRow {
 	display: flex;
 	align-items: flex-start;
