@@ -704,6 +704,38 @@ describe("ErBoardPage", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
+  // Patient assignments at intake (4.1c): the case exists either way.
+  it("says which assignment failed after adding the intake", async () => {
+    const toby = buildCase({ id: "case-toby", patientName: "Toby", stage: "incoming", acuity: "urgent", waitChip: "new" });
+    serveCases([]);
+    server.use(
+      http.get(apiUrl("/api/staff/team"), () => HttpResponse.json([
+        { id: "staff-riley-chen", displayName: "Riley Chen", initials: "RC", role: "technician", status: "available", activeCaseCount: 0, activeCases: [] }
+      ])),
+      http.post(apiUrl("/api/cases/intake"), () =>
+        HttpResponse.json({ id: "case-toby", caseNumber: "ER-2489", patientId: "patient-toby" }, { status: 201 })),
+      http.put(apiUrl("/api/cases/case-toby/technician"), () => new HttpResponse(null, { status: 500 }))
+    );
+    renderBoard();
+
+    fireEvent.click(await screen.findByRole("button", { name: "New intake" }));
+    const dialog = screen.getByRole("dialog", { name: "New patient intake" });
+    fireEvent.change(within(dialog).getByLabelText("Patient name *"), { target: { value: "Toby" } });
+    fireEvent.change(within(dialog).getByLabelText("Species *"), { target: { value: "Dog" } });
+    fireEvent.change(within(dialog).getByLabelText("Pet parent / guardian *"), { target: { value: "Jo Mills" } });
+    fireEvent.change(within(dialog).getByLabelText("Phone number *"), { target: { value: "312-555-0177" } });
+    fireEvent.change(within(dialog).getByLabelText("Chief complaint *"), { target: { value: "Acute vomiting" } });
+    fireEvent.click(within(dialog).getByLabelText("Urgent"));
+    await within(dialog).findByRole("option", { name: "Riley Chen" });
+    fireEvent.change(within(dialog).getByLabelText("Primary technician"), { target: { value: "staff-riley-chen" } });
+    serveCases([toby]);
+    fireEvent.click(within(dialog).getByRole("button", { name: "Add to triage queue" }));
+
+    expect(await within(await findBoard()).findByRole("button", { name: "Toby" })).toHaveAttribute("aria-pressed", "true");
+    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent(
+      "Toby added to triage queue. The primary technician wasn't assigned; assign from the record."));
+  });
+
   // The stats strip (build plan 2.12b, 2.26a).
   describe("stats strip", () => {
     const boardCases = () => [

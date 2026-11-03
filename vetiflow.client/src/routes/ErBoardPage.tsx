@@ -5,7 +5,7 @@ import { BoardHeading } from "../components/board/BoardHeading";
 import { BoardStats, type BoardFilter } from "../components/board/BoardStats";
 import { PatientFlowBoard } from "../components/board/PatientFlowBoard";
 import { isCriticalWithoutVet } from "../components/board/boardFormat";
-import { IntakeDialog } from "../components/intake/IntakeDialog";
+import { IntakeDialog, type IntakeAssignment } from "../components/intake/IntakeDialog";
 import { PatientOverviewPanel } from "../components/overview/PatientOverviewPanel";
 import { RecordDrawer } from "../components/overview/RecordDrawer";
 import { useMediaQuery } from "../components/auth/useMediaQuery";
@@ -43,6 +43,18 @@ async function loadSummary(): Promise<BoardSummary | null> {
 
     return null;
   }
+}
+
+// The intake's assignments that did not save (4.1c): the case exists, so say
+// which to assign from the record.
+const assignmentNames: Record<IntakeAssignment, string> = {
+  technician: "primary technician",
+  veterinarian: "attending veterinarian"
+};
+
+function unsavedAssignments(failed: IntakeAssignment[]): string {
+  if (failed.length === 0) return "";
+  return `. The ${failed.map((assignment) => assignmentNames[assignment]).join(" and ")} wasn't assigned; assign from the record.`;
 }
 
 // Router state that selects a case on arrival, as the patient profile's
@@ -159,9 +171,9 @@ export function ErBoardPage() {
   }, [navigate, drafts]);
 
   // The new case appears in its lane, selected (prototype intake).
-  function showNewIntake(result: CaseIntakeResult, petName: string) {
+  function showNewIntake(result: CaseIntakeResult, petName: string, failed: IntakeAssignment[]) {
     setSelectedCaseId(result.id);
-    showToast(`${petName} added to triage queue`);
+    showToast(`${petName} added to triage queue${unsavedAssignments(failed)}`);
     void reloadCases.current();
   }
 
