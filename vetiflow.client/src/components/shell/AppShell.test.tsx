@@ -1,6 +1,6 @@
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes, useLocation, useNavigate } from "react-router-dom";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { readAccessToken, saveAccessToken } from "../../services/session";
 import { buildTeamMember } from "../../test/builders";
 import { AppShell } from "./AppShell";
@@ -198,77 +198,91 @@ describe("AppShell", () => {
 
     expect(screen.getByTestId("shared-search")).toBeEmptyDOMElement();
   });
+});
 
-  it("opens the mobile navigation and focuses its first destination", () => {
-    renderShell();
-    const toggle = screen.getByRole("button", { name: "Open navigation menu" });
-
-    expect(toggle).toHaveAttribute("aria-expanded", "false");
-    expect(toggle).toHaveAttribute("aria-controls", "main-navigation");
-
-    fireEvent.click(toggle);
-
-    expect(screen.getByRole("button", { name: "Close navigation menu" })).toHaveAttribute("aria-expanded", "true");
-    expect(screen.getByRole("navigation", { name: "Main" })).toHaveAttribute("id", "main-navigation");
-    expect(screen.getByRole("link", { name: "Overview" })).toHaveFocus();
+// At 700 px and below the rail is a bottom bar with More (2.27b).
+describe("the bottom bar on phones", () => {
+  beforeEach(() => {
+    vi.stubGlobal("matchMedia", (query: string) => ({
+      matches: query === "(max-width: 700px)",
+      media: query,
+      addEventListener: () => {},
+      removeEventListener: () => {}
+    }));
   });
 
-  it("closes the mobile navigation with Escape and returns focus to the toggle", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  function more() {
+    return screen.getByRole("button", { name: "More" });
+  }
+
+  it("shows Overview, ER board, Patients, Team and More in the bottom bar", () => {
     renderShell();
-    const toggle = screen.getByRole("button", { name: "Open navigation menu" });
-    fireEvent.click(toggle);
+
+    const bar = screen.getByRole("navigation", { name: "Main" });
+    expect(within(bar).getAllByRole("link").map((link) => link.getAttribute("aria-label")))
+      .toEqual(["Overview", "ER board", "Patients", "Team"]);
+    expect(within(bar).getByRole("button", { name: "More" })).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("button", { name: /navigation menu/ })).not.toBeInTheDocument();
+  });
+
+  it("opens More with Reports and Settings", () => {
+    renderShell();
+
+    fireEvent.click(more());
+
+    expect(more()).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("link", { name: "Reports" })).toHaveAttribute("href", "/reports");
+    expect(screen.getByRole("link", { name: "Settings" })).toHaveAttribute("href", "/settings");
+  });
+
+  it("closes More with Escape and returns focus to it", () => {
+    renderShell();
+    fireEvent.click(more());
 
     fireEvent.keyDown(document, { key: "Escape" });
 
-    expect(screen.getByRole("button", { name: "Open navigation menu" })).toHaveAttribute("aria-expanded", "false");
-    expect(toggle).toHaveFocus();
+    expect(more()).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("link", { name: "Reports" })).not.toBeInTheDocument();
+    expect(more()).toHaveFocus();
   });
 
-  it("closes the mobile navigation after selecting a destination", () => {
+  it("closes More on a press outside it", () => {
     renderShell();
-    const toggle = screen.getByRole("button", { name: "Open navigation menu" });
-    fireEvent.click(toggle);
+    fireEvent.click(more());
 
-    fireEvent.click(screen.getByRole("link", { name: "Patients" }));
+    fireEvent.pointerDown(screen.getByTestId("where"));
 
-    expect(screen.getByTestId("where")).toHaveTextContent("/records");
-    expect(toggle).toHaveAttribute("aria-expanded", "false");
-    expect(toggle).toHaveFocus();
+    expect(more()).toHaveAttribute("aria-expanded", "false");
   });
 
-  it("closes after non-rail navigation and stays closed through browser history", () => {
+  it("closes More after choosing a destination", () => {
     renderShell();
-    const toggle = screen.getByRole("button", { name: "Open navigation menu" });
-    fireEvent.click(toggle);
+    fireEvent.click(more());
+
+    fireEvent.click(screen.getByRole("link", { name: "Reports" }));
+
+    expect(screen.getByTestId("where")).toHaveTextContent("/reports");
+    expect(more()).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("closes More after navigation from elsewhere", () => {
+    renderShell();
+    fireEvent.click(more());
+
     fireEvent.click(screen.getByRole("link", { name: "Search patients" }));
+
     expect(screen.getByTestId("where")).toHaveTextContent("/records");
-    expect(toggle).toHaveAttribute("aria-expanded", "false");
-    fireEvent.click(screen.getByRole("button", { name: "Previous route" }));
-    expect(screen.getByTestId("where")).toHaveTextContent("/er");
-    expect(toggle).toHaveAttribute("aria-expanded", "false");
-    fireEvent.click(toggle);
-    fireEvent.click(screen.getByRole("button", { name: "Next route" }));
-    expect(screen.getByTestId("where")).toHaveTextContent("/records");
-    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    expect(more()).toHaveAttribute("aria-expanded", "false");
   });
 
-  it("resets on desktop without intercepting Escape or reopening on mobile", () => {
-    const media = Object.assign(new EventTarget(), { matches: true });
-    vi.stubGlobal("matchMedia", () => media);
-    renderShell();
-    const toggle = screen.getByRole("button", { name: "Open navigation menu" });
-    fireEvent.click(toggle);
-    media.matches = false;
-    act(() => media.dispatchEvent(Object.assign(new Event("change"), { matches: false })));
-    expect(toggle).toHaveAttribute("aria-expanded", "false");
-    expect(toggle).not.toHaveFocus();
-    const escape = new KeyboardEvent("keydown", { key: "Escape", cancelable: true });
-    fireEvent(document, escape);
-    expect(escape.defaultPrevented).toBe(false);
-    media.matches = true;
-    act(() => media.dispatchEvent(Object.assign(new Event("change"), { matches: true })));
-    expect(toggle).toHaveAttribute("aria-expanded", "false");
-    fireEvent.click(toggle);
-    expect(screen.getByRole("link", { name: "Overview" })).toHaveFocus();
+  it("marks More as the current section on Reports", () => {
+    renderShell("/reports");
+
+    expect(more()).toHaveAttribute("aria-current", "true");
+    expect(screen.queryAllByRole("link", { current: "page" })).toHaveLength(0);
   });
 });
