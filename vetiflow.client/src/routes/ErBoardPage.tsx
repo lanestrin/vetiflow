@@ -5,7 +5,7 @@ import { BoardHeading } from "../components/board/BoardHeading";
 import { BoardStats, type BoardFilter } from "../components/board/BoardStats";
 import { BoardViewSwitch } from "../components/board/BoardViewSwitch";
 import { PatientFlowBoard } from "../components/board/PatientFlowBoard";
-import { useNow } from "../components/board/useNow";
+import { isCriticalWithoutVet } from "../components/board/boardFormat";
 import { IntakeDialog } from "../components/intake/IntakeDialog";
 import { PatientOverviewPanel } from "../components/overview/PatientOverviewPanel";
 import { useShellSearch } from "../components/shell/shellSearchContext";
@@ -68,7 +68,6 @@ export function ErBoardPage() {
   const arrivalCaseId = useRef(selectedOnArrival(location.state));
   const [isIntakeOpen, setIsIntakeOpen] = useState(false);
   const showToast = useToast();
-  const now = useNow();
   const search = useShellSearch();
   // Reloads the board now, without waiting for the hub's notice.
   const reloadCases = useRef<() => Promise<void>>(async () => {});
@@ -153,11 +152,16 @@ export function ErBoardPage() {
     void reloadCases.current();
   }
 
-  // The stat cards filter the board (2.12b). An empty triage queue keeps the
-  // board as it is, as in the prototype.
+  // The stats filter the board (2.12b, 2.26a). An empty triage queue, or no
+  // critical patient without a vet, keeps the board as it is, as in the prototype.
   function chooseFilter(chosen: BoardFilter) {
     if (chosen === "awaitingTriage" && summary?.awaitingTriage === 0) {
       showToast("No patients awaiting triage");
+      return;
+    }
+
+    if (chosen === "criticalWithoutVet" && !cases.some(isCriticalWithoutVet)) {
+      showToast("No critical patients without a veterinarian");
       return;
     }
 
@@ -196,7 +200,7 @@ export function ErBoardPage() {
 
       <BoardViewSwitch />
 
-      <BoardStats summary={summary} filter={filter} now={now} onFilter={chooseFilter} />
+      <BoardStats summary={summary} criticalWithoutVet={cases.filter(isCriticalWithoutVet).length} filter={filter} onFilter={chooseFilter} />
 
       <div className={styles.layout}>
         <PatientFlowBoard

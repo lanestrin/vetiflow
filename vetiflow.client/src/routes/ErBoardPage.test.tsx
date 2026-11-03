@@ -51,7 +51,7 @@ function serveSummary(summary: BoardSummary) {
 }
 
 function statCard(name: RegExp) {
-  return within(screen.getByRole("region", { name: "Board summary" })).getByRole("button", { name });
+  return within(screen.getByRole("region", { name: "Shift summary" })).getByRole("button", { name });
 }
 
 async function findBoard() {
@@ -144,7 +144,7 @@ describe("ErBoardPage", () => {
 
     const heading = await screen.findByRole("heading", { level: 1 });
     const viewSwitch = screen.getByRole("tablist", { name: "Dashboard view" });
-    const stats = screen.getByRole("region", { name: "Board summary" });
+    const stats = screen.getByRole("region", { name: "Shift summary" });
     expect(heading.compareDocumentPosition(viewSwitch) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(viewSwitch.compareDocumentPosition(stats) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
@@ -413,24 +413,59 @@ describe("ErBoardPage", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
-  // The stat cards (build plan 2.12b).
-  describe("stat cards", () => {
+  // The stats strip (build plan 2.12b, 2.26a).
+  describe("stats strip", () => {
     const boardCases = () => [
       buildCase({ patientName: "Toby", acuity: "urgent", stage: "incoming" }),
       buildCase({ patientName: "Milo", acuity: "critical", stage: "treatment" }),
       buildCase({ patientName: "Pip", acuity: "stable", stage: "recheck" })
     ];
 
-    it("fills the cards from the summary, with Patients in care pressed", async () => {
+    it("fills the strip from the summary and the board, with In care pressed", async () => {
       serveCases(boardCases());
       serveSummary(buildBoardSummary({ patientsInCare: 3, awaitingTriage: 1, criticalPatients: 1 }));
       renderBoard();
 
       await screen.findByRole("button", { name: "Milo" });
-      expect(statCard(/patients in care/i)).toHaveTextContent("3");
-      expect(statCard(/patients in care/i)).toHaveAttribute("aria-pressed", "true");
-      expect(statCard(/awaiting triage/i)).toHaveTextContent("1");
-      expect(statCard(/critical patients/i)).toHaveTextContent("1");
+      expect(statCard(/^In care/)).toHaveTextContent("3");
+      expect(statCard(/^In care/)).toHaveAttribute("aria-pressed", "true");
+      expect(statCard(/^Awaiting triage/)).toHaveTextContent("1");
+      expect(statCard(/^Critical,/)).toHaveTextContent("1");
+      // Milo is critical and buildCase assigns no veterinarian.
+      expect(statCard(/^Critical without vet/)).toHaveAccessibleName("Critical without vet, 1");
+    });
+
+    it("filters the board from Critical without vet", async () => {
+      serveCases([
+        buildCase({ patientName: "Milo", acuity: "critical", assignedDoctor: null }),
+        buildCase({ patientName: "Nori", acuity: "critical", assignedDoctor: { id: "v1", name: "Jordan Lee" } }),
+        buildCase({ patientName: "Pip", acuity: "stable", assignedDoctor: null })
+      ]);
+      serveSummary(buildBoardSummary({ patientsInCare: 3, criticalPatients: 2 }));
+      renderBoard();
+      await screen.findByRole("button", { name: "Milo" });
+
+      fireEvent.click(statCard(/^Critical without vet/));
+
+      expect(statCard(/^Critical without vet/)).toHaveAttribute("aria-pressed", "true");
+      expect(shownNames()).toEqual(["Milo"]);
+      expect(screen.getByText("Showing 1 of 3 active patients · critical without a veterinarian")).toBeInTheDocument();
+    });
+
+    it("says so and keeps the board when no critical patient lacks a veterinarian", async () => {
+      serveCases([
+        buildCase({ patientName: "Nori", acuity: "critical", assignedDoctor: { id: "v1", name: "Jordan Lee" } }),
+        buildCase({ patientName: "Pip", acuity: "stable", assignedDoctor: null })
+      ]);
+      serveSummary(buildBoardSummary({ patientsInCare: 2, criticalPatients: 1 }));
+      renderBoard();
+      await screen.findByRole("button", { name: "Nori" });
+
+      fireEvent.click(statCard(/^Critical without vet/));
+
+      expect(screen.getByRole("status")).toHaveTextContent("No critical patients without a veterinarian");
+      expect(statCard(/^In care/)).toHaveAttribute("aria-pressed", "true");
+      expect(shownNames()).toHaveLength(2);
     });
 
     it("filters the board to the triage queue, then to critical, then back to all", async () => {
@@ -439,18 +474,18 @@ describe("ErBoardPage", () => {
       renderBoard();
       await screen.findByRole("button", { name: "Milo" });
 
-      fireEvent.click(statCard(/awaiting triage/i));
+      fireEvent.click(statCard(/^Awaiting triage/));
 
-      expect(statCard(/awaiting triage/i)).toHaveAttribute("aria-pressed", "true");
+      expect(statCard(/^Awaiting triage/)).toHaveAttribute("aria-pressed", "true");
       expect(screen.getByRole("button", { name: "Toby" })).toBeInTheDocument();
       expect(screen.queryByRole("button", { name: "Milo" })).not.toBeInTheDocument();
 
-      fireEvent.click(statCard(/critical patients/i));
+      fireEvent.click(statCard(/^Critical,/));
 
       expect(screen.getByRole("button", { name: "Milo" })).toBeInTheDocument();
       expect(screen.queryByRole("button", { name: "Toby" })).not.toBeInTheDocument();
 
-      fireEvent.click(statCard(/patients in care/i));
+      fireEvent.click(statCard(/^In care/));
 
       expect(shownNames()).toHaveLength(3);
     });
@@ -461,10 +496,10 @@ describe("ErBoardPage", () => {
       renderBoard();
       await screen.findByRole("button", { name: "Milo" });
 
-      fireEvent.click(statCard(/awaiting triage/i));
+      fireEvent.click(statCard(/^Awaiting triage/));
 
       expect(screen.getByRole("status")).toHaveTextContent("No patients awaiting triage");
-      expect(statCard(/patients in care/i)).toHaveAttribute("aria-pressed", "true");
+      expect(statCard(/^In care/)).toHaveAttribute("aria-pressed", "true");
       expect(shownNames()).toHaveLength(3);
     });
 
@@ -479,16 +514,16 @@ describe("ErBoardPage", () => {
       fireEvent.click(toggle);
 
       expect(toggle).toHaveAttribute("aria-pressed", "true");
-      expect(statCard(/awaiting triage/i)).toHaveAttribute("aria-pressed", "true");
+      expect(statCard(/^Awaiting triage/)).toHaveAttribute("aria-pressed", "true");
       expect(shownNames()).toHaveLength(1);
 
       fireEvent.click(toggle);
 
       expect(toggle).toHaveAttribute("aria-pressed", "false");
-      expect(statCard(/patients in care/i)).toHaveAttribute("aria-pressed", "true");
+      expect(statCard(/^In care/)).toHaveAttribute("aria-pressed", "true");
       expect(shownNames()).toHaveLength(3);
 
-      fireEvent.click(statCard(/awaiting triage/i));
+      fireEvent.click(statCard(/^Awaiting triage/));
 
       expect(toggle).toHaveAttribute("aria-pressed", "true");
     });
@@ -515,7 +550,7 @@ describe("ErBoardPage", () => {
       serveSummary(buildBoardSummary({ patientsInCare: 4 }));
       hub.emit("caseUpdated", "case-new");
 
-      await waitFor(() => expect(statCard(/patients in care/i)).toHaveTextContent("4"));
+      await waitFor(() => expect(statCard(/^In care/)).toHaveTextContent("4"));
     });
 
     it("keeps the board up with dashes when only the summary fails", async () => {
@@ -524,8 +559,8 @@ describe("ErBoardPage", () => {
       renderBoard();
 
       expect(await screen.findByRole("button", { name: "Milo" })).toBeInTheDocument();
-      expect(statCard(/patients in care/i)).toHaveTextContent("—");
-      expect(statCard(/patients in care/i)).toHaveTextContent("Not available");
+      expect(statCard(/^In care/)).toHaveTextContent("—");
+      expect(statCard(/^In care/)).toHaveAccessibleName("In care, not available");
     });
 
     it("sends the person to sign in when the summary reports the session ended", async () => {

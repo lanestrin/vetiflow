@@ -4,6 +4,7 @@ import type { AcuityLevel, EmergencyCaseListItem } from "../../types/EmergencyCa
 import type { BoardFilter } from "./BoardStats";
 import { BoardFilterMenu } from "./BoardFilterMenu";
 import {
+  isCriticalWithoutVet,
   matchesMenuFilters,
   matchesSearch,
   minutesSince,
@@ -42,17 +43,28 @@ function casesLabel(count: number): string {
   return count === 1 ? "1 active case" : `${count} active cases`;
 }
 
-// The prototype's #flowFoot for each stat card filter.
-function footLabel(filter: BoardFilter, shownCount: number, totalCount: number): string {
-  if (filter === "awaitingTriage") {
-    return `Showing ${shownCount} awaiting triage cases · initial priority is provisional`;
-  }
+const filterNotes: Record<BoardFilter, string> = {
+  all: "",
+  awaitingTriage: " · awaiting triage · initial priority is provisional",
+  critical: " · critical only",
+  criticalWithoutVet: " · critical without a veterinarian"
+};
 
-  if (filter === "critical") {
-    return `Showing ${shownCount} critical patients · other acuities hidden`;
-  }
+// The footer count (2.26a): matching active patients out of all active
+// patients, whatever the filter, menu or search.
+function footLabel(filter: BoardFilter, shownCount: number, totalCount: number, searchText: string): string {
+  const patients = totalCount === 1 ? "1 active patient" : `${totalCount} active patients`;
+  const matching = searchText === "" ? "" : ` matching “${searchText}”`;
+  return `Showing ${shownCount} of ${patients}${matching}${filterNotes[filter]}`;
+}
 
-  return `Showing ${shownCount} of ${casesLabel(totalCount)}`;
+function matchesStatFilter(emergencyCase: EmergencyCaseListItem, filter: BoardFilter): boolean {
+  switch (filter) {
+    case "awaitingTriage": return emergencyCase.stage === "incoming";
+    case "critical": return emergencyCase.acuity === "critical";
+    case "criticalWithoutVet": return isCriticalWithoutVet(emergencyCase);
+    case "all": return true;
+  }
 }
 
 // The board table (build plan 2.25, the prototype's `.board`): one row per
@@ -75,10 +87,7 @@ export function PatientFlowBoard({
   // The Priority button (2.14d): the API's priority order unless pressed.
   const [isLongestInStageFirst, setIsLongestInStageFirst] = useState(false);
 
-  const filteredCases = cases.filter((emergencyCase) =>
-    filter === "awaitingTriage" ? emergencyCase.stage === "incoming"
-      : filter === "critical" ? emergencyCase.acuity === "critical"
-        : true);
+  const filteredCases = cases.filter((emergencyCase) => matchesStatFilter(emergencyCase, filter));
   const matchingCases = filteredCases.filter((emergencyCase) =>
     matchesMenuFilters(emergencyCase, menuFilters) && matchesSearch(emergencyCase, search));
   const shownCases = isLongestInStageFirst
@@ -161,12 +170,11 @@ export function PatientFlowBoard({
       </div>
 
       <p className={styles.foot}>
-        {searchText === "" ? (
-          footLabel(filter, shownCases.length, cases.length)
-        ) : (
+        {footLabel(filter, shownCases.length, cases.length, searchText)}
+        {searchText !== "" && (
           // Patients finds a pet who isn't on the board (4.6a).
           <>
-            Showing {shownCases.length} matching “{searchText}” ·{" "}
+            {" · "}
             <Link className={styles.footLink} to={`/records?search=${encodeURIComponent(searchText)}`}>
               Search all patients
             </Link>

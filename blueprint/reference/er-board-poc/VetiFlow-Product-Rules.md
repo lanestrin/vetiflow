@@ -62,7 +62,8 @@ The prototype guides visual hierarchy and the shared patient record. Where it co
 - Keep long clinical narratives out of every board row.
 - Use a compact summary strip instead of oversized metric cards.
 - Distinguish Critical, Urgent and Stable using text as well as color.
-- Keep **All patients** and **My patients**, search, priority sorting and filters.
+- Keep **All patients** and **My patients**, search, sorting and filters.
+- Acuity order is fixed: Critical, then Urgent, then Stable. A **Time in stage ↓** toggle sorts the longest time in the current stage first within each acuity, with a tooltip explaining the sort. No control moves Stable patients above Critical ones.
 - Do not use the **Team** destination merely to filter unassigned patients. Team assignments belong in the record, with assignment filters on the board.
 - The app keeps its **Team** destination for its distinct purpose: who is on the floor and their workload. The app's navigation (Overview, ER board, Patients, Team, Reports, Settings) is not reduced to the prototype's.
 - Vet My patients includes attending assignments and accepted coverage for that veterinarian.

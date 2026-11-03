@@ -3,6 +3,7 @@ import { buildBoardSummary, buildCase } from "../../test/builders";
 import {
   ageLabel,
   caseStatusLabel,
+  isCriticalWithoutVet,
   matchesMenuFilters,
   matchesSearch,
   minutesSince,
@@ -193,5 +194,17 @@ describe("shiftChipLabel", () => {
     const summary = buildBoardSummary({ shift: { name, startedAt: now.toISOString() }, cliniciansOnFloor });
 
     expect(shiftChipLabel(summary)).toBe(label);
+  });
+});
+
+describe("isCriticalWithoutVet", () => {
+  it("counts critical cases with no attending veterinarian, whether or not a technician is assigned", () => {
+    const technician = { id: "t1", name: "Sam Cruz" };
+    const veterinarian = { id: "v1", name: "Jordan Lee" };
+
+    expect(isCriticalWithoutVet(buildCase({ acuity: "critical", assignedDoctor: null, assignedTechnician: null }))).toBe(true);
+    expect(isCriticalWithoutVet(buildCase({ acuity: "critical", assignedDoctor: null, assignedTechnician: technician }))).toBe(true);
+    expect(isCriticalWithoutVet(buildCase({ acuity: "critical", assignedDoctor: veterinarian }))).toBe(false);
+    expect(isCriticalWithoutVet(buildCase({ acuity: "urgent", assignedDoctor: null }))).toBe(false);
   });
 });
