@@ -5,15 +5,15 @@
 	padding: var(--space-5);
 }
 
-// The prototype's .layout: board and patient overview side by side, the
-// overview under the board from 1050 px.
+// The prototype's .layout: board and patient record side by side; from
+// 1100 px the board takes the full width and the record is a drawer (2.27a).
 .layout {
 	display: grid;
 	grid-template-columns: minmax(530px, 1.45fr) minmax(350px, 0.85fr);
 	gap: 16px;
 	align-items: start;
 
-	@media (max-width: 1050px) {
+	@media (max-width: 1100px) {
 		grid-template-columns: minmax(0, 1fr);
 	}
 

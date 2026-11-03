@@ -7,6 +7,8 @@ import { PatientFlowBoard } from "../components/board/PatientFlowBoard";
 import { isCriticalWithoutVet } from "../components/board/boardFormat";
 import { IntakeDialog } from "../components/intake/IntakeDialog";
 import { PatientOverviewPanel } from "../components/overview/PatientOverviewPanel";
+import { RecordDrawer } from "../components/overview/RecordDrawer";
+import { useMediaQuery } from "../components/auth/useMediaQuery";
 import { useShellSearch } from "../components/shell/shellSearchContext";
 import { useToast } from "../components/shell/toastContext";
 import type { SignedInUser } from "../types/Auth";
@@ -24,6 +26,9 @@ import { useClinicalDraftNavigation } from "../components/forms/clinicalDraftCon
 
 // React 19 moves <title> into the document head, so each page names its own tab.
 const pageTitle = <title>ER Board · VetiFlow</title>;
+
+// Matches the 1100 px breakpoint in ErBoardPage.module.scss.
+const drawerQuery = "(max-width: 1100px)";
 
 // The stat cards' numbers, or null when only they failed: the board still
 // shows. A refused session still ends the board, as for the cases.
@@ -75,6 +80,8 @@ export function ErBoardPage() {
   const [search, setSearch] = shellSearch ?? [ownSearch, setOwnSearch];
   // Reloads the board now, without waiting for the hub's notice.
   const reloadCases = useRef<() => Promise<void>>(async () => {});
+  // At tablet and phone widths the record is a drawer over the board (2.27a).
+  const isDrawerLayout = useMediaQuery(drawerQuery);
 
   useEffect(() => {
     let isActive = true;
@@ -178,6 +185,29 @@ export function ErBoardPage() {
     void reloadCases.current();
   }
 
+  // Every way out of the record (3.2f ✕, and the drawer's Escape and backdrop):
+  // the same unsaved-draft guard as choosing another patient.
+  function closeRecord() {
+    const closedCaseId = selectedCaseId;
+    void drafts.requestLeave(() => {
+      setSelectedCaseId(null);
+      if (closedCaseId) setBoardFocus({ caseId: closedCaseId });
+    });
+  }
+
+  const record = (
+    <PatientOverviewPanel
+      signedInUser={signedInUser}
+      caseId={selectedCaseId}
+      caseUnavailable={selectedCaseId !== null && !cases.some(item => item.id === selectedCaseId)}
+      refreshedAt={updatedAt}
+      onTriaged={showTriaged}
+      onTaskSaved={() => void reloadCases.current()}
+      onVitalsSaved={() => void reloadCases.current()}
+      onClose={closeRecord}
+    />
+  );
+
   if (isLoading) {
     return (
       <main>
@@ -218,24 +248,10 @@ export function ErBoardPage() {
           focusRequest={boardFocus}
         />
 
-        <PatientOverviewPanel
-          signedInUser={signedInUser}
-          caseId={selectedCaseId}
-          caseUnavailable={selectedCaseId !== null && !cases.some(item => item.id === selectedCaseId)}
-          refreshedAt={updatedAt}
-          onTriaged={showTriaged}
-          onTaskSaved={() => void reloadCases.current()}
-          onVitalsSaved={() => void reloadCases.current()}
-          onClose={() => {
-            const closedCaseId = selectedCaseId;
-            // The same unsaved-draft guard as choosing another patient.
-            void drafts.requestLeave(() => {
-              setSelectedCaseId(null);
-              if (closedCaseId) setBoardFocus({ caseId: closedCaseId });
-            });
-          }}
-        />
+        {!isDrawerLayout && record}
       </div>
+
+      {isDrawerLayout && selectedCaseId !== null && <RecordDrawer onClose={closeRecord}>{record}</RecordDrawer>}
 
       <IntakeDialog
         isOpen={isIntakeOpen}
