@@ -5,13 +5,14 @@ import type { EmergencyCaseListItem } from "../../types/EmergencyCaseListItem";
 import { BoardFilterMenu } from "./BoardFilterMenu";
 import { noMenuFilters, type BoardMenuFilters } from "./boardFormat";
 
-const reed = { id: "staff-reed", shortName: "Reed", initials: "JR" };
-const ames = { id: "staff-ames", shortName: "Ames", initials: "PA" };
+const reed = { id: "staff-reed", name: "Jordan Reed" };
+const ames = { id: "staff-ames", name: "Pat Ames" };
+const cruz = { id: "staff-cruz", name: "Sam Cruz" };
 
 const boardCases = () => [
-  buildCase({ clinician: reed, species: "Dog", status: "waiting" }),
-  buildCase({ clinician: ames, species: "Cat", status: "inProgress" }),
-  buildCase({ clinician: reed, species: "Dog", status: "waiting" })
+  buildCase({ assignedDoctor: reed, assignedTechnician: cruz, species: "Dog", status: "waiting" }),
+  buildCase({ assignedDoctor: ames, assignedTechnician: null, species: "Cat", status: "inProgress" }),
+  buildCase({ assignedDoctor: reed, assignedTechnician: cruz, species: "Dog", status: "waiting" })
 ];
 
 function showMenu(filters: BoardMenuFilters = noMenuFilters, cases: EmergencyCaseListItem[] = boardCases()) {
@@ -35,7 +36,7 @@ describe("BoardFilterMenu", () => {
     fireEvent.click(filterButton());
 
     expect(filterButton()).toHaveAttribute("aria-expanded", "true");
-    expect(screen.getByRole("combobox", { name: "Clinician" })).toBeVisible();
+    expect(screen.getByRole("combobox", { name: "Staff" })).toBeVisible();
 
     fireEvent.keyDown(document, { key: "Escape" });
 
@@ -52,17 +53,40 @@ describe("BoardFilterMenu", () => {
     expect(filterButton()).toHaveAttribute("aria-expanded", "false");
   });
 
+  it("lists Acuity, Staff, Species and Case status", () => {
+    showMenu();
+    fireEvent.click(filterButton());
+
+    expect(screen.getAllByRole("combobox")).toEqual(
+      ["Acuity", "Staff", "Species", "Case status"].map((name) => screen.getByRole("combobox", { name })));
+    expect(optionLabels("Acuity")).toEqual(["Any acuity", "Critical", "Urgent", "Stable"]);
+  });
+
+  it("lists each assigned person once, after the two missing-assignment options", () => {
+    showMenu();
+    fireEvent.click(filterButton());
+
+    expect(optionLabels("Staff")).toEqual(["Any staff", "No technician assigned", "No veterinarian assigned", "Jordan Reed", "Pat Ames", "Sam Cruz"]);
+  });
+
+  it("keeps a chosen person after they leave the board", () => {
+    showMenu({ ...noMenuFilters, staff: "staff-gone" }, [buildCase({ assignedDoctor: reed })]);
+    fireEvent.click(filterButton());
+
+    expect(screen.getByRole("combobox", { name: "Staff" })).toHaveValue("staff-gone");
+    expect(optionLabels("Staff")).toContain("Staff member");
+  });
+
   it("builds each list from the cards on the board, sorted, after the fixed options", () => {
     showMenu();
     fireEvent.click(filterButton());
 
-    expect(optionLabels("Clinician")).toEqual(["Any clinician", "Unassigned", "Ames", "Reed"]);
     expect(optionLabels("Species")).toEqual(["Any species", "Cat", "Dog"]);
     expect(optionLabels("Case status")).toEqual(["Any status", "In progress", "Waiting"]);
   });
 
   it("keeps a chosen option when no card has it any more", () => {
-    showMenu({ clinicianId: null, species: "Rabbit", status: "blocked" }, [buildCase({ species: "Dog", status: "waiting" })]);
+    showMenu({ ...noMenuFilters, species: "Rabbit", status: "blocked" }, [buildCase({ species: "Dog", status: "waiting" })]);
     fireEvent.click(filterButton());
 
     expect(screen.getByRole("combobox", { name: "Species" })).toHaveValue("Rabbit");
@@ -74,20 +98,22 @@ describe("BoardFilterMenu", () => {
     const onChange = showMenu({ ...noMenuFilters, species: "Dog" });
     fireEvent.click(filterButton());
 
-    fireEvent.change(screen.getByRole("combobox", { name: "Clinician" }), { target: { value: "staff-reed" } });
+    fireEvent.change(screen.getByRole("combobox", { name: "Staff" }), { target: { value: "staff-reed" } });
+    fireEvent.change(screen.getByRole("combobox", { name: "Acuity" }), { target: { value: "urgent" } });
     fireEvent.change(screen.getByRole("combobox", { name: "Species" }), { target: { value: "" } });
 
     expect(onChange.mock.calls).toEqual([
-      [{ clinicianId: "staff-reed", species: "Dog", status: null }],
-      [{ clinicianId: null, species: null, status: null }]
+      [{ acuity: null, staff: "staff-reed", species: "Dog", status: null }],
+      [{ acuity: "urgent", staff: null, species: "Dog", status: null }],
+      [{ acuity: null, staff: null, species: null, status: null }]
     ]);
   });
 
-  it("shows how many filters are in use and is pressed while any are", () => {
-    showMenu({ clinicianId: "unassigned", species: null, status: "waiting" });
+  it("counts every filter in use and is pressed while any are", () => {
+    showMenu({ acuity: "critical", staff: "no-technician", species: null, status: "waiting" });
 
-    expect(filterButton()).toHaveAccessibleName("Filter, 2 in use");
-    expect(filterButton()).toHaveTextContent("⚑ Filter 2");
+    expect(filterButton()).toHaveAccessibleName("Filter, 3 in use");
+    expect(filterButton()).toHaveTextContent("⚑ Filter 3");
     expect(filterButton()).toHaveAttribute("aria-pressed", "true");
   });
 
@@ -100,8 +126,8 @@ describe("BoardFilterMenu", () => {
     expect(screen.queryByRole("button", { name: "Clear filters" })).not.toBeInTheDocument();
   });
 
-  it("clears all three with Clear filters", () => {
-    const onChange = showMenu({ clinicianId: "staff-reed", species: "Dog", status: "waiting" });
+  it("clears every filter with Clear filters", () => {
+    const onChange = showMenu({ acuity: "critical", staff: "staff-reed", species: "Dog", status: "waiting" });
     fireEvent.click(filterButton());
 
     fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));

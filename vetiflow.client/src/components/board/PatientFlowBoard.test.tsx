@@ -293,11 +293,12 @@ describe("PatientFlowBoard", () => {
 
   // The Filter menu (build plan 2.14c).
   describe("with the Filter menu", () => {
-    const reed = { id: "staff-reed", shortName: "Reed", initials: "JR" };
+    const lee = { id: "staff-lee", name: "Jordan Lee" };
+    const cruz = { id: "staff-cruz", name: "Sam Cruz" };
     const cases = () => [
-      buildCase({ patientName: "Milo", acuity: "critical", clinician: reed, species: "Dog" }),
-      buildCase({ patientName: "Mia", acuity: "urgent", clinician: null, species: "Cat" }),
-      buildCase({ patientName: "Pip", acuity: "stable", clinician: reed, species: "Cat" })
+      buildCase({ patientName: "Milo", acuity: "critical", assignedDoctor: lee, assignedTechnician: cruz, species: "Dog" }),
+      buildCase({ patientName: "Mia", acuity: "urgent", assignedDoctor: null, assignedTechnician: null, species: "Cat" }),
+      buildCase({ patientName: "Pip", acuity: "stable", assignedDoctor: lee, assignedTechnician: null, species: "Cat" })
     ];
 
     function showBoard(filter?: BoardFilter, search?: string) {
@@ -320,14 +321,32 @@ describe("PatientFlowBoard", () => {
       fireEvent.change(screen.getByRole("combobox", { name }), { target: { value } });
     }
 
-    it("leaves only the chosen clinician's rows, with the foot to match", () => {
+    it("leaves only the chosen staff member's rows, with the foot to match", () => {
       showBoard();
 
-      choose("Clinician", "staff-reed");
+      choose("Staff", "staff-lee");
 
       expect(shownNames()).toEqual(["Milo", "Pip"]);
       expect(screen.getByText("Showing 2 of 3 active patients")).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Filter, 1 in use" })).toHaveAttribute("aria-pressed", "true");
+    });
+
+    it("leaves only the chosen acuity's rows", () => {
+      showBoard();
+
+      choose("Acuity", "urgent");
+
+      expect(shownNames()).toEqual(["Mia"]);
+    });
+
+    // Jordan is the vet on Milo and Pip; only Pip still needs a technician.
+    it("combines Unassigned with a staff member", () => {
+      showBoard();
+      choose("Staff", "staff-lee");
+
+      fireEvent.click(screen.getByRole("button", { name: "Unassigned" }));
+
+      expect(shownNames()).toEqual(["Pip"]);
     });
 
     it("applies with the critical filter", () => {
@@ -348,7 +367,7 @@ describe("PatientFlowBoard", () => {
 
     it("restores every row with Clear filters", () => {
       showBoard();
-      choose("Clinician", "unassigned");
+      choose("Staff", "no-veterinarian");
       expect(shownNames()).toEqual(["Mia"]);
 
       fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));

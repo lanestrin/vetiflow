@@ -9,6 +9,8 @@ import {
   matchesUnassigned,
   minutesSince,
   noMenuFilters,
+  noTechnician,
+  noVeterinarian,
   shiftChipLabel,
   sortByLongestInStage,
   stageLabel,
@@ -116,27 +118,43 @@ describe("caseStatusLabel", () => {
 });
 
 describe("matchesMenuFilters", () => {
-  const reed = { id: "staff-reed", shortName: "Reed", initials: "JR" };
-  const reedsCat = buildCase({ clinician: reed, species: "Cat", status: "waiting" });
-  const unassignedDog = buildCase({ clinician: null, species: "Dog", status: "unassigned" });
+  const reed = { id: "staff-reed", name: "Jordan Reed" };
+  const cruz = { id: "staff-cruz", name: "Sam Cruz" };
+  const reedsCat = buildCase({ acuity: "critical", assignedDoctor: reed, assignedTechnician: cruz, species: "Cat", status: "waiting" });
+  const unassignedDog = buildCase({ acuity: "stable", assignedDoctor: null, assignedTechnician: null, species: "Dog", status: "unassigned" });
+  const cruzOnly = buildCase({ acuity: "urgent", assignedDoctor: null, assignedTechnician: cruz });
 
   it("matches every case with no filters in use", () => {
     expect(matchesMenuFilters(reedsCat, noMenuFilters)).toBe(true);
     expect(matchesMenuFilters(unassignedDog, noMenuFilters)).toBe(true);
   });
 
-  it("filters by clinician", () => {
-    const filters = { ...noMenuFilters, clinicianId: "staff-reed" };
+  it("matches a chosen acuity", () => {
+    const filters = { ...noMenuFilters, acuity: "critical" as const };
 
     expect(matchesMenuFilters(reedsCat, filters)).toBe(true);
     expect(matchesMenuFilters(unassignedDog, filters)).toBe(false);
   });
 
-  it("filters to cases with no clinician", () => {
-    const filters = { ...noMenuFilters, clinicianId: "unassigned" };
+  it("matches staff as either the technician or the veterinarian", () => {
+    const asTechnician = { ...noMenuFilters, staff: "staff-cruz" };
+    const asVeterinarian = { ...noMenuFilters, staff: "staff-reed" };
 
-    expect(matchesMenuFilters(unassignedDog, filters)).toBe(true);
-    expect(matchesMenuFilters(reedsCat, filters)).toBe(false);
+    expect(matchesMenuFilters(reedsCat, asTechnician)).toBe(true);
+    expect(matchesMenuFilters(cruzOnly, asTechnician)).toBe(true);
+    expect(matchesMenuFilters(reedsCat, asVeterinarian)).toBe(true);
+    expect(matchesMenuFilters(cruzOnly, asVeterinarian)).toBe(false);
+    expect(matchesMenuFilters(unassignedDog, asTechnician)).toBe(false);
+  });
+
+  it("matches cases with no technician or no veterinarian", () => {
+    const missingTechnician = { ...noMenuFilters, staff: noTechnician };
+    const missingVeterinarian = { ...noMenuFilters, staff: noVeterinarian };
+
+    expect(matchesMenuFilters(unassignedDog, missingTechnician)).toBe(true);
+    expect(matchesMenuFilters(cruzOnly, missingTechnician)).toBe(false);
+    expect(matchesMenuFilters(cruzOnly, missingVeterinarian)).toBe(true);
+    expect(matchesMenuFilters(reedsCat, missingVeterinarian)).toBe(false);
   });
 
   it("filters by species", () => {
@@ -153,9 +171,10 @@ describe("matchesMenuFilters", () => {
     expect(matchesMenuFilters(unassignedDog, filters)).toBe(false);
   });
 
-  it("needs every filter in use to match", () => {
-    expect(matchesMenuFilters(reedsCat, { clinicianId: "staff-reed", species: "Cat", status: "waiting" })).toBe(true);
-    expect(matchesMenuFilters(reedsCat, { clinicianId: "staff-reed", species: "Cat", status: "blocked" })).toBe(false);
+  it("needs every chosen filter to match", () => {
+    expect(matchesMenuFilters(reedsCat, { acuity: "critical", staff: "staff-reed", species: "Cat", status: "waiting" })).toBe(true);
+    expect(matchesMenuFilters(reedsCat, { acuity: "critical", staff: "staff-reed", species: "Cat", status: "blocked" })).toBe(false);
+    expect(matchesMenuFilters(reedsCat, { acuity: "urgent", staff: "staff-reed", species: "Cat", status: "waiting" })).toBe(false);
   });
 });
 
