@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
-import type { CaseStatus, EmergencyCaseListItem } from "../../types/EmergencyCaseListItem";
-import { caseStatusLabel, noMenuFilters, unassignedClinician, type BoardMenuFilters } from "./boardFormat";
+import type { AcuityLevel, CaseStatus, EmergencyCaseListItem } from "../../types/EmergencyCaseListItem";
+import { caseStatusLabel, noMenuFilters, noTechnician, noVeterinarian, type BoardMenuFilters } from "./boardFormat";
 import boardStyles from "./PatientFlowBoard.module.scss";
 import styles from "./BoardFilterMenu.module.scss";
 
@@ -30,14 +30,25 @@ function uniqueOptions(options: Option[], chosen: Option | null): Option[] {
   return [...byValue.values()].sort(byLabel);
 }
 
-function clinicianOptions(cases: EmergencyCaseListItem[], chosenId: string | null): Option[] {
-  const onBoard = cases.flatMap((emergencyCase) =>
-    emergencyCase.clinician ? [{ value: emergencyCase.clinician.id, label: emergencyCase.clinician.shortName }] : []);
-  const chosen = chosenId !== null && chosenId !== unassignedClinician
-    ? { value: chosenId, label: onBoard.find((option) => option.value === chosenId)?.label ?? "Clinician" }
+// In clinical order, as the board sorts them (2.26c).
+const acuityOptions: { value: AcuityLevel; label: string }[] = [
+  { value: "critical", label: "Critical" },
+  { value: "urgent", label: "Urgent" },
+  { value: "stable", label: "Stable" }
+];
+
+// Everyone assigned on the board as technician or veterinarian, once each.
+// A chosen person who left the board keeps their last known name; the menu
+// cannot know it after a reload, so it says "Staff member".
+function staffOptions(cases: EmergencyCaseListItem[], chosen: string | null): Option[] {
+  const onBoard = cases.flatMap((emergencyCase) => [emergencyCase.assignedTechnician, emergencyCase.assignedDoctor])
+    .flatMap((person) => person ? [{ value: person.id, label: person.name }] : []);
+  const isPerson = chosen !== null && chosen !== noTechnician && chosen !== noVeterinarian;
+  const chosenOption = isPerson
+    ? { value: chosen, label: onBoard.find((option) => option.value === chosen)?.label ?? "Staff member" }
     : null;
 
-  return uniqueOptions(onBoard, chosen);
+  return uniqueOptions(onBoard, chosenOption);
 }
 
 function speciesOptions(cases: EmergencyCaseListItem[], chosen: string | null): Option[] {
@@ -51,10 +62,10 @@ function statusOptions(cases: EmergencyCaseListItem[], chosen: CaseStatus | null
 }
 
 function filtersInUse(filters: BoardMenuFilters): number {
-  return [filters.clinicianId, filters.species, filters.status].filter((value) => value !== null).length;
+  return [filters.acuity, filters.staff, filters.species, filters.status].filter((value) => value !== null).length;
 }
 
-// The board's **Filter** (build plan 2.14c). The prototype has only the
+// The board's **Filter** (build plan 2.14c; Acuity and Staff in 2.26c). The prototype has only the
 // button; the menu follows its look and the profile menu's behaviour:
 // Escape or a press outside closes it. Choosing an option filters at once.
 export function BoardFilterMenu({ cases, filters, onChange }: BoardFilterMenuProps) {
@@ -109,15 +120,30 @@ export function BoardFilterMenu({ cases, filters, onChange }: BoardFilterMenuPro
       </button>
       <div id={menuId} className={styles.menu} hidden={!isOpen}>
         <label className={styles.field}>
-          <span className={styles.label}>Clinician</span>
+          <span className={styles.label}>Acuity</span>
           <select
             className={styles.select}
-            value={filters.clinicianId ?? ""}
-            onChange={(event) => onChange({ ...filters, clinicianId: event.target.value || null })}
+            value={filters.acuity ?? ""}
+            onChange={(event) => onChange({ ...filters, acuity: (event.target.value || null) as AcuityLevel | null })}
           >
-            <option value="">Any clinician</option>
-            <option value={unassignedClinician}>Unassigned</option>
-            {clinicianOptions(cases, filters.clinicianId).map((option) => (
+            <option value="">Any acuity</option>
+            {acuityOptions.map((option) => (
+              <option key={option.value} value={option.value}>{option.label}</option>
+            ))}
+          </select>
+        </label>
+        {/* Replaces 2.14c's Clinician (2.26c). */}
+        <label className={styles.field}>
+          <span className={styles.label}>Staff</span>
+          <select
+            className={styles.select}
+            value={filters.staff ?? ""}
+            onChange={(event) => onChange({ ...filters, staff: event.target.value || null })}
+          >
+            <option value="">Any staff</option>
+            <option value={noTechnician}>No technician assigned</option>
+            <option value={noVeterinarian}>No veterinarian assigned</option>
+            {staffOptions(cases, filters.staff).map((option) => (
               <option key={option.value} value={option.value}>{option.label}</option>
             ))}
           </select>

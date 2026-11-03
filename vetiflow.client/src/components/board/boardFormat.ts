@@ -1,5 +1,5 @@
 import type { BoardSummary } from "../../types/BoardSummary";
-import type { CaseStage, CaseStatus, EmergencyCaseListItem, WaitChip } from "../../types/EmergencyCaseListItem";
+import type { AcuityLevel, CaseStage, CaseStatus, EmergencyCaseListItem, WaitChip } from "../../types/EmergencyCaseListItem";
 
 // Staff wording for the patient flow cards (build plan 2.11b). The API sends
 // enum values; the words live here.
@@ -99,22 +99,35 @@ export function matchesUnassigned(emergencyCase: EmergencyCaseListItem): boolean
 }
 
 export interface BoardMenuFilters {
-  clinicianId: string | null;
+  acuity: AcuityLevel | null;
+  // A staff member's id, or noTechnician / noVeterinarian (2.26c).
+  staff: string | null;
   species: string | null;
   status: CaseStatus | null;
 }
 
-export const noMenuFilters: BoardMenuFilters = { clinicianId: null, species: null, status: null };
+export const noMenuFilters: BoardMenuFilters = { acuity: null, staff: null, species: null, status: null };
 
-export const unassignedClinician = "unassigned";
+// The Staff filter's two missing-assignment choices; never a staff id.
+export const noTechnician = "no-technician";
+export const noVeterinarian = "no-veterinarian";
+
+// Staff matches a case where that person is the primary technician or the
+// attending veterinarian (2.26c).
+function matchesStaff(emergencyCase: EmergencyCaseListItem, staff: string): boolean {
+  if (staff === noTechnician) return emergencyCase.assignedTechnician === null;
+  if (staff === noVeterinarian) return emergencyCase.assignedDoctor === null;
+  return emergencyCase.assignedTechnician?.id === staff || emergencyCase.assignedDoctor?.id === staff;
+}
 
 // A card shows when it matches every filter in use.
 export function matchesMenuFilters(emergencyCase: EmergencyCaseListItem, filters: BoardMenuFilters): boolean {
-  if (filters.clinicianId !== null) {
-    const clinicianId = emergencyCase.clinician?.id ?? unassignedClinician;
-    if (clinicianId !== filters.clinicianId) {
-      return false;
-    }
+  if (filters.acuity !== null && emergencyCase.acuity !== filters.acuity) {
+    return false;
+  }
+
+  if (filters.staff !== null && !matchesStaff(emergencyCase, filters.staff)) {
+    return false;
   }
 
   if (filters.species !== null && emergencyCase.species !== filters.species) {
