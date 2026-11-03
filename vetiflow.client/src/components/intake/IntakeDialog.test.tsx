@@ -31,6 +31,41 @@ function fillRequired(dialog: HTMLElement) {
   fireEvent.click(within(dialog).getByLabelText("Urgent"));
 }
 
+// The team for Patient assignments (4.1c).
+const team = [
+  { id: "vet-lee", displayName: "Dr. Jordan Lee", initials: "JL", role: "veterinarian", status: "available", activeCaseCount: 0, activeCases: [] },
+  { id: "tech-chen", displayName: "Riley Chen", initials: "RC", role: "technician", status: "available", activeCaseCount: 0, activeCases: [] },
+  { id: "tech-price", displayName: "Dana Price", initials: "DP", role: "technician", status: "busy", activeCaseCount: 0, activeCases: [] }
+];
+
+function serveTeam() {
+  server.use(http.get(apiUrl("/api/staff/team"), () => HttpResponse.json(team)));
+}
+
+// The intake, then each assignment, recorded in the order they arrive.
+function serveIntakeAndAssignments(statuses: Partial<Record<"technician" | "veterinarian", number>> = {}) {
+  const sent: string[] = [];
+  server.use(
+    http.post(apiUrl("/api/cases/intake"), () => {
+      sent.push("intake");
+      return HttpResponse.json({ id: "case-9", caseNumber: "ER-2489", patientId: "patient-9" }, { status: 201 });
+    })
+  );
+  for (const field of ["technician", "veterinarian"] as const) {
+    server.use(http.put(apiUrl(`/api/cases/case-9/${field}`), async ({ request }) => {
+      sent.push(`${field}:${(await request.json() as { id: string }).id}`);
+      return new HttpResponse(null, { status: statuses[field] ?? 204 });
+    }));
+  }
+  return sent;
+}
+
+async function chooseAssignments(dialog: HTMLElement, technician: string, veterinarian: string) {
+  await within(dialog).findByRole("option", { name: "Riley Chen" });
+  fireEvent.change(within(dialog).getByLabelText("Primary technician"), { target: { value: technician } });
+  fireEvent.change(within(dialog).getByLabelText("Attending veterinarian (optional)"), { target: { value: veterinarian } });
+}
+
 function submit(dialog: HTMLElement) {
   fireEvent.click(within(dialog).getByRole("button", { name: "Add to triage queue" }));
 }
@@ -93,7 +128,7 @@ describe("IntakeDialog", () => {
 
     expect(within(dialog).getByRole("button", { name: "Adding…" })).toBeDisabled();
     await waitFor(() => expect(onCreated).toHaveBeenCalledWith(
-      { id: "case-9", caseNumber: "ER-2489", patientId: "patient-9" }, "Toby"));
+      { id: "case-9", caseNumber: "ER-2489", patientId: "patient-9" }, "Toby", []));
     expect(body).toEqual({
       petName: "Toby",
       species: "Dog",
@@ -145,5 +180,109 @@ describe("IntakeDialog", () => {
     fireEvent.click(within(dialog).getByRole("button", { name }));
 
     expect(onClose).toHaveBeenCalled();
+  });
+
+  // Patient assignments (4.1c): technician first, never blocking the intake.
+  describe("patient assignments", () => {
+    it("lists technicians first, then veterinarians, both Unassigned", async () => {
+      serveTeam();
+      const { dialog } = openDialog();
+
+      const assignments = within(dialog).getByRole("group", { name: "Patient assignments" });
+      expect(assignments).toHaveAccessibleDescription(
+        "Assign a technician first when possible. Emergency care and vet assignment can proceed in either order.");
+      await within(assignments).findByRole("option", { name: "Riley Chen" });
+      const selects = within(assignments).getAllByRole("combobox");
+      expect(selects.map((select) => select.getAttribute("name"))).toEqual(["technician", "veterinarian"]);
+      expect(within(assignments).getByLabelText("Primary technician")).toHaveValue("");
+      expect(within(selects[0]).getAllByRole("option").map((option) => option.textContent)).toEqual(["Unassigned", "Riley Chen", "Dana Price"]);
+      expect(within(selects[1]).getAllByRole("option").map((option) => option.textContent)).toEqual(["Unassigned", "Dr. Jordan Lee"]);
+      expect(within(assignments).getByLabelText("Attending veterinarian (optional)")).toHaveValue("");
+      expect(within(assignments).getByText("You can save either assignment as Unassigned and update it later.")).toBeInTheDocument();
+    });
+
+    it("keeps Unassigned only and says so when the team cannot be loaded", async () => {
+      server.use(http.get(apiUrl("/api/staff/team"), () => new HttpResponse(null, { status: 500 })));
+      const sent = serveIntakeAndAssignments();
+      const { dialog, onCreated } = openDialog();
+
+      expect(await within(dialog).findByRole("alert")).toHaveTextContent("Unable to load the team. You can add the patient now and assign later.");
+      expect(within(within(dialog).getByLabelText("Primary technician")).getAllByRole("option")).toHaveLength(1);
+      fillRequired(dialog);
+      submit(dialog);
+
+      await waitFor(() => expect(onCreated).toHaveBeenCalledWith(expect.objectContaining({ id: "case-9" }), "Toby", []));
+      expect(sent).toEqual(["intake"]);
+    });
+
+    it("loads the team again from Try again", async () => {
+      server.use(http.get(apiUrl("/api/staff/team"), () => new HttpResponse(null, { status: 500 })));
+      const { dialog } = openDialog();
+      await within(dialog).findByRole("alert");
+      serveTeam();
+
+      fireEvent.click(within(dialog).getByRole("button", { name: "Try again" }));
+
+      expect(await within(dialog).findByRole("option", { name: "Riley Chen" })).toBeInTheDocument();
+      expect(within(dialog).queryByRole("alert")).not.toBeInTheDocument();
+    });
+
+    it("assigns the technician, then the veterinarian, after creating the case", async () => {
+      serveTeam();
+      const sent = serveIntakeAndAssignments();
+      const { dialog, onCreated } = openDialog();
+      fillRequired(dialog);
+      await chooseAssignments(dialog, "tech-chen", "vet-lee");
+
+      submit(dialog);
+
+      await waitFor(() => expect(onCreated).toHaveBeenCalledWith(expect.objectContaining({ id: "case-9" }), "Toby", []));
+      expect(sent).toEqual(["intake", "technician:tech-chen", "veterinarian:vet-lee"]);
+      expect(within(dialog).getByLabelText("Primary technician")).toHaveValue("");
+    });
+
+    it("sends no assignment when both stay Unassigned", async () => {
+      serveTeam();
+      const sent = serveIntakeAndAssignments();
+      const { dialog, onCreated } = openDialog();
+      fillRequired(dialog);
+      await within(dialog).findByRole("option", { name: "Riley Chen" });
+
+      submit(dialog);
+
+      await waitFor(() => expect(onCreated).toHaveBeenCalled());
+      expect(sent).toEqual(["intake"]);
+    });
+
+    it("sends no assignment when the intake is refused", async () => {
+      serveTeam();
+      const sent = serveIntakeAndAssignments();
+      server.use(http.post(apiUrl("/api/cases/intake"), () => new HttpResponse(null, { status: 500 })));
+      const { dialog, onCreated } = openDialog();
+      fillRequired(dialog);
+      await chooseAssignments(dialog, "tech-chen", "vet-lee");
+
+      submit(dialog);
+
+      expect(await within(dialog).findByRole("alert")).toHaveTextContent("The patient couldn't be added.");
+      expect(sent).toEqual([]);
+      expect(onCreated).not.toHaveBeenCalled();
+      expect(within(dialog).getByLabelText("Primary technician")).toHaveValue("tech-chen");
+    });
+
+    it("reports an assignment that failed and still adds the patient once", async () => {
+      serveTeam();
+      const sent = serveIntakeAndAssignments({ technician: 500 });
+      const { dialog, onCreated } = openDialog();
+      fillRequired(dialog);
+      await chooseAssignments(dialog, "tech-chen", "vet-lee");
+
+      submit(dialog);
+
+      await waitFor(() => expect(onCreated).toHaveBeenCalledOnce());
+      expect(onCreated).toHaveBeenCalledWith(expect.objectContaining({ id: "case-9" }), "Toby", ["technician"]);
+      expect(sent).toEqual(["intake", "technician:tech-chen", "veterinarian:vet-lee"]);
+      expect(dialog).not.toHaveAttribute("open");
+    });
   });
 });

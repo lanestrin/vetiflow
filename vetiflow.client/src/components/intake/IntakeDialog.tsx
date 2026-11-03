@@ -1,15 +1,39 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { FormRejectedError, SessionEndedError } from "../../services/apiErrors";
-import { createIntake } from "../../services/casesApi";
+import { createIntake, setCaseTechnician, setCaseVeterinarian } from "../../services/casesApi";
+import { getTeam } from "../../services/staffApi";
+import type { TeamClinician } from "../../types/Team";
 import type { CaseIntakeRequest, CaseIntakeResult, IntakeField, TreatmentAuthorization } from "../../types/CaseIntake";
 import type { AcuityLevel } from "../../types/EmergencyCaseListItem";
 import { FieldError } from "../auth/FormMessages";
 import styles from "./IntakeDialog.module.scss";
 
+// The assignments recorded at intake (4.1c), technician first.
+export type IntakeAssignment = "technician" | "veterinarian";
+
 interface IntakeDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onCreated: (result: CaseIntakeResult, petName: string) => void;
+  // The case exists; `failed` lists the chosen assignments that did not save.
+  onCreated: (result: CaseIntakeResult, petName: string, failed: IntakeAssignment[]) => void;
+}
+
+type TeamState = { kind: "loading" } | { kind: "shown"; list: TeamClinician[] } | { kind: "failed" };
+
+// Sent one after the other once the case exists; a failure is collected, not
+// thrown, so the new case is reported exactly once.
+async function saveAssignments(caseId: string, chosen: Record<IntakeAssignment, string | null>): Promise<IntakeAssignment[]> {
+  const failed: IntakeAssignment[] = [];
+  for (const assignment of ["technician", "veterinarian"] as const) {
+    const staffId = chosen[assignment];
+    if (staffId === null) continue;
+    try {
+      await (assignment === "technician" ? setCaseTechnician : setCaseVeterinarian)(caseId, staffId);
+    } catch {
+      failed.push(assignment);
+    }
+  }
+  return failed;
 }
 
 type FieldErrors = Partial<Record<IntakeField, string>>;
@@ -72,6 +96,19 @@ export function IntakeDialog({ isOpen, onClose, onCreated }: IntakeDialogProps) 
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [team, setTeam] = useState<TeamState>({ kind: "loading" });
+  const [teamAttempt, setTeamAttempt] = useState(0);
+
+  // The team for Patient assignments, each time the dialog opens (4.1c). It
+  // never blocks adding the patient. Closing and Try again reset it to loading.
+  useEffect(() => {
+    if (!isOpen) return;
+    let isActive = true;
+    getTeam()
+      .then((list) => { if (isActive) setTeam({ kind: "shown", list }); })
+      .catch(() => { if (isActive) setTeam({ kind: "failed" }); });
+    return () => { isActive = false; };
+  }, [isOpen, teamAttempt]);
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -117,10 +154,16 @@ export function IntakeDialog({ isOpen, onClose, onCreated }: IntakeDialogProps) 
 
     setFieldErrors({});
     setIsSaving(true);
+    const data = new FormData(form);
+    const chosen: Record<IntakeAssignment, string | null> = {
+      technician: String(data.get("technician") ?? "") || null,
+      veterinarian: String(data.get("veterinarian") ?? "") || null
+    };
     try {
       const result = await createIntake(request);
+      const failed = await saveAssignments(result.id, chosen);
       form.reset();
-      onCreated(result, request.petName);
+      onCreated(result, request.petName, failed);
       dialogRef.current?.close();
     } catch (error) {
       if (error instanceof FormRejectedError && Object.keys(toFieldErrors(error.fieldErrors)).length > 0) {
@@ -154,13 +197,14 @@ export function IntakeDialog({ isOpen, onClose, onCreated }: IntakeDialogProps) 
   }
 
   const titleId = `${id}-title`;
+  const clinicians = (role: IntakeAssignment) => team.kind === "shown" ? team.list.filter((person) => person.role === role) : [];
 
   return (
     <dialog
       ref={dialogRef}
       className={styles.dialog}
       aria-labelledby={titleId}
-      onClose={onClose}
+      onClose={() => { setTeam({ kind: "loading" }); onClose(); }}
       onClick={(event) => {
         // A click on the backdrop lands on the dialog itself.
         if (event.target === event.currentTarget) {
@@ -272,6 +316,34 @@ export function IntakeDialog({ isOpen, onClose, onCreated }: IntakeDialogProps) 
               {fieldError("referringClinic")}
             </div>
           </div>
+          <fieldset className={styles.assignments} aria-describedby={`${id}-assignments-order`}>
+            <legend>Patient assignments</legend>
+            <p id={`${id}-assignments-order`} className={styles.sub}>
+              Assign a technician first when possible. Emergency care and vet assignment can proceed in either order.
+            </p>
+            <div className={styles.field}>
+              <label htmlFor={`${id}-technician`}>Primary technician</label>
+              <select id={`${id}-technician`} name="technician" defaultValue="" key={`technician-${team.kind}`}>
+                <option value="">Unassigned</option>
+                {clinicians("technician").map((person) => <option key={person.id} value={person.id}>{person.displayName}</option>)}
+              </select>
+            </div>
+            <div className={styles.field}>
+              <label htmlFor={`${id}-veterinarian`}>Attending veterinarian (optional)</label>
+              <select id={`${id}-veterinarian`} name="veterinarian" defaultValue="" key={`veterinarian-${team.kind}`}>
+                <option value="">Unassigned</option>
+                {clinicians("veterinarian").map((person) => <option key={person.id} value={person.id}>{person.displayName}</option>)}
+              </select>
+            </div>
+            {team.kind === "loading" && <p className={styles.sub}>Loading the team…</p>}
+            {team.kind === "failed" && (
+              <p className={styles.sub} role="alert">
+                Unable to load the team. You can add the patient now and assign later.{" "}
+                <button type="button" className={styles.retry} onClick={() => { setTeam({ kind: "loading" }); setTeamAttempt((count) => count + 1); }}>Try again</button>
+              </p>
+            )}
+            <p className={styles.sub}>You can save either assignment as Unassigned and update it later.</p>
+          </fieldset>
           <p className={styles.note}>
             Arrival time is recorded on submission. Priority is provisional until a clinician completes
             triage. Record pain using your clinic’s approved scale.
