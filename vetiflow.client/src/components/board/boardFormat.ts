@@ -118,6 +118,12 @@ export function matchesMenuFilters(emergencyCase: EmergencyCaseListItem, filters
   return filters.status === null || emergencyCase.status === filters.status;
 }
 
+// The stats strip's Critical without vet (build plan 2.26a): critical with no
+// attending veterinarian; a technician alone does not count.
+export function isCriticalWithoutVet(emergencyCase: EmergencyCaseListItem): boolean {
+  return emergencyCase.acuity === "critical" && emergencyCase.assignedDoctor === null;
+}
+
 // The board's Priority button (build plan 2.14d): longest in the current stage
 // first. The sort is stable, so ties keep the API's priority order.
 export function sortByLongestInStage(cases: EmergencyCaseListItem[]): EmergencyCaseListItem[] {

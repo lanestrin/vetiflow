@@ -62,7 +62,7 @@ describe("PatientFlowBoard", () => {
 
     expect(screen.getByRole("heading", { level: 2, name: "Patient board" })).toBeInTheDocument();
     expect(screen.getByText(/Updated just now/)).toHaveTextContent("Updated just now·2 active cases");
-    expect(screen.getByText("Showing 2 of 2 active cases")).toBeInTheDocument();
+    expect(screen.getByText("Showing 2 of 2 active patients")).toBeInTheDocument();
   });
 
   it("says how long ago it was updated", () => {
@@ -104,21 +104,32 @@ describe("PatientFlowBoard", () => {
       renderBoard(cases(), new Date(), "all");
 
       expect(shownNames()).toHaveLength(4);
-      expect(screen.getByText("Showing 4 of 4 active cases")).toBeInTheDocument();
+      expect(screen.getByText("Showing 4 of 4 active patients")).toBeInTheDocument();
     });
 
     it("shows only incoming rows for awaiting triage", () => {
       renderBoard(cases(), new Date(), "awaitingTriage");
 
       expect(shownNames()).toEqual(["Toby", "Nori"]);
-      expect(screen.getByText("Showing 2 awaiting triage cases · initial priority is provisional")).toBeInTheDocument();
+      expect(screen.getByText("Showing 2 of 4 active patients · awaiting triage · initial priority is provisional")).toBeInTheDocument();
     });
 
     it("shows only critical rows for critical", () => {
       renderBoard(cases(), new Date(), "critical");
 
       expect(shownNames()).toEqual(["Nori", "Milo"]);
-      expect(screen.getByText("Showing 2 critical patients · other acuities hidden")).toBeInTheDocument();
+      expect(screen.getByText("Showing 2 of 4 active patients · critical only")).toBeInTheDocument();
+    });
+
+    it("shows only critical patients without a veterinarian for that filter", () => {
+      renderBoard([
+        buildCase({ patientName: "Nori", acuity: "critical", assignedDoctor: null, assignedTechnician: { id: "t1", name: "Sam Cruz" } }),
+        buildCase({ patientName: "Milo", acuity: "critical", assignedDoctor: { id: "v1", name: "Jordan Lee" } }),
+        buildCase({ patientName: "Toby", acuity: "urgent", assignedDoctor: null })
+      ], new Date(), "criticalWithoutVet");
+
+      expect(shownNames()).toEqual(["Nori"]);
+      expect(screen.getByText("Showing 1 of 3 active patients · critical without a veterinarian")).toBeInTheDocument();
     });
   });
 
@@ -154,7 +165,7 @@ describe("PatientFlowBoard", () => {
     it("says how many match and links to the Patients search", () => {
       searchBoard("  Avery ");
 
-      expect(screen.getByText(/Showing 2 matching “Avery”/)).toBeInTheDocument();
+      expect(screen.getByText(/Showing 2 of \d+ active patients matching “Avery”/)).toBeInTheDocument();
       expect(screen.getByRole("link", { name: "Search all patients" })).toHaveAttribute("href", "/records?search=Avery");
     });
 
@@ -163,8 +174,15 @@ describe("PatientFlowBoard", () => {
 
       expect(shownNames()).toHaveLength(0);
       expect(within(table()).getByText("No patients match")).toBeInTheDocument();
-      expect(screen.getByText(/Showing 0 matching “Rex”/)).toBeInTheDocument();
+      expect(screen.getByText(/Showing 0 of \d+ active patients matching “Rex”/)).toBeInTheDocument();
       expect(screen.getByRole("link", { name: "Search all patients" })).toHaveAttribute("href", "/records?search=Rex");
+    });
+
+    it("keeps the filter note and adds the match during a search", () => {
+      searchBoard("Milo", "critical");
+
+      expect(screen.getByText(/^Showing 1 of 3 active patients matching “Milo” · critical only/)).toBeInTheDocument();
+      expect(screen.getByRole("link", { name: "Search all patients" })).toBeInTheDocument();
     });
 
     it("applies after the stat card filter", () => {
@@ -177,7 +195,7 @@ describe("PatientFlowBoard", () => {
       searchBoard("   ");
 
       expect(shownNames()).toHaveLength(3);
-      expect(screen.getByText("Showing 3 of 3 active cases")).toBeInTheDocument();
+      expect(screen.getByText("Showing 3 of 3 active patients")).toBeInTheDocument();
       expect(screen.queryByRole("link", { name: "Search all patients" })).not.toBeInTheDocument();
     });
   });
@@ -270,7 +288,7 @@ describe("PatientFlowBoard", () => {
       choose("Clinician", "staff-reed");
 
       expect(shownNames()).toEqual(["Milo", "Pip"]);
-      expect(screen.getByText("Showing 2 of 3 active cases")).toBeInTheDocument();
+      expect(screen.getByText("Showing 2 of 3 active patients")).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Filter, 1 in use" })).toHaveAttribute("aria-pressed", "true");
     });
 
@@ -356,7 +374,7 @@ describe("PatientFlowBoard", () => {
       fireEvent.change(screen.getByRole("combobox", { name: "Species" }), { target: { value: "Cat" } });
 
       expect(shownNames()).toEqual(["Mochi", "Pip"]);
-      expect(screen.getByText("Showing 2 of 3 active cases")).toBeInTheDocument();
+      expect(screen.getByText("Showing 2 of 3 active patients")).toBeInTheDocument();
     });
 
     it("keeps the order with a search", () => {

@@ -14,6 +14,20 @@ veterinarian / technician model. It replaces the earlier `patient-overview/`,
   browser prototype with fictional data. It guides visual hierarchy and the
   shared patient record; it is not a pixel-exact design, and its demo values,
   browser storage and JavaScript role guards are not requirements.
+- Screenshots of the prototype's patient record, added 2026-11-02 by the
+  person. Every patient record component is built and checked against them as
+  well as the HTML:
+  - [Overview.png](Overview.png): header, tabs, Latest vitals, Next care action, review banner, Care tasks, Care team & safety, Presenting complaint, save status.
+  - [Clinical.png](Clinical.png): Examination & treatment plan, signed documentation and nursing notes, Vet review requests, Diagnostics & follow-up, Handoff & escalation, Discharge.
+  - [Orders & Medication.png](Orders%20%26%20Medication.png): Orders with Draft order, Administration records.
+  - [TimeLine.png](TimeLine.png): Patient timeline.
+
+## Checking a component against the prototype
+
+Each UI spec lists every element of the matching HTML section and screenshot
+as one of: built in this item; different by a named decision; or deferred to a
+named build item. After building, the running app is captured in the same view
+and compared with the screenshot and HTML before the work is reported.
 
 ## Source precedence
 
@@ -33,7 +47,7 @@ six navigation destinations and its server-side checks.
 | Board table on desktop, cards on phones (3) | 2.25 |
 | Patient header, four tabs, stage and location buttons (4) | 3.2c |
 | Overview tab order: vitals, next care action, care team & safety, complaint, save state (4) | 3.2d, with 4.13b for the Next care action |
-| Compact summary strip, All / My patients, search, Unassigned, filters, priority sort (2, 3) | 2.26 |
+| Compact summary strip, All / My patients, search, Unassigned, filters, time-in-stage sort within the fixed acuity order (2, 3; Board sort decision) | 2.26 |
 | Desktop / tablet drawer / phone layouts, bottom bar (14) | 2.27 |
 | Demo role switch and role-specific controls (5, 6) | 2.28 |
 | Technician-first assignments at intake (2) | 4.1c |
