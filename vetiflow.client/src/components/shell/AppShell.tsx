@@ -1,6 +1,8 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode, type Ref } from "react";
+import { useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import type { SignedInUser } from "../../types/Auth";
+import { useMediaQuery } from "../auth/useMediaQuery";
+import { MoreMenu } from "./MoreMenu";
 import { ProfileMenu } from "./ProfileMenu";
 import { ShellSearchContext, type ShellSearch } from "./shellSearchContext";
 import {
@@ -37,7 +39,10 @@ const shellPages: ShellPage[] = [
 
 const settingsPage = shellPages[shellPages.length - 1];
 const railPages = shellPages.slice(0, -1);
-const mobileNavigationQuery = "(max-width: 760px)";
+// On phones the rail is a bottom bar (2.27b): four destinations and More.
+const phoneQuery = "(max-width: 700px)";
+const barPages = shellPages.slice(0, 4);
+const morePages = shellPages.slice(4);
 
 interface AppShellProps {
   user: SignedInUser;
@@ -49,100 +54,33 @@ interface AppShellProps {
 export function AppShell({ user, children }: AppShellProps) {
   const [search, setSearch] = useState("");
   const shellSearch = useMemo<ShellSearch>(() => [search, setSearch], [search]);
-  const [mobileNavigationOpen, setMobileNavigationOpen] = useState(false);
-  const location = useLocation();
-  const [navigationLocation, setNavigationLocation] = useState(location.key);
-  const mobileNavigationToggleRef = useRef<HTMLButtonElement>(null);
-  const firstNavigationLinkRef = useRef<HTMLAnchorElement>(null);
-
-  // Search and browser history navigate without clicking a rail destination.
-  if (navigationLocation !== location.key) {
-    setNavigationLocation(location.key);
-    setMobileNavigationOpen(false);
-  }
-
-  useEffect(() => {
-    const media = window.matchMedia?.(mobileNavigationQuery);
-    if (!media) return;
-    function resetOnDesktop(event: MediaQueryListEvent) {
-      if (!event.matches) {
-        setMobileNavigationOpen(false);
-        if (document.activeElement === mobileNavigationToggleRef.current) {
-          firstNavigationLinkRef.current?.focus();
-        }
-      }
-    }
-    media.addEventListener("change", resetOnDesktop);
-    return () => media.removeEventListener("change", resetOnDesktop);
-  }, []);
-
-  useEffect(() => {
-    if (!mobileNavigationOpen) {
-      return;
-    }
-
-    firstNavigationLinkRef.current?.focus();
-
-    function closeOnEscape(event: KeyboardEvent) {
-      if (event.key === "Escape" && window.matchMedia?.(mobileNavigationQuery).matches !== false) {
-        event.preventDefault();
-        setMobileNavigationOpen(false);
-        mobileNavigationToggleRef.current?.focus();
-      }
-    }
-
-    document.addEventListener("keydown", closeOnEscape);
-    return () => document.removeEventListener("keydown", closeOnEscape);
-  }, [mobileNavigationOpen]);
-
-  function closeMobileNavigation() {
-    if (!mobileNavigationOpen) {
-      return;
-    }
-
-    setMobileNavigationOpen(false);
-    if (window.matchMedia?.(mobileNavigationQuery).matches !== false) {
-      mobileNavigationToggleRef.current?.focus();
-    }
-  }
+  const isPhone = useMediaQuery(phoneQuery);
 
   return (
     <ToastProvider>
       <div className={styles.app}>
-        <nav
-          id="main-navigation"
-          className={styles.rail}
-          aria-label="Main"
-          data-mobile-open={mobileNavigationOpen}
-        >
+        <nav className={styles.rail} aria-label="Main">
           <div className={styles.railBrand}>
             <span className={styles.brandmark} aria-hidden="true">V</span>
-            <span className={styles.brandName}>VetiFlow</span>
           </div>
-          <ul className={styles.railNav}>
-            {railPages.map((page, index) => (
-              <li key={page.path}>
-                <RailLink
-                  page={page}
-                  onNavigate={closeMobileNavigation}
-                  linkRef={index === 0 ? firstNavigationLinkRef : undefined}
-                />
-              </li>
-            ))}
-          </ul>
-          <div className={styles.railBottom}>
-            <RailLink page={settingsPage} onNavigate={closeMobileNavigation} />
-          </div>
+          {isPhone
+            ? (
+              <ul className={styles.railNav}>
+                {barPages.map((page) => <li key={page.path}><RailLink page={page} /></li>)}
+                <li><MoreMenu pages={morePages} /></li>
+              </ul>
+            )
+            : <>
+              <ul className={styles.railNav}>
+                {railPages.map((page) => <li key={page.path}><RailLink page={page} /></li>)}
+              </ul>
+              <div className={styles.railBottom}>
+                <RailLink page={settingsPage} />
+              </div>
+            </>}
         </nav>
         <div className={styles.main}>
-          <TopBar
-            user={user}
-            search={search}
-            onSearchChange={setSearch}
-            mobileNavigationOpen={mobileNavigationOpen}
-            onToggleMobileNavigation={() => setMobileNavigationOpen((open) => !open)}
-            mobileNavigationToggleRef={mobileNavigationToggleRef}
-          />
+          <TopBar user={user} search={search} onSearchChange={setSearch} />
           <ShellSearchContext value={shellSearch}>{children}</ShellSearchContext>
         </div>
       </div>
@@ -150,21 +88,13 @@ export function AppShell({ user, children }: AppShellProps) {
   );
 }
 
-interface RailLinkProps {
-  page: ShellPage;
-  onNavigate: () => void;
-  linkRef?: Ref<HTMLAnchorElement>;
-}
-
-function RailLink({ page, onNavigate, linkRef }: RailLinkProps) {
+function RailLink({ page }: { page: ShellPage }) {
   return (
     <NavLink
-      ref={linkRef}
       to={page.path}
       className={styles.navIcon}
       aria-label={page.label}
       title={page.label}
-      onClick={onNavigate}
     >
       {page.icon}
       <span className={styles.navLabel}>{page.label}</span>
@@ -176,19 +106,9 @@ interface TopBarProps {
   user: SignedInUser;
   search: string;
   onSearchChange: (search: string) => void;
-  mobileNavigationOpen: boolean;
-  onToggleMobileNavigation: () => void;
-  mobileNavigationToggleRef: Ref<HTMLButtonElement>;
 }
 
-function TopBar({
-  user,
-  search,
-  onSearchChange,
-  mobileNavigationOpen,
-  onToggleMobileNavigation,
-  mobileNavigationToggleRef
-}: TopBarProps) {
+function TopBar({ user, search, onSearchChange }: TopBarProps) {
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const showToast = useToast();
@@ -205,21 +125,6 @@ function TopBar({
 
   return (
     <header className={styles.topbar}>
-      <button
-        ref={mobileNavigationToggleRef}
-        type="button"
-        className={styles.mobileMenuToggle}
-        aria-label={mobileNavigationOpen ? "Close navigation menu" : "Open navigation menu"}
-        aria-expanded={mobileNavigationOpen}
-        aria-controls="main-navigation"
-        onClick={onToggleMobileNavigation}
-      >
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          {mobileNavigationOpen
-            ? <path d="m6 6 12 12M18 6 6 18" />
-            : <path d="M4 6h16M4 12h16M4 18h16" />}
-        </svg>
-      </button>
       <p className={styles.crumb}>
         VetiFlow <span className={styles.crumbSeparator} aria-hidden="true">/</span> <b>{crumb}</b>
       </p>
