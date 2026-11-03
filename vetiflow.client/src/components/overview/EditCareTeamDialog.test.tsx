@@ -29,14 +29,14 @@ function buildToby(overrides: Partial<CaseDetail> = {}): CaseDetail {
   return { ...base, patient: { ...base.patient, name: "Toby" } };
 }
 
-function renderDialog(detail = buildToby({ assignedDoctor: { id: "vet-chen", name: "Avery Chen" } })) {
+function renderDialog(detail = buildToby({ assignedDoctor: { id: "vet-chen", name: "Avery Chen" } }), canChangeVeterinarian = true) {
   const onClose = vi.fn();
   const onSaved = vi.fn();
   const onPartlySaved = vi.fn();
   render(
     <MemoryRouter initialEntries={["/er"]}>
       <Routes>
-        <Route path="/er" element={<EditCareTeamDialog detail={detail} onClose={onClose} onSaved={onSaved} onPartlySaved={onPartlySaved} />} />
+        <Route path="/er" element={<EditCareTeamDialog detail={detail} onClose={onClose} onSaved={onSaved} onPartlySaved={onPartlySaved} canChangeVeterinarian={canChangeVeterinarian} />} />
         <Route path="/sign-in" element={<p>Sign-in page</p>} />
       </Routes>
     </MemoryRouter>
@@ -165,5 +165,26 @@ describe("EditCareTeamDialog", () => {
     fireEvent.click(screen.getByRole("button", { name: "Try again" }));
 
     await waitForTeam();
+  });
+
+  // The Technician demo view (2.28): screen only, the server is unchanged.
+  it("keeps the attending veterinarian view-only in the Technician view", async () => {
+    serveTeam();
+    const sent = serveAssignments();
+    const { onSaved } = renderDialog(undefined, false);
+    await waitForTeam();
+
+    const vet = screen.getByLabelText("Attending veterinarian");
+    expect(vet).toBeDisabled();
+    expect(vet).toHaveValue("vet-chen");
+    expect(vet).toHaveAccessibleDescription("Attending veterinarian is managed in the Veterinarian view.");
+    const tech = screen.getByLabelText("Primary technician");
+    expect(tech).toBeEnabled();
+
+    fireEvent.change(tech, { target: { value: "tech-ortiz" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save care team" }));
+
+    await waitFor(() => expect(onSaved).toHaveBeenCalledWith("Care team updated"));
+    expect(sent).toEqual(["technician:tech-ortiz"]);
   });
 });

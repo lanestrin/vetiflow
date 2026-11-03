@@ -1,4 +1,5 @@
 import type { SignedInUser } from "../types/Auth";
+import type { DemoIdentity } from "../components/board/useDemoIdentity";
 import type { BoardSummary } from "../types/BoardSummary";
 import type { CaseDetail, CaseTask, PainScore, VitalsRecord } from "../types/CaseDetail";
 import type { EmergencyCaseListItem } from "../types/EmergencyCaseListItem";
@@ -159,6 +160,11 @@ export function buildTeamMember(overrides: Partial<SignedInUser> = {}): SignedIn
     staffId: "staff-jordan-lee",
     ...overrides
   };
+}
+
+// The person a demo role acts as (2.28), found on the team.
+export function buildDemoIdentity(overrides: Partial<DemoIdentity> = {}): DemoIdentity {
+  return { role: "veterinarian", label: "J. Lee", staffId: "staff-jordan-lee", unavailableReason: null, ...overrides };
 }
 
 // The demo pet parent, as GET /api/auth/me returns them.

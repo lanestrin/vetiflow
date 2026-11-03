@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useLocation, useNavigate, useOutletContext } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import type { SignInRouteState } from "../components/auth/experienceHome";
 import { BoardHeading } from "../components/board/BoardHeading";
 import { BoardStats, type BoardFilter } from "../components/board/BoardStats";
@@ -9,9 +9,10 @@ import { IntakeDialog } from "../components/intake/IntakeDialog";
 import { PatientOverviewPanel } from "../components/overview/PatientOverviewPanel";
 import { RecordDrawer } from "../components/overview/RecordDrawer";
 import { useMediaQuery } from "../components/auth/useMediaQuery";
+import { useDemoIdentity } from "../components/board/useDemoIdentity";
+import { useDemoRole, type DemoRole } from "../components/shell/demoRoleContext";
 import { useShellSearch } from "../components/shell/shellSearchContext";
 import { useToast } from "../components/shell/toastContext";
-import type { SignedInUser } from "../types/Auth";
 import type { BoardSummary } from "../types/BoardSummary";
 import type { CaseIntakeResult } from "../types/CaseIntake";
 import type { EmergencyCaseListItem } from "../types/EmergencyCaseListItem";
@@ -58,8 +59,6 @@ function selectedOnArrival(state: unknown): string | null {
 export function ErBoardPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  // From AppShell's outlet (App.tsx): who "Assign me" assigns (3.2d).
-  const signedInUser = useOutletContext<SignedInUser>();
   const drafts = useClinicalDraftNavigation();
   const [cases, setCases] = useState<EmergencyCaseListItem[]>([]);
   const [summary, setSummary] = useState<BoardSummary | null>(null);
@@ -82,6 +81,9 @@ export function ErBoardPage() {
   const reloadCases = useRef<() => Promise<void>>(async () => {});
   // At tablet and phone widths the record is a drawer over the board (2.27a).
   const isDrawerLayout = useMediaQuery(drawerQuery);
+  // The Demo role switch (2.28) and the person that view acts as.
+  const [demoRole, setDemoRole] = useDemoRole();
+  const demoIdentity = useDemoIdentity(demoRole);
 
   useEffect(() => {
     let isActive = true;
@@ -185,6 +187,12 @@ export function ErBoardPage() {
     void reloadCases.current();
   }
 
+  // The selection, record and board filters stay, so views can be compared.
+  function changeDemoRole(role: DemoRole) {
+    setDemoRole(role);
+    showToast(`Demo view: ${role === "technician" ? "Technician" : "Veterinarian"}`);
+  }
+
   // Every way out of the record (3.2f ✕, and the drawer's Escape and backdrop):
   // the same unsaved-draft guard as choosing another patient.
   function closeRecord() {
@@ -197,7 +205,7 @@ export function ErBoardPage() {
 
   const record = (
     <PatientOverviewPanel
-      signedInUser={signedInUser}
+      demoIdentity={demoIdentity}
       caseId={selectedCaseId}
       caseUnavailable={selectedCaseId !== null && !cases.some(item => item.id === selectedCaseId)}
       refreshedAt={updatedAt}
@@ -230,7 +238,8 @@ export function ErBoardPage() {
     <main className={styles.page}>
       {pageTitle}
       {error && <p role="alert">{error}</p>}
-      <BoardHeading summary={summary} onIntake={() => setIsIntakeOpen(true)} />
+      <BoardHeading summary={summary} onIntake={() => setIsIntakeOpen(true)}
+        demoRole={demoRole} demoIdentity={demoIdentity.label} onDemoRoleChange={changeDemoRole} />
 
       <BoardStats summary={summary} criticalWithoutVet={cases.filter(isCriticalWithoutVet).length} filter={filter} onFilter={chooseFilter} />
 
@@ -246,6 +255,7 @@ export function ErBoardPage() {
           search={search}
           onSearchChange={setSearch}
           focusRequest={boardFocus}
+          demoIdentity={demoIdentity}
         />
 
         {!isDrawerLayout && record}

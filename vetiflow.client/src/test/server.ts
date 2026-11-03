@@ -14,5 +14,6 @@ export const server = setupServer(
   http.get(apiUrl("/api/pet-parent/pets"), () => HttpResponse.json([])),
   http.get(apiUrl("/api/patients"), () => HttpResponse.json([])),
   http.get(apiUrl("/api/staff/me/status"), () => HttpResponse.json({ status: "busy" })),
-  http.get(apiUrl("/api/staff/on-floor"), () => HttpResponse.json([]))
+  http.get(apiUrl("/api/staff/on-floor"), () => HttpResponse.json([])),
+  http.get(apiUrl("/api/staff/team"), () => HttpResponse.json([]))
 );
