@@ -9,9 +9,9 @@ of backend enforcement, separate from the normal clinical workspaces.
   scope, illustrative role matrix, negative tests and development-only boundary.
 - [Focused HTML POC](VetiFlow_Security_Lab_Focused_POC.html): browser simulation
   of decisions/events, not real authentication, HTTP responses or persisted audit.
-- [Master build plan](../../build-plan.md): **S.21a-e**, an optional slice within
-  M3 before the larger M3b clinical workspaces. [Project plan](../../project-plan.md)
-  retains the application-wide identity and real-data/launch requirements.
+- [Master build plan](../../build-plan.md): **S.21a-e** were dropped on
+  2026-11-03 with all security work (decision **Demo only, no security work**).
+  This package is kept for reference only; nothing below is planned work.
 
 Finish the active 3.6a Clinical drawer work first. The portfolio slice can then
 be explicitly prioritized without waiting for every My Patients feature or

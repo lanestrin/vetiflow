@@ -39,8 +39,9 @@ behind the applicable identity, permission, clinical-policy and reliability work
 - **Pet owners.** Never see the staff board. They get a private page for their
   own pet only, with calm wording and no acuity, reached through a scoped,
   expiring link or sign-in. In the sign-in demo (section 10) they are "pet
-  parents" and sign in with a demo account; production access follows build
-  plan S.8.
+  parents" and sign in with a demo account. VetiFlow is a demo (build plan
+  decision **Demo only, no security work**, 2026-11-03), so no production
+  owner access is planned.
 
 Staff use shared clinic workstations, so sessions must lock quickly.
 
@@ -81,9 +82,8 @@ Staff use shared clinic workstations, so sessions must lock quickly.
 - `AiSummary`: AI drafts and their confirmation.
 - `StaffMember`, `Room`.
 - Planned, by build-plan item: `Account` for the sign-in demo (S.16,
-  section 10), staff accounts (S.15), owner access links
-  (S.8), owner contact log (6.4), owner updates (6.5), discharge outcome
-  (6.2), clinic settings (9.3), audit log (8.1).
+  section 10), owner contact log (6.4), owner updates (6.5), discharge outcome
+  (6.2), clinic settings (9.3).
 - New ER requirements (2026-10-30) expose shared-data gaps, not implemented
   fields: separate measured/event and entry times (4.11), structured allergy
   verification and source (4.12), documented action priority/review and task
@@ -231,15 +231,9 @@ Routes:
 
 ### Optional portfolio Security Lab
 
-The 2026-10-30 `blueprint/reference/security-poc/` package defines a small
-development/test-only proof of server-enforced permissions and safe security
-events over fictional single-hospital data. S.21a-e can be prioritized after
-the active Clinical drawer work, before the larger clinical workspaces, using
-the existing authentication/domain stack where appropriate. It has separate
-operator access and navigation, and no production test-execution/event routes.
-Its simulated identity selector is not authentication, and a fictional order
-authorization is not clinical medication authority. The app's production
-identity, complete clinical-role matrix, audit and launch gates remain separate.
+Dropped on 2026-11-03 with the other security work (build plan decision
+**Demo only, no security work**). The `blueprint/reference/security-poc/`
+package is kept for reference only.
 
 ## 8. Deployment - Where and how will this ship?
 
@@ -354,10 +348,9 @@ identity, complete clinical-role matrix, audit and launch gates remain separate.
 - Staff are trusted only after sign-in, and only for their role. Owners are
   untrusted users and reach only their own pet's case.
 - Deployed with demo data only, not in clinical use. Manual features may be
-  built and shown on demo data first. Real clinic data only after build-plan
-  milestones M1 (safe foundations), M3 (sign-in and roles) and the M7 launch
-  gate. Until S.5 the API accepts unauthenticated writes, so it holds demo data
-  only.
+  built and shown on demo data. No real clinic data: security, privacy and
+  audit work is not planned (build plan decision **Demo only, no security
+  work**, 2026-11-03).
 - One clinic at a time. Multi-clinic tenancy is not a requirement.
 - AI output is a draft until a clinician confirms it. Owner contact details
   never go to the AI provider.
@@ -402,7 +395,7 @@ A check constraint holds that exactly one of `StaffMemberId` and `OwnerId` is
 set and that it matches `Kind`, and that the account has an email or a phone.
 The experience a user lands in comes only from `Kind`, never from the email
 address or a choice on the screen. A team member's clinical role
-(veterinarian, technician) stays on `StaffMember` for S.6.
+(veterinarian, technician) stays on `StaffMember`.
 
 ### Demo accounts
 
@@ -457,7 +450,7 @@ Email / Phone switch (tabs) chooses the method; there is no role choice.
   - wrong code: "Use 123456 for this demo."
   - inactive account: "This demo account is turned off."
 - **Forgot password?:** "Password reset is a placeholder in this no-cost
-  demo." (recovery is S.15).
+  demo."
 - **Help:** the top-bar link opens the demo notes (sample accounts, no texts
   sent).
 - **Unavailable:** a server or network error shows "Sign-in isn't available
@@ -499,22 +492,24 @@ Email / Phone switch (tabs) chooses the method; there is no role choice.
 
 ### Assumptions and production limits to revisit
 
+VetiFlow stays a demo (build plan decision **Demo only, no security work**,
+2026-11-03), so none of these limits is planned work. They are what would need
+revisiting before any real use.
+
 - The no-match messages name the problem and the demo values, as the mockup
   does. That helps a demo but tells a stranger which accounts exist. With real
-  accounts, use one message for a wrong email or password (S.5).
+  accounts, use one message for a wrong email or password.
 - The fixed code `123456`, the shared password and the listed sample accounts
   are demo-only. `DemoSignIn:Enabled` and the demo accounts exist only in the
   demo environment (8.10), never with real data.
 - Production phone sign-in needs an SMS provider (a paid service and a
-  decision). Production email sign-in follows the login-provider decision
-  (S.5), and pet parent access the owner-access decision (S.8).
-- A token in `sessionStorage` can be read by injected script; the CSP in 8.2
-  is the guard.
+  decision). Production email sign-in would need a login provider, and pet
+  parent access the owner-access decision.
+- A token in `sessionStorage` can be read by injected script; a CSP would be
+  the guard.
 - Token keys are lost when the container restarts, so a redeploy signs
   everyone out. Production keeps the keys or uses the provider's tokens.
-- Not in the demo: rate limiting and lockout (S.9), session timeout and quick
-  lock (S.14), invitations, recovery and deactivation flows (S.15), per-role
-  permissions such as who may set acuity (S.6), and sign-in on the SignalR hub
-  (S.7; it sends case IDs only).
-- `Account` is the demo's table. S.5 decides whether it is kept, hardened or
-  replaced by the chosen provider's accounts.
+- Not in the demo: rate limiting and lockout, session timeout and quick lock,
+  invitations, recovery and deactivation flows, per-role permissions such as
+  who may set acuity, and sign-in on the SignalR hub (it sends case IDs only).
+- `Account` is the demo's table.

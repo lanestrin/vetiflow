@@ -86,9 +86,8 @@ Decided (later items must keep these):
   controls and the My patients filters while preserving the selected patient
   and the shared demo data. It is independent of sign-in: the signed-in
   account is unchanged, and account linking or account-to-role mapping is not
-  required yet. It is never authorization; real, server-enforced permissions
-  remain part of S.6, and 3.7b's "no demo role dropdown as an authorization
-  mechanism" still holds.
+  required yet. It is never authorization; role-based permissions are not
+  planned for the demo (see **Demo only, no security work**).
 - **Navigation** (decided 2026-11-02, by the person): the app keeps its
   destinations (Overview, ER board, Patients, Team, Reports, Settings). On
   phones a bottom bar shows them, with an overflow menu for destinations that
@@ -197,13 +196,13 @@ Decided (later items must keep these):
 - **Owners never see the staff board.** Owners get a private page for their own
   pet only, with calm wording and no acuity. Staff and client labels live in
   the client.
-- **Security gates real clinic data, not features** (2026-10-26). Features are
-  built and shown on demo data first. No real clinic data until M3 and the M7
-  gate are done.
+- **Security gates real clinic data, not features** (2026-10-26; superseded on
+  2026-11-03 by **Demo only, no security work**). Features are built and shown
+  on demo data. No real clinic data.
 - **Sign-in proof of concept** (2026-10-26). A free local simulation: accounts
   in our own database, the framework's password hashing and bearer tokens, and
-  a fixed demo phone code. The login-provider and owner-access decisions stay
-  open for production.
+  a fixed demo phone code. It is the demo's sign-in (Demo only, no security
+  work); the owner-access decision stays open (before 6.3).
 - **App role delete rights** (2026-10-26). `vetiflow_app` keeps `DELETE` until
   8.13 revokes it.
 - **ER Overview scope** (2026-10-30): shared coordination, not a full chart.
@@ -249,24 +248,8 @@ Decided (later items must keep these):
   technician/shared pool, review recipient and follow-up owner are distinct.
   Unresolved diagnostics/concerns retain named ownership after departure.
   A sent handoff is not accepted responsibility, and receipt is not clinical resolution.
-- **Security Lab portfolio slice** (2026-10-30): the supplied security-poc is
-  a single-hospital, fictional-data, development/test demonstration of real
-  server enforcement. It is optional within M3, before the larger clinical
-  workspace work, and does not replace production authentication, full clinical
-  permissions, audit or the launch gate. The browser POC is simulation only.
-  Clinical accounts cannot view its security events; an explicitly authorized
-  development/security operator is a separate access boundary. Lab routes and
-  execution/audit APIs are absent in production regardless of client flags.
 
 Open (the item named in brackets needs it before its spec):
-
-- **Security Lab boundary** (before S.21a): operator identity/provisioning and
-  how scenario execution uses actual authenticated fictional actors (separate
-  sign-ins or a bounded operator-controlled harness with explicit attribution).
-  Client role/user_id fields are never authority. Choose the isolated local/test
-  database and minimal order-fixture storage; reuse the current .NET/Postgres
-  stack and existing domain/identity where possible. A lab-only authorization
-  fixture must not become a real medication order or administration entitlement.
 
 - **Door to doctor** (before 2.16a): which moment counts as "seen by a doctor"
   (doctor assigned, or a "Doctor assessment" event), and what "last shift" is.
@@ -283,9 +266,7 @@ Open (the item named in brackets needs it before its spec):
   list (home, transferred, admitted, deceased) and who may correct or reopen a
   discharged case.
 - **Duplicate patients** (before 4.7): warn only, or also merge.
-- **Login provider** (before S.5): ASP.NET Core Identity in our own database,
-  or an external provider such as Supabase Auth or Microsoft Entra.
-- **Owner access** (before S.8): an expiring link or owner sign-in, and how
+- **Owner access** (before 6.3): an expiring link or owner sign-in, and how
   long a link lasts.
 - **AI table design** (before 5.1): keep `AiSummary` and `Handoff` separate, or
   merge them into one `AiGeneration` table.
@@ -298,12 +279,12 @@ Open (the item named in brackets needs it before its spec):
 - **Action selection** (before 4.13a): explicit clinical priority, review state,
   due-soon policy and tie-breaking. An overdue administrative task must not
   automatically outrank a documented clinical priority; no algorithmic treatment advice.
-- **Build the simplest working version first** (decided 2026-11-02, by the person): each feature implements only what its current workflow needs, reuses existing components, APIs, tables and dialogs, and adds no speculative framework or model for unapproved future requirements. Dependencies are enforced only where security, data integrity or function genuinely need them; a dashboard is not blocked because advanced features are incomplete. Patient safety, authentication and server-side authorization, data integrity and concurrency, audit history, accurate documentation, and the separation of unverified from confirmed information are never traded for simplicity. Current order: 4.3a (location and assignment), then, at the person's request on 2026-11-02 to prioritize the application's UI/UX, the ER board prototype alignment items 2.25, 3.2c, 3.2d, 2.26, 2.27, 2.28 and 4.1c, then 4.13b (Care Coordination card, with priority and designation in the existing Tasks and due items dialog), S.5 and S.6 (sign-in and role permissions), then My Patients 2.22a-d (secure queue and read-only chart), with advanced clinical workflows added as their requirements and APIs are ready.
-- **Patient Overview quick edits** (decided 2026-11-02, by the person; amended the same day by **Patient header quick edits**, which moves the stage and location buttons into the patient header): a quick edit is something staff finish in a few clicks without opening a full chart. Four are edited from the Patient Overview, each from the section staff expect it and each in a small modal so it works at phone width (2026-11-02): Current Location (a room dropdown) in Care Coordination; Care Stage in Patient Status, using the existing stages and Update status rules (4.9a); Attending Veterinarian and Primary Technician (including "Not assigned") in Care Team. Two use existing dialogs: Re-triage through More actions, and the Next Care Action through the Tasks and due items dialog. Care Coordination does not hold all four controls. Read-only in the overview: vitals and clinical assessments, medications, presenting complaint and medical notes, the timeline (written automatically), task completion and priority (managed in Tasks and due items until My Patients is ready) and client communication (the latest approved update is shown; new communication uses its own workflow). Editing rights: authorized staff for location and care team, authorized veterinarians and technicians for stage, re-triage and next care action; until S.6 every signed-in team member may edit, always checked on the server.
-- **Next care action and task priority** (decided 2026-11-02, by the person): clinical priority is set only by an authorized veterinarian or veterinary technician, never by VetiFlow's software. Priority is Urgent, High or Routine; an unset priority is shown as "Not prioritized". An authorized clinician explicitly designates one documented open task as the Next Care Action, and the Patient Overview shows that task with its priority, assignee, due time and status. VetiFlow never ranks tasks, chooses or changes the designated action, or changes a priority. Due-soon and overdue labels are informational only. Completing or cancelling the designated task, or discharging the patient, clears the designation without promoting another task; no action is designated until staff choose one. Priority and designation changes are recorded on the case timeline. Until server-enforced roles exist (S.6), any authenticated team member with task-management access may set priority and designate, as a temporary policy; S.6 restricts both to authorized veterinarians and veterinary technicians, enforced on the server and never by a UI check. The automatic-ranking rule proposed earlier on 2026-11-02 was rejected and is part of no item.
-- **Clinical/reception visibility** (before S.6 and 3.7a): the field/action
-  permission matrix, including assistants, reception and supervisor access.
-  Who can approve client wording and handle escalation (before 6.5a).
+- **Demo only, no security work** (decided 2026-11-03, by the person): VetiFlow is a demo with fictional data, and security work is not required at this time. Security, privacy and audit items (the S items, 3.7a/b, 8.1, 8.2, 8.4, 8.5, 8.7, 8.8 and 9.1) are dropped from the plan. The existing sign-in demo, the team-member and pet-parent policies and the CLAUDE.md hard rules stay as they are. The app must not hold real clinic data unless this decision is revisited.
+- **Build the simplest working version first** (decided 2026-11-02, by the person): each feature implements only what its current workflow needs, reuses existing components, APIs, tables and dialogs, and adds no speculative framework or model for unapproved future requirements. Dependencies are enforced only where security, data integrity or function genuinely need them; a dashboard is not blocked because advanced features are incomplete. Patient safety, authentication and server-side authorization, data integrity and concurrency, audit history, accurate documentation, and the separation of unverified from confirmed information are never traded for simplicity. Current order: 4.3a (location and assignment), then, at the person's request on 2026-11-02 to prioritize the application's UI/UX, the ER board prototype alignment items 2.25, 3.2c, 3.2d, 2.26, 2.27, 2.28 and 4.1c, then 4.13b (Care Coordination card, with priority and designation in the existing Tasks and due items dialog), then My Patients 2.22a-d (queue and read-only chart), with advanced clinical workflows added as their requirements and APIs are ready.
+- **Patient Overview quick edits** (decided 2026-11-02, by the person; amended the same day by **Patient header quick edits**, which moves the stage and location buttons into the patient header): a quick edit is something staff finish in a few clicks without opening a full chart. Four are edited from the Patient Overview, each from the section staff expect it and each in a small modal so it works at phone width (2026-11-02): Current Location (a room dropdown) in Care Coordination; Care Stage in Patient Status, using the existing stages and Update status rules (4.9a); Attending Veterinarian and Primary Technician (including "Not assigned") in Care Team. Two use existing dialogs: Re-triage through More actions, and the Next Care Action through the Tasks and due items dialog. Care Coordination does not hold all four controls. Read-only in the overview: vitals and clinical assessments, medications, presenting complaint and medical notes, the timeline (written automatically), task completion and priority (managed in Tasks and due items until My Patients is ready) and client communication (the latest approved update is shown; new communication uses its own workflow). Editing rights: in the demo every signed-in team member may edit, checked on the server (see **Demo only, no security work**).
+- **Next care action and task priority** (decided 2026-11-02, by the person): clinical priority is set only by an authorized veterinarian or veterinary technician, never by VetiFlow's software. Priority is Urgent, High or Routine; an unset priority is shown as "Not prioritized". An authorized clinician explicitly designates one documented open task as the Next Care Action, and the Patient Overview shows that task with its priority, assignee, due time and status. VetiFlow never ranks tasks, chooses or changes the designated action, or changes a priority. Due-soon and overdue labels are informational only. Completing or cancelling the designated task, or discharging the patient, clears the designation without promoting another task; no action is designated until staff choose one. Priority and designation changes are recorded on the case timeline. In the demo any authenticated team member with task-management access may set priority and designate (see **Demo only, no security work**); no UI-only role check is added. The automatic-ranking rule proposed earlier on 2026-11-02 was rejected and is part of no item.
+- **Client wording approval** (before 6.5a): who can approve client wording
+  and handle escalation.
 - **Freshness and retrospective entry** (before 4.11a/b): measured/event-time
   capture and validation, unknown historical times, hospital stale thresholds
   and overdue reassessment wording. Do not substitute entry time for event time.
@@ -339,8 +320,7 @@ Open (the item named in brackets needs it before its spec):
 Continue from the delivered board and 4.8e. Follow `reference/er-board-poc/`
 (2026-11-02) and the person's decisions above; see that folder's README for
 the source mapping and gaps. Demo data only. New read-only
-drawers initially reuse the current team-member demo API; they do not claim
-the future per-role protections in S.6/3.7 are already implemented.
+drawers reuse the current team-member demo API.
 
 **Documented assessments and safety data**
 
@@ -373,43 +353,6 @@ the future per-role protections in S.6/3.7 are already implemented.
 
 - [ ] **2.20** `feature/command-center-fonts`: confirm the intended staff typography before changing font assets/hosting; the behavioral POC does not override current readable sizes, 700 bold or 1px focus. If DM Sans/Manrope remain approved, choose a font package/host and test fallbacks, loading and realistic panel widths rather than copying tiny POC text.
 
-## M3: Sign-in and roles
-
-Production authentication needs the login-provider decision. Application-wide
-identity/role items can run alongside M2 and gate real clinic data. The optional
-Security Lab slice below can use the existing framework-backed demo sessions
-in an isolated synthetic environment; it does not wait for enterprise identity,
-staff invitations, full clinical order workflows or My Patients screens. The
-portfolio Lab itself is not a mandatory clinic-launch prerequisite.
-
-**Optional Security Lab portfolio MVP**
-
-Source: `reference/security-poc/VETIFLOW_SECURITY_LAB_MVP_SPECIFICATION.md`
-and `VetiFlow_Security_Lab_Focused_POC.html`; scope/review mapping in that
-folder's README. Keep the current 3.6a work item intact. After it lands, this
-slice may be explicitly prioritized with `/feature S.21a`; its position here
-does not automatically interrupt the remaining ER queue.
-
-The three-day outline is a timebox, not a promised delivery date. Prefer
-verified enforcement and negative tests over extra UI. Build only protected
-fictional reads, vitals recording, a bounded order-authorization scenario and
-restricted security-event viewing; leave the other POC features Coming soon.
-
-- [ ] **S.21a** `feature/security-lab-boundary`: after the Lab boundary decision, isolate the Lab to explicitly enabled development/test operation with a synthetic local/test database and trusted authenticated fixture identities. Reuse existing Account/StaffMember and framework authentication where appropriate; add a separate security-operator policy, not a clinical-role dropdown grant. Disable route/execution/event endpoints in production even with an enabling flag, and test direct access and actor/role spoofing. No production seeding or arbitrary URL/SQL/command runner.
-- [ ] **S.21b** `feature/security-lab-events`: after S.21a, persist structured server authorization decisions with actual actor/role, action/resource, allowed/denied result, safe reason, UTC entry time and request/correlation ID. Capture middleware-level refusals too, including anonymous attempts, and distinguish allowed decisions from successful mutation. Provide operator-only event reads; deny clinical roles, including default manager access. No tokens, credentials or unnecessary clinical text; follow migrations/RLS rules for any model changes.
-- [ ] **S.21c** `feature/security-lab-protected-actions`: after S.21a/b, implement the minimal scoped fictional scenarios: permitted full clinical read versus restricted approved coordination status, vitals entry and valid draft-order authorization. Resolve identity/role on the server, use actual domain IDs and isolated data, and enforce the illustrative demo matrix. Integration tests prove 401, 403, allowed persistence, denied clinical-data non-mutation, persisted allow/deny events, invalid/stale order checks and production exclusion. Reuse existing vitals/domain code where safe; a fixture order is explicitly not clinical authorization for 4.18/4.19.
-- [ ] **S.21d** `feature/security-lab-console`: after S.21a-c, connect a separate operator-restricted development-only Lab surface to real responses/events, with no ER Board/My Patients tabs or normal clinical navigation entry. Show actual HTTP outcomes and backend state; failure cannot fall back to simulated success. Any scenario identity control follows S.21a's trusted-session/harness design, never client role claims. Mark unbuilt features Coming soon and keep the original HTML clearly identified as a simulation reference.
-- [ ] **S.21e** `docs/security-lab-evidence`: after S.21c/d, produce repeatable local/CI integration scenarios, a concise threat model, sanitized actual-response/test report and isolated-demo instructions/recording. Prove operator-only event access, no denied clinical mutation, no production execution routes and real audit persistence. Explicitly separate implemented controls, simulations and remaining limitations. Do not report S.5/S.6/8.1/8.8 or the launch gate complete based only on this slice.
-
-**Application-wide identity and clinical authorization**
-
-- [ ] **S.5** `feature/auth-login`: staff login (provider per the decision, building on or replacing the proof of concept), secure cookies or short-lived tokens, logout, CSRF protection if cookies are used; every endpoint requires a signed-in user by default.
-- [ ] **S.15** `feature/staff-accounts`: invite a staff member, link the account to a `StaffMember`, deactivate (blocks sign-in at once), and account recovery per the provider.
-- [ ] **S.6** `feature/auth-roles`: enforce the approved field/action permission matrix for Veterinarian, Technician, Assistant, Receptionist and Manager/supervisor responsibilities, using existing staff roles where applicable and separate owner-account scope. Reuse proven S.21 policies/tests where applicable, then add assignment, privileges and clinical context across the actual application APIs. A Lab-only denial does not protect an unchanged clinical route. Restrict reads/writes/client-note approval independently; blocks 3.7 and mixed-role rollout as well as real clinic data.
-- [ ] **S.7** `feature/hub-authorization`: require sign-in on the SignalR hub, pass the token safely, broadcast IDs only.
-- [ ] **S.14** `feature/session-timeout`: short idle timeout and a quick lock for shared ER workstations.
-- [ ] **S.9** `feature/rate-limiting`: ASP.NET Core rate limiter on login, writes and AI endpoints [19].
-
 ## M3b: Shared clinical foundation and both My Patients workspaces
 
 The veterinarian and technician specifications/POCs are now supplied. This
@@ -419,14 +362,11 @@ permitted reads/actions. The objects named in the handoffs are conceptual:
 reuse EmergencyCase, Patient, StaffMember/Account, CaseTask, Handoff and their
 history rather than creating duplicate Encounter/StaffUser tables per page.
 
-My Patients starts with a secure queue and read-only chart (2.22a-d) after S.6 and 4.3a; review requests, escalations, orders, diagnostics and drafts are added incrementally and do not block it (2026-11-02 simplicity decision).
+My Patients starts with a queue and read-only chart (2.22a-d) after 4.3a; review requests, escalations, orders, diagnostics and drafts are added incrementally and do not block it (2026-11-02 simplicity decision).
 
-Role-restricted reads/actions require S.6 and the applicable policy decisions;
-production use also requires S.5/S.7 and the full launch gate. Incremental work
-may use the existing authenticated demo with synthetic records and honest
-unsupported states, as the security-gates-real-data decision allows. This does
-not substitute for production identity, privileges, signatures or urgent
-notification delivery. New models ship migrations, role/transition tests and
+Work uses the existing authenticated demo with synthetic records and honest
+unsupported states (Demo only, no security work). It does not substitute for
+signatures or urgent notification delivery. New models ship migrations, role/transition tests and
 truthful unsupported/empty/error states. Split any oversized item before its
 feature spec is approved. Keep prototype defects in the reference READMEs;
 correcting those artifacts is a separate /fix, not an implicit product build.
@@ -436,12 +376,6 @@ correcting those artifacts is a separate /fix, not an implicit product build.
 - [ ] **2.4** `feature/board-data-loading`: prevent case/refetch races across ER and the two workspaces; keep the last good data on errors, and preserve case-bound drafts during same-case refreshes. A queue filter must not silently replace the selected chart [22, 23].
 - [ ] **2.5** `feature/live-connection-status`: retry hub connections, refetch on reconnect, and show Reconnecting/Offline or stale documented state across shared views. Do not automatically replay a clinical write or claim old observations are current [21].
 - [ ] **2.2** `feature/case-concurrency`: add the case xmin token and clear current-state conflicts; new note/order/administration features also supply their own record/version guards so unrelated clinical writes do not silently overwrite each other [12].
-- [ ] **8.1** `feature/audit-log`: authenticated view/change history, permitted manager reads and traceable actors/source records, without clinical text or contact details in ordinary logs. Reuse S.21 event infrastructure where appropriate but keep operator-only Lab security events distinct from manager-visible clinical audit. Establish the application-wide audit boundary before clinical drafts, signing, orders and administrations; each feature adds its own event/version evidence. Never derive competency/productivity rankings.
-
-**Permission-filtered shared overview** (requires S.6)
-
-- [ ] **3.7a** `feature/er-overview-projection`: after S.6 and the field/action permission decision, provide minimal server-authorized operational, Clinical, Medications and Timeline read projections for each permitted role. Do not send raw intake/clinical notes to reception and hide them only in React. Test role-by-field denial as well as signed-out and owner refusal; preserve the privileged demo behavior until replacement contracts are ready.
-- [ ] **3.7b** `feature/role-safe-er-overview`: use 3.7a's permitted views and explicit unavailable/denied states, including reception's route to the attending clinician. No demo role dropdown as an authorization mechanism. Roll out mixed-role review only after these server contracts and policies exist.
 
 **Shared clinical APIs needed by the role read models**
 
@@ -454,7 +388,7 @@ correcting those artifacts is a separate /fix, not an implicit product build.
 
 **Common My Patients shell, queues and role read views**
 
-- [ ] **2.22a** `feature/my-patients-api`: after S.6 and 4.3a, provide role-authorized server reads for the My Patients queue ("Assigned to me" and "All active", per the Role queue rules decision) and the read-only chart, from the existing case, task, vitals, timeline and assignment records. Counts are distinct patients. Review requests (4.16a), escalations (4.17a), orders (4.18a) and diagnostics (4.20a) join these reads when they are built; none of them blocks this item, and 3.7a (role-filtered ER overview) is not required for the clinical workspaces. No hardcoded clinician name or page-owned copy of status; coverage eligibility extends through 6.1c.
+- [ ] **2.22a** `feature/my-patients-api`: after 4.3a, provide server reads for the My Patients queue ("Assigned to me" and "All active", per the Role queue rules decision) and the read-only chart, from the existing case, task, vitals, timeline and assignment records. Counts are distinct patients. Review requests (4.16a), escalations (4.17a), orders (4.18a) and diagnostics (4.20a) join these reads when they are built; none of them blocks this item. No hardcoded clinician name or page-owned copy of status; coverage eligibility extends through 6.1c.
 - [ ] **2.22b** `feature/my-patients`: retain this existing ID for the common shell and one Patient Queue/wide chart scaffold using 2.22a. Share the ER header/active navigation, three neutral metric filters, acuity badges beside names, search/clear and assigned/all-active controls. Apply 4.8h protection to selection/navigation, preserve selected context when filtered, and test readable phone/tablet layouts. No fourth draft metric or extra attention sidebar; activate navigation only for authorized delivered views.
 - [ ] **2.22c** `feature/veterinarian-patient-chart`: after 2.22b, add the read-only veterinarian chart from records that exist: Clinical overview, Tasks, Timeline and Discharge status. Exam & plan, Orders, review requests, escalations and diagnostics appear as their items (4.15-4.20) are delivered; until then the chart says they are not available yet rather than showing an empty or complete section. Editing and actions arrive in the features below.
 - [ ] **2.22d** `feature/technician-patient-chart`: after 2.22b, add read-only Care overview, Vitals & observations, Care tasks, Medications, Vet review requests, Handoff & escalation, Timeline and Discharge prep using the same sources. Keep role-appropriate controls and states; no technician diagnosis/prescription/medical-discharge authority or duplicate patient model.
@@ -471,7 +405,7 @@ correcting those artifacts is a separate /fix, not an implicit product build.
 
 **Signing and authorized orders**
 
-- [ ] **4.15c** `feature/clinical-note-signing-api`: after S.5/S.6, 8.1, 4.15a and approved signing rules, sign an authenticated immutable note version; distinguish entered, examined/performed, reviewed and signed actors/times. Corrections are audited addenda/amendments, not edits to a signed snapshot. Record evidence without claiming the browser demo implements a legal signature.
+- [ ] **4.15c** `feature/clinical-note-signing-api`: after 4.15a and approved signing rules, sign an authenticated immutable note version; distinguish entered, examined/performed, reviewed and signed actors/times. Corrections are audited addenda/amendments, not edits to a signed snapshot. Record evidence without claiming the browser demo implements a legal signature.
 - [ ] **4.15d** `feature/clinical-note-signing`: after 4.15c and the draft editors, expose only permitted sign/review/addendum controls, clear unsigned/pending/error states and version history. Pending autosave must not silently overwrite a signed record or re-create an unsigned draft from the signed content.
 - [ ] **4.18b** `feature/veterinarian-order-drafts`: after 4.18a and 2.22c, create/modify/cancel permitted typed order drafts with the approved structured fields and visible draft identity; no implied prescription or authorization. Link tasks/results to real order records.
 - [ ] **4.18c** `feature/clinical-order-authorization-api`: after 4.18a, approved authority rules and audit/version foundations, authorize a precise order version and enforce active/held/discontinued/superseded transitions per order type, including reasons and downstream invalidation. Test competing edits and state changes; execution completion and results review remain distinct.
@@ -480,10 +414,10 @@ correcting those artifacts is a separate /fix, not an implicit product build.
 **Medication reconciliation, administration and diagnostic review**
 
 - [ ] **4.19b** `feature/medication-history-views`: after 4.19a, use one role-filtered source in both workspaces and the ER Medications drawer. Distinguish reported/verified/unknown home history, active orders, administrations and amendments with actual units/time/source; do not invent a medication ledger from free text.
-- [ ] **4.19c** `feature/medication-administration-api`: after 4.18c, S.6 and the administration policy, require the selected patient's current verified active authorized order/version and permitted staff identity. Record given/held/refused/not-given/partial or incident outcomes as applicable, required reasons, actual performer/time, entry actor/time and amendments. Enforce holds/discontinuations, duplicate/conflict protection and audit atomically; clients cannot substitute drug/dose/route or self-authorize.
+- [ ] **4.19c** `feature/medication-administration-api`: after 4.18c and the administration policy, require the selected patient's current verified active authorized order/version and permitted staff identity. Record given/held/refused/not-given/partial or incident outcomes as applicable, required reasons, actual performer/time, entry actor/time and amendments. Enforce holds/discontinuations, duplicate/conflict protection and audit atomically; clients cannot substitute drug/dose/route or self-authorize.
 - [ ] **4.19d** `feature/technician-medication-administration`: after 4.19c and 2.22d, block entry without suitable authority; show order/patient/authorizer and read-only authorized drug/dose/unit/route/schedule, configured checks and clarification paths. Capture permitted outcomes and event time truthfully, handle stale order/conflict/failure without automatic duplicate submission, and update the shared MAR.
 - [ ] **4.20b** `feature/diagnostic-review-views`: after 4.20a and both charts, show pending collection/process/result/interpretation states and named follow-up ownership; authorized clinician review is distinct from technician collection completion. Keep unresolved results visible after task completion and carry them into discharge/follow-up checks.
-Discharged cases are found through the patient, not a separate Discharges page (re-planned 2026-11-01 from `reference/VetiFlow_Patient_History_Access_Recommendations.md`, since removed; the outcome is in the 4.21a-d history). The 2026-11-01 discharge rule stays: the Discharge stage takes a case off the board; pickup and departure stay with 6.2e. For the demo any signed-in team member may read visit history, the same access as a case's detail today; S.6 narrows it later. Owners reach none of it.
+Discharged cases are found through the patient, not a separate Discharges page (re-planned 2026-11-01 from `reference/VetiFlow_Patient_History_Access_Recommendations.md`, since removed; the outcome is in the 4.21a-d history). The 2026-11-01 discharge rule stays: the Discharge stage takes a case off the board; pickup and departure stay with 6.2e. For the demo any signed-in team member may read visit history, the same access as a case's detail today. Owners reach none of it.
 
 **Handoff** (prototype: "Handoff" button)
 
@@ -496,18 +430,18 @@ Discharged cases are found through the patient, not a separate Discharges page (
 
 - [ ] **6.4a** `feature/owner-contact-api`: record each contact's event and entry times, communicator, channel and outcome, keeping the next client-update task in step. Contact attempts, completed communication and approved wording are different facts; `LastOwnerUpdateAt` alone does not prove an approved update. Contact details never reach the board list.
 - [ ] **6.4b** `feature/owner-contact`: authorized contact logging through the approved workflow, with last recorded communicator/time and next planned update in the summary. No record means "No communication recorded," not proof that the family was never contacted; routing to the attending clinician remains clear.
-- [ ] **6.5a** `feature/approved-client-updates-api`: after 6.4a, S.6 and the approval/escalation decision, store client-facing text with its author, approver, status and approval/event times; enforce recipient/role scopes on the server. Internal notes and preliminary diagnoses are not automatically converted into approved wording. This shared source also feeds the later owner page.
-- [ ] **6.5b** `feature/approved-client-update-summary`: after 6.5a and 3.7, show the latest authorized approved note, communicator/time and next update in the ER summary; if none, say "No approved client-facing update recorded." Approved authoring/review belongs in the appropriate clinical/communication workflow, separate from reception read access.
+- [ ] **6.5a** `feature/approved-client-updates-api`: after 6.4a and the client wording approval decision, store client-facing text with its author, approver, status and approval/event times; enforce recipient/role scopes on the server. Internal notes and preliminary diagnoses are not automatically converted into approved wording. This shared source also feeds the later owner page.
+- [ ] **6.5b** `feature/approved-client-update-summary`: after 6.5a, show the latest authorized approved note, communicator/time and next update in the ER summary; if none, say "No approved client-facing update recorded." Approved authoring/review belongs in the appropriate clinical/communication workflow, separate from reception read access.
 
 **Follow-up ownership and staged discharge**
 
 - [ ] **6.8a** `feature/clinical-followup-api`: before discharge authorization, persist linked unresolved result/concern, named responsible staff/team, acceptance, follow-up plan/due/response state and history according to policy. Keep authorized follow-up reads/updates available after departure without reopening the ER census or allowing unrelated discharged-case edits.
-- [ ] **6.6** `feature/case-history`: after S.6 and the shared chart/read contracts, list/search permitted departed encounters and reopen their documented history read-only, with an approved follow-up access route. Reuse the role chart/Timeline or existing record navigation rather than a second patient model; signed history stays immutable and only 6.8 endpoints permit bounded follow-up updates.
+- [ ] **6.6** `feature/case-history`: after the shared chart/read contracts, list/search permitted departed encounters and reopen their documented history read-only, with an approved follow-up access route. Reuse the role chart/Timeline or existing record navigation rather than a second patient model; signed history stays immutable and only 6.8 endpoints permit bounded follow-up updates.
 - [ ] **6.8b** `feature/clinical-followup-views`: after 6.8a and 6.6, show outstanding responsibility and disposition in the role charts, discharge review and permitted history/follow-up access. Departed patients do not count as active census patients. Do not hide pending results because a patient left the active board or infer accepted ownership from sending a request.
 
 **Discharge**
 
-- [ ] **6.2a** `feature/discharge-api`: after S.6, signing/authorized-order foundations, 6.8a and the outcome/clinical-policy decisions, record authenticated medical readiness/authorization against reviewed instructions and actual unresolved follow-up ownership. Preserve signed/versioned evidence and history; readiness does not set departure, remove the census card, release a room or complete tasks.
+- [ ] **6.2a** `feature/discharge-api`: after signing/authorized-order foundations, 6.8a and the outcome/clinical-policy decisions, record authenticated medical readiness/authorization against reviewed instructions and actual unresolved follow-up ownership. Preserve signed/versioned evidence and history; readiness does not set departure, remove the census card, release a room or complete tasks.
 - [ ] **6.2b** `feature/discharge`: after 6.2a and the veterinarian chart, review readiness, approved instructions/prescriptions and outstanding responsibility before the permitted clinical authorization action. Show authorization separately from preparation, checkout and physical departure; no single demonstration checkbox as authority.
 - [ ] **6.2c** `feature/discharge-preparation-api`: after 6.2a, record permitted technician preparation and education against the approved instruction version, including actual actors/event/entry times, owner questions and incomplete preparation. These records cannot grant medical authorization or departure authority.
 - [ ] **6.2d** `feature/technician-discharge-preparation`: after 6.2c and the technician chart, prepare approved materials, record education/questions and coordinate checkout while medical authorization remains veterinarian-only. Outstanding clinical issues keep their named follow-up owner.
@@ -527,39 +461,32 @@ concept as a substitute for another page's content or workflow.
 ## M5: Administration, history and reliable live behaviour
 
 - [ ] **9.3** `feature/clinic-settings`: clinic name, shift hours and timer thresholds (the Settings page; feeds 2.15 and 2.8).
-- [ ] **9.1** `feature/staff-admin`: managers add, edit and deactivate staff members and their roles.
 - [ ] **9.2** `feature/room-admin`: managers add, rename and retire rooms; a room with an active case can't be retired.
 - [ ] **6.7** `feature/case-corrections`: correct or reopen a discharged case per the decision, with a `CaseEvent` for each change.
 
 ## M6: Private owner experience
 
-- [ ] **S.8** `feature/owner-access-control`: owners see only their own pet's case (resource-based checks, no guessable links); access expires and staff can revoke it. Replaces the demo pet parent sign-in for production.
-- [ ] **6.3** `feature/owner-page`: after S.8 and 6.5a/b, the private owner page consumes the same authorized approved communication source, with client labels and no raw staff notes. Replaces the demo pet parent home; requires its own page requirements/design.
+- [ ] **6.3** `feature/owner-page`: after the owner access decision and 6.5a/b, the private owner page consumes the same authorized approved communication source, with client labels and no raw staff notes. Replaces the demo pet parent home; requires its own page requirements/design.
 
 ## M7: Launch gate and pilot
 
-All of these must be done before VetiFlow holds real clinic data.
-The identity/role, reliability and audit foundations moved earlier for the
-clinical workspaces remain launch requirements; moving 8.1 does not waive it.
+Operational items for running the demo, and for a pilot if one is ever
+planned. Holding real clinic data would first need the **Demo only, no
+security work** decision revisited.
 
 - [ ] **8.10** `chore/demo-environment`: a separate Render service and Supabase project with demo data only; Vercel previews point at demo. Demo sign-in exists only there.
 - [ ] **7.4** `feature/demo-mode`: Reset demo button, scheduled reseed and a write rate limit, in the demo environment only [19, 20].
-- [ ] **S.10c** `chore/app-role-cutover`: switch Render's API connection to the `vetiflow_app` login (password set in Supabase), as planned in S.10b's deploy notes.
-- [ ] **8.2** `feature/security-headers`: CSP, `X-Content-Type-Options`, `Referrer-Policy`, frame-ancestors and `X-Robots-Tag: noindex` on Vercel and the API.
 - [ ] **8.3** `chore/log-redaction`: keep patient and owner details, tokens and connection strings out of logs.
 - [ ] **7.5** `chore/logging`: structured logging with correlation IDs.
-- [ ] **8.5** `chore/privacy-data-handling`: synthetic data only in the demo, a retention policy, owner data export and delete, a privacy notice.
 - [ ] **8.13** `chore/revoke-app-delete`: once the schema is final, revoke `DELETE` from `vetiflow_app` except where a feature needs it, with a test.
 - [ ] **8.6** `chore/backups`: Supabase backups or point-in-time recovery, with a tested restore.
 - [ ] **8.9** `chore/monitoring`: uptime alert on `/api/health`, error alerting and log retention.
 - [ ] **8.14** `chore/render-auto-deploy`: Render auto-deploys after CI passes, and a check that warns when the live API is behind `main`.
-- [ ] **8.7** `chore/security-scanning`: Dependabot for npm and NuGet as well as GitHub Actions; keep CodeQL on.
 - [ ] **7.6** `chore/accessibility-pass`: AA contrast, keyboard and screen reader checks across the Command Center at desktop, 1050 px and 650 px.
 - [ ] **7.2** `test/playwright-sync`: two browsers, change a case in one, assert the other updates.
 - [ ] **7.8** `test/playwright-journey`: intake -> triage -> assignment -> status changes -> discharge in a browser.
 - [ ] **1.5** `docs/readme`: README with a screenshot, the live link and local setup.
 - [ ] **8.11** `docs/operator-runbook`: deploy, migrate, roll back, restore, rotate secrets, onboard and offboard staff, incident contacts.
-- [ ] **8.8** `docs/security-review`: threat model, a pre-launch checklist, and a final review of auth, the hub and the owner page.
 - [ ] **8.12** `chore/pilot-readiness`: pilot checklist, staff training notes, a feedback route and the whiteboard fallback.
 
 ## M8: AI assistance
@@ -571,7 +498,6 @@ After M7. Every workflow keeps working without AI.
 - [ ] **5.3** `feature/ai-review-ui`: "AI DRAFT, unconfirmed" badge in the panel, a confirm button, "Confirmed by … at …".
 - [ ] **5.4** `feature/ai-resilience`: timeouts, manual fallback, "AI unavailable" state, rate limiting on AI endpoints.
 - [ ] **5.5** `feature/ai-handoff-draft`: AI drafts the handoff text for 6.1; staff edit and confirm it.
-- [ ] **8.4** `feature/ai-data-safety`: strip owner contact details before anything reaches the AI provider, treat intake notes as untrusted, no training on our data, limited retention.
 
 ## Later
 
@@ -583,6 +509,7 @@ After M7. Every workflow keeps working without AI.
 
 ## Dropped
 
+- **S.21a-e** (Security Lab), **S.5** `feature/auth-login`, **S.15** `feature/staff-accounts`, **S.6** `feature/auth-roles`, **S.7** `feature/hub-authorization`, **S.14** `feature/session-timeout`, **S.9** `feature/rate-limiting`, **S.8** `feature/owner-access-control`, **S.10c** `chore/app-role-cutover`, **8.2** `feature/security-headers`, **8.7** `chore/security-scanning`, **8.8** `docs/security-review`, **3.7a** `feature/er-overview-projection`, **3.7b** `feature/role-safe-er-overview`, **8.4** `feature/ai-data-safety`, **8.5** `chore/privacy-data-handling`, **8.1** `feature/audit-log` and **9.1** `feature/staff-admin`: dropped 2026-11-03, by the person: demo only; security, privacy and audit work is not required (see Decisions, **Demo only, no security work**).
 - **4.13e** `feature/task-assignment-history`: merged into 4.13c (decided 2026-11-03, by the person): assignment history is built with the reassignment workflow it records, under the simplicity decision; no model is added before that workflow exists.
 - **4.13d** `feature/next-care-action-selection`: dropped 2026-11-02. Automatic ranking and selection of the next care action were rejected; clinical priority and the Next Care Action are set by authorized clinical staff (see Decisions).
 - **4.8f** `feature/inline-pain-score`: superseded before implementation by the 2026-10-30 ER Overview requirements, which explicitly exclude a generic 0-10 pain slider. Unsaved-change protection is retained as 4.8h; species-specific clinical assessment awaits the separately approved My Patients workflow. The delivered 4.8a-e history is retained.

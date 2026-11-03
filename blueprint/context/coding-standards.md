@@ -75,7 +75,7 @@ Avoid overengineering:
 ## SignalR
 
 - Hub at `/hubs/cases`. Broadcast IDs and minimal state, never owner details or
-  clinical notes (build plan S.7).
+  clinical notes.
 - The client refetches what it needs after a hub message.
 
 ## React and TypeScript
@@ -195,8 +195,10 @@ Reference: [Google Search content controls](https://developers.google.com/search
 
 ## Security
 
-- Every new endpoint and hub method requires a signed-in staff user once staff
-  sign-in exists (build plan S.5), and checks the role it needs.
+- Every new staff endpoint requires a signed-in team member through the
+  existing demo policies (`TeamMemberPolicy`, `PetParentPolicy`). Role-based
+  permissions are not planned (build plan decision **Demo only, no security
+  work**, 2026-11-03).
 - Owners reach only their own pet's case, through a scoped, expiring link or
   sign-in. Never expose a case or patient by ID alone.
 - Never log or return owner contact details, intake notes, tokens or
@@ -224,7 +226,7 @@ Reference: [Google Search content controls](https://developers.google.com/search
   needs. Never execute AI-generated links, commands or instructions automatically.
 - Keep the session token only where the approved sign-in design puts it. Today
   that is the demo's per-tab token in `sessionStorage` (`services/session.ts`,
-  S.18b); S.5 settles production sign-in. Never store credentials or owner and
+  S.18b). Never store credentials or owner and
   clinical records in `localStorage`, `sessionStorage`, IndexedDB or offline
   caches. Clear in-memory private state on logout or user changes. Keep
   sensitive data out of browser logs, analytics and third-party error reports.
