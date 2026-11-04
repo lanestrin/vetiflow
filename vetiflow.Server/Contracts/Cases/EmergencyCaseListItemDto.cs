@@ -64,4 +64,12 @@ public class EmergencyCaseListItemDto
 	public PainScoreSummaryDto? LatestPainScore { get; set; }
 
 	public DateTimeOffset LastUpdated { get; set; }
+
+	// The door-to-doctor milestones (2.16a): the vet assessment, the
+	// designated next action's owner, and the state the two make.
+	public VetAssessmentDto? VetAssessment { get; set; }
+
+	public NextActionOwnerDto? NextActionOwner { get; set; }
+
+	public VetMilestone VetMilestone { get; set; }
 }

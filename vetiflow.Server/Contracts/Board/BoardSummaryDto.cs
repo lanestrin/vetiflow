@@ -33,6 +33,30 @@ public class BoardSummaryDto
 
 	// Of those, the ones with neither a doctor nor a technician assigned.
 	public int CriticalWithoutCareTeam { get; set; }
+
+	// Arrival to the recorded vet assessment (2.16a).
+	public required DoorToDoctorDto DoorToDoctor { get; set; }
+}
+
+// Door to doctor for this shift and the one before it, and how many patients
+// still wait for their first vet assessment. Counts and minutes only.
+public class DoorToDoctorDto
+{
+	public required ShiftDoorToDoctorDto CurrentShift { get; set; }
+
+	public required ShiftDoorToDoctorDto PreviousShift { get; set; }
+
+	// Active cases with no vet assessment yet: Show waiting patients (2.16b).
+	public int Waiting { get; set; }
+}
+
+// Of the cases that arrived during the shift (discharged ones included), those
+// with a vet assessment, and their mean wait in whole minutes. Null when none.
+public class ShiftDoorToDoctorDto
+{
+	public int? AverageMinutes { get; set; }
+
+	public int Assessed { get; set; }
 }
 
 public class ShiftDto

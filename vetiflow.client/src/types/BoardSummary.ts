@@ -19,4 +19,17 @@ export interface BoardSummary {
   criticalPatients: number;
   // Critical cases with neither a doctor nor a technician assigned.
   criticalWithoutCareTeam: number;
+  // Arrival to the recorded vet assessment, this shift and the one before
+  // (2.16a), and how many patients still wait for a vet.
+  doorToDoctor: {
+    currentShift: ShiftDoorToDoctor;
+    previousShift: ShiftDoorToDoctor;
+    waiting: number;
+  };
+}
+
+// The shift's assessed arrivals and their mean wait in minutes; null when none.
+export interface ShiftDoorToDoctor {
+  averageMinutes: number | null;
+  assessed: number;
 }

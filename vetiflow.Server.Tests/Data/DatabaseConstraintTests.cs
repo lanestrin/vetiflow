@@ -398,6 +398,23 @@ public class DatabaseConstraintTests(VetiFlowApiFactory factory)
 			"CK_CaseTasks_NextActionRecorded");
 	}
 
+	// The vet assessment's time, entry time and assessor are set together (2.16a).
+	[Fact]
+	public async Task VetAssessment_WithoutAssessor_IsRejected()
+	{
+		var emergencyCase = TestData.Case(TestData.Patient());
+		emergencyCase.VetAssessedAt = DateTimeOffset.UtcNow;
+		emergencyCase.VetAssessmentRecordedAt = DateTimeOffset.UtcNow;
+
+		await using var dbContext = factory.CreateDbContext();
+		dbContext.EmergencyCases.Add(emergencyCase);
+
+		await AssertViolatesAsync(
+			dbContext,
+			PostgresErrorCodes.CheckViolation,
+			"CK_EmergencyCases_VetAssessmentRecorded");
+	}
+
 	private static void Designate(CaseTask task, StaffMember staff)
 	{
 		task.IsNextAction = true;

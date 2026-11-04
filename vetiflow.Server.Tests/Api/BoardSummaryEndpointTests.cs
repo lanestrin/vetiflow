@@ -164,6 +164,75 @@ public class BoardSummaryEndpointTests(VetiFlowApiFactory factory) : IAsyncLifet
 		Assert.Equal(3, summary.GetProperty("cliniciansOnFloor").GetInt32());
 	}
 
+	// Door to doctor (2.16a): arrival to the recorded vet assessment, for the
+	// cases that arrived in each shift, discharged ones included.
+	[Fact]
+	public async Task GetSummary_AveragesDoorToDoctorForThisShiftAndTheOneBefore()
+	{
+		await ClearVetAssessmentsAsync();
+		var clinicShifts = _host.Services.GetRequiredService<ClinicShifts>();
+		var shift = clinicShifts.At(DateTimeOffset.UtcNow);
+		var previous = clinicShifts.Before(shift);
+		var assessor = TestData.StaffMember(StaffRole.Veterinarian);
+		var dischargedEarlier = Assessed(previous.StartedAt.AddMinutes(10), waitMinutes: 20, assessor);
+		dischargedEarlier.DischargedAt = DateTimeOffset.UtcNow;
+		await AddAsync(
+			Assessed(shift.StartedAt.AddMinutes(1), waitMinutes: 10, assessor),
+			Assessed(shift.StartedAt.AddMinutes(2), waitMinutes: 15, assessor),
+			Assessed(previous.StartedAt.AddMinutes(1), waitMinutes: 30, assessor),
+			dischargedEarlier,
+			// Arrived last shift, assessed in this one: it counts for last shift.
+			Assessed(shift.StartedAt.AddMinutes(-1), waitMinutes: 6, assessor),
+			// Before the previous shift: in neither.
+			Assessed(previous.StartedAt.AddMinutes(-5), waitMinutes: 90, assessor),
+			ArrivedAt(shift.StartedAt.AddMinutes(3)));
+
+		var doorToDoctor = (await GetSummaryAsync()).GetProperty("doorToDoctor");
+
+		Assert.Equal(13, doorToDoctor.GetProperty("currentShift").GetProperty("averageMinutes").GetInt32());
+		Assert.Equal(2, doorToDoctor.GetProperty("currentShift").GetProperty("assessed").GetInt32());
+		Assert.Equal(19, doorToDoctor.GetProperty("previousShift").GetProperty("averageMinutes").GetInt32());
+		Assert.Equal(3, doorToDoctor.GetProperty("previousShift").GetProperty("assessed").GetInt32());
+	}
+
+	[Fact]
+	public async Task GetSummary_DoorToDoctorIsNullWithNobodyAssessed_AndCountsActiveWaitingPatients()
+	{
+		await ClearVetAssessmentsAsync();
+		var waitingDischarged = TestData.Case(TestData.Patient());
+		waitingDischarged.DischargedAt = DateTimeOffset.UtcNow;
+		await AddAsync(TestData.Case(TestData.Patient()), TestData.Case(TestData.Patient()), waitingDischarged);
+
+		var doorToDoctor = (await GetSummaryAsync()).GetProperty("doorToDoctor");
+
+		Assert.Equal(JsonValueKind.Null, doorToDoctor.GetProperty("currentShift").GetProperty("averageMinutes").ValueKind);
+		Assert.Equal(0, doorToDoctor.GetProperty("currentShift").GetProperty("assessed").GetInt32());
+		Assert.Equal(JsonValueKind.Null, doorToDoctor.GetProperty("previousShift").GetProperty("averageMinutes").ValueKind);
+		Assert.Equal(2, doorToDoctor.GetProperty("waiting").GetInt32());
+	}
+
+	private static EmergencyCase Assessed(DateTimeOffset arrival, int waitMinutes, StaffMember assessor)
+	{
+		var emergencyCase = ArrivedAt(arrival);
+		emergencyCase.VetAssessedAt = arrival.AddMinutes(waitMinutes);
+		emergencyCase.VetAssessmentRecordedAt = arrival.AddMinutes(waitMinutes);
+		emergencyCase.VetAssessedByStaff = assessor;
+		return emergencyCase;
+	}
+
+	// The demo seed records assessments; these tests start without any.
+	private async Task ClearVetAssessmentsAsync()
+	{
+		await using var dbContext = VetiFlowApiFactory.CreateDbContext(_connectionString);
+		await dbContext.EmergencyCases
+			.Where(emergencyCase => emergencyCase.VetAssessedAt != null)
+			.ExecuteUpdateAsync(setters => setters
+				.SetProperty(emergencyCase => emergencyCase.VetAssessedAt, (DateTimeOffset?)null)
+				.SetProperty(emergencyCase => emergencyCase.VetAssessmentRecordedAt, (DateTimeOffset?)null)
+				.SetProperty(emergencyCase => emergencyCase.VetAssessedByStaffId, (Guid?)null),
+				_cancellationToken);
+	}
+
 	private static StaffMember Staff(StaffRole role, StaffStatus status)
 	{
 		var staffMember = TestData.StaffMember(role);

@@ -3,7 +3,10 @@ import type {
   CaseReference,
   CaseRoom,
   CaseStage,
-  CaseStatus
+  CaseStatus,
+  NextActionOwner,
+  VetAssessment,
+  VetMilestone
 } from "./EmergencyCaseListItem";
 
 
@@ -81,6 +84,10 @@ export interface CaseDetail {
   nextClientUpdate: CaseDueItem | null;
   // Oldest first.
   timeline: CaseEvent[];
+  // The door-to-doctor milestones (2.16a), as on the board list.
+  vetAssessment: VetAssessment | null;
+  nextActionOwner: NextActionOwner | null;
+  vetMilestone: VetMilestone;
 }
 
 export interface CasePatient {

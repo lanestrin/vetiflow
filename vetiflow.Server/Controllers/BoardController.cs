@@ -34,6 +34,12 @@ public class BoardController : ControllerBase
 		var activeCases = _dbContext.EmergencyCases.Where(emergencyCase => emergencyCase.DischargedAt == null);
 		var awaitingTriage = activeCases.Where(emergencyCase => emergencyCase.Stage == CaseStage.Incoming);
 		var critical = activeCases.Where(emergencyCase => emergencyCase.Acuity == AcuityLevel.Critical);
+		var previousShift = _clinicShifts.Before(shift);
+		// The two shifts' assessed arrivals: few rows, averaged here.
+		var assessedArrivals = await _dbContext.EmergencyCases
+			.Where(emergencyCase => emergencyCase.VetAssessedAt != null && emergencyCase.ArrivalTime >= previousShift.StartedAt)
+			.Select(emergencyCase => new { emergencyCase.ArrivalTime, AssessedAt = emergencyCase.VetAssessedAt!.Value })
+			.ToListAsync(cancellationToken);
 
 		return new BoardSummaryDto
 		{
@@ -50,7 +56,27 @@ public class BoardController : ControllerBase
 			CriticalWithoutCareTeam = await critical
 				.CountAsync(
 					emergencyCase => emergencyCase.AssignedDoctorId == null && emergencyCase.AssignedTechnicianId == null,
-					cancellationToken)
+					cancellationToken),
+			DoorToDoctor = new DoorToDoctorDto
+			{
+				CurrentShift = ShiftDoorToDoctor(assessedArrivals
+					.Where(arrival => arrival.ArrivalTime >= shift.StartedAt)
+					.Select(arrival => arrival.AssessedAt - arrival.ArrivalTime)),
+				PreviousShift = ShiftDoorToDoctor(assessedArrivals
+					.Where(arrival => arrival.ArrivalTime < shift.StartedAt)
+					.Select(arrival => arrival.AssessedAt - arrival.ArrivalTime)),
+				Waiting = await activeCases.CountAsync(emergencyCase => emergencyCase.VetAssessedAt == null, cancellationToken)
+			}
+		};
+	}
+
+	private static ShiftDoorToDoctorDto ShiftDoorToDoctor(IEnumerable<TimeSpan> waits)
+	{
+		var minutes = waits.Select(wait => wait.TotalMinutes).ToList();
+		return new ShiftDoorToDoctorDto
+		{
+			AverageMinutes = minutes.Count == 0 ? null : (int)Math.Round(minutes.Average(), MidpointRounding.AwayFromZero),
+			Assessed = minutes.Count
 		};
 	}
 }

@@ -31,6 +31,34 @@ public static class DbSeeder
 		await SeedAdditionalCasesAsync(dbContext);
 		await SpreadDemoAssignmentsAsync(dbContext);
 		await DischargeRetiredDemoCasesAsync(dbContext);
+		await BackfillDemoVetAssessmentsAsync(dbContext);
+	}
+
+	// A database seeded before 2.16a has demo cases past Incoming with no vet
+	// assessment, so the board would show every one as waiting. Record one for
+	// each extra demo fixture, at its first triage, by its assigned doctor or
+	// Jordan Lee. Incoming fixtures and other cases are left alone; the base
+	// cases have no fixed IDs and get theirs only on a fresh seed.
+	private static async Task BackfillDemoVetAssessmentsAsync(VetiFlowDbContext dbContext)
+	{
+		var fixtureIds = AdditionalCases.Select(seed => DemoFixtureId(1, seed.Index)).ToArray();
+		var cases = await dbContext.EmergencyCases.Include(emergencyCase => emergencyCase.TriageAssessments)
+			.Where(emergencyCase => fixtureIds.Contains(emergencyCase.Id)
+				&& emergencyCase.Stage != CaseStage.Incoming && emergencyCase.VetAssessedAt == null)
+			.ToListAsync();
+		if (cases.Count == 0) return;
+
+		var jordanLeeId = await dbContext.StaffMembers
+			.Where(staff => staff.FirstName == "Jordan" && staff.LastName == "Lee")
+			.Select(staff => (Guid?)staff.Id).FirstOrDefaultAsync();
+		foreach (var emergencyCase in cases)
+		{
+			var assessedAt = emergencyCase.TriageAssessments.Min(triage => (DateTimeOffset?)triage.AssessedAt) ?? emergencyCase.StageEnteredAt;
+			if ((emergencyCase.AssignedDoctorId ?? jordanLeeId) is not { } assessorId) continue;
+			emergencyCase.RecordVetAssessment(assessedAt, assessedAt, assessorId);
+		}
+
+		await dbContext.SaveChangesAsync();
 	}
 
 	// More clinicians for the My Patients workspaces (build plan 2.24), so the
@@ -262,6 +290,11 @@ public static class DbSeeder
 				Acuity = seed.Acuity, RawIntakeNotes = seed.Complaint,
 				AssessedAt = assessedAt, AssessedByStaffId = doctorId
 			});
+			// A case past Incoming has been seen by its vet, at triage (2.16a).
+			if (!incoming && doctorId is { } assessorId)
+			{
+				emergencyCase.RecordVetAssessment(assessedAt, assessedAt, assessorId);
+			}
 			// Fictional readings for layout coverage, including partial sets.
 			emergencyCase.RecordVitals(new VitalsRecord
 			{
@@ -328,7 +361,9 @@ public static class DbSeeder
 				.SetProperty(emergencyCase => emergencyCase.StageEnteredAt, emergencyCase => emergencyCase.StageEnteredAt + by)
 				.SetProperty(emergencyCase => emergencyCase.LastUpdated, emergencyCase => emergencyCase.LastUpdated + by)
 				.SetProperty(emergencyCase => emergencyCase.LastOwnerUpdateAt, emergencyCase => emergencyCase.LastOwnerUpdateAt + by)
-				.SetProperty(emergencyCase => emergencyCase.DischargedAt, emergencyCase => emergencyCase.DischargedAt + by));
+				.SetProperty(emergencyCase => emergencyCase.DischargedAt, emergencyCase => emergencyCase.DischargedAt + by)
+				.SetProperty(emergencyCase => emergencyCase.VetAssessedAt, emergencyCase => emergencyCase.VetAssessedAt + by)
+				.SetProperty(emergencyCase => emergencyCase.VetAssessmentRecordedAt, emergencyCase => emergencyCase.VetAssessmentRecordedAt + by));
 		await dbContext.CaseTasks.ExecuteUpdateAsync(setters => setters
 				.SetProperty(task => task.CreatedAt, task => task.CreatedAt + by)
 				.SetProperty(task => task.DueAt, task => task.DueAt + by)
@@ -568,6 +603,7 @@ public static class DbSeeder
 			AssessedAt = now.AddMinutes(-12),
 			AssessedByStaff = drLee
 		});
+		buddyCase.RecordVetAssessment(now.AddMinutes(-12), now.AddMinutes(-12), drLee.Id);
 
 		// A technician's recheck: repeated vitals without a new acuity decision.
 		buddyCase.RecordVitals(new VitalsRecord
@@ -630,6 +666,7 @@ public static class DbSeeder
 			AssessedAt = now.AddMinutes(-35),
 			AssessedByStaff = drShah
 		});
+		lunaCase.RecordVetAssessment(now.AddMinutes(-35), now.AddMinutes(-35), drShah.Id);
 
 		lunaCase.RecordPainScore(new PainScore
 		{
@@ -685,6 +722,7 @@ public static class DbSeeder
 			AssessedAt = now.AddMinutes(-60),
 			AssessedByStaff = drShah
 		});
+		maxCase.RecordVetAssessment(now.AddMinutes(-60), now.AddMinutes(-60), drLee.Id);
 
 		maxCase.RecordPainScore(new PainScore
 		{

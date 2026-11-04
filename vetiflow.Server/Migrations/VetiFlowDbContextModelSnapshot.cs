@@ -309,6 +309,15 @@ namespace vetiflow.Server.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<DateTimeOffset?>("VetAssessedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("VetAssessedByStaffId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("VetAssessmentRecordedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<decimal?>("WeightKg")
                         .HasColumnType("numeric");
 
@@ -331,9 +340,13 @@ namespace vetiflow.Server.Migrations
                         .HasDatabaseName("IX_EmergencyCases_RoomId_Active")
                         .HasFilter("\"DischargedAt\" IS NULL AND \"RoomId\" IS NOT NULL");
 
+                    b.HasIndex("VetAssessedByStaffId");
+
                     b.ToTable("EmergencyCases", t =>
                         {
                             t.HasCheckConstraint("CK_EmergencyCases_AllergyStatusAtIntake", "(\"AllergyStatusAtIntake\" = 'NotRecorded' AND \"AllergiesAtIntake\" IS NULL) OR (\"AllergyStatusAtIntake\" = 'UnknownOrUnverified' AND \"AllergiesAtIntake\" IS NOT NULL AND length(btrim(\"AllergiesAtIntake\")) > 0)");
+
+                            t.HasCheckConstraint("CK_EmergencyCases_VetAssessmentRecorded", "(\"VetAssessedAt\" IS NULL AND \"VetAssessmentRecordedAt\" IS NULL AND \"VetAssessedByStaffId\" IS NULL) OR (\"VetAssessedAt\" IS NOT NULL AND \"VetAssessmentRecordedAt\" IS NOT NULL AND \"VetAssessedByStaffId\" IS NOT NULL)");
                         });
                 });
 
@@ -749,6 +762,11 @@ namespace vetiflow.Server.Migrations
                         .HasForeignKey("RoomId")
                         .OnDelete(DeleteBehavior.Restrict);
 
+                    b.HasOne("vetiflow.Server.Models.StaffMember", "VetAssessedByStaff")
+                        .WithMany()
+                        .HasForeignKey("VetAssessedByStaffId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.Navigation("AssignedDoctor");
 
                     b.Navigation("AssignedTechnician");
@@ -756,6 +774,8 @@ namespace vetiflow.Server.Migrations
                     b.Navigation("Patient");
 
                     b.Navigation("Room");
+
+                    b.Navigation("VetAssessedByStaff");
                 });
 
             modelBuilder.Entity("vetiflow.Server.Models.Handoff", b =>

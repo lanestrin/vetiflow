@@ -15,6 +15,33 @@ public class ClinicShiftsTests
 		["Clinic:NightShiftStarts"] = "20:00"
 	}));
 
+	// "Last shift" for door to doctor (2.16a): the shift right before the current one.
+	[Fact]
+	public void PreviousShift_OfADayShift_IsLastNight()
+	{
+		var day = Chicago.At(Utc("2026-10-28T15:00:00Z"));
+
+		Assert.Equal(new CurrentShift(ShiftName.Night, Utc("2026-10-28T01:00:00Z")), Chicago.Before(day));
+	}
+
+	[Fact]
+	public void PreviousShift_OfANightShiftAfterMidnight_IsThatDaysDayShift()
+	{
+		var night = Chicago.At(Utc("2026-10-29T08:00:00Z"));
+
+		Assert.Equal(new CurrentShift(ShiftName.Day, Utc("2026-10-28T13:00:00Z")), Chicago.Before(night));
+	}
+
+	[Fact]
+	public void PreviousShift_AcrossDaylightSavingEnd_UsesLocalClock()
+	{
+		// Day shift on 1 November 2026 (CST) began 08:00 local = 14:00Z; the night
+		// before began 20:00 CDT on 31 October = 01:00Z on 1 November.
+		var day = Chicago.At(Utc("2026-11-01T16:00:00Z"));
+
+		Assert.Equal(new CurrentShift(ShiftName.Night, Utc("2026-11-01T01:00:00Z")), Chicago.Before(day));
+	}
+
 	[Fact]
 	public void CurrentShift_MidMorning_IsDayFromEight()
 	{

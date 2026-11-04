@@ -19,7 +19,9 @@ public enum CaseEventType
 	TagRemoved,
 	TaskPriorityChanged,
 	NextActionDesignated,
-	NextActionCleared
+	NextActionCleared,
+	// The initial veterinarian assessment was recorded (2.16a).
+	VetAssessed
 }
 
 public class CaseEvent

@@ -91,6 +91,18 @@ public class EmergencyCase
 
 	public DateTimeOffset? DischargedAt { get; set; }
 
+	// The initial veterinarian assessment (build plan 2.16a): when it happened,
+	// when it was entered, and by whom. All null until recorded; set together
+	// with RecordVetAssessment. It ends the door-to-doctor wait and is never
+	// inferred from an assignment, triage or stage.
+	public DateTimeOffset? VetAssessedAt { get; set; }
+
+	public DateTimeOffset? VetAssessmentRecordedAt { get; set; }
+
+	public Guid? VetAssessedByStaffId { get; set; }
+
+	public StaffMember? VetAssessedByStaff { get; set; }
+
 	// What staff confirmed at this visit's intake, so the next visit can check
 	// whether the pet is still on the same medicines and doses. Never logged.
 	public string? AllergiesAtIntake { get; set; }
@@ -142,6 +154,15 @@ public class EmergencyCase
 	public void RecordDischarge(DateTimeOffset now)
 	{
 		DischargedAt ??= now;
+	}
+
+	// The three assessment fields go together (2.16a); the caller checks the
+	// time against arrival and refuses a second record.
+	public void RecordVetAssessment(DateTimeOffset occurredAt, DateTimeOffset recordedAt, Guid staffMemberId)
+	{
+		VetAssessedAt = occurredAt;
+		VetAssessmentRecordedAt = recordedAt;
+		VetAssessedByStaffId = staffMemberId;
 	}
 
 	// Why staff may not make this stage and status change, or null when it is
