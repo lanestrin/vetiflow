@@ -465,7 +465,9 @@ public class DbSeederTests(VetiFlowApiFactory factory)
 			.SetProperty(emergencyCase => emergencyCase.StageEnteredAt, emergencyCase => emergencyCase.StageEnteredAt + by)
 			.SetProperty(emergencyCase => emergencyCase.LastUpdated, emergencyCase => emergencyCase.LastUpdated + by)
 			.SetProperty(emergencyCase => emergencyCase.LastOwnerUpdateAt, emergencyCase => emergencyCase.LastOwnerUpdateAt + by)
-			.SetProperty(emergencyCase => emergencyCase.DischargedAt, emergencyCase => emergencyCase.DischargedAt + by), _cancellationToken);
+			.SetProperty(emergencyCase => emergencyCase.DischargedAt, emergencyCase => emergencyCase.DischargedAt + by)
+			.SetProperty(emergencyCase => emergencyCase.VetAssessedAt, emergencyCase => emergencyCase.VetAssessedAt + by)
+			.SetProperty(emergencyCase => emergencyCase.VetAssessmentRecordedAt, emergencyCase => emergencyCase.VetAssessmentRecordedAt + by), _cancellationToken);
 		await dbContext.CaseTasks.ExecuteUpdateAsync(setters => setters
 			.SetProperty(task => task.CreatedAt, task => task.CreatedAt + by)
 			.SetProperty(task => task.DueAt, task => task.DueAt + by), _cancellationToken);
@@ -492,6 +494,8 @@ public class DbSeederTests(VetiFlowApiFactory factory)
 			times[$"case.updated:{emergencyCase.Id}"] = emergencyCase.LastUpdated;
 			if (emergencyCase.LastOwnerUpdateAt is { } ownerUpdate) times[$"case.owner:{emergencyCase.Id}"] = ownerUpdate;
 			if (emergencyCase.DischargedAt is { } discharged) times[$"case.discharged:{emergencyCase.Id}"] = discharged;
+			if (emergencyCase.VetAssessedAt is { } assessed) times[$"case.vetAssessed:{emergencyCase.Id}"] = assessed;
+			if (emergencyCase.VetAssessmentRecordedAt is { } entered) times[$"case.vetAssessmentRecorded:{emergencyCase.Id}"] = entered;
 		}
 
 		foreach (var task in await dbContext.CaseTasks.AsNoTracking().ToListAsync(_cancellationToken))
@@ -661,6 +665,52 @@ public class DbSeederTests(VetiFlowApiFactory factory)
 			.SingleAsync(emergencyCase => emergencyCase.Id == unrelated.Id, _cancellationToken);
 		Assert.Null(unrelatedStored.DischargedAt);
 		Assert.Equal(unrelated.Stage, unrelatedStored.Stage);
+	}
+
+	// Door to doctor (2.16a): demo cases past Incoming were seen by a vet at
+	// triage; Incoming ones still wait.
+	[Fact]
+	public async Task SeedAsync_RecordsVetAssessmentsForDemoCasesPastIncoming()
+	{
+		await using var dbContext = await SeededDatabaseAsync();
+
+		var cases = await dbContext.EmergencyCases.AsNoTracking().Include(c => c.TriageAssessments).ToListAsync(_cancellationToken);
+
+		Assert.All(cases.Where(c => c.Stage != CaseStage.Incoming), c =>
+		{
+			Assert.Equal(c.TriageAssessments.Min(triage => triage.AssessedAt), c.VetAssessedAt);
+			Assert.Equal(c.VetAssessedAt, c.VetAssessmentRecordedAt);
+			Assert.NotNull(c.VetAssessedByStaffId);
+		});
+		Assert.All(cases.Where(c => c.Stage == CaseStage.Incoming), c => Assert.Null(c.VetAssessedAt));
+	}
+
+	// A database seeded before 2.16a: the extra demo fixtures past Incoming get
+	// one, once; other cases are left alone.
+	[Fact]
+	public async Task SeedAsync_BackfillsVetAssessmentsForDemoFixturesInAnExistingDatabase()
+	{
+		await using var dbContext = await SeededDatabaseAsync();
+		await dbContext.EmergencyCases.ExecuteUpdateAsync(setters => setters
+			.SetProperty(c => c.VetAssessedAt, (DateTimeOffset?)null)
+			.SetProperty(c => c.VetAssessmentRecordedAt, (DateTimeOffset?)null)
+			.SetProperty(c => c.VetAssessedByStaffId, (Guid?)null), _cancellationToken);
+		var other = TestData.Case(TestData.Patient());
+		other.Stage = CaseStage.Treatment;
+		dbContext.EmergencyCases.Add(other);
+		await dbContext.SaveChangesAsync(_cancellationToken);
+
+		await SeedTwiceAsync(dbContext);
+
+		var cases = await dbContext.EmergencyCases.AsNoTracking().Include(c => c.TriageAssessments).ToListAsync(_cancellationToken);
+		var fixtures = cases.Where(c => IsDemoCase(c.Id)).ToList();
+		Assert.All(fixtures.Where(c => c.Stage != CaseStage.Incoming), c =>
+		{
+			Assert.Equal(c.TriageAssessments.Min(triage => triage.AssessedAt), c.VetAssessedAt);
+			Assert.Equal(c.AssignedDoctorId, c.VetAssessedByStaffId);
+		});
+		Assert.All(fixtures.Where(c => c.Stage == CaseStage.Incoming), c => Assert.Null(c.VetAssessedAt));
+		Assert.Null(cases.Single(c => c.Id == other.Id).VetAssessedAt);
 	}
 
 	// The extra demo cases' fixed IDs share this prefix (DbSeeder.DemoFixtureId(1, n)).

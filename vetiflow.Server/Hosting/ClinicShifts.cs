@@ -68,6 +68,10 @@ public sealed class ClinicShifts
 		return new CurrentShift(ShiftName.Night, Instant(nightDate.ToDateTime(_nightStarts)));
 	}
 
+	// The shift immediately before this one (2.16a's "last shift"): the shift in
+	// progress just before this one started.
+	public CurrentShift Before(CurrentShift shift) => At(shift.StartedAt.AddTicks(-1));
+
 	// In UTC: Npgsql only accepts offset 0 for timestamptz parameters.
 	private DateTimeOffset Instant(DateTime localTime) =>
 		new DateTimeOffset(localTime, _timeZone.GetUtcOffset(localTime)).ToUniversalTime();

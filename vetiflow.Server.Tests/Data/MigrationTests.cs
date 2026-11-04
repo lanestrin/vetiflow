@@ -595,6 +595,36 @@ public class MigrationTests(VetiFlowApiFactory factory)
 		Assert.Null(stored.NextActionDesignatedByStaffId);
 	}
 
+	// The vet assessment (build plan 2.16a): existing cases start unassessed;
+	// nothing is inferred from an assignment, triage or stage.
+	[Fact]
+	public async Task AddVetAssessment_LeavesExistingCasesUnassessed()
+	{
+		await using var dbContext = await CreateEmptyDatabaseAsync();
+		var migrator = dbContext.GetService<IMigrator>();
+		var previous = dbContext.Database.GetMigrations().TakeWhile(name => !name.EndsWith("_AddVetAssessment", StringComparison.Ordinal)).Last();
+		await migrator.MigrateAsync(previous, _cancellationToken);
+		var patientId = Guid.NewGuid();
+		var caseId = Guid.NewGuid();
+		var now = DateTimeOffset.UtcNow;
+		await dbContext.Database.ExecuteSqlAsync($"""
+			INSERT INTO "Patients" ("Id", "Name", "Species", "AllergyStatus") VALUES ({patientId}, 'Buddy', 'Dog', 'NotRecorded');
+			INSERT INTO "EmergencyCases"
+				("Id", "PatientId", "ArrivalTime", "PresentingComplaint", "Stage", "StageEnteredAt", "Status",
+				 "LastUpdated", "OwnerUpdateStatus", "TreatmentAuthorization", "AllergyStatusAtIntake")
+			VALUES ({caseId}, {patientId}, {now}, 'Vomiting', 'Treatment', {now}, 'InProgress',
+				{now}, 'NotYetUpdated', 'NotDiscussed', 'NotRecorded');
+			""", _cancellationToken);
+
+		await migrator.MigrateAsync(cancellationToken: _cancellationToken);
+
+		var stored = await dbContext.EmergencyCases.AsNoTracking()
+			.SingleAsync(emergencyCase => emergencyCase.Id == caseId, _cancellationToken);
+		Assert.Null(stored.VetAssessedAt);
+		Assert.Null(stored.VetAssessmentRecordedAt);
+		Assert.Null(stored.VetAssessedByStaffId);
+	}
+
 	// Rows for tests that stop at an older migration: inserted with SQL, because
 	// the current model has columns that schema does not have yet.
 	private async Task<Guid> InsertStaffAsync(VetiFlowDbContext dbContext)

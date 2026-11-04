@@ -84,4 +84,12 @@ public class CaseDetailDto
 
 	// Oldest first, so it reads as the case's story.
 	public required List<CaseEventDto> Timeline { get; set; }
+
+	// The door-to-doctor milestones (2.16a): the vet assessment, the
+	// designated next action's owner, and the state the two make.
+	public VetAssessmentDto? VetAssessment { get; set; }
+
+	public NextActionOwnerDto? NextActionOwner { get; set; }
+
+	public VetMilestone VetMilestone { get; set; }
 }

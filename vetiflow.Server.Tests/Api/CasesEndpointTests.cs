@@ -1178,4 +1178,97 @@ public class CasesEndpointTests(VetiFlowApiFactory factory)
 		dbContext.EmergencyCases.AddRange(cases);
 		await dbContext.SaveChangesAsync(_cancellationToken);
 	}
+
+	// The door-to-doctor milestones (2.16a): the vet assessment and the
+	// designated next action's owner are independent; the server combines them.
+	[Theory]
+	[InlineData(false, null, "awaitingVet")]
+	[InlineData(false, StaffRole.Technician, "assessmentPending")]
+	[InlineData(true, null, "awaitingNextAction")]
+	[InlineData(true, StaffRole.Technician, "nextActionAssigned")]
+	[InlineData(true, StaffRole.Veterinarian, "nextActionAssigned")]
+	public async Task GetCases_ReportsTheVetMilestoneInTheListAndDetail(bool assessed, StaffRole? ownerRole, string expected)
+	{
+		var assessor = TestData.StaffMember(StaffRole.Veterinarian);
+		var emergencyCase = TestData.Case(TestData.Patient());
+		if (assessed)
+		{
+			emergencyCase.VetAssessedAt = DateTimeOffset.UtcNow.AddMinutes(-5);
+			emergencyCase.VetAssessmentRecordedAt = DateTimeOffset.UtcNow;
+			emergencyCase.VetAssessedByStaff = assessor;
+		}
+		StaffMember? owner = ownerRole is { } role ? TestData.StaffMember(role) : null;
+		emergencyCase.Tasks.Add(DesignatedTask(assessor, owner));
+		await SaveAsync(emergencyCase);
+		using var client = await factory.CreateSignedInClientAsync(DemoAccounts.TeamEmail);
+
+		var item = (await client.GetFromJsonAsync<JsonElement[]>("/api/cases", _cancellationToken))!
+			.Single(c => c.GetProperty("id").GetGuid() == emergencyCase.Id);
+		var detail = await client.GetFromJsonAsync<JsonElement>($"/api/cases/{emergencyCase.Id}", _cancellationToken);
+
+		foreach (var read in new[] { item, detail })
+		{
+			Assert.Equal(expected, read.GetProperty("vetMilestone").GetString());
+			Assert.Equal(assessed, read.GetProperty("vetAssessment").ValueKind == JsonValueKind.Object);
+			var readOwner = read.GetProperty("nextActionOwner");
+			if (owner is null)
+			{
+				Assert.Equal(JsonValueKind.Null, readOwner.ValueKind);
+			}
+			else
+			{
+				Assert.Equal(owner.Id, readOwner.GetProperty("id").GetGuid());
+				Assert.Equal(ownerRole == StaffRole.Technician ? "technician" : "veterinarian", readOwner.GetProperty("role").GetString());
+			}
+		}
+		if (assessed)
+		{
+			Assert.Equal(assessor.Id, detail.GetProperty("vetAssessment").GetProperty("recordedBy").GetProperty("id").GetGuid());
+		}
+	}
+
+	// A designation with no owner, or an owner who is neither technician nor
+	// veterinarian, is no handoff yet.
+	[Theory]
+	[InlineData(null)]
+	[InlineData(StaffRole.Receptionist)]
+	public async Task GetCase_CountsADesignationWithoutATechnicianOrVetOwnerAsNoNextAction(StaffRole? ownerRole)
+	{
+		var staff = TestData.StaffMember(StaffRole.Veterinarian);
+		var emergencyCase = TestData.Case(TestData.Patient());
+		emergencyCase.VetAssessedAt = DateTimeOffset.UtcNow.AddMinutes(-5);
+		emergencyCase.VetAssessmentRecordedAt = DateTimeOffset.UtcNow;
+		emergencyCase.VetAssessedByStaff = staff;
+		emergencyCase.Tasks.Add(DesignatedTask(staff, ownerRole is { } role ? TestData.StaffMember(role) : null));
+		await SaveAsync(emergencyCase);
+		using var client = await factory.CreateSignedInClientAsync(DemoAccounts.TeamEmail);
+
+		var detail = await client.GetFromJsonAsync<JsonElement>($"/api/cases/{emergencyCase.Id}", _cancellationToken);
+
+		Assert.Equal("awaitingNextAction", detail.GetProperty("vetMilestone").GetString());
+		Assert.Equal(JsonValueKind.Null, detail.GetProperty("nextActionOwner").ValueKind);
+	}
+
+	[Fact]
+	public async Task GetCase_ReportsTheVetMilestoneForADischargedCase()
+	{
+		var emergencyCase = TestData.Case(TestData.Patient());
+		emergencyCase.DischargedAt = DateTimeOffset.UtcNow;
+		await SaveAsync(emergencyCase);
+		using var client = await factory.CreateSignedInClientAsync(DemoAccounts.TeamEmail);
+
+		var detail = await client.GetFromJsonAsync<JsonElement>($"/api/cases/{emergencyCase.Id}", _cancellationToken);
+
+		Assert.Equal("awaitingVet", detail.GetProperty("vetMilestone").GetString());
+	}
+
+	private static CaseTask DesignatedTask(StaffMember designator, StaffMember? owner)
+	{
+		var task = TestData.Task();
+		task.IsNextAction = true;
+		task.NextActionDesignatedAt = DateTimeOffset.UtcNow;
+		task.NextActionDesignatedByStaff = designator;
+		task.AssignedToStaff = owner;
+		return task;
+	}
 }

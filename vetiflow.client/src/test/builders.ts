@@ -37,6 +37,9 @@ export function buildCase(
     waitChip: "minutes",
     blockers: [],
     lastUpdated: new Date().toISOString(),
+    vetAssessment: null,
+    nextActionOwner: null,
+    vetMilestone: "awaitingVet",
     ...overrides
   };
 }
@@ -90,6 +93,9 @@ export function buildCaseDetail(overrides: Partial<CaseDetail> = {}): CaseDetail
     latestPainScore: null,
     tasks: [],
     nextActionTaskId: null,
+    vetAssessment: null,
+    nextActionOwner: null,
+    vetMilestone: "awaitingVet",
     nextReassessment: null,
     nextClientUpdate: null,
     timeline: [],
@@ -192,6 +198,11 @@ export function buildBoardSummary(overrides: Partial<BoardSummary> = {}): BoardS
     oldestAwaitingTriageArrivedAt: null,
     criticalPatients: 0,
     criticalWithoutCareTeam: 0,
+    doorToDoctor: {
+      currentShift: { averageMinutes: null, assessed: 0 },
+      previousShift: { averageMinutes: null, assessed: 0 },
+      waiting: 0
+    },
     ...overrides
   };
 }

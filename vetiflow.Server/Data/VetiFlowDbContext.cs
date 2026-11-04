@@ -78,6 +78,12 @@ public class VetiFlowDbContext : DbContext
 					.HasFilter("\"DischargedAt\" IS NULL AND \"RoomId\" IS NOT NULL")
 					.HasDatabaseName("IX_EmergencyCases_RoomId_Active");
 
+			// The vet assessment's time, entry time and assessor are set together (2.16a).
+			emergencyCase.ToTable(table => table.HasCheckConstraint(
+					"CK_EmergencyCases_VetAssessmentRecorded",
+					"(\"VetAssessedAt\" IS NULL AND \"VetAssessmentRecordedAt\" IS NULL AND \"VetAssessedByStaffId\" IS NULL) OR " +
+					"(\"VetAssessedAt\" IS NOT NULL AND \"VetAssessmentRecordedAt\" IS NOT NULL AND \"VetAssessedByStaffId\" IS NOT NULL)"));
+
 			// An intake records allergy text as unverified, or nothing (4.12a).
 			emergencyCase.ToTable(table => table.HasCheckConstraint(
 					"CK_EmergencyCases_AllergyStatusAtIntake",

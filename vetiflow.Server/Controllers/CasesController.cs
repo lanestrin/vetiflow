@@ -132,6 +132,24 @@ public class CasesController : ControllerBase
 							RecordedAt = painScore.RecordedAt
 						})
 						.FirstOrDefault(),
+					VetAssessment = emergencyCase.VetAssessedAt == null
+						? null
+						: new VetAssessmentDto
+						{
+							OccurredAt = emergencyCase.VetAssessedAt.Value,
+							RecordedAt = emergencyCase.VetAssessmentRecordedAt!.Value,
+							RecordedBy = emergencyCase.VetAssessedByStaff == null
+								? null
+								: new CaseReferenceDto
+								{
+									Id = emergencyCase.VetAssessedByStaff.Id,
+									Name = emergencyCase.VetAssessedByStaff.FirstName + " " + emergencyCase.VetAssessedByStaff.LastName
+								}
+						},
+					NextActionOwner = emergencyCase.Tasks.AsQueryable()
+						.Where(NextActionOwnerDto.IsOwnedNextAction)
+						.Select(NextActionOwnerDto.FromTask)
+						.FirstOrDefault(),
 					LastUpdated = emergencyCase.LastUpdated
 				})
 				.ToListAsync();
@@ -140,6 +158,7 @@ public class CasesController : ControllerBase
 		foreach (var item in cases)
 		{
 			item.WaitChip = WaitChipRule.For(item.Acuity, item.Status, item.Stage);
+			item.VetMilestone = VetMilestones.For(item.VetAssessment is not null, item.NextActionOwner is not null);
 		}
 
 		return Ok(cases);
@@ -291,6 +310,24 @@ public class CasesController : ControllerBase
 								}
 						})
 						.FirstOrDefault(),
+					VetAssessment = emergencyCase.VetAssessedAt == null
+						? null
+						: new VetAssessmentDto
+						{
+							OccurredAt = emergencyCase.VetAssessedAt.Value,
+							RecordedAt = emergencyCase.VetAssessmentRecordedAt!.Value,
+							RecordedBy = emergencyCase.VetAssessedByStaff == null
+								? null
+								: new CaseReferenceDto
+								{
+									Id = emergencyCase.VetAssessedByStaff.Id,
+									Name = emergencyCase.VetAssessedByStaff.FirstName + " " + emergencyCase.VetAssessedByStaff.LastName
+								}
+						},
+					NextActionOwner = emergencyCase.Tasks.AsQueryable()
+						.Where(NextActionOwnerDto.IsOwnedNextAction)
+						.Select(NextActionOwnerDto.FromTask)
+						.FirstOrDefault(),
 					NextActionTaskId = emergencyCase.Tasks
 						.Where(task => task.IsNextAction)
 						.Select(task => (Guid?)task.Id)
@@ -366,6 +403,8 @@ public class CasesController : ControllerBase
 		{
 			return NotFound();
 		}
+
+		detail.VetMilestone = VetMilestones.For(detail.VetAssessment is not null, detail.NextActionOwner is not null);
 
 		foreach (var vitals in detail.Vitals)
 		{

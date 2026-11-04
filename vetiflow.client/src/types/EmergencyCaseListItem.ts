@@ -62,7 +62,31 @@ export interface EmergencyCaseListItem {
   // Open blockers only, oldest first.
   blockers: CaseBlocker[];
   lastUpdated: string;
+  // The door-to-doctor milestones (2.16a), worked out on the server.
+  vetAssessment: VetAssessment | null;
+  nextActionOwner: NextActionOwner | null;
+  vetMilestone: VetMilestone;
 }
+
+// The initial veterinarian assessment: when it happened, when it was entered
+// and by whom (2.16a).
+export interface VetAssessment {
+  occurredAt: string;
+  recordedAt: string;
+  recordedBy: CaseReference | null;
+}
+
+// The designated Next Care Action's owner: a technician handoff, or a vet
+// handling it personally ("Vet owned").
+export interface NextActionOwner {
+  id: string;
+  name: string;
+  role: "technician" | "veterinarian";
+}
+
+// The two milestones combined: no assessment or owner; "Task assigned · Vet
+// assessment pending"; "Awaiting vet next action"; both recorded.
+export type VetMilestone = "awaitingVet" | "assessmentPending" | "awaitingNextAction" | "nextActionAssigned";
 
 // A staff member on a case.
 export interface CaseReference {
