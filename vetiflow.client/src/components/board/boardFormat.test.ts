@@ -3,6 +3,10 @@ import { buildBoardSummary, buildCase } from "../../test/builders";
 import {
   ageLabel,
   caseStatusLabel,
+  doorToDoctorChangeSentence,
+  doorToDoctorChipLabel,
+  doorToDoctorChipName,
+  isAwaitingVet,
   isCriticalWithoutVet,
   matchesMenuFilters,
   matchesSearch,
@@ -238,5 +242,42 @@ describe("matchesUnassigned", () => {
     expect(matchesUnassigned(buildCase({ assignedTechnician: null, assignedDoctor: vet }))).toBe(true);
     expect(matchesUnassigned(buildCase({ assignedTechnician: tech, assignedDoctor: null }))).toBe(true);
     expect(matchesUnassigned(buildCase({ assignedTechnician: null, assignedDoctor: null }))).toBe(true);
+  });
+});
+
+describe("door to doctor", () => {
+  function summaryWith(current: number | null, previous: number | null) {
+    return buildBoardSummary({
+      doorToDoctor: {
+        currentShift: { averageMinutes: current, assessed: current === null ? 0 : 4 },
+        previousShift: { averageMinutes: previous, assessed: previous === null ? 0 : 6 },
+        waiting: 2
+      }
+    });
+  }
+
+  it.each([
+    [14, 18, "Door to doctor · 14 min ↓4", "Door to doctor, 14 minutes this shift, 4 minutes faster than last shift", "4 min faster than last shift"],
+    [21, 18, "Door to doctor · 21 min ↑3", "Door to doctor, 21 minutes this shift, 3 minutes slower than last shift", "3 min slower than last shift"],
+    [18, 18, "Door to doctor · 18 min =", "Door to doctor, 18 minutes this shift, same as last shift", "Same as last shift"],
+    [1, 2, "Door to doctor · 1 min ↓1", "Door to doctor, 1 minute this shift, 1 minute faster than last shift", "1 min faster than last shift"],
+    [14, null, "Door to doctor · 14 min", "Door to doctor, 14 minutes this shift", null],
+    [null, 18, "Door to doctor · —", "Door to doctor, no assessments yet this shift", null]
+  ] as const)("shows %s min this shift against %s last shift", (current, previous, label, name, sentence) => {
+    const summary = summaryWith(current, previous);
+
+    expect(doorToDoctorChipLabel(summary)).toBe(label);
+    expect(doorToDoctorChipName(summary)).toBe(name);
+    expect(doorToDoctorChangeSentence(summary)).toBe(sentence);
+  });
+});
+
+describe("isAwaitingVet", () => {
+  it("counts a case with no recorded vet assessment, whatever its next action", () => {
+    const assessment = { occurredAt: now.toISOString(), recordedAt: now.toISOString(), recordedBy: { id: "v1", name: "Jordan Lee" } };
+
+    expect(isAwaitingVet(buildCase({ vetAssessment: null, vetMilestone: "awaitingVet" }))).toBe(true);
+    expect(isAwaitingVet(buildCase({ vetAssessment: null, vetMilestone: "assessmentPending" }))).toBe(true);
+    expect(isAwaitingVet(buildCase({ vetAssessment: assessment, vetMilestone: "awaitingNextAction" }))).toBe(false);
   });
 });

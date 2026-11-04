@@ -158,3 +158,65 @@ export function shiftChipLabel(summary: BoardSummary): string {
     : `${summary.cliniciansOnFloor} clinicians on floor`;
   return `${shift} · ${clinicians}`;
 }
+
+// Door to doctor (build plan 2.16b): this shift's average minus last shift's,
+// in minutes; null unless both shifts have an average.
+export function doorToDoctorChange(summary: BoardSummary): number | null {
+  const { currentShift, previousShift } = summary.doorToDoctor;
+  if (currentShift.averageMinutes === null || previousShift.averageMinutes === null) {
+    return null;
+  }
+
+  return currentShift.averageMinutes - previousShift.averageMinutes;
+}
+
+function changeMark(change: number): string {
+  if (change < 0) return `↓${-change}`;
+  if (change > 0) return `↑${change}`;
+  return "=";
+}
+
+// The heading chip's text: "Door to doctor · 14 min ↓4", or "· —" before
+// anyone has been assessed this shift.
+export function doorToDoctorChipLabel(summary: BoardSummary): string {
+  const average = summary.doorToDoctor.currentShift.averageMinutes;
+  if (average === null) {
+    return "Door to doctor · —";
+  }
+
+  const change = doorToDoctorChange(summary);
+  return `Door to doctor · ${average} min${change === null ? "" : ` ${changeMark(change)}`}`;
+}
+
+function minutesText(minutes: number): string {
+  return minutes === 1 ? "1 minute" : `${minutes} minutes`;
+}
+
+// The change in words, never by arrow or colour alone: "4 min faster than
+// last shift". Null without both averages.
+export function doorToDoctorChangeSentence(summary: BoardSummary): string | null {
+  const change = doorToDoctorChange(summary);
+  if (change === null) return null;
+  if (change === 0) return "Same as last shift";
+  return `${Math.abs(change)} min ${change < 0 ? "faster" : "slower"} than last shift`;
+}
+
+// The chip's accessible name, with the arrow spelled out.
+export function doorToDoctorChipName(summary: BoardSummary): string {
+  const average = summary.doorToDoctor.currentShift.averageMinutes;
+  if (average === null) {
+    return "Door to doctor, no assessments yet this shift";
+  }
+
+  const change = doorToDoctorChange(summary);
+  const changeText = change === null ? ""
+    : change === 0 ? ", same as last shift"
+    : `, ${minutesText(Math.abs(change))} ${change < 0 ? "faster" : "slower"} than last shift`;
+  return `Door to doctor, ${minutesText(average)} this shift${changeText}`;
+}
+
+// Show waiting patients (2.16b): no vet assessment recorded yet, the same
+// patients the summary counts as waiting.
+export function isAwaitingVet(emergencyCase: EmergencyCaseListItem): boolean {
+  return emergencyCase.vetAssessment === null;
+}

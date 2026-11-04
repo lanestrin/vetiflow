@@ -1,0 +1,123 @@
+// The Door to first doctor details (2.16b), in the board heading's colours.
+.dialog {
+	width: min(100% - 2rem, 26rem);
+	padding: 0;
+	border: 0;
+	border-radius: 14px;
+	background: var(--color-surface);
+	color: var(--color-shell-ink);
+	box-shadow: 0 1.5rem 3.5rem rgb(26 46 64 / 22%);
+
+	&[open] {
+		animation: dialog-in var(--motion-base) var(--ease-out);
+	}
+
+	&::backdrop {
+		background: rgb(25 60 57 / 55%);
+	}
+}
+
+@keyframes dialog-in {
+	from {
+		opacity: 0;
+		transform: translateY(0.5rem);
+	}
+}
+
+.inner {
+	padding: 1.5rem;
+}
+
+.title {
+	margin: 0 0 1rem;
+	font-size: 1.125rem;
+	font-weight: 800;
+	letter-spacing: -0.02em;
+}
+
+.shifts {
+	display: grid;
+	gap: 0.625rem;
+	margin: 0;
+}
+
+.shift {
+	display: grid;
+	gap: 0.125rem;
+
+	dt {
+		color: var(--color-shell-muted);
+		font-size: 0.75rem;
+		font-weight: 700;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+	}
+
+	dd {
+		margin: 0;
+		font-size: 0.9375rem;
+		font-weight: 600;
+	}
+}
+
+.change {
+	margin: 0.875rem 0 0;
+	font-size: 0.875rem;
+	font-weight: 700;
+}
+
+.waiting {
+	margin: 0.875rem 0 0;
+	padding-top: 0.875rem;
+	border-top: 1px solid #e3ecec;
+	font-size: 0.9375rem;
+}
+
+.note {
+	margin: 0.5rem 0 0;
+	color: var(--color-shell-muted);
+	font-size: 0.75rem;
+	line-height: 1.5;
+}
+
+.actions {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: flex-end;
+	gap: 0.625rem;
+	margin-top: 1.25rem;
+}
+
+.primary,
+.secondary {
+	min-height: 2.75rem;
+	padding-inline: 1rem;
+	border-radius: 10px;
+	font: inherit;
+	font-size: 0.875rem;
+	font-weight: 700;
+	cursor: pointer;
+
+	&:focus-visible {
+		outline: var(--focus-outline-width) solid var(--color-focus-on-light);
+		outline-offset: 2px;
+	}
+}
+
+.primary {
+	border: 0;
+	background: var(--color-care-teal);
+	color: var(--color-text-inverse);
+}
+
+.secondary {
+	border: 1px solid #dbe6e5;
+	background: var(--color-surface);
+	color: var(--color-shell-ink);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.dialog[open] {
+		animation: none;
+	}
+}
