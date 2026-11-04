@@ -1,13 +1,15 @@
 import { useId } from "react";
 import type { BoardSummary } from "../../types/BoardSummary";
 import type { DemoRole } from "../shell/demoRoleContext";
-import { shiftChipLabel } from "./boardFormat";
+import { doorToDoctorChipLabel, doorToDoctorChipName, shiftChipLabel } from "./boardFormat";
 import styles from "./BoardHeading.module.scss";
 
 interface BoardHeadingProps {
   // Null while the summary is unavailable; keep the board heading and intake.
   summary: BoardSummary | null;
   onIntake: () => void;
+  // Opens the Door to first doctor details (2.16b).
+  onDoorToDoctor: () => void;
   // The Demo role switch (2.28) and who that role acts as ("J. Lee").
   demoRole: DemoRole;
   demoIdentity: string;
@@ -16,8 +18,8 @@ interface BoardHeadingProps {
 
 // The prototype's compact .workspace-header (header.png, 2.26b): the bell and
 // signed-in user stay in the top bar; the demo-role row sits under the title
-// (2.28).
-export function BoardHeading({ summary, onIntake, demoRole, demoIdentity, onDemoRoleChange }: BoardHeadingProps) {
+// (2.28). Door to doctor sits beside the shift status (2.16b).
+export function BoardHeading({ summary, onIntake, onDoorToDoctor, demoRole, demoIdentity, onDemoRoleChange }: BoardHeadingProps) {
   const roleId = useId();
   return (
     <header className={styles.heading}>
@@ -43,6 +45,12 @@ export function BoardHeading({ summary, onIntake, demoRole, demoIdentity, onDemo
             <span className={styles.live} aria-hidden="true" />
             {shiftChipLabel(summary)}
           </p>
+        )}
+        {summary && (
+          <button type="button" className={styles.doorToDoctor} aria-label={doorToDoctorChipName(summary)}
+            aria-haspopup="dialog" onClick={onDoorToDoctor}>
+            {doorToDoctorChipLabel(summary)}
+          </button>
         )}
         <button type="button" className={styles.intakeButton} onClick={onIntake}>
           <span aria-hidden="true">＋ </span>New intake

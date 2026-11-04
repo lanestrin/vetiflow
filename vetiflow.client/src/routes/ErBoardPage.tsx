@@ -4,7 +4,8 @@ import type { SignInRouteState } from "../components/auth/experienceHome";
 import { BoardHeading } from "../components/board/BoardHeading";
 import { BoardStats, type BoardFilter } from "../components/board/BoardStats";
 import { PatientFlowBoard } from "../components/board/PatientFlowBoard";
-import { isCriticalWithoutVet } from "../components/board/boardFormat";
+import { isAwaitingVet, isCriticalWithoutVet } from "../components/board/boardFormat";
+import { DoorToDoctorDialog } from "../components/board/DoorToDoctorDialog";
 import { IntakeDialog, type IntakeAssignment } from "../components/intake/IntakeDialog";
 import { PatientOverviewPanel } from "../components/overview/PatientOverviewPanel";
 import { RecordDrawer } from "../components/overview/RecordDrawer";
@@ -84,6 +85,7 @@ export function ErBoardPage() {
   // Selected once the first load shows the case is still on the board.
   const arrivalCaseId = useRef(selectedOnArrival(location.state));
   const [isIntakeOpen, setIsIntakeOpen] = useState(false);
+  const [isDoorToDoctorOpen, setIsDoorToDoctorOpen] = useState(false);
   const showToast = useToast();
   // Shared with the top bar inside the shell; the page's own outside it.
   const shellSearch = useShellSearch();
@@ -177,7 +179,7 @@ export function ErBoardPage() {
     void reloadCases.current();
   }
 
-  // The stats filter the board (2.12b, 2.26a). An empty triage queue, or no
+  // The stats, and Door to doctor's Show waiting patients (2.16b), filter the board (2.12b, 2.26a). An empty triage queue, or no
   // critical patient without a vet, keeps the board as it is, as in the prototype.
   function chooseFilter(chosen: BoardFilter) {
     if (chosen === "awaitingTriage" && summary?.awaitingTriage === 0) {
@@ -187,6 +189,11 @@ export function ErBoardPage() {
 
     if (chosen === "criticalWithoutVet" && !cases.some(isCriticalWithoutVet)) {
       showToast("No critical patients without a veterinarian");
+      return;
+    }
+
+    if (chosen === "awaitingVet" && !cases.some(isAwaitingVet)) {
+      showToast("No patients waiting for a vet");
       return;
     }
 
@@ -250,7 +257,7 @@ export function ErBoardPage() {
     <main className={styles.page}>
       {pageTitle}
       {error && <p role="alert">{error}</p>}
-      <BoardHeading summary={summary} onIntake={() => setIsIntakeOpen(true)}
+      <BoardHeading summary={summary} onIntake={() => setIsIntakeOpen(true)} onDoorToDoctor={() => setIsDoorToDoctorOpen(true)}
         demoRole={demoRole} demoIdentity={demoIdentity.label} onDemoRoleChange={changeDemoRole} />
 
       <BoardStats summary={summary} criticalWithoutVet={cases.filter(isCriticalWithoutVet).length} filter={filter} onFilter={chooseFilter} />
@@ -274,6 +281,18 @@ export function ErBoardPage() {
       </div>
 
       {isDrawerLayout && selectedCaseId !== null && <RecordDrawer onClose={closeRecord}>{record}</RecordDrawer>}
+
+      {summary && (
+        <DoorToDoctorDialog
+          isOpen={isDoorToDoctorOpen}
+          summary={summary}
+          onShowWaiting={() => {
+            setIsDoorToDoctorOpen(false);
+            chooseFilter("awaitingVet");
+          }}
+          onClose={() => setIsDoorToDoctorOpen(false)}
+        />
+      )}
 
       <IntakeDialog
         isOpen={isIntakeOpen}

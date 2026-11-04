@@ -126,8 +126,9 @@
 	align-items: center;
 	gap: 10px;
 
+	// The Door to doctor chip wraps onto its own line rather than squeezing
+	// New intake (2.16b).
 	@media (max-width: 700px) {
-		flex-wrap: nowrap;
 		justify-content: space-between;
 		width: 100%;
 	}
@@ -150,6 +151,36 @@
 	border-radius: 50%;
 	background: var(--color-board-live);
 	box-shadow: 0 0 0 3px #dff5ee;
+}
+
+// Door to doctor (2.16b): the shift status's muted text, as a pill button
+// that opens the details.
+.doorToDoctor {
+	min-height: 32px;
+	padding: 6px 12px;
+	border: 1px solid #dbe6e5;
+	border-radius: 999px;
+	background: var(--color-surface);
+	color: var(--color-shell-ink);
+	font: inherit;
+	font-size: .75rem;
+	font-weight: 600;
+	white-space: nowrap;
+	cursor: pointer;
+
+	&:hover {
+		border-color: var(--color-care-teal);
+	}
+
+	&:focus-visible {
+		outline: var(--focus-outline-width) solid var(--color-focus-on-light);
+		outline-offset: 2px;
+	}
+
+	@media (max-width: 700px) {
+		order: 3;
+		min-height: 44px;
+	}
 }
 
 .intakeButton {

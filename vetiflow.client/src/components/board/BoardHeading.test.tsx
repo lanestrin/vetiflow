@@ -4,7 +4,7 @@ import { buildBoardSummary } from "../../test/builders";
 import { BoardHeading } from "./BoardHeading";
 
 // The Demo role row's props (2.28), the Veterinarian view.
-const demoProps = { demoRole: "veterinarian" as const, demoIdentity: "J. Lee", onDemoRoleChange: vi.fn() };
+const demoProps = { demoRole: "veterinarian" as const, demoIdentity: "J. Lee", onDemoRoleChange: vi.fn(), onDoorToDoctor: vi.fn() };
 
 describe("BoardHeading", () => {
   it("shows the clinic, title, shift status and New intake without a subtitle", () => {
@@ -40,5 +40,39 @@ describe("BoardHeading", () => {
     fireEvent.click(screen.getByRole("button", { name: "New intake" }));
 
     expect(onIntake).toHaveBeenCalledOnce();
+  });
+
+  it("shows door to doctor beside the shift status, with the change spelled out", () => {
+    render(
+      <BoardHeading
+        summary={buildBoardSummary({
+          doorToDoctor: {
+            currentShift: { averageMinutes: 14, assessed: 4 },
+            previousShift: { averageMinutes: 18, assessed: 6 },
+            waiting: 2
+          }
+        })}
+        onIntake={vi.fn()}
+        {...demoProps}
+      />
+    );
+
+    const chip = screen.getByRole("button", { name: "Door to doctor, 14 minutes this shift, 4 minutes faster than last shift" });
+    expect(chip).toHaveTextContent("Door to doctor · 14 min ↓4");
+  });
+
+  it("leaves out door to doctor while the summary is unavailable", () => {
+    render(<BoardHeading summary={null} onIntake={vi.fn()} {...demoProps} />);
+
+    expect(screen.queryByRole("button", { name: /Door to doctor/ })).not.toBeInTheDocument();
+  });
+
+  it("asks for the door to doctor details from the chip", () => {
+    const onDoorToDoctor = vi.fn();
+    render(<BoardHeading summary={buildBoardSummary()} onIntake={vi.fn()} {...demoProps} onDoorToDoctor={onDoorToDoctor} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Door to doctor, no assessments yet this shift" }));
+
+    expect(onDoorToDoctor).toHaveBeenCalledOnce();
   });
 });

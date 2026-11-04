@@ -737,6 +737,65 @@ describe("ErBoardPage", () => {
   });
 
   // The stats strip (build plan 2.12b, 2.26a).
+  describe("door to doctor", () => {
+    const assessment = { occurredAt: new Date().toISOString(), recordedAt: new Date().toISOString(), recordedBy: null };
+    const doorToDoctor = {
+      currentShift: { averageMinutes: 14, assessed: 2 },
+      previousShift: { averageMinutes: 18, assessed: 5 },
+      waiting: 1
+    };
+
+    it("opens the details from the heading chip", async () => {
+      serveCases([buildCase({ patientName: "Milo" })]);
+      serveSummary(buildBoardSummary({ doorToDoctor }));
+      renderBoard();
+      await screen.findByRole("button", { name: "Milo" });
+
+      fireEvent.click(screen.getByRole("button", { name: /^Door to doctor, 14 minutes this shift/ }));
+
+      const dialog = screen.getByRole("dialog", { name: "Door to first doctor" });
+      expect(dialog).toHaveTextContent("14 min average · 2 patients assessed");
+      expect(dialog).toHaveTextContent("4 min faster than last shift");
+      expect(dialog).toHaveTextContent("1 patient waiting for a vet assessment");
+    });
+
+    it("shows the waiting patients on the board, until In care is pressed", async () => {
+      serveCases([
+        buildCase({ patientName: "Milo", vetAssessment: null }),
+        buildCase({ patientName: "Nori", vetAssessment: assessment, vetMilestone: "awaitingNextAction" })
+      ]);
+      serveSummary(buildBoardSummary({ patientsInCare: 2, doorToDoctor }));
+      renderBoard();
+      await screen.findByRole("button", { name: "Milo" });
+
+      fireEvent.click(screen.getByRole("button", { name: /^Door to doctor/ }));
+      fireEvent.click(screen.getByRole("button", { name: "Show waiting patients" }));
+
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      expect(shownNames()).toEqual(["Milo"]);
+      expect(screen.getByText("Showing 1 of 2 active patients · waiting for a vet assessment")).toBeInTheDocument();
+      expect(statCard(/^In care/)).toHaveAttribute("aria-pressed", "false");
+
+      fireEvent.click(statCard(/^In care/));
+
+      expect(shownNames()).toEqual(["Milo", "Nori"]);
+    });
+
+    it("says so and keeps the board when nobody is waiting for a vet", async () => {
+      serveCases([buildCase({ patientName: "Nori", vetAssessment: assessment, vetMilestone: "awaitingNextAction" })]);
+      serveSummary(buildBoardSummary({ patientsInCare: 1, doorToDoctor: { ...doorToDoctor, waiting: 0 } }));
+      renderBoard();
+      await screen.findByRole("button", { name: "Nori" });
+
+      fireEvent.click(screen.getByRole("button", { name: /^Door to doctor/ }));
+      fireEvent.click(screen.getByRole("button", { name: "Show waiting patients" }));
+
+      expect(screen.getByRole("status")).toHaveTextContent("No patients waiting for a vet");
+      expect(statCard(/^In care/)).toHaveAttribute("aria-pressed", "true");
+      expect(shownNames()).toEqual(["Nori"]);
+    });
+  });
+
   describe("stats strip", () => {
     const boardCases = () => [
       buildCase({ patientName: "Toby", acuity: "urgent", stage: "incoming" }),

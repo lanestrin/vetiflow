@@ -131,6 +131,18 @@ describe("PatientFlowBoard", () => {
       expect(shownNames()).toEqual(["Nori"]);
       expect(screen.getByText("Showing 1 of 3 active patients · critical without a veterinarian")).toBeInTheDocument();
     });
+
+    it("shows only patients waiting for a vet assessment", () => {
+      const assessment = { occurredAt: new Date().toISOString(), recordedAt: new Date().toISOString(), recordedBy: null };
+      renderBoard([
+        buildCase({ patientName: "Nori", vetAssessment: null }),
+        buildCase({ patientName: "Milo", vetAssessment: assessment }),
+        buildCase({ patientName: "Toby", vetAssessment: null, vetMilestone: "assessmentPending" })
+      ], new Date(), "awaitingVet");
+
+      expect(shownNames()).toEqual(["Nori", "Toby"]);
+      expect(screen.getByText("Showing 2 of 3 active patients · waiting for a vet assessment")).toBeInTheDocument();
+    });
   });
 
   // The top bar's search (build plan 2.14a).

@@ -1,8 +1,9 @@
 import type { BoardSummary } from "../../types/BoardSummary";
 import styles from "./BoardStats.module.scss";
 
-// What the stats strip's stats show on the board (build plan 2.12b, 2.26a).
-export type BoardFilter = "all" | "awaitingTriage" | "critical" | "criticalWithoutVet";
+// What the stats strip's stats show on the board (build plan 2.12b, 2.26a),
+// and Door to doctor's Show waiting patients (2.16b).
+export type BoardFilter = "all" | "awaitingTriage" | "critical" | "criticalWithoutVet" | "awaitingVet";
 
 interface BoardStatsProps {
   // Null while the summary could not be loaded; the board still shows.
@@ -14,7 +15,7 @@ interface BoardStatsProps {
 }
 
 // The prototype's compact stats strip (#stats, build plan 2.26a): a number and
-// a label per stat, each filtering the board. Door to doctor follows in 2.16b.
+// a label per stat, each filtering the board. Door to doctor is in the heading (2.16b).
 export function BoardStats({ summary, criticalWithoutVet, filter, onFilter }: BoardStatsProps) {
   const stats: { key: BoardFilter; label: string; value: number | undefined; isAlert?: boolean }[] = [
     { key: "all", label: "In care", value: summary?.patientsInCare },

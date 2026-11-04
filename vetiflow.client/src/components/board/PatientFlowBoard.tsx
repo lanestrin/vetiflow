@@ -5,6 +5,7 @@ import type { DemoIdentity } from "./useDemoIdentity";
 import type { BoardFilter } from "./BoardStats";
 import { BoardFilterMenu } from "./BoardFilterMenu";
 import {
+  isAwaitingVet,
   isCriticalWithoutVet,
   matchesMenuFilters,
   matchesSearch,
@@ -92,7 +93,8 @@ const filterNotes: Record<BoardFilter, string> = {
   all: "",
   awaitingTriage: " · awaiting triage · initial priority is provisional",
   critical: " · critical only",
-  criticalWithoutVet: " · critical without a veterinarian"
+  criticalWithoutVet: " · critical without a veterinarian",
+  awaitingVet: " · waiting for a vet assessment"
 };
 
 // The footer count (2.26a): matching active patients out of all active
@@ -108,6 +110,7 @@ function matchesStatFilter(emergencyCase: EmergencyCaseListItem, filter: BoardFi
     case "awaitingTriage": return emergencyCase.stage === "incoming";
     case "critical": return emergencyCase.acuity === "critical";
     case "criticalWithoutVet": return isCriticalWithoutVet(emergencyCase);
+    case "awaitingVet": return isAwaitingVet(emergencyCase);
     case "all": return true;
   }
 }
